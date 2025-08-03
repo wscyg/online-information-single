@@ -1,0 +1,4113 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>第8章：长短期记忆网络LSTM - 让神经网络学会遗忘与记忆 | 深度学习序列建模</title>
+    <meta name="description" content="通过交互式可视化深入理解LSTM的精妙设计，一步步推导门控机制的数学原理">
+
+    <!-- 外部依赖 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+
+    <style>
+        /* ===== CSS变量定义 ===== */
+        :root {
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --lstm-gradient: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+            --forget-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            --input-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            --output-gradient: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+            --cell-gradient: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+            --bg-dark: #0f172a;
+            --bg-section: #1e293b;
+            --text-primary: #f1f5f9;
+            --text-secondary: #cbd5e1;
+            --text-muted: #94a3b8;
+            --accent-red: #ef4444;
+            --accent-green: #22c55e;
+            --accent-blue: #3b82f6;
+            --accent-yellow: #fbbf24;
+            --accent-purple: #8b5cf6;
+            --accent-pink: #ec4899;
+            --accent-orange: #f97316;
+            --accent-cyan: #06b6d4;
+            --border-color: rgba(255, 255, 255, 0.1);
+            --shadow-lg: 0 10px 40px rgba(0, 0, 0, 0.3);
+            --animation-duration: 0.3s;
+            --content-max-width: 1400px;
+        }
+
+        /* ===== 全局样式 ===== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            line-height: 1.6;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* ===== 背景动画 ===== */
+        .bg-animation {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            overflow: hidden;
+            z-index: -1;
+        }
+
+        .bg-particle {
+            position: absolute;
+            width: 2px;
+            height: 2px;
+            background: rgba(168, 237, 234, 0.5);
+            border-radius: 50%;
+            animation: float 20s infinite linear;
+        }
+
+        @keyframes float {
+            from {
+                transform: translateY(100vh) translateX(0);
+            }
+            to {
+                transform: translateY(-100px) translateX(100px);
+            }
+        }
+
+        /* ===== 布局组件 ===== */
+        .container {
+            max-width: var(--content-max-width);
+            margin: 0 auto;
+            padding: 0 1rem;
+            position: relative;
+        }
+
+        /* ===== 导航栏 ===== */
+        .nav-header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(10px);
+            z-index: 1000;
+            border-bottom: 1px solid var(--border-color);
+            transition: transform 0.3s ease;
+        }
+
+        .nav-header.hidden {
+            transform: translateY(-100%);
+        }
+
+        .nav-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1rem 0;
+        }
+
+        .nav-title h1 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            background: var(--lstm-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .nav-progress {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: var(--lstm-gradient);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        /* ===== 侧边导航 ===== */
+        .sidebar {
+            position: fixed;
+            left: -300px;
+            top: 60px;
+            bottom: 0;
+            width: 300px;
+            background: var(--bg-section);
+            border-right: 1px solid var(--border-color);
+            padding: 2rem;
+            overflow-y: auto;
+            transition: transform 0.3s ease;
+            z-index: 999;
+        }
+
+        .sidebar.open {
+            transform: translateX(300px);
+        }
+
+        .toc-item {
+            display: block;
+            padding: 0.75rem 1rem;
+            color: var(--text-secondary);
+            text-decoration: none;
+            border-radius: 0.5rem;
+            transition: all var(--animation-duration) ease;
+            margin-bottom: 0.25rem;
+        }
+
+        .toc-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-primary);
+            transform: translateX(4px);
+        }
+
+        .toc-item.active {
+            background: var(--lstm-gradient);
+            color: #0f172a;
+        }
+
+        /* ===== 主内容 ===== */
+        main {
+            margin-top: 80px;
+            padding-bottom: 4rem;
+        }
+
+        /* ===== 章节标题 ===== */
+        .chapter-hero {
+            background: var(--lstm-gradient);
+            padding: 6rem 0;
+            margin-bottom: 3rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .chapter-hero::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.2) 0%, transparent 70%);
+            animation: pulse 10s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1) rotate(0deg); }
+            50% { transform: scale(1.1) rotate(180deg); }
+        }
+
+        .chapter-hero-content {
+            position: relative;
+            z-index: 2;
+            text-align: center;
+            color: #0f172a;
+        }
+
+        .chapter-hero h1 {
+            font-size: 3.5rem;
+            margin-bottom: 1rem;
+            animation: fadeInUp 0.8s ease;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* ===== 三栏公式解释布局 ===== */
+        .formula-explainer {
+            display: grid;
+            grid-template-columns: 1fr 1.5fr 1fr;
+            gap: 2rem;
+            background: var(--bg-section);
+            border-radius: 1rem;
+            padding: 2.5rem;
+            margin: 2rem 0;
+            border: 1px solid var(--border-color);
+            box-shadow: var(--shadow-lg);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .formula-explainer::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: var(--lstm-gradient);
+        }
+
+        .formula-column {
+            position: relative;
+        }
+
+        .formula-column h4 {
+            color: var(--accent-cyan);
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        /* 公式列 */
+        .formula-math {
+            font-size: 1.3rem;
+            text-align: center;
+            padding: 2rem 1rem;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 0.5rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .formula-math::before {
+            content: '∑';
+            position: absolute;
+            top: -20px;
+            right: -10px;
+            font-size: 4rem;
+            opacity: 0.05;
+            font-family: 'Times New Roman', serif;
+        }
+
+        /* 矩阵可视化列 */
+        .matrix-visual {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+
+        .matrix-visual svg {
+            filter: drop-shadow(0 4px 15px rgba(0, 0, 0, 0.3));
+        }
+
+        /* 释义列 */
+        .formula-meaning {
+            padding: 1rem;
+            font-size: 0.95rem;
+            line-height: 1.8;
+        }
+
+        .meaning-item {
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+            border-radius: 0.5rem;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+        }
+
+        .meaning-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: var(--border-color);
+        }
+
+        /* 高亮交互样式 */
+        .highlight-target {
+            transition: all 0.3s ease;
+            cursor: pointer;
+            padding: 0.2rem 0.4rem;
+            border-radius: 0.25rem;
+            position: relative;
+        }
+
+        .highlight-target:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: scale(1.05);
+        }
+
+        .highlight-active {
+            background: rgba(79, 172, 254, 0.3) !important;
+            color: var(--accent-blue) !important;
+            font-weight: bold;
+            box-shadow: 0 0 20px rgba(79, 172, 254, 0.5);
+        }
+
+        /* ===== 交互式矩阵可视化 ===== */
+        .matrix-container {
+            position: relative;
+            display: inline-block;
+            margin: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .matrix-bracket {
+            position: absolute;
+            width: 10px;
+            height: 100%;
+            border: 2px solid var(--text-secondary);
+        }
+
+        .matrix-bracket.left {
+            left: -10px;
+            border-right: none;
+            border-radius: 5px 0 0 5px;
+        }
+
+        .matrix-bracket.right {
+            right: -10px;
+            border-left: none;
+            border-radius: 0 5px 5px 0;
+        }
+
+        .matrix-grid {
+            display: grid;
+            gap: 0.5rem;
+            padding: 0.5rem;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 0.5rem;
+        }
+
+        .matrix-cell {
+            width: 3.5rem;
+            height: 2.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            border-radius: 0.25rem;
+            font-size: 0.85rem;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .matrix-cell::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            background: rgba(79, 172, 254, 0.3);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            transition: all 0.5s ease;
+        }
+
+        .matrix-cell:hover {
+            background: rgba(79, 172, 254, 0.2);
+            transform: scale(1.1);
+            z-index: 10;
+            box-shadow: 0 0 20px rgba(79, 172, 254, 0.5);
+        }
+
+        .matrix-cell:hover::before {
+            width: 100px;
+            height: 100px;
+        }
+
+        /* ===== 交互式LSTM单元图 ===== */
+        .lstm-unit-interactive {
+            width: 100%;
+            max-width: 1000px;
+            margin: 3rem auto;
+            position: relative;
+            background: linear-gradient(135deg, rgba(168, 237, 234, 0.1), rgba(254, 214, 227, 0.05));
+            border-radius: 2rem;
+            padding: 3rem;
+            border: 2px solid var(--border-color);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        #lstmCanvas {
+            width: 100%;
+            height: 500px;
+            cursor: grab;
+        }
+
+        #lstmCanvas:active {
+            cursor: grabbing;
+        }
+
+        /* ===== 思考引导卡片 ===== */
+        .think-card {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(236, 72, 153, 0.1));
+            border: 2px solid rgba(139, 92, 246, 0.3);
+            border-radius: 1rem;
+            padding: 2rem;
+            margin: 2rem 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .think-card::before {
+            content: '🤔';
+            position: absolute;
+            top: -20px;
+            right: 20px;
+            font-size: 5rem;
+            opacity: 0.1;
+            transform: rotate(15deg);
+        }
+
+        .think-card h3 {
+            color: var(--accent-purple);
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .think-options {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+
+        .think-option {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 1rem;
+            border-radius: 0.5rem;
+            border: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .think-option:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(139, 92, 246, 0.3);
+            border-color: var(--accent-purple);
+        }
+
+        .think-option.selected {
+            background: rgba(139, 92, 246, 0.2);
+            border-color: var(--accent-purple);
+        }
+
+        .think-feedback {
+            margin-top: 1.5rem;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            display: none;
+        }
+
+        .think-feedback.show {
+            display: block;
+            animation: fadeIn 0.5s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ===== 实时计算演示 ===== */
+        .live-demo {
+            background: linear-gradient(135deg, rgba(6, 182, 212, 0.1), rgba(59, 130, 246, 0.05));
+            border-radius: 1.5rem;
+            padding: 3rem;
+            margin: 2rem 0;
+            border: 2px solid var(--accent-cyan);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .live-demo::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle, rgba(6, 182, 212, 0.2), transparent);
+            animation: rotate 20s linear infinite;
+        }
+
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .live-demo-content {
+            position: relative;
+            z-index: 2;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .live-demo-input {
+            flex: 1;
+            padding: 1rem 1.5rem;
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid var(--border-color);
+            border-radius: 0.75rem;
+            color: var(--text-primary);
+            font-size: 1.1rem;
+            transition: all 0.3s ease;
+        }
+
+        .live-demo-input:focus {
+            outline: none;
+            border-color: var(--accent-cyan);
+            background: rgba(255, 255, 255, 0.08);
+            box-shadow: 0 0 30px rgba(6, 182, 212, 0.3);
+        }
+
+        .analyze-btn {
+            padding: 1rem 2rem;
+            background: var(--accent-cyan);
+            color: white;
+            border: none;
+            border-radius: 0.75rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .analyze-btn::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            transition: all 0.6s ease;
+        }
+
+        .analyze-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(6, 182, 212, 0.4);
+        }
+
+        .analyze-btn:active::before {
+            width: 300px;
+            height: 300px;
+        }
+
+        .live-demo-output {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+
+        .demo-result-card {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 2rem;
+            border-radius: 1rem;
+            border: 1px solid var(--border-color);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .demo-result-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--lstm-gradient);
+            transform: scaleX(0);
+            transition: transform 0.5s ease;
+        }
+
+        .demo-result-card:hover::before {
+            transform: scaleX(1);
+        }
+
+        /* ===== 步进动画控制 ===== */
+        .step-animation {
+            background: var(--bg-section);
+            border-radius: 1rem;
+            padding: 2.5rem;
+            margin: 2rem 0;
+            border: 1px solid var(--border-color);
+            position: relative;
+        }
+
+        .step-indicator {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .step-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--text-muted);
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .step-dot.active {
+            width: 30px;
+            border-radius: 6px;
+            background: var(--accent-cyan);
+        }
+
+        .step-content {
+            min-height: 400px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .step-visual {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transform: translateX(20px);
+            transition: all 0.5s ease;
+        }
+
+        .step-visual.active {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        /* ===== 代码分层展示 ===== */
+        .code-layers {
+            margin: 2rem 0;
+            background: var(--bg-section);
+            border-radius: 1rem;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .code-layer-tabs {
+            display: flex;
+            background: rgba(255, 255, 255, 0.02);
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        .code-layer-tab {
+            flex: 1;
+            padding: 1rem 1.5rem;
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 500;
+            position: relative;
+        }
+
+        .code-layer-tab::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: var(--accent-blue);
+            transform: scaleX(0);
+            transition: transform 0.3s ease;
+        }
+
+        .code-layer-tab.active {
+            color: var(--text-primary);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .code-layer-tab.active::after {
+            transform: scaleX(1);
+        }
+
+        .code-layer-content {
+            display: none;
+            padding: 2rem;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        .code-layer-content.active {
+            display: block;
+            animation: fadeIn 0.5s ease;
+        }
+
+        /* ===== 比较表格 ===== */
+        .comparison-table {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 1rem;
+            overflow: hidden;
+            margin: 2rem 0;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .comparison-table table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .comparison-table th {
+            background: var(--lstm-gradient);
+            color: #0f172a;
+            padding: 1.25rem;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        .comparison-table td {
+            padding: 1.25rem;
+            border-bottom: 1px solid var(--border-color);
+            transition: all 0.3s ease;
+        }
+
+        .comparison-table tr:hover td {
+            background: rgba(255, 255, 255, 0.05);
+            transform: translateX(5px);
+        }
+
+        /* ===== 数学推导动画 ===== */
+        .math-derivation {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(236, 72, 153, 0.05));
+            border-radius: 1rem;
+            padding: 2.5rem;
+            margin: 2rem 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .derivation-step {
+            background: rgba(255, 255, 255, 0.05);
+            border-left: 4px solid var(--accent-cyan);
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            border-radius: 0 0.5rem 0.5rem 0;
+            position: relative;
+            opacity: 0;
+            transform: translateX(-20px);
+            animation: slideIn 0.5s ease forwards;
+        }
+
+        .derivation-step:nth-child(1) { animation-delay: 0.1s; }
+        .derivation-step:nth-child(2) { animation-delay: 0.2s; }
+        .derivation-step:nth-child(3) { animation-delay: 0.3s; }
+        .derivation-step:nth-child(4) { animation-delay: 0.4s; }
+
+        @keyframes slideIn {
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .derivation-step-number {
+            position: absolute;
+            left: -20px;
+            top: 1.5rem;
+            width: 40px;
+            height: 40px;
+            background: var(--accent-cyan);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            box-shadow: 0 4px 15px rgba(6, 182, 212, 0.4);
+        }
+
+        /* ===== 实践练习 ===== */
+        .practice-section {
+            background: linear-gradient(135deg, rgba(251, 191, 36, 0.1), rgba(245, 158, 11, 0.05));
+            border-radius: 1rem;
+            padding: 2.5rem;
+            margin: 2rem 0;
+            border: 2px solid rgba(251, 191, 36, 0.3);
+        }
+
+        .practice-item {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            margin-bottom: 1.5rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .practice-item:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(251, 191, 36, 0.3);
+        }
+
+        .practice-solution {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.5s ease;
+            margin-top: 1rem;
+        }
+
+        .practice-item.open .practice-solution {
+            max-height: 1000px;
+        }
+
+        /* ===== 可视化图表 ===== */
+        .visualization-container {
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid var(--border-color);
+            border-radius: 1rem;
+            padding: 2rem;
+            margin: 2rem 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .viz-controls {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+
+        /* ===== 按钮样式 ===== */
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            border: none;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all var(--animation-duration) ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            text-decoration: none;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            transition: all 0.6s ease;
+        }
+
+        .btn:active::before {
+            width: 300px;
+            height: 300px;
+        }
+
+        .btn-primary {
+            background: var(--lstm-gradient);
+            color: #0f172a;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(168, 237, 234, 0.3);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: var(--accent-cyan);
+        }
+
+        /* ===== 提示框 ===== */
+        .tip {
+            display: flex;
+            gap: 1rem;
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            margin: 1.5rem 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .tip::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            width: 4px;
+        }
+
+        .tip.info {
+            background: rgba(79, 172, 254, 0.1);
+            border: 1px solid rgba(79, 172, 254, 0.3);
+        }
+
+        .tip.info::before {
+            background: var(--accent-blue);
+        }
+
+        .tip.warning {
+            background: rgba(251, 191, 36, 0.1);
+            border: 1px solid rgba(251, 191, 36, 0.3);
+        }
+
+        .tip.warning::before {
+            background: var(--accent-yellow);
+        }
+
+        .tip.success {
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+
+        .tip.success::before {
+            background: var(--accent-green);
+        }
+
+        /* ===== 术语提示 ===== */
+        .term-tooltip {
+            position: relative;
+            border-bottom: 2px dotted var(--accent-cyan);
+            cursor: help;
+            display: inline-block;
+        }
+
+        .term-tooltip .tooltip-content {
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--bg-dark);
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            padding: 1rem 1.5rem;
+            font-size: 0.9rem;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.3s ease;
+            z-index: 1000;
+            box-shadow: var(--shadow-lg);
+            margin-bottom: 0.5rem;
+        }
+
+        .term-tooltip:hover .tooltip-content {
+            opacity: 1;
+            transform: translateX(-50%) translateY(-5px);
+        }
+
+        /* ===== 折叠内容 ===== */
+        .collapsible {
+            margin: 1rem 0;
+        }
+
+        .collapsible-header {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 1rem 1.5rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.3s ease;
+            user-select: none;
+        }
+
+        .collapsible-header:hover {
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .collapsible-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.5s ease;
+        }
+
+        .collapsible.open .collapsible-content {
+            max-height: 2000px;
+            padding: 1rem 1.5rem;
+        }
+
+        .collapsible-icon {
+            transition: transform 0.3s ease;
+        }
+
+        .collapsible.open .collapsible-icon {
+            transform: rotate(180deg);
+        }
+
+        /* ===== 卡片样式 ===== */
+        .section-card {
+            background: var(--bg-section);
+            border-radius: 1rem;
+            padding: 3rem;
+            margin-bottom: 2rem;
+            border: 1px solid var(--border-color);
+            box-shadow: var(--shadow-lg);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .section-card::before {
+            content: '';
+            position: absolute;
+            top: -100px;
+            right: -100px;
+            width: 200px;
+            height: 200px;
+            background: radial-gradient(circle, rgba(168, 237, 234, 0.1), transparent);
+            border-radius: 50%;
+        }
+
+        /* ===== 故事卡片 ===== */
+        .story-card {
+            background: linear-gradient(135deg, rgba(168, 237, 234, 0.15), rgba(254, 214, 227, 0.1));
+            border-radius: 1rem;
+            padding: 2.5rem;
+            margin-bottom: 2rem;
+            border: 2px solid rgba(168, 237, 234, 0.2);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .story-card::before {
+            content: '📖';
+            position: absolute;
+            top: -20px;
+            right: -20px;
+            font-size: 5rem;
+            opacity: 0.1;
+            transform: rotate(15deg);
+        }
+
+        /* ===== 对话框 ===== */
+        .dialogue-box {
+            background: rgba(255, 255, 255, 0.05);
+            border-left: 4px solid var(--accent-pink);
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            border-radius: 0 0.5rem 0.5rem 0;
+            position: relative;
+            opacity: 0;
+            transform: translateX(-20px);
+            animation: slideInLeft 0.5s ease forwards;
+        }
+
+        .dialogue-box:nth-child(1) { animation-delay: 0.1s; }
+        .dialogue-box:nth-child(2) { animation-delay: 0.3s; }
+        .dialogue-box:nth-child(3) { animation-delay: 0.5s; }
+
+        @keyframes slideInLeft {
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .dialogue-box .speaker {
+            font-weight: bold;
+            color: var(--accent-pink);
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .dialogue-box .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+
+        /* ===== 概念网格 ===== */
+        .concept-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin: 2rem 0;
+        }
+
+        .concept-card {
+            padding: 2rem;
+            border-radius: 0.75rem;
+            transition: all var(--animation-duration) ease;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .concept-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            transform: scaleX(0);
+            transition: transform var(--animation-duration) ease;
+        }
+
+        .concept-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .concept-card:hover::before {
+            transform: scaleX(1);
+        }
+
+        .concept-card.forget {
+            background: rgba(240, 147, 251, 0.1);
+            border: 1px solid rgba(240, 147, 251, 0.3);
+        }
+
+        .concept-card.forget::before {
+            background: var(--forget-gradient);
+        }
+
+        .concept-card.input {
+            background: rgba(79, 172, 254, 0.1);
+            border: 1px solid rgba(79, 172, 254, 0.3);
+        }
+
+        .concept-card.input::before {
+            background: var(--input-gradient);
+        }
+
+        .concept-card.output {
+            background: rgba(67, 233, 123, 0.1);
+            border: 1px solid rgba(67, 233, 123, 0.3);
+        }
+
+        .concept-card.output::before {
+            background: var(--output-gradient);
+        }
+
+        .concept-card.cell {
+            background: rgba(250, 112, 154, 0.1);
+            border: 1px solid rgba(250, 112, 154, 0.3);
+        }
+
+        .concept-card.cell::before {
+            background: var(--cell-gradient);
+        }
+
+        /* ===== 时间线 ===== */
+        .timeline {
+            position: relative;
+            padding: 2rem 0;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 50%;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: var(--border-color);
+        }
+
+        .timeline-item {
+            position: relative;
+            margin: 2rem 0;
+            padding: 0 2rem;
+            opacity: 0;
+            animation: fadeIn 0.5s ease forwards;
+        }
+
+        .timeline-item:nth-child(1) { animation-delay: 0.1s; }
+        .timeline-item:nth-child(2) { animation-delay: 0.2s; }
+        .timeline-item:nth-child(3) { animation-delay: 0.3s; }
+        .timeline-item:nth-child(4) { animation-delay: 0.4s; }
+
+        .timeline-item:nth-child(odd) {
+            text-align: right;
+            padding-right: 50%;
+        }
+
+        .timeline-item:nth-child(even) {
+            padding-left: 50%;
+        }
+
+        .timeline-dot {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 20px;
+            height: 20px;
+            background: var(--lstm-gradient);
+            border-radius: 50%;
+            z-index: 1;
+            box-shadow: 0 0 20px rgba(168, 237, 234, 0.5);
+        }
+
+        /* ===== 响应式设计 ===== */
+        @media (max-width: 1024px) {
+            .formula-explainer {
+                grid-template-columns: 1fr;
+                gap: 1.5rem;
+            }
+
+            .live-demo-output {
+                grid-template-columns: 1fr;
+            }
+
+            .concept-grid {
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            }
+        }
+
+        @media (max-width: 768px) {
+            .chapter-hero h1 {
+                font-size: 2.5rem;
+            }
+
+            .section-card {
+                padding: 2rem;
+            }
+
+            .timeline-item:nth-child(odd),
+            .timeline-item:nth-child(even) {
+                padding-left: 3rem;
+                padding-right: 1rem;
+                text-align: left;
+            }
+
+            .timeline::before {
+                left: 20px;
+            }
+
+            .timeline-dot {
+                left: 20px;
+            }
+
+            .code-layer-tabs {
+                flex-direction: column;
+            }
+
+            .code-layer-tab {
+                border-bottom: 1px solid var(--border-color);
+            }
+        }
+
+        /* ===== 加载动画 ===== */
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: var(--accent-pink);
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* ===== 滚动条美化 ===== */
+        ::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-dark);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--text-muted);
+            border-radius: 5px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-secondary);
+        }
+
+        /* ===== 打印样式 ===== */
+        @media print {
+            body {
+                background: white;
+                color: black;
+            }
+
+            .nav-header,
+            .sidebar,
+            .btn,
+            .viz-controls {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<!-- 背景动画 -->
+<div class="bg-animation" id="bgAnimation"></div>
+
+<!-- 导航栏 -->
+<nav class="nav-header" role="navigation" aria-label="主导航">
+    <div class="container">
+        <div class="nav-content">
+            <div class="nav-title">
+                <button id="toggle-sidebar" class="btn btn-secondary" style="margin-right: 1rem;" aria-label="切换侧边栏">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="3" y1="12" x2="21" y2="12"></line>
+                        <line x1="3" y1="6" x2="21" y2="6"></line>
+                        <line x1="3" y1="18" x2="21" y2="18"></line>
+                    </svg>
+                </button>
+                <h1>第8章：长短期记忆网络LSTM</h1>
+            </div>
+            <div style="display: flex; gap: 1rem;">
+                <button id="toggle-animations" class="btn btn-secondary" aria-label="切换动画">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <path d="M10 8l6 4-6 4V8z"></path>
+                    </svg>
+                </button>
+                <button id="toggle-theme" class="btn btn-secondary" aria-label="切换主题">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="5"></circle>
+                        <line x1="12" y1="1" x2="12" y2="3"></line>
+                        <line x1="12" y1="21" x2="12" y2="23"></line>
+                    </svg>
+                </button>
+            </div>
+        </div>
+        <div class="nav-progress">
+            <div class="progress-bar" id="progress-bar"></div>
+        </div>
+    </div>
+</nav>
+
+<!-- 侧边栏 -->
+<aside class="sidebar" id="sidebar">
+    <h3 style="margin-bottom: 1.5rem; color: var(--accent-pink);">📚 目录导航</h3>
+    <nav>
+        <a href="#intro" class="toc-item active">序言：记忆的艺术</a>
+        <a href="#problem" class="toc-item">RNN的困境</a>
+        <a href="#solution" class="toc-item">解决思路推导</a>
+        <a href="#forget-gate" class="toc-item">遗忘门的诞生</a>
+        <a href="#input-gate" class="toc-item">输入门的设计</a>
+        <a href="#cell-state" class="toc-item">细胞状态更新</a>
+        <a href="#output-gate" class="toc-item">输出门的控制</a>
+        <a href="#complete-lstm" class="toc-item">LSTM完整结构</a>
+        <a href="#math-proof" class="toc-item">数学证明</a>
+        <a href="#implementation" class="toc-item">从零实现LSTM</a>
+        <a href="#visualization" class="toc-item">可视化理解</a>
+        <a href="#practice" class="toc-item">实战应用</a>
+        <a href="#exercises" class="toc-item">练习与思考</a>
+        <a href="#summary" class="toc-item">总结与展望</a>
+    </nav>
+</aside>
+
+<!-- 主内容 -->
+<main>
+    <!-- 章节标题 -->
+    <section class="chapter-hero">
+        <div class="container">
+            <div class="chapter-hero-content">
+                <h1>长短期记忆网络：让AI学会遗忘与记忆</h1>
+                <p style="font-size: 1.5rem; margin-bottom: 2rem;">深入理解LSTM的精妙设计，一步步推导门控机制的数学原理</p>
+                <div style="display: flex; justify-content: center; gap: 1.5rem; flex-wrap: wrap;">
+                    <span style="background: rgba(0, 0, 0, 0.1); padding: 0.75rem 1.5rem; border-radius: 30px; display: flex; align-items: center; gap: 0.5rem;">
+                        <span style="font-size: 1.3rem;">🚪</span> 门控机制
+                    </span>
+                    <span style="background: rgba(0, 0, 0, 0.1); padding: 0.75rem 1.5rem; border-radius: 30px; display: flex; align-items: center; gap: 0.5rem;">
+                        <span style="font-size: 1.3rem;">🧠</span> 长期记忆
+                    </span>
+                    <span style="background: rgba(0, 0, 0, 0.1); padding: 0.75rem 1.5rem; border-radius: 30px; display: flex; align-items: center; gap: 0.5rem;">
+                        <span style="font-size: 1.3rem;">📐</span> 数学推导
+                    </span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <div class="container">
+
+        <!-- 一句话理解 -->
+        <section class="section-card">
+            <h2 style="color: var(--accent-pink); margin-bottom: 2rem; text-align: center; font-size: 2.5rem;">
+                💡 一句话理解LSTM
+            </h2>
+            <p style="font-size: 1.5rem; text-align: center; line-height: 2; margin-bottom: 3rem;">
+                LSTM就像一个精密的记忆管理系统，<br>
+                通过三个门控制信息的流动：<br>
+                <span style="color: #f5576c; font-weight: bold;">遗忘门</span>决定忘记什么，
+                <span style="color: #4facfe; font-weight: bold;">输入门</span>决定记住什么，
+                <span style="color: #43e97b; font-weight: bold;">输出门</span>决定输出什么。
+            </p>
+
+            <!-- 四个核心概念 -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 2rem;">
+                <div style="text-align: center;">
+                    <div style="
+                        width: 100px;
+                        height: 100px;
+                        margin: 0 auto 1rem;
+                        background: var(--forget-gradient);
+                        border-radius: 25px;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        font-size: 3rem;
+                        color: white;
+                        box-shadow: 0 10px 30px rgba(240, 147, 251, 0.4);
+                        transition: all 0.3s ease;
+                        cursor: pointer;
+                    " onmouseover="this.style.transform='translateY(-5px) scale(1.05)'" onmouseout="this.style.transform='translateY(0) scale(1)'">
+                        🚪
+                    </div>
+                    <h4 style="color: white; margin-bottom: 0.5rem; font-size: 1.2rem;">遗忘门</h4>
+                    <p style="color: #94a3b8; font-size: 0.95rem; line-height: 1.5;">
+                        选择性遗忘<br>过滤无用信息
+                    </p>
+                </div>
+
+                <div style="text-align: center;">
+                    <div style="
+                        width: 100px;
+                        height: 100px;
+                        margin: 0 auto 1rem;
+                        background: var(--input-gradient);
+                        border-radius: 25px;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        font-size: 3rem;
+                        color: white;
+                        box-shadow: 0 10px 30px rgba(79, 172, 254, 0.4);
+                        transition: all 0.3s ease;
+                        cursor: pointer;
+                    " onmouseover="this.style.transform='translateY(-5px) scale(1.05)'" onmouseout="this.style.transform='translateY(0) scale(1)'">
+                        ➕
+                    </div>
+                    <h4 style="color: white; margin-bottom: 0.5rem; font-size: 1.2rem;">输入门</h4>
+                    <p style="color: #94a3b8; font-size: 0.95rem; line-height: 1.5;">
+                        选择性记忆<br>存储重要信息
+                    </p>
+                </div>
+
+                <div style="text-align: center;">
+                    <div style="
+                        width: 100px;
+                        height: 100px;
+                        margin: 0 auto 1rem;
+                        background: var(--output-gradient);
+                        border-radius: 25px;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        font-size: 3rem;
+                        color: white;
+                        box-shadow: 0 10px 30px rgba(67, 233, 123, 0.4);
+                        transition: all 0.3s ease;
+                        cursor: pointer;
+                    " onmouseover="this.style.transform='translateY(-5px) scale(1.05)'" onmouseout="this.style.transform='translateY(0) scale(1)'">
+                        📤
+                    </div>
+                    <h4 style="color: white; margin-bottom: 0.5rem; font-size: 1.2rem;">输出门</h4>
+                    <p style="color: #94a3b8; font-size: 0.95rem; line-height: 1.5;">
+                        控制输出<br>决定展示什么
+                    </p>
+                </div>
+
+                <div style="text-align: center;">
+                    <div style="
+                        width: 100px;
+                        height: 100px;
+                        margin: 0 auto 1rem;
+                        background: var(--cell-gradient);
+                        border-radius: 25px;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        font-size: 3rem;
+                        color: white;
+                        box-shadow: 0 10px 30px rgba(250, 112, 154, 0.4);
+                        transition: all 0.3s ease;
+                        cursor: pointer;
+                    " onmouseover="this.style.transform='translateY(-5px) scale(1.05)'" onmouseout="this.style.transform='translateY(0) scale(1)'">
+                        📦
+                    </div>
+                    <h4 style="color: white; margin-bottom: 0.5rem; font-size: 1.2rem;">细胞状态</h4>
+                    <p style="color: #94a3b8; font-size: 0.95rem; line-height: 1.5;">
+                        长期记忆<br>信息高速通道
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 思考引导：为什么需要LSTM -->
+        <section class="think-card">
+            <h3>🤔 思考时刻：为什么RNN会失败？</h3>
+            <p>在学习LSTM之前，让我们先思考一个问题：为什么传统RNN在处理长序列时会失败？</p>
+
+            <div class="think-options">
+                <div class="think-option" data-answer="a">
+                    A. 计算速度太慢
+                </div>
+                <div class="think-option" data-answer="b">
+                    B. 梯度消失/爆炸
+                </div>
+                <div class="think-option" data-answer="c">
+                    C. 参数太多
+                </div>
+                <div class="think-option" data-answer="d">
+                    D. 激活函数选择不当
+                </div>
+            </div>
+
+            <div class="think-feedback" id="thinkFeedback1">
+                <!-- 反馈内容将动态插入 -->
+            </div>
+        </section>
+
+        <!-- 序言：记忆的艺术 -->
+        <section id="intro" class="section-card">
+            <div class="story-card">
+                <h2 style="color: var(--accent-pink); margin-bottom: 1.5rem;">📖 序言：记忆的艺术</h2>
+
+                <p style="font-size: 1.2rem; line-height: 1.8; margin-bottom: 2rem;">
+                    1997年，德国慕尼黑工业大学的一个研究小组正在为一个棘手的问题苦恼...
+                </p>
+
+                <div class="dialogue-box">
+                    <div class="speaker">
+                        <div class="avatar" style="background: linear-gradient(135deg, #f093fb, #f5576c);">👨‍🔬</div>
+                        Sepp Hochreiter：
+                    </div>
+                    <div>"我们的RNN在处理长句子时总是失败。比如这个德语句子，动词在最后，但网络在处理到动词时已经忘记了主语是什么！"</div>
+                </div>
+
+                <div class="dialogue-box">
+                    <div class="speaker">
+                        <div class="avatar" style="background: linear-gradient(135deg, #4facfe, #00f2fe);">👨‍🏫</div>
+                        Jürgen Schmidhuber：
+                    </div>
+                    <div>"问题的根源是梯度消失。当误差信号通过时间反向传播时，它会指数级衰减。我们需要一种新的架构！"</div>
+                </div>
+
+                <div class="dialogue-box">
+                    <div class="speaker">
+                        <div class="avatar" style="background: linear-gradient(135deg, #fa709a, #fee140);">🧑‍🔬</div>
+                        研究生：
+                    </div>
+                    <div>"如果我们能创建一条'高速公路'，让梯度可以无损地传播呢？就像...就像水管中的阀门，可以控制水流！"</div>
+                </div>
+
+                <div class="timeline mt-4">
+                    <div class="timeline-item">
+                        <div class="timeline-dot"></div>
+                        <h4 style="color: var(--accent-pink);">1991年</h4>
+                        <p>Hochreiter发现梯度消失问题</p>
+                    </div>
+                    <div class="timeline-item">
+                        <div class="timeline-dot"></div>
+                        <h4 style="color: var(--accent-blue);">1997年</h4>
+                        <p>LSTM论文发表，引入门控机制</p>
+                    </div>
+                    <div class="timeline-item">
+                        <div class="timeline-dot"></div>
+                        <h4 style="color: var(--accent-green);">2000年</h4>
+                        <p>添加遗忘门，LSTM结构完善</p>
+                    </div>
+                    <div class="timeline-item">
+                        <div class="timeline-dot"></div>
+                        <h4 style="color: var(--accent-orange);">2014年</h4>
+                        <p>LSTM在机器翻译中大放异彩</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- RNN的困境 -->
+        <section id="problem" class="section-card">
+            <h2 style="color: var(--accent-red); margin-bottom: 2rem;">💔 RNN的困境：为什么需要LSTM？</h2>
+
+            <!-- 梯度消失可视化 -->
+            <div class="visualization-container">
+                <h3 style="color: var(--accent-cyan); margin-bottom: 1.5rem;">梯度消失的直观理解</h3>
+                <canvas id="gradientVanishingCanvas" width="900" height="300"></canvas>
+                <div class="viz-controls" style="margin-top: 1rem;">
+                    <button class="btn btn-primary" onclick="animateGradientVanishing()">
+                        ▶️ 演示梯度消失
+                    </button>
+                    <button class="btn btn-secondary" onclick="resetGradientAnimation()">
+                        🔄 重置
+                    </button>
+                </div>
+            </div>
+
+            <div class="math-derivation">
+                <h3 style="color: var(--accent-red); margin-bottom: 1.5rem;">🔬 梯度消失的数学本质</h3>
+
+                <div class="derivation-step">
+                    <div class="derivation-step-number">1</div>
+                    <h4>RNN的梯度传播</h4>
+                    <p>回忆RNN的隐藏状态更新公式：</p>
+                    <div style="text-align: center; margin: 1rem 0; font-size: 1.2rem;">
+                        $$\mathbf{h}_t = \tanh(\mathbf{W}_{hh} \mathbf{h}_{t-1} + \mathbf{W}_{xh} \mathbf{x}_t + \mathbf{b}_h)$$
+                    </div>
+                    <p>当我们计算损失对早期隐藏状态的梯度时：</p>
+                    <div style="text-align: center; margin: 1rem 0; font-size: 1.2rem;">
+                        $$\frac{\partial L}{\partial \mathbf{h}_1} = \frac{\partial L}{\partial \mathbf{h}_T} \cdot \prod_{t=2}^{T} \frac{\partial \mathbf{h}_t}{\partial \mathbf{h}_{t-1}}$$
+                    </div>
+                </div>
+
+                <div class="derivation-step">
+                    <div class="derivation-step-number">2</div>
+                    <h4>问题的根源</h4>
+                    <p>每一项梯度都包含tanh的导数：</p>
+                    <div style="text-align: center; margin: 1rem 0; font-size: 1.2rem;">
+                        $$\frac{\partial \mathbf{h}_t}{\partial \mathbf{h}_{t-1}} = \text{diag}(\tanh'(\mathbf{z}_t)) \cdot \mathbf{W}_{hh}$$
+                    </div>
+                    <p>由于 $\tanh'(x) = 1 - \tanh^2(x) \in (0, 1]$，梯度会指数级衰减！</p>
+                </div>
+            </div>
+
+            <div class="tip warning">
+                <span style="font-size: 1.5rem;">⚠️</span>
+                <div>
+                    <strong>关键洞察：</strong>当序列长度为100时，如果每步梯度衰减0.9，最终梯度只有初始的 $0.9^{100} \approx 10^{-5}$！
+                    这就是为什么RNN无法学习长期依赖。
+                </div>
+            </div>
+        </section>
+
+        <!-- 解决思路推导 -->
+        <section id="solution" class="section-card">
+            <h2 style="color: var(--accent-blue); margin-bottom: 2rem;">💡 解决思路：如何设计更好的记忆机制？</h2>
+
+            <div class="think-card">
+                <h3>🧠 设计思考：如果你来设计，会怎么做？</h3>
+                <p>在看LSTM的解决方案之前，让我们自己思考一下：如何让网络既能记住重要信息，又能忘记无用信息？</p>
+
+                <div style="display: grid; gap: 1rem; margin-top: 1.5rem;">
+                    <div style="background: rgba(255, 255, 255, 0.05); padding: 1.5rem; border-radius: 0.5rem;">
+                        <h4 style="color: var(--accent-cyan); margin-bottom: 0.5rem;">💭 思考1：信息传递</h4>
+                        <p>如何创建一条"高速公路"，让信息可以无损传递？</p>
+                    </div>
+                    <div style="background: rgba(255, 255, 255, 0.05); padding: 1.5rem; border-radius: 0.5rem;">
+                        <h4 style="color: var(--accent-pink); margin-bottom: 0.5rem;">💭 思考2：选择机制</h4>
+                        <p>如何让网络自己决定什么信息重要，什么信息可以丢弃？</p>
+                    </div>
+                    <div style="background: rgba(255, 255, 255, 0.05); padding: 1.5rem; border-radius: 0.5rem;">
+                        <h4 style="color: var(--accent-green); margin-bottom: 0.5rem;">💭 思考3：控制方式</h4>
+                        <p>用什么数学工具来实现这种选择性控制？</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="story-card" style="margin-top: 2rem;">
+                <h3 style="color: var(--accent-blue); margin-bottom: 1.5rem;">🎯 LSTM的核心创新</h3>
+                <p style="font-size: 1.1rem; line-height: 1.8;">
+                    LSTM的天才之处在于引入了<strong>细胞状态（Cell State）</strong>作为信息的高速公路，
+                    并通过<strong>门控机制（Gating Mechanism）</strong>来控制信息的流动。
+                </p>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 2rem;">
+                    <div style="background: rgba(255, 255, 255, 0.05); padding: 1.5rem; border-radius: 0.75rem;">
+                        <h4 style="color: var(--accent-cyan); margin-bottom: 1rem;">🛤️ 细胞状态</h4>
+                        <ul style="margin-left: 1.5rem;">
+                            <li>线性传播，避免非线性激活</li>
+                            <li>梯度可以无损地反向传播</li>
+                            <li>就像一条信息高速公路</li>
+                        </ul>
+                    </div>
+                    <div style="background: rgba(255, 255, 255, 0.05); padding: 1.5rem; border-radius: 0.75rem;">
+                        <h4 style="color: var(--accent-pink); margin-bottom: 1rem;">🚪 门控机制</h4>
+                        <ul style="margin-left: 1.5rem;">
+                            <li>使用Sigmoid函数作为开关</li>
+                            <li>输出在[0,1]之间，像百分比</li>
+                            <li>可学习的参数决定开关程度</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 核心LSTM单元交互图 -->
+        <section class="section-card">
+            <h2 style="color: var(--accent-purple); margin-bottom: 2rem;">🎯 LSTM核心结构 - 交互式探索</h2>
+
+            <div class="lstm-unit-interactive">
+                <canvas id="lstmCanvas"></canvas>
+
+                <div style="margin-top: 2rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                    <button class="btn btn-primary" onclick="highlightForgetGate()">
+                        🗑️ 高亮遗忘门
+                    </button>
+                    <button class="btn btn-primary" onclick="highlightInputGate()">
+                        ➕ 高亮输入门
+                    </button>
+                    <button class="btn btn-primary" onclick="highlightOutputGate()">
+                        📤 高亮输出门
+                    </button>
+                    <button class="btn btn-primary" onclick="animateDataFlow()">
+                        🌊 演示数据流
+                    </button>
+                </div>
+            </div>
+
+            <div id="gateDescription" style="margin-top: 2rem; padding: 2rem; background: rgba(255, 255, 255, 0.05); border-radius: 1rem; min-height: 150px;">
+                <p style="text-align: center; color: var(--text-secondary); font-size: 1.1rem;">
+                    👆 点击上方按钮，探索LSTM的各个组件
+                </p>
+            </div>
+        </section>
+
+        <!-- 遗忘门详解 -->
+        <section id="forget-gate" class="section-card">
+            <h2 style="color: var(--accent-pink); margin-bottom: 2rem;">🚪 遗忘门：学会忘记</h2>
+
+            <div class="story-card">
+                <p style="font-size: 1.1rem; line-height: 1.8; margin-bottom: 1.5rem;">
+                    让我们一步步推导遗忘门的设计...
+                </p>
+
+                <div class="dialogue-box">
+                    <div class="speaker">
+                        <div class="avatar" style="background: linear-gradient(135deg, #f093fb, #f5576c);">👨‍🔬</div>
+                        设计者：
+                    </div>
+                    <div>"首先，我们需要决定从上一时刻的细胞状态 $\mathbf{C}_{t-1}$ 中忘记什么。这个决定应该基于什么？"</div>
+                </div>
+
+                <div class="dialogue-box">
+                    <div class="speaker">
+                        <div class="avatar" style="background: linear-gradient(135deg, #4facfe, #00f2fe);">👩‍🔬</div>
+                        同事：
+                    </div>
+                    <div>"应该基于当前输入 $\mathbf{x}_t$ 和上一时刻的隐藏状态 $\mathbf{h}_{t-1}$！比如在语言模型中，看到新的主语时就应该忘记旧的主语。"</div>
+                </div>
+            </div>
+
+            <!-- 三栏公式解释 -->
+            <div class="formula-explainer">
+                <div class="formula-column">
+                    <h4>数学公式</h4>
+                    <div class="formula-math">
+                        <span class="highlight-target" data-symbol="f_t">f<sub>t</sub></span> =
+                        <span class="highlight-target" data-symbol="sigma">σ</span>(
+                        <span class="highlight-target" data-symbol="W_f">W<sub>f</sub></span> ·
+                        [<span class="highlight-target" data-symbol="h_t-1">h<sub>t-1</sub></span>,
+                        <span class="highlight-target" data-symbol="x_t">x<sub>t</sub></span>] +
+                        <span class="highlight-target" data-symbol="b_f">b<sub>f</sub></span>)
+                    </div>
+                </div>
+
+                <div class="formula-column">
+                    <h4>矩阵形状可视化</h4>
+                    <div class="matrix-visual" id="forgetGateVisual">
+                        <svg width="400" height="300" viewBox="0 0 400 300">
+                            <!-- 输入向量 -->
+                            <g id="input-vectors">
+                                <rect x="20" y="50" width="40" height="80" fill="rgba(79, 172, 254, 0.3)" stroke="#4facfe" stroke-width="2" rx="5"/>
+                                <text x="40" y="35" text-anchor="middle" fill="#4facfe" font-size="14">h<tspan dy="3" font-size="10">t-1</tspan></text>
+                                <text x="40" y="90" text-anchor="middle" fill="white" font-size="12">128×1</text>
+
+                                <rect x="20" y="150" width="40" height="60" fill="rgba(67, 233, 123, 0.3)" stroke="#43e97b" stroke-width="2" rx="5"/>
+                                <text x="40" y="180" text-anchor="middle" fill="#43e97b" font-size="14">x<tspan dy="3" font-size="10">t</tspan></text>
+                                <text x="40" y="195" text-anchor="middle" fill="white" font-size="12">100×1</text>
+                            </g>
+
+                            <!-- 拼接 -->
+                            <g id="concatenation">
+                                <path d="M 70 90 Q 100 90 100 130 M 70 180 Q 100 180 100 130" stroke="white" stroke-width="2" fill="none" marker-end="url(#arrowhead)"/>
+                                <rect x="110" y="80" width="40" height="100" fill="rgba(168, 237, 234, 0.3)" stroke="#a8edea" stroke-width="2" rx="5"/>
+                                <text x="130" y="130" text-anchor="middle" fill="white" font-size="12">228×1</text>
+                            </g>
+
+                            <!-- 权重矩阵 -->
+                            <g id="weight-matrix">
+                                <rect x="200" y="60" width="80" height="120" fill="rgba(240, 147, 251, 0.3)" stroke="#f093fb" stroke-width="2" rx="5"/>
+                                <text x="240" y="45" text-anchor="middle" fill="#f093fb" font-size="14">W<tspan dy="3" font-size="10">f</tspan></text>
+                                <text x="240" y="120" text-anchor="middle" fill="white" font-size="12">128×228</text>
+
+                                <!-- 矩阵网格 -->
+                                <g opacity="0.5">
+                                    <line x1="210" y1="80" x2="270" y2="80" stroke="white" stroke-width="0.5"/>
+                                    <line x1="210" y1="100" x2="270" y2="100" stroke="white" stroke-width="0.5"/>
+                                    <line x1="210" y1="120" x2="270" y2="120" stroke="white" stroke-width="0.5"/>
+                                    <line x1="210" y1="140" x2="270" y2="140" stroke="white" stroke-width="0.5"/>
+                                    <line x1="210" y1="160" x2="270" y2="160" stroke="white" stroke-width="0.5"/>
+
+                                    <line x1="230" y1="70" x2="230" y2="170" stroke="white" stroke-width="0.5"/>
+                                    <line x1="250" y1="70" x2="250" y2="170" stroke="white" stroke-width="0.5"/>
+                                </g>
+                            </g>
+
+                            <!-- 结果 -->
+                            <g id="result">
+                                <path d="M 160 130 L 190 120 M 280 120 L 310 110" stroke="white" stroke-width="2" marker-end="url(#arrowhead)"/>
+                                <rect x="320" y="80" width="40" height="80" fill="rgba(245, 87, 108, 0.3)" stroke="#f5576c" stroke-width="2" rx="5"/>
+                                <text x="340" y="120" text-anchor="middle" fill="white" font-size="14">f<tspan dy="3" font-size="10">t</tspan></text>
+                                <text x="340" y="140" text-anchor="middle" fill="white" font-size="12">128×1</text>
+                            </g>
+
+                            <!-- 箭头定义 -->
+                            <defs>
+                                <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                                    <polygon points="0 0, 10 3.5, 0 7" fill="white"/>
+                                </marker>
+                            </defs>
+                        </svg>
+                    </div>
+                </div>
+
+                <div class="formula-column">
+                    <h4>符号含义</h4>
+                    <div class="formula-meaning">
+                        <div class="meaning-item" data-symbol="f_t">
+                            <strong>f<sub>t</sub></strong>: 遗忘门输出
+                            <p style="font-size: 0.9rem; color: var(--text-secondary); margin-top: 0.5rem;">
+                                范围[0,1]，决定保留多少过去的信息
+                            </p>
+                        </div>
+                        <div class="meaning-item" data-symbol="sigma">
+                            <strong>σ</strong>: Sigmoid激活函数
+                            <p style="font-size: 0.9rem; color: var(--text-secondary); margin-top: 0.5rem;">
+                                将值压缩到[0,1]，充当"门"的作用
+                            </p>
+                        </div>
+                        <div class="meaning-item" data-symbol="W_f">
+                            <strong>W<sub>f</sub></strong>: 遗忘门权重矩阵
+                            <p style="font-size: 0.9rem; color: var(--text-secondary); margin-top: 0.5rem;">
+                                学习什么模式应该被遗忘
+                            </p>
+                        </div>
+                        <div class="meaning-item" data-symbol="h_t-1">
+                            <strong>h<sub>t-1</sub></strong>: 上一时刻隐藏状态
+                            <p style="font-size: 0.9rem; color: var(--text-secondary); margin-top: 0.5rem;">
+                                包含历史信息的向量
+                            </p>
+                        </div>
+                        <div class="meaning-item" data-symbol="x_t">
+                            <strong>x<sub>t</sub></strong>: 当前时刻输入
+                            <p style="font-size: 0.9rem; color: var(--text-secondary); margin-top: 0.5rem;">
+                                新的输入信息
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 手动计算动画 -->
+            <div class="step-animation">
+                <h3 style="color: var(--accent-cyan); margin-bottom: 1.5rem;">🎬 手动计算演示</h3>
+
+                <div class="step-indicator">
+                    <span class="step-dot active" data-step="0"></span>
+                    <span class="step-dot" data-step="1"></span>
+                    <span class="step-dot" data-step="2"></span>
+                    <span class="step-dot" data-step="3"></span>
+                </div>
+
+                <div class="step-content" id="stepContent">
+                    <div class="step-visual active" data-step-content="0">
+                        <div style="text-align: center;">
+                            <h4 style="color: var(--accent-cyan); margin-bottom: 2rem;">步骤1：准备输入</h4>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; max-width: 600px; margin: 0 auto;">
+                                <div>
+                                    <h5 style="color: var(--accent-pink); margin-bottom: 1rem;">输入值：</h5>
+                                    <div style="background: rgba(255, 255, 255, 0.05); padding: 1.5rem; border-radius: 0.5rem;">
+                                        <p style="font-family: monospace; font-size: 1.1rem;">x_t = [0.5, -0.2]</p>
+                                        <p style="font-family: monospace; font-size: 1.1rem;">h_{t-1} = [0.3, 0.1]</p>
+                                    </div>
+                                </div>
+                                <div>
+                                    <h5 style="color: var(--accent-blue); margin-bottom: 1rem;">拼接结果：</h5>
+                                    <div style="background: rgba(255, 255, 255, 0.05); padding: 1.5rem; border-radius: 0.5rem;">
+                                        <p style="font-family: monospace; font-size: 1.1rem;">[h_{t-1}, x_t] = </p>
+                                        <p style="font-family: monospace; font-size: 1.1rem;">[0.3, 0.1, 0.5, -0.2]</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="step-visual" data-step-content="1">
+                        <div style="text-align: center;">
+                            <h4 style="color: var(--accent-cyan); margin-bottom: 2rem;">步骤2：矩阵乘法</h4>
+                            <div style="max-width: 700px; margin: 0 auto;">
+                                <div class="matrix-container">
+                                    <div class="matrix-bracket left"></div>
+                                    <div class="matrix-grid" style="grid-template-columns: repeat(4, 1fr);">
+                                        <div class="matrix-cell">0.1</div>
+                                        <div class="matrix-cell">0.2</div>
+                                        <div class="matrix-cell">-0.1</div>
+                                        <div class="matrix-cell">0.3</div>
+                                        <div class="matrix-cell">0.2</div>
+                                        <div class="matrix-cell">-0.1</div>
+                                        <div class="matrix-cell">0.1</div>
+                                        <div class="matrix-cell">0.2</div>
+                                    </div>
+                                    <div class="matrix-bracket right"></div>
+                                </div>
+                                <p style="font-size: 1.5rem; margin: 1rem;">×</p>
+                                <div class="matrix-container">
+                                    <div class="matrix-bracket left"></div>
+                                    <div class="matrix-grid" style="grid-template-columns: 1fr;">
+                                        <div class="matrix-cell">0.3</div>
+                                        <div class="matrix-cell">0.1</div>
+                                        <div class="matrix-cell">0.5</div>
+                                        <div class="matrix-cell">-0.2</div>
+                                    </div>
+                                    <div class="matrix-bracket right"></div>
+                                </div>
+                                <p style="font-size: 1.5rem; margin: 1rem;">=</p>
+                                <div class="matrix-container">
+                                    <div class="matrix-bracket left"></div>
+                                    <div class="matrix-grid" style="grid-template-columns: 1fr;">
+                                        <div class="matrix-cell" style="background: rgba(79, 172, 254, 0.3);">0.04</div>
+                                        <div class="matrix-cell" style="background: rgba(79, 172, 254, 0.3);">0.12</div>
+                                    </div>
+                                    <div class="matrix-bracket right"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="step-visual" data-step-content="2">
+                        <div style="text-align: center;">
+                            <h4 style="color: var(--accent-cyan); margin-bottom: 2rem;">步骤3：加偏置</h4>
+                            <div style="max-width: 500px; margin: 0 auto;">
+                                <div style="display: flex; align-items: center; justify-content: center; gap: 2rem;">
+                                    <div>
+                                        <p>z_f = </p>
+                                    </div>
+                                    <div class="matrix-container">
+                                        <div class="matrix-bracket left"></div>
+                                        <div class="matrix-grid" style="grid-template-columns: 1fr;">
+                                            <div class="matrix-cell">0.04</div>
+                                            <div class="matrix-cell">0.12</div>
+                                        </div>
+                                        <div class="matrix-bracket right"></div>
+                                    </div>
+                                    <div>
+                                        <p>+</p>
+                                    </div>
+                                    <div class="matrix-container">
+                                        <div class="matrix-bracket left"></div>
+                                        <div class="matrix-grid" style="grid-template-columns: 1fr;">
+                                            <div class="matrix-cell">0.5</div>
+                                            <div class="matrix-cell">0.5</div>
+                                        </div>
+                                        <div class="matrix-bracket right"></div>
+                                    </div>
+                                    <div>
+                                        <p>=</p>
+                                    </div>
+                                    <div class="matrix-container">
+                                        <div class="matrix-bracket left"></div>
+                                        <div class="matrix-grid" style="grid-template-columns: 1fr;">
+                                            <div class="matrix-cell" style="background: rgba(240, 147, 251, 0.3);">0.54</div>
+                                            <div class="matrix-cell" style="background: rgba(240, 147, 251, 0.3);">0.62</div>
+                                        </div>
+                                        <div class="matrix-bracket right"></div>
+                                    </div>
+                                </div>
+                                <p style="margin-top: 2rem; color: var(--text-secondary);">
+                                    💡 偏置初始化为正值（如0.5）可以促进初期的信息保留
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="step-visual" data-step-content="3">
+                        <div style="text-align: center;">
+                            <h4 style="color: var(--accent-cyan); margin-bottom: 2rem;">步骤4：Sigmoid激活</h4>
+                            <div style="max-width: 600px; margin: 0 auto;">
+                                <p style="font-size: 1.2rem; margin-bottom: 2rem;">
+                                    f_t = σ(z_f) = σ([0.54, 0.62])
+                                </p>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+                                    <div style="background: rgba(255, 255, 255, 0.05); padding: 1.5rem; border-radius: 0.5rem;">
+                                        <p>σ(0.54) = 1/(1+e^(-0.54))</p>
+                                        <p>= 1/(1+0.583)</p>
+                                        <p style="color: var(--accent-pink); font-weight: bold;">= 0.632</p>
+                                    </div>
+                                    <div style="background: rgba(255, 255, 255, 0.05); padding: 1.5rem; border-radius: 0.5rem;">
+                                        <p>σ(0.62) = 1/(1+e^(-0.62))</p>
+                                        <p>= 1/(1+0.538)</p>
+                                        <p style="color: var(--accent-pink); font-weight: bold;">= 0.650</p>
+                                    </div>
+                                </div>
+                                <div class="tip success" style="margin-top: 2rem;">
+                                    <span style="font-size: 1.5rem;">✅</span>
+                                    <div>
+                                        遗忘门输出约63%和65%，表示保留大部分之前的记忆！
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="display: flex; justify-content: center; gap: 1rem; margin-top: 2rem;">
+                    <button class="btn btn-secondary" id="prevStep">⬅️ 上一步</button>
+                    <button class="btn btn-primary" id="nextStep">下一步 ➡️</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- 输入门详解 -->
+        <section id="input-gate" class="section-card">
+            <h2 style="color: var(--accent-blue); margin-bottom: 2rem;">➕ 输入门：选择记忆</h2>
+
+            <div class="story-card">
+                <div class="dialogue-box">
+                    <div class="speaker">
+                        <div class="avatar" style="background: linear-gradient(135deg, #4facfe, #00f2fe);">👩‍🔬</div>
+                        设计者：
+                    </div>
+                    <div>"现在我们需要决定存储什么新信息。但这里有个问题：我们需要两个东西..."</div>
+                </div>
+
+                <div class="dialogue-box">
+                    <div class="speaker">
+                        <div class="avatar" style="background: linear-gradient(135deg, #f093fb, #f5576c);">👨‍🔬</div>
+                        同事：
+                    </div>
+                    <div>"对！我们需要：<br>
+                        1. 候选记忆内容 - 要记住什么<br>
+                        2. 重要性权重 - 记住多少"</div>
+                </div>
+            </div>
+
+            <div class="think-card">
+                <h3>🤔 思考：为什么需要两个部分？</h3>
+                <p>输入门包含两个部分：输入门激活 i<sub>t</sub> 和候选值 C̃<sub>t</sub>。为什么不能直接用一个？</p>
+
+                <div class="think-options">
+                    <div class="think-option" data-answer="a">
+                        A. 增加模型容量
+                    </div>
+                    <div class="think-option" data-answer="b">
+                        B. 分离"什么"和"多少"
+                    </div>
+                    <div class="think-option" data-answer="c">
+                        C. 减少计算量
+                    </div>
+                    <div class="think-option" data-answer="d">
+                        D. 符合生物学原理
+                    </div>
+                </div>
+
+                <div class="think-feedback" id="thinkFeedback2">
+                    <!-- 反馈内容将动态插入 -->
+                </div>
+            </div>
+
+            <div class="formula-explainer">
+                <div class="formula-column">
+                    <h4>数学公式</h4>
+                    <div class="formula-math">
+                        <div style="margin-bottom: 1rem;">
+                            i<sub>t</sub> = σ(W<sub>i</sub> · [h<sub>t-1</sub>, x<sub>t</sub>] + b<sub>i</sub>)
+                        </div>
+                        <div>
+                            C̃<sub>t</sub> = tanh(W<sub>C</sub> · [h<sub>t-1</sub>, x<sub>t</sub>] + b<sub>C</sub>)
+                        </div>
+                    </div>
+                </div>
+
+                <div class="formula-column">
+                    <h4>作用解释</h4>
+                    <div style="display: grid; gap: 1rem;">
+                        <div style="background: rgba(79, 172, 254, 0.1); padding: 1.5rem; border-radius: 0.5rem;">
+                            <h5 style="color: var(--accent-blue); margin-bottom: 0.5rem;">输入门 i<sub>t</sub></h5>
+                            <p>决定"重要性"权重</p>
+                            <p style="font-size: 0.9rem; color: var(--text-secondary);">使用sigmoid，输出[0,1]</p>
+                        </div>
+                        <div style="background: rgba(67, 233, 123, 0.1); padding: 1.5rem; border-radius: 0.5rem;">
+                            <h5 style="color: var(--accent-green); margin-bottom: 0.5rem;">候选值 C̃<sub>t</sub></h5>
+                            <p>编码"内容"信息</p>
+                            <p style="font-size: 0.9rem; color: var(--text-secondary);">使用tanh，输出[-1,1]</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="formula-column">
+                    <h4>组合效果</h4>
+                    <div style="text-align: center; padding: 2rem;">
+                        <p style="font-size: 1.2rem; margin-bottom: 1rem;">新增记忆 = i<sub>t</sub> ⊙ C̃<sub>t</sub></p>
+                        <div style="background: rgba(255, 255, 255, 0.05); padding: 1.5rem; border-radius: 0.5rem;">
+                            <p>通过<span class="term-tooltip">Hadamard积<span class="tooltip-content">逐元素乘法，保持维度不变</span></span>实现选择性更新</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 细胞状态更新 -->
+        <section id="cell-state" class="section-card">
+            <h2 style="color: var(--accent-orange); margin-bottom: 2rem;">📦 细胞状态更新：长期记忆的高速公路</h2>
+
+            <div class="visualization-container">
+                <h3 style="color: var(--accent-cyan); margin-bottom: 1.5rem;">🛤️ 信息高速公路</h3>
+                <canvas id="cellStateHighway" width="900" height="400"></canvas>
+            </div>
+
+            <div class="math-derivation">
+                <h3 style="color: var(--accent-orange); margin-bottom: 1.5rem;">📐 细胞状态更新公式</h3>
+
+                <div style="text-align: center; padding: 2rem; background: rgba(255, 255, 255, 0.05); border-radius: 1rem;">
+                    <p style="font-size: 1.5rem;">
+                        C<sub>t</sub> = f<sub>t</sub> ⊙ C<sub>t-1</sub> + i<sub>t</sub> ⊙ C̃<sub>t</sub>
+                    </p>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 2rem; text-align: left;">
+                        <div>
+                            <p style="color: var(--accent-pink);">f<sub>t</sub> ⊙ C<sub>t-1</sub></p>
+                            <p style="font-size: 0.9rem; color: var(--text-secondary);">保留的旧记忆</p>
+                        </div>
+                        <div>
+                            <p style="color: var(--accent-blue);">i<sub>t</sub> ⊙ C̃<sub>t</sub></p>
+                            <p style="font-size: 0.9rem; color: var(--text-secondary);">添加的新记忆</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tip success" style="margin-top: 2rem;">
+                    <span style="font-size: 1.5rem;">💡</span>
+                    <div>
+                        <strong>关键洞察：</strong>细胞状态的更新是<strong>线性的</strong>！没有激活函数，这使得梯度可以无损传播。
+                        这就是LSTM解决梯度消失的核心秘密。
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 输出门详解 -->
+        <section id="output-gate" class="section-card">
+            <h2 style="color: var(--accent-green); margin-bottom: 2rem;">📤 输出门：按需提取</h2>
+
+            <div class="story-card">
+                <div class="dialogue-box">
+                    <div class="speaker">
+                        <div class="avatar" style="background: linear-gradient(135deg, #43e97b, #38f9d7);">👨‍🔬</div>
+                        设计者：
+                    </div>
+                    <div>"细胞状态包含了所有记忆，但我们不需要在每个时刻输出所有信息。我们需要一个过滤器！"</div>
+                </div>
+            </div>
+
+            <div class="formula-explainer">
+                <div class="formula-column">
+                    <h4>数学公式</h4>
+                    <div class="formula-math">
+                        <div style="margin-bottom: 1rem;">
+                            o<sub>t</sub> = σ(W<sub>o</sub> · [h<sub>t-1</sub>, x<sub>t</sub>] + b<sub>o</sub>)
+                        </div>
+                        <div>
+                            h<sub>t</sub> = o<sub>t</sub> ⊙ tanh(C<sub>t</sub>)
+                        </div>
+                    </div>
+                </div>
+
+                <div class="formula-column">
+                    <h4>直观理解</h4>
+                    <div style="text-align: center; padding: 1rem;">
+                        <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgdmlld0JveD0iMCAwIDMwMCAyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgICA8IS0tIENlbGwgU3RhdGUgLS0+CiAgICA8cmVjdCB4PSI1MCIgeT0iNTAiIHdpZHRoPSIyMDAiIGhlaWdodD0iNDAiIGZpbGw9InJnYmEoMjUwLCAxMTIsIDE1NCwgMC4zKSIgc3Ryb2tlPSIjZmE3MDlhIiBzdHJva2Utd2lkdGg9IjIiIHJ4PSI1Ii8+CiAgICA8dGV4dCB4PSIxNTAiIHk9Ijc1IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSJ3aGl0ZSI+Q2VsbCBTdGF0ZTwvdGV4dD4KICAgIAogICAgPCEtLSBUYW5oIC0tPgogICAgPGNpcmNsZSBjeD0iMTUwIiBjeT0iMTIwIiByPSIyMCIgZmlsbD0icmdiYSg2NywgMjMzLCAxMjMsIDAuMykiIHN0cm9rZT0iIzQzZTk3YiIgc3Ryb2tlLXdpZHRoPSIyIi8+CiAgICA8dGV4dCB4PSIxNTAiIHk9IjEyNSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0id2hpdGUiIGZvbnQtc2l6ZT0iMTIiPnRhbmg8L3RleHQ+CiAgICAKICAgIDwhLS0gT3V0cHV0IEdhdGUgLS0+CiAgICA8Y2lyY2xlIGN4PSI4MCIgY3k9IjE2MCIgcj0iMjAiIGZpbGw9InJnYmEoNjcsIDIzMywgMTIzLCAwLjUpIiBzdHJva2U9IiM0M2U5N2IiIHN0cm9rZS13aWR0aD0iMiIvPgogICAgPHRleHQgeD0iODAiIHk9IjE2NSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0id2hpdGUiIGZvbnQtc2l6ZT0iMTIiPm88L3RleHQ+CiAgICAKICAgIDwhLS0gQXJyb3dzIC0tPgogICAgPHBhdGggZD0iTSAxNTAgOTAgTCAxNTAgMTAwIiBzdHJva2U9IndoaXRlIiBzdHJva2Utd2lkdGg9IjIiIG1hcmtlci1lbmQ9InVybCgjYXJyb3cpIi8+CiAgICA8cGF0aCBkPSJNIDEwMCAxNjAgTCAxMzAgMTQwIiBzdHJva2U9IndoaXRlIiBzdHJva2Utd2lkdGg9IjIiIG1hcmtlci1lbmQ9InVybCgjYXJyb3cpIi8+CiAgICAKICAgIDwhLS0gQXJyb3cgZGVmaW5pdGlvbiAtLT4KICAgIDxkZWZzPgogICAgICAgIDxtYXJrZXIgaWQ9ImFycm93IiBtYXJrZXJXaWR0aD0iMTAiIG1hcmtlckhlaWdodD0iNyIgcmVmWD0iOSIgcmVmWT0iMy41IiBvcmllbnQ9ImF1dG8iPgogICAgICAgICAgICA8cG9seWdvbiBwb2ludHM9IjAgMCwgMTAgMy41LCAwIDciIGZpbGw9IndoaXRlIi8+CiAgICAgICAgPC9tYXJrZXI+CiAgICA8L2RlZnM+Cjwvc3ZnPg==" alt="输出门示意图" style="max-width: 100%;">
+                        <p style="margin-top: 1rem; color: var(--text-secondary);">
+                            输出门决定从压缩后的细胞状态中<br>提取哪些信息作为输出
+                        </p>
+                    </div>
+                </div>
+
+                <div class="formula-column">
+                    <h4>为什么要tanh？</h4>
+                    <div style="padding: 1.5rem;">
+                        <ul style="list-style: none; padding: 0;">
+                            <li style="margin-bottom: 1rem;">
+                                <span style="color: var(--accent-green); font-weight: bold;">✓</span>
+                                将细胞状态压缩到[-1, 1]
+                            </li>
+                            <li style="margin-bottom: 1rem;">
+                                <span style="color: var(--accent-green); font-weight: bold;">✓</span>
+                                与网络其他部分保持一致
+                            </li>
+                            <li style="margin-bottom: 1rem;">
+                                <span style="color: var(--accent-green); font-weight: bold;">✓</span>
+                                增加非线性表达能力
+                            </li>
+                            <li>
+                                <span style="color: var(--accent-green); font-weight: bold;">✓</span>
+                                防止数值溢出
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- LSTM完整结构 -->
+        <section id="complete-lstm" class="section-card">
+            <h2 style="color: var(--accent-purple); margin-bottom: 2rem;">🏗️ LSTM完整结构</h2>
+
+            <div style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(236, 72, 153, 0.05)); padding: 2.5rem; border-radius: 1rem; margin-bottom: 2rem;">
+                <h3 style="text-align: center; color: var(--accent-purple); margin-bottom: 2rem;">LSTM完整公式汇总</h3>
+
+                <div style="display: grid; gap: 1rem; max-width: 800px; margin: 0 auto; font-size: 1.1rem;">
+                    <div style="background: rgba(255, 255, 255, 0.05); padding: 1rem 1.5rem; border-radius: 0.5rem; display: flex; align-items: center;">
+                        <span style="color: var(--accent-pink); margin-right: 1rem;">遗忘门：</span>
+                        <span style="font-family: monospace;">f_t = σ(W_f · [h_{t-1}, x_t] + b_f)</span>
+                    </div>
+                    <div style="background: rgba(255, 255, 255, 0.05); padding: 1rem 1.5rem; border-radius: 0.5rem; display: flex; align-items: center;">
+                        <span style="color: var(--accent-blue); margin-right: 1rem;">输入门：</span>
+                        <span style="font-family: monospace;">i_t = σ(W_i · [h_{t-1}, x_t] + b_i)</span>
+                    </div>
+                    <div style="background: rgba(255, 255, 255, 0.05); padding: 1rem 1.5rem; border-radius: 0.5rem; display: flex; align-items: center;">
+                        <span style="color: var(--accent-cyan); margin-right: 1rem;">候选值：</span>
+                        <span style="font-family: monospace;">C̃_t = tanh(W_C · [h_{t-1}, x_t] + b_C)</span>
+                    </div>
+                    <div style="background: rgba(255, 255, 255, 0.05); padding: 1rem 1.5rem; border-radius: 0.5rem; display: flex; align-items: center;">
+                        <span style="color: var(--accent-orange); margin-right: 1rem;">细胞态：</span>
+                        <span style="font-family: monospace;">C_t = f_t ⊙ C_{t-1} + i_t ⊙ C̃_t</span>
+                    </div>
+                    <div style="background: rgba(255, 255, 255, 0.05); padding: 1rem 1.5rem; border-radius: 0.5rem; display: flex; align-items: center;">
+                        <span style="color: var(--accent-green); margin-right: 1rem;">输出门：</span>
+                        <span style="font-family: monospace;">o_t = σ(W_o · [h_{t-1}, x_t] + b_o)</span>
+                    </div>
+                    <div style="background: rgba(255, 255, 255, 0.05); padding: 1rem 1.5rem; border-radius: 0.5rem; display: flex; align-items: center;">
+                        <span style="color: var(--accent-yellow); margin-right: 1rem;">隐藏态：</span>
+                        <span style="font-family: monospace;">h_t = o_t ⊙ tanh(C_t)</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="comparison-table">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>组件</th>
+                        <th>作用</th>
+                        <th>激活函数</th>
+                        <th>输出范围</th>
+                        <th>关键特性</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td><strong>遗忘门</strong></td>
+                        <td>决定忘记什么</td>
+                        <td>Sigmoid</td>
+                        <td>[0, 1]</td>
+                        <td>选择性遗忘</td>
+                    </tr>
+                    <tr>
+                        <td><strong>输入门</strong></td>
+                        <td>决定存储权重</td>
+                        <td>Sigmoid</td>
+                        <td>[0, 1]</td>
+                        <td>控制更新强度</td>
+                    </tr>
+                    <tr>
+                        <td><strong>候选值</strong></td>
+                        <td>新的记忆内容</td>
+                        <td>Tanh</td>
+                        <td>[-1, 1]</td>
+                        <td>编码新信息</td>
+                    </tr>
+                    <tr>
+                        <td><strong>细胞状态</strong></td>
+                        <td>长期记忆存储</td>
+                        <td>线性</td>
+                        <td>(-∞, +∞)</td>
+                        <td>梯度高速公路</td>
+                    </tr>
+                    <tr>
+                        <td><strong>输出门</strong></td>
+                        <td>决定输出什么</td>
+                        <td>Sigmoid</td>
+                        <td>[0, 1]</td>
+                        <td>信息过滤</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- 数学证明 -->
+        <section id="math-proof" class="section-card">
+            <h2 style="color: var(--accent-red); margin-bottom: 2rem;">🔬 数学证明：LSTM如何解决梯度消失</h2>
+
+            <div class="math-derivation">
+                <h3 style="color: var(--accent-red); margin-bottom: 1.5rem;">📐 梯度传播分析</h3>
+
+                <div class="derivation-step">
+                    <div class="derivation-step-number">1</div>
+                    <h4>细胞状态的梯度传播</h4>
+                    <p>从细胞状态更新公式出发：</p>
+                    <div style="text-align: center; margin: 1rem 0; font-size: 1.2rem;">
+                        $$C_t = f_t \odot C_{t-1} + i_t \odot \tilde{C}_t$$
+                    </div>
+                    <p>计算梯度：</p>
+                    <div style="text-align: center; margin: 1rem 0; font-size: 1.2rem;">
+                        $$\frac{\partial C_t}{\partial C_{t-1}} = \text{diag}(f_t)$$
+                    </div>
+                </div>
+
+                <div class="derivation-step">
+                    <div class="derivation-step-number">2</div>
+                    <h4>关键洞察</h4>
+                    <p>梯度通过<strong>对角矩阵</strong>传播，而不是密集矩阵！</p>
+                    <div class="tip success">
+                        <span style="font-size: 1.5rem;">💡</span>
+                        <div>
+                            这意味着：
+                            <ul style="margin-left: 1.5rem; margin-top: 0.5rem;">
+                                <li>每个维度的梯度独立传播</li>
+                                <li>没有信息混合</li>
+                                <li>网络可以学习让 f_t ≈ 1 来保持梯度</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="derivation-step">
+                    <div class="derivation-step-number">3</div>
+                    <h4>与RNN对比</h4>
+                    <div class="comparison-table">
+                        <table>
+                            <thead>
+                            <tr>
+                                <th>模型</th>
+                                <th>梯度传播</th>
+                                <th>100步后梯度</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr>
+                                <td>RNN</td>
+                                <td>$(W_{hh}^T \cdot \text{diag}(\tanh'))^{100}$</td>
+                                <td>≈ 10⁻³⁰</td>
+                            </tr>
+                            <tr>
+                                <td>LSTM</td>
+                                <td>$\prod_{t=1}^{100} \text{diag}(f_t)$</td>
+                                <td>≈ 10⁻⁵</td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 代码实现 -->
+        <section id="implementation" class="section-card">
+            <h2 style="color: var(--accent-yellow); margin-bottom: 2rem;">🛠️ 从零实现LSTM</h2>
+
+            <div class="code-layers">
+                <div class="code-layer-tabs">
+                    <button class="code-layer-tab active" data-layer="pseudo">伪代码</button>
+                    <button class="code-layer-tab" data-layer="numpy">NumPy实现</button>
+                    <button class="code-layer-tab" data-layer="pytorch">PyTorch实现</button>
+                    <button class="code-layer-tab" data-layer="tensorflow">TensorFlow实现</button>
+                </div>
+
+                <div class="code-layer-content active" data-layer-content="pseudo">
+                    <pre><code class="language-plaintext">LSTM前向传播算法：
+
+输入：当前输入 x_t, 上一隐藏状态 h_{t-1}, 上一细胞状态 C_{t-1}
+输出：当前隐藏状态 h_t, 当前细胞状态 C_t
+
+算法步骤：
+1. 计算遗忘门：
+   f_t = sigmoid(W_f · [h_{t-1}, x_t] + b_f)
+
+2. 计算输入门和候选值：
+   i_t = sigmoid(W_i · [h_{t-1}, x_t] + b_i)
+   C_tilde_t = tanh(W_C · [h_{t-1}, x_t] + b_C)
+
+3. 更新细胞状态：
+   C_t = f_t ⊙ C_{t-1} + i_t ⊙ C_tilde_t
+
+4. 计算输出门和隐藏状态：
+   o_t = sigmoid(W_o · [h_{t-1}, x_t] + b_o)
+   h_t = o_t ⊙ tanh(C_t)
+
+返回 h_t, C_t</code></pre>
+                </div>
+
+                <div class="code-layer-content" data-layer-content="numpy">
+                    <pre><code class="language-python">import numpy as np
+
+class LSTMCell:
+    """LSTM单元的NumPy实现"""
+
+    def __init__(self, input_dim, hidden_dim):
+        # 初始化权重矩阵 - Xavier初始化
+        scale = np.sqrt(2.0 / (input_dim + hidden_dim))
+
+        # 遗忘门参数
+        self.Wf = np.random.randn(hidden_dim, input_dim + hidden_dim) * scale
+        self.bf = np.ones((hidden_dim, 1))  # 初始化为1，促进记忆
+
+        # 输入门参数
+        self.Wi = np.random.randn(hidden_dim, input_dim + hidden_dim) * scale
+        self.bi = np.zeros((hidden_dim, 1))
+
+        # 候选值参数
+        self.Wc = np.random.randn(hidden_dim, input_dim + hidden_dim) * scale
+        self.bc = np.zeros((hidden_dim, 1))
+
+        # 输出门参数
+        self.Wo = np.random.randn(hidden_dim, input_dim + hidden_dim) * scale
+        self.bo = np.zeros((hidden_dim, 1))
+
+    def forward(self, x_t, h_prev, c_prev):
+        """LSTM前向传播"""
+        # 拼接输入 [h_{t-1}, x_t]
+        concat = np.vstack([h_prev, x_t])
+
+        # 计算四个门
+        f_t = self.sigmoid(np.dot(self.Wf, concat) + self.bf)  # 遗忘门
+        i_t = self.sigmoid(np.dot(self.Wi, concat) + self.bi)  # 输入门
+        c_tilde_t = np.tanh(np.dot(self.Wc, concat) + self.bc)  # 候选值
+        o_t = self.sigmoid(np.dot(self.Wo, concat) + self.bo)  # 输出门
+
+        # 更新细胞状态
+        c_t = f_t * c_prev + i_t * c_tilde_t
+
+        # 计算隐藏状态
+        h_t = o_t * np.tanh(c_t)
+
+        # 保存中间结果用于反向传播
+        cache = {
+            'x_t': x_t, 'h_prev': h_prev, 'c_prev': c_prev,
+            'f_t': f_t, 'i_t': i_t, 'c_tilde_t': c_tilde_t, 'o_t': o_t,
+            'c_t': c_t, 'concat': concat
+        }
+
+        return h_t, c_t, cache
+
+    def backward(self, dh_next, dc_next, cache):
+        """LSTM反向传播"""
+        # 解包缓存
+        x_t = cache['x_t']
+        h_prev = cache['h_prev']
+        c_prev = cache['c_prev']
+        f_t = cache['f_t']
+        i_t = cache['i_t']
+        c_tilde_t = cache['c_tilde_t']
+        o_t = cache['o_t']
+        c_t = cache['c_t']
+        concat = cache['concat']
+
+        # 计算各个门的梯度
+        do_t = dh_next * np.tanh(c_t)
+        dc_t = dc_next + dh_next * o_t * (1 - np.tanh(c_t)**2)
+
+        df_t = dc_t * c_prev
+        di_t = dc_t * c_tilde_t
+        dc_tilde_t = dc_t * i_t
+        dc_prev = dc_t * f_t
+
+        # 通过激活函数的梯度
+        dzo_t = do_t * o_t * (1 - o_t)
+        dzf_t = df_t * f_t * (1 - f_t)
+        dzi_t = di_t * i_t * (1 - i_t)
+        dzc_t = dc_tilde_t * (1 - c_tilde_t**2)
+
+        # 计算权重梯度
+        self.dWo = np.dot(dzo_t, concat.T)
+        self.dbo = dzo_t
+
+        self.dWf = np.dot(dzf_t, concat.T)
+        self.dbf = dzf_t
+
+        self.dWi = np.dot(dzi_t, concat.T)
+        self.dbi = dzi_t
+
+        self.dWc = np.dot(dzc_t, concat.T)
+        self.dbc = dzc_t
+
+        # 计算输入梯度
+        dconcat = (np.dot(self.Wf.T, dzf_t) +
+                   np.dot(self.Wi.T, dzi_t) +
+                   np.dot(self.Wc.T, dzc_t) +
+                   np.dot(self.Wo.T, dzo_t))
+
+        dh_prev = dconcat[:h_prev.shape[0]]
+        dx_t = dconcat[h_prev.shape[0]:]
+
+        return dx_t, dh_prev, dc_prev
+
+    @staticmethod
+    def sigmoid(x):
+        """数值稳定的sigmoid函数"""
+        return np.where(x >= 0,
+                       1 / (1 + np.exp(-x)),
+                       np.exp(x) / (1 + np.exp(x)))
+
+    @staticmethod
+    def sigmoid_derivative(x):
+        """sigmoid导数"""
+        s = LSTMCell.sigmoid(x)
+        return s * (1 - s)
+
+# 使用示例
+if __name__ == "__main__":
+    # 创建LSTM单元
+    lstm = LSTMCell(input_dim=100, hidden_dim=128)
+
+    # 模拟输入
+    x_t = np.random.randn(100, 1)
+    h_prev = np.zeros((128, 1))
+    c_prev = np.zeros((128, 1))
+
+    # 前向传播
+    h_t, c_t, cache = lstm.forward(x_t, h_prev, c_prev)
+
+    print(f"隐藏状态形状: {h_t.shape}")
+    print(f"细胞状态形状: {c_t.shape}")
+    print(f"隐藏状态范围: [{h_t.min():.3f}, {h_t.max():.3f}]")
+    print(f"细胞状态范围: [{c_t.min():.3f}, {c_t.max():.3f}]")</code></pre>
+                </div>
+
+                <div class="code-layer-content" data-layer-content="pytorch">
+                    <pre><code class="language-python">import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+class LSTMCell(nn.Module):
+    """PyTorch LSTM单元实现"""
+
+    def __init__(self, input_size, hidden_size):
+        super(LSTMCell, self).__init__()
+        self.input_size = input_size
+        self.hidden_size = hidden_size
+
+        # 合并所有门的权重，提高计算效率
+        self.weight_ih = nn.Linear(input_size, 4 * hidden_size)
+        self.weight_hh = nn.Linear(hidden_size, 4 * hidden_size)
+
+        # 初始化参数
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        """参数初始化"""
+        std = 1.0 / (self.hidden_size)**0.5
+        for weight in self.parameters():
+            weight.data.uniform_(-std, std)
+
+        # 遗忘门偏置初始化为1
+        self.weight_ih.bias.data[0:self.hidden_size].fill_(1.0)
+
+    def forward(self, input, hidden):
+        """
+        前向传播
+        input: (batch, input_size)
+        hidden: tuple of (h, c), each (batch, hidden_size)
+        """
+        hx, cx = hidden
+
+        # 计算所有门
+        gates = self.weight_ih(input) + self.weight_hh(hx)
+
+        # 分割门
+        ingate, forgetgate, cellgate, outgate = gates.chunk(4, 1)
+
+        # 应用激活函数
+        ingate = torch.sigmoid(ingate)
+        forgetgate = torch.sigmoid(forgetgate)
+        cellgate = torch.tanh(cellgate)
+        outgate = torch.sigmoid(outgate)
+
+        # 更新细胞状态
+        cy = forgetgate * cx + ingate * cellgate
+
+        # 计算隐藏状态
+        hy = outgate * torch.tanh(cy)
+
+        return hy, cy
+
+
+class LSTM(nn.Module):
+    """完整的LSTM模型"""
+
+    def __init__(self, input_size, hidden_size, num_layers=1,
+                 batch_first=True, dropout=0.0):
+        super(LSTM, self).__init__()
+        self.input_size = input_size
+        self.hidden_size = hidden_size
+        self.num_layers = num_layers
+        self.batch_first = batch_first
+        self.dropout = dropout
+
+        # 创建LSTM层
+        self.lstm_layers = nn.ModuleList()
+        for i in range(num_layers):
+            layer_input_size = input_size if i == 0 else hidden_size
+            self.lstm_layers.append(LSTMCell(layer_input_size, hidden_size))
+
+        # Dropout层
+        if dropout > 0:
+            self.dropout_layer = nn.Dropout(dropout)
+
+    def forward(self, input, hidden=None):
+        """
+        前向传播
+        input: (batch, seq_len, input_size) if batch_first=True
+        hidden: tuple of (h0, c0), each (num_layers, batch, hidden_size)
+        """
+        if self.batch_first:
+            batch_size, seq_len, _ = input.size()
+        else:
+            seq_len, batch_size, _ = input.size()
+            input = input.transpose(0, 1)
+
+        # 初始化隐藏状态
+        if hidden is None:
+            h_0 = torch.zeros(self.num_layers, batch_size,
+                            self.hidden_size, device=input.device)
+            c_0 = torch.zeros(self.num_layers, batch_size,
+                            self.hidden_size, device=input.device)
+            hidden = (h_0, c_0)
+
+        h_0, c_0 = hidden
+
+        # 存储所有时间步的输出
+        output = []
+
+        # 逐时间步处理
+        for t in range(seq_len):
+            x_t = input[:, t, :]
+
+            # 逐层处理
+            for layer in range(self.num_layers):
+                h_t = h_0[layer]
+                c_t = c_0[layer]
+
+                # LSTM计算
+                h_t, c_t = self.lstm_layers[layer](x_t, (h_t, c_t))
+
+                # 更新状态
+                h_0[layer] = h_t
+                c_0[layer] = c_t
+
+                # 准备下一层的输入
+                x_t = h_t
+
+                # Dropout (除了最后一层)
+                if self.dropout > 0 and layer < self.num_layers - 1:
+                    x_t = self.dropout_layer(x_t)
+
+            output.append(h_t.unsqueeze(1))
+
+        # 合并输出
+        output = torch.cat(output, dim=1)
+
+        if not self.batch_first:
+            output = output.transpose(0, 1)
+
+        return output, (h_0, c_0)
+
+
+# 使用示例
+if __name__ == "__main__":
+    # 创建模型
+    lstm = LSTM(input_size=100, hidden_size=256, num_layers=2,
+                batch_first=True, dropout=0.1)
+
+    # 模拟输入
+    batch_size = 32
+    seq_len = 50
+    input_size = 100
+
+    x = torch.randn(batch_size, seq_len, input_size)
+
+    # 前向传播
+    output, (h_n, c_n) = lstm(x)
+
+    print(f"输入形状: {x.shape}")
+    print(f"输出形状: {output.shape}")
+    print(f"最终隐藏状态形状: {h_n.shape}")
+    print(f"最终细胞状态形状: {c_n.shape}")
+
+    # 参数统计
+    total_params = sum(p.numel() for p in lstm.parameters())
+    print(f"总参数量: {total_params:,}")</code></pre>
+                </div>
+
+                <div class="code-layer-content" data-layer-content="tensorflow">
+                    <pre><code class="language-python">import tensorflow as tf
+import numpy as np
+
+class LSTMCell(tf.keras.layers.Layer):
+    """TensorFlow LSTM单元实现"""
+
+    def __init__(self, units, **kwargs):
+        super(LSTMCell, self).__init__(**kwargs)
+        self.units = units
+        self.state_size = [units, units]  # [h, c]
+
+    def build(self, input_shape):
+        input_dim = input_shape[-1]
+
+        # 创建权重矩阵
+        self.kernel = self.add_weight(
+            shape=(input_dim, self.units * 4),
+            name='kernel',
+            initializer='glorot_uniform'
+        )
+
+        self.recurrent_kernel = self.add_weight(
+            shape=(self.units, self.units * 4),
+            name='recurrent_kernel',
+            initializer='orthogonal'
+        )
+
+        # 偏置
+        self.bias = self.add_weight(
+            shape=(self.units * 4,),
+            name='bias',
+            initializer=self.bias_initializer
+        )
+
+    def bias_initializer(self, shape, dtype=None):
+        """自定义偏置初始化 - 遗忘门偏置为1"""
+        bias = np.zeros(shape)
+        bias[:self.units] = 1.0  # 遗忘门
+        return tf.constant(bias, dtype=dtype)
+
+    def call(self, inputs, states):
+        """
+        前向传播
+        inputs: (batch, input_dim)
+        states: [h, c], each (batch, units)
+        """
+        h_prev, c_prev = states
+
+        # 计算所有门
+        z = tf.matmul(inputs, self.kernel)
+        z += tf.matmul(h_prev, self.recurrent_kernel)
+        z = tf.nn.bias_add(z, self.bias)
+
+        # 分割门
+        z0, z1, z2, z3 = tf.split(z, 4, axis=1)
+
+        # 应用激活函数
+        f = tf.nn.sigmoid(z0)  # 遗忘门
+        i = tf.nn.sigmoid(z1)  # 输入门
+        c_tilde = tf.nn.tanh(z2)  # 候选值
+        o = tf.nn.sigmoid(z3)  # 输出门
+
+        # 更新状态
+        c = f * c_prev + i * c_tilde
+        h = o * tf.nn.tanh(c)
+
+        return h, [h, c]
+
+
+class LSTM(tf.keras.Model):
+    """完整的LSTM模型"""
+
+    def __init__(self, units, num_layers=1, dropout=0.0,
+                 return_sequences=True, **kwargs):
+        super(LSTM, self).__init__(**kwargs)
+        self.units = units
+        self.num_layers = num_layers
+        self.dropout = dropout
+        self.return_sequences = return_sequences
+
+        # 创建LSTM层
+        self.lstm_layers = []
+        for i in range(num_layers):
+            self.lstm_layers.append(
+                tf.keras.layers.RNN(
+                    LSTMCell(units),
+                    return_sequences=True if i < num_layers-1 else return_sequences,
+                    return_state=True
+                )
+            )
+
+            # Dropout层
+            if dropout > 0 and i < num_layers - 1:
+                self.lstm_layers.append(tf.keras.layers.Dropout(dropout))
+
+    def call(self, inputs, initial_state=None, training=None):
+        """前向传播"""
+        x = inputs
+        states = []
+
+        for layer in self.lstm_layers:
+            if isinstance(layer, tf.keras.layers.Dropout):
+                x = layer(x, training=training)
+            else:
+                x, h, c = layer(x, initial_state=initial_state)
+                states.append((h, c))
+                initial_state = [h, c]
+
+        return x, states
+
+    def get_config(self):
+        config = super().get_config()
+        config.update({
+            'units': self.units,
+            'num_layers': self.num_layers,
+            'dropout': self.dropout,
+            'return_sequences': self.return_sequences
+        })
+        return config
+
+
+# 使用Keras高级API的LSTM
+def create_keras_lstm(input_shape, units, num_layers=1, dropout=0.0):
+    """使用Keras高级API创建LSTM模型"""
+    model = tf.keras.Sequential()
+
+    # 输入层
+    model.add(tf.keras.layers.Input(shape=input_shape))
+
+    # LSTM层
+    for i in range(num_layers):
+        return_sequences = True if i < num_layers - 1 else False
+
+        model.add(tf.keras.layers.LSTM(
+            units=units,
+            return_sequences=return_sequences,
+            dropout=dropout,
+            recurrent_dropout=dropout,
+            kernel_initializer='glorot_uniform',
+            recurrent_initializer='orthogonal',
+            bias_initializer='zeros'
+        ))
+
+        if dropout > 0 and i < num_layers - 1:
+            model.add(tf.keras.layers.Dropout(dropout))
+
+    return model
+
+
+# 使用示例
+if __name__ == "__main__":
+    # 方法1：使用自定义LSTM
+    lstm_custom = LSTM(units=256, num_layers=2, dropout=0.1)
+
+    # 方法2：使用Keras高级API
+    lstm_keras = create_keras_lstm(
+        input_shape=(50, 100),  # (seq_len, input_dim)
+        units=256,
+        num_layers=2,
+        dropout=0.1
+    )
+
+    # 测试输入
+    batch_size = 32
+    seq_len = 50
+    input_dim = 100
+
+    x = tf.random.normal((batch_size, seq_len, input_dim))
+
+    # 自定义LSTM前向传播
+    output_custom, states_custom = lstm_custom(x, training=True)
+    print(f"自定义LSTM输出形状: {output_custom.shape}")
+
+    # Keras LSTM前向传播
+    output_keras = lstm_keras(x, training=True)
+    print(f"Keras LSTM输出形状: {output_keras.shape}")
+
+    # 模型摘要
+    lstm_keras.summary()</code></pre>
+                </div>
+            </div>
+
+            <!-- 可视化代码折叠 -->
+            <div class="collapsible">
+                <div class="collapsible-header">
+                    <span>📊 可视化实现代码（可选查看）</span>
+                    <span class="collapsible-icon">▼</span>
+                </div>
+                <div class="collapsible-content">
+                    <pre><code class="language-python"># 这里包含生成本页面所有可视化图表的代码
+# 由于与理解LSTM原理无关，默认折叠
+# 如需查看具体实现，请展开此部分
+
+import matplotlib.pyplot as plt
+import numpy as np
+
+def visualize_lstm_gates(sequence_length=20):
+    """可视化LSTM门的激活模式"""
+    # 模拟门激活值
+    forget_gates = np.random.beta(5, 1, sequence_length)
+    input_gates = np.random.beta(2, 2, sequence_length)
+    output_gates = np.random.beta(3, 2, sequence_length)
+
+    plt.figure(figsize=(12, 6))
+
+    # 绘制门激活值
+    plt.plot(forget_gates, 'r-', label='Forget Gate', linewidth=2)
+    plt.plot(input_gates, 'b-', label='Input Gate', linewidth=2)
+    plt.plot(output_gates, 'g-', label='Output Gate', linewidth=2)
+
+    plt.xlabel('Time Step')
+    plt.ylabel('Gate Activation')
+    plt.title('LSTM Gate Activations Over Time')
+    plt.legend()
+    plt.grid(True, alpha=0.3)
+    plt.ylim(0, 1)
+
+    plt.tight_layout()
+    plt.show()
+
+# 更多可视化代码...</code></pre>
+                </div>
+            </div>
+        </section>
+
+        <!-- 实时演示 -->
+        <section id="visualization" class="section-card">
+            <h2 style="color: var(--accent-green); margin-bottom: 2rem;">🚀 实时情感分析演示</h2>
+
+            <div class="live-demo">
+                <div class="live-demo-content">
+                    <p style="margin-bottom: 1.5rem; font-size: 1.1rem;">
+                        输入一句话，实时查看LSTM如何处理并分析情感：
+                    </p>
+
+                    <div class="input-group">
+                        <input type="text"
+                               class="live-demo-input"
+                               id="sentimentInput"
+                               placeholder="例如：这个产品太棒了！我非常喜欢！"
+                               value="这个产品太棒了！我非常喜欢！">
+
+                        <button class="analyze-btn" id="analyzeBtn">
+                            分析情感 ✨
+                        </button>
+                    </div>
+
+                    <div class="live-demo-output">
+                        <div class="demo-result-card">
+                            <h4 style="color: var(--accent-pink); margin-bottom: 1rem;">😊 预测结果</h4>
+                            <div id="predictionResult" style="text-align: center;">
+                                <div style="font-size: 4rem; margin-bottom: 1rem;">😊</div>
+                                <div style="font-size: 1.5rem; font-weight: bold; color: var(--accent-green);">
+                                    正面情感
+                                </div>
+                                <div style="font-size: 1.2rem; color: var(--text-secondary); margin-top: 0.5rem;">
+                                    置信度：95%
+                                </div>
+                                <div style="margin-top: 1.5rem;">
+                                    <div style="background: rgba(255, 255, 255, 0.1); border-radius: 0.5rem; height: 20px; overflow: hidden;">
+                                        <div style="height: 100%; width: 95%; background: var(--accent-green); transition: width 0.5s ease;"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="demo-result-card">
+                            <h4 style="color: var(--accent-blue); margin-bottom: 1rem;">🚪 门激活值</h4>
+                            <div id="gateActivations">
+                                <canvas id="gateChart" width="400" height="250"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 2rem;">
+                        <h4 style="color: var(--accent-cyan); margin-bottom: 1rem;">📈 处理过程可视化</h4>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                            <div>
+                                <h5 style="color: var(--accent-pink); margin-bottom: 0.5rem;">细胞状态变化</h5>
+                                <canvas id="cellStateChart" width="100%" height="200"></canvas>
+                            </div>
+                            <div>
+                                <h5 style="color: var(--accent-green); margin-bottom: 0.5rem;">隐藏状态热图</h5>
+                                <canvas id="hiddenStateChart" width="100%" height="200"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 实战应用 -->
+        <section id="practice" class="section-card">
+            <h2 style="color: var(--accent-pink); margin-bottom: 2rem;">⚔️ 实战：用LSTM生成音乐</h2>
+
+            <div class="story-card">
+                <p style="font-size: 1.2rem; line-height: 1.8; margin-bottom: 2rem;">
+                    让我们用LSTM创建一个音乐生成器，体验长期记忆在序列生成中的威力！
+                </p>
+            </div>
+
+            <div class="practice-section">
+                <h3 style="color: var(--accent-yellow); margin-bottom: 1.5rem;">🎵 音乐生成器</h3>
+
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
+                    <button class="btn btn-primary" onclick="generateMelody('happy')">
+                        😊 生成欢快旋律
+                    </button>
+                    <button class="btn btn-primary" onclick="generateMelody('sad')">
+                        😢 生成忧伤旋律
+                    </button>
+                    <button class="btn btn-primary" onclick="generateMelody('energetic')">
+                        ⚡ 生成激昂旋律
+                    </button>
+                    <button class="btn btn-primary" onclick="generateMelody('calm')">
+                        🌊 生成平静旋律
+                    </button>
+                </div>
+
+                <div id="musicVisualizer" style="background: rgba(255, 255, 255, 0.05); padding: 2rem; border-radius: 1rem;">
+                    <canvas id="musicCanvas" width="100%" height="300"></canvas>
+                </div>
+
+                <div style="margin-top: 2rem;">
+                    <audio id="musicPlayer" controls style="width: 100%;"></audio>
+                </div>
+            </div>
+        </section>
+
+        <!-- 练习与思考 -->
+        <section id="exercises" class="section-card">
+            <h2 style="color: var(--accent-purple); margin-bottom: 2rem;">📝 练习与思考</h2>
+
+            <div class="practice-section">
+                <div class="practice-item">
+                    <h3 style="color: var(--accent-blue); margin-bottom: 1rem;">
+                        练习1：手动计算LSTM前向传播
+                    </h3>
+                    <p>给定以下参数，手动计算一步LSTM的输出：</p>
+                    <div style="background: rgba(255, 255, 255, 0.05); padding: 1.5rem; border-radius: 0.5rem; margin: 1rem 0;">
+                        <code>
+                            x_t = [0.5, -0.2], h_{t-1} = [0.3, 0.1], C_{t-1} = [0.8, -0.4]<br>
+                            W_f = [[0.1, 0.2, -0.1, 0.3], [0.2, -0.1, 0.1, 0.2]], b_f = [0.5, 0.5]
+                        </code>
+                    </div>
+                    <div class="practice-solution">
+                        <h4 style="color: var(--accent-green); margin-bottom: 1rem;">解答：</h4>
+                        <p>步骤1：拼接输入 [h_{t-1}, x_t] = [0.3, 0.1, 0.5, -0.2]</p>
+                        <p>步骤2：计算遗忘门...</p>
+                        <p>（完整解答请展开查看）</p>
+                    </div>
+                </div>
+
+                <div class="practice-item">
+                    <h3 style="color: var(--accent-pink); margin-bottom: 1rem;">
+                        练习2：分析梯度传播
+                    </h3>
+                    <p>证明：当遗忘门 f_t = 1 且输入门 i_t = 0 时，梯度可以无损传播。</p>
+                    <div class="practice-solution">
+                        <h4 style="color: var(--accent-green); margin-bottom: 1rem;">提示：</h4>
+                        <p>从细胞状态更新公式开始，计算雅可比矩阵...</p>
+                    </div>
+                </div>
+
+                <div class="practice-item">
+                    <h3 style="color: var(--accent-orange); margin-bottom: 1rem;">
+                        练习3：门的相关性分析
+                    </h3>
+                    <p>在实际应用中，遗忘门和输入门往往呈现负相关。解释这种现象的原因。</p>
+                    <div class="practice-solution">
+                        <h4 style="color: var(--accent-green); margin-bottom: 1rem;">思路：</h4>
+                        <p>考虑细胞状态的容量限制...</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="think-card" style="margin-top: 2rem;">
+                <h3>🤔 深度思考题</h3>
+                <ol style="margin-left: 1.5rem; line-height: 2;">
+                    <li>为什么LSTM在处理文本时通常比处理图像更有效？</li>
+                    <li>如何解释LSTM中的"记忆"与人类记忆的相似性？</li>
+                    <li>在什么情况下，简单的RNN可能比LSTM表现更好？</li>
+                    <li>LSTM的哪些设计可以被进一步简化而不影响性能？</li>
+                </ol>
+            </div>
+        </section>
+
+        <!-- 总结与展望 -->
+        <section id="summary" class="section-card">
+            <h2 style="color: var(--accent-purple); margin-bottom: 2rem;">🎯 本章总结：LSTM的精妙设计</h2>
+
+            <div class="concept-grid">
+                <div class="concept-card forget">
+                    <h3 style="color: var(--accent-pink); margin-bottom: 1rem;">🎯 核心创新</h3>
+                    <ul style="margin-left: 1.5rem;">
+                        <li>细胞状态：线性信息高速公路</li>
+                        <li>门控机制：精确的信息流控制</li>
+                        <li>梯度高速路：解决长期依赖</li>
+                        <li>模块化设计：清晰的数学结构</li>
+                    </ul>
+                </div>
+
+                <div class="concept-card input">
+                    <h3 style="color: var(--accent-blue); margin-bottom: 1rem;">💡 设计智慧</h3>
+                    <ul style="margin-left: 1.5rem;">
+                        <li>遗忘门：选择性遗忘</li>
+                        <li>输入门：选择性记忆</li>
+                        <li>输出门：按需提取</li>
+                        <li>线性路径：梯度保护</li>
+                    </ul>
+                </div>
+
+                <div class="concept-card output">
+                    <h3 style="color: var(--accent-green); margin-bottom: 1rem;">🚀 应用领域</h3>
+                    <ul style="margin-left: 1.5rem;">
+                        <li>自然语言处理</li>
+                        <li>语音识别</li>
+                        <li>时序预测</li>
+                        <li>音乐生成</li>
+                    </ul>
+                </div>
+
+                <div class="concept-card cell">
+                    <h3 style="color: var(--accent-orange); margin-bottom: 1rem;">⚠️ 局限性</h3>
+                    <ul style="margin-left: 1.5rem;">
+                        <li>计算复杂度高</li>
+                        <li>难以并行化</li>
+                        <li>参数量大</li>
+                        <li>训练时间长</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="timeline" style="margin-top: 3rem;">
+                <div class="timeline-item">
+                    <div class="timeline-dot"></div>
+                    <h4 style="color: var(--accent-pink);">过去：RNN时代</h4>
+                    <p>简单但梯度消失严重</p>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-dot"></div>
+                    <h4 style="color: var(--accent-blue);">现在：LSTM主导</h4>
+                    <p>解决长期依赖，广泛应用</p>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-dot"></div>
+                    <h4 style="color: var(--accent-green);">未来：Transformer崛起</h4>
+                    <p>并行计算，自注意力机制</p>
+                </div>
+            </div>
+
+            <div class="tip success" style="margin-top: 3rem;">
+                <span style="font-size: 2rem;">🎓</span>
+                <div>
+                    <h3 style="margin-bottom: 1rem;">学习LSTM的收获</h3>
+                    <p style="font-size: 1.1rem; line-height: 1.8;">
+                        通过本章的学习，你已经掌握了：<br>
+                        • LSTM如何通过门控机制解决梯度消失<br>
+                        • 细胞状态作为信息高速公路的设计智慧<br>
+                        • 从零实现LSTM的完整代码<br>
+                        • LSTM在实际应用中的优化技巧
+                    </p>
+                    <p style="margin-top: 1rem; font-size: 1.2rem; color: var(--accent-cyan);">
+                        <strong>下一步：</strong>学习GRU和Transformer，了解序列建模的最新进展！
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 参考资源 -->
+        <section class="section-card" style="background: linear-gradient(135deg, rgba(6, 182, 212, 0.1), rgba(59, 130, 246, 0.05));">
+            <h2 style="color: var(--accent-cyan); margin-bottom: 2rem;">📚 延伸阅读与资源</h2>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem;">
+                <div style="background: rgba(255, 255, 255, 0.05); padding: 2rem; border-radius: 1rem;">
+                    <h3 style="color: var(--accent-blue); margin-bottom: 1rem;">📄 经典论文</h3>
+                    <ul style="line-height: 2;">
+                        <li>Hochreiter & Schmidhuber (1997) - Long Short-Term Memory</li>
+                        <li>Gers et al. (2000) - Learning to Forget</li>
+                        <li>Graves (2013) - Generating Sequences with RNNs</li>
+                    </ul>
+                </div>
+
+                <div style="background: rgba(255, 255, 255, 0.05); padding: 2rem; border-radius: 1rem;">
+                    <h3 style="color: var(--accent-green); margin-bottom: 1rem;">🎥 推荐教程</h3>
+                    <ul style="line-height: 2;">
+                        <li>Christopher Olah - Understanding LSTM Networks</li>
+                        <li>Andrej Karpathy - The Unreasonable Effectiveness of RNNs</li>
+                        <li>Fast.ai - Practical Deep Learning Course</li>
+                    </ul>
+                </div>
+
+                <div style="background: rgba(255, 255, 255, 0.05); padding: 2rem; border-radius: 1rem;">
+                    <h3 style="color: var(--accent-orange); margin-bottom: 1rem;">💻 代码资源</h3>
+                    <ul style="line-height: 2;">
+                        <li>PyTorch LSTM Tutorial</li>
+                        <li>TensorFlow RNN Guide</li>
+                        <li>Keras Sequential Models</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- 结语 -->
+        <section class="section-card" style="background: var(--lstm-gradient); color: #0f172a; margin-bottom: 0;">
+            <div style="text-align: center; padding: 2rem;">
+                <h2 style="font-size: 3rem; margin-bottom: 1.5rem;">🎊 恭喜完成本章学习！</h2>
+                <p style="font-size: 1.3rem; margin-bottom: 2rem; line-height: 1.8;">
+                    你已经掌握了LSTM的精髓 —— 通过精妙的门控设计让神经网络学会遗忘与记忆。<br>
+                    这是深度学习历史上的一个里程碑，也是通向现代AI的重要一步。
+                </p>
+                <div style="display: flex; justify-content: center; gap: 2rem; flex-wrap: wrap;">
+                    <a href="#" class="btn" style="background: white; color: #0f172a; padding: 1rem 2rem; font-size: 1.1rem;">
+                        ⬅️ 上一章：RNN基础
+                    </a>
+                    <a href="#" class="btn" style="background: #0f172a; color: white; padding: 1rem 2rem; font-size: 1.1rem;">
+                        下一章：注意力机制 ➡️
+                    </a>
+                </div>
+            </div>
+        </section>
+
+    </div>
+</main>
+
+<!-- 页脚 -->
+<footer style="background: var(--bg-section); padding: 3rem 0; border-top: 1px solid var(--border-color);">
+    <div class="container">
+        <div style="text-align: center; color: var(--text-secondary);">
+            <p style="margin-bottom: 1rem; font-size: 1.1rem;">
+                📖 深度学习序列建模 | 第8章：长短期记忆网络LSTM
+            </p>
+            <p>
+                用❤️制作 | 让AI知识触手可及
+            </p>
+        </div>
+    </div>
+</footer>
+
+<!-- JavaScript -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+
+<!-- TensorFlow.js for live demo -->
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
+
+<script>
+    // ===== 初始化 =====
+    // 初始化语法高亮
+    hljs.highlightAll();
+
+    // 初始化数学公式
+    renderMathInElement(document.body, {
+        delimiters: [
+            {left: '$', right: '$', display: true},
+            {left: ', right: ', display: false}
+        ],
+        throwOnError: false
+    });
+
+    // ===== 背景动画 =====
+    function createBackgroundAnimation() {
+        const bgAnimation = document.getElementById('bgAnimation');
+        const particleCount = 50;
+
+        for (let i = 0; i < particleCount; i++) {
+            const particle = document.createElement('div');
+            particle.className = 'bg-particle';
+            particle.style.left = Math.random() * 100 + '%';
+            particle.style.animationDelay = Math.random() * 20 + 's';
+            particle.style.animationDuration = (20 + Math.random() * 10) + 's';
+            bgAnimation.appendChild(particle);
+        }
+    }
+    createBackgroundAnimation();
+
+    // ===== 导航功能 =====
+    const sidebar = document.getElementById('sidebar');
+    const toggleSidebar = document.getElementById('toggle-sidebar');
+    const navHeader = document.querySelector('.nav-header');
+    let lastScrollTop = 0;
+
+    toggleSidebar.addEventListener('click', () => {
+        sidebar.classList.toggle('open');
+    });
+
+    // 自动隐藏导航栏
+    window.addEventListener('scroll', () => {
+        const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+
+        if (scrollTop > lastScrollTop && scrollTop > 100) {
+            navHeader.classList.add('hidden');
+        } else {
+            navHeader.classList.remove('hidden');
+        }
+
+        lastScrollTop = scrollTop;
+
+        // 更新进度条
+        const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+        const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+        const scrolled = (winScroll / height) * 100;
+        document.getElementById('progress-bar').style.width = scrolled + '%';
+    });
+
+    // 侧边栏导航高亮
+    const sections = document.querySelectorAll('section[id]');
+    const tocItems = document.querySelectorAll('.toc-item');
+
+    window.addEventListener('scroll', () => {
+        let current = '';
+
+        sections.forEach(section => {
+            const sectionTop = section.offsetTop;
+            const sectionHeight = section.clientHeight;
+            if (pageYOffset >= sectionTop - 200) {
+                current = section.getAttribute('id');
+            }
+        });
+
+        tocItems.forEach(item => {
+            item.classList.remove('active');
+            if (item.getAttribute('href') === `#${current}`) {
+                item.classList.add('active');
+            }
+        });
+    });
+
+    // ===== 交互式公式高亮 =====
+    document.querySelectorAll('.highlight-target').forEach(elem => {
+        elem.addEventListener('mouseenter', function() {
+            const symbol = this.getAttribute('data-symbol');
+            highlightSymbol(symbol, true);
+        });
+
+        elem.addEventListener('mouseleave', function() {
+            const symbol = this.getAttribute('data-symbol');
+            highlightSymbol(symbol, false);
+        });
+    });
+
+    function highlightSymbol(symbol, highlight) {
+        // 高亮所有相关元素
+        document.querySelectorAll(`[data-symbol="${symbol}"]`).forEach(elem => {
+            if (highlight) {
+                elem.classList.add('highlight-active');
+            } else {
+                elem.classList.remove('highlight-active');
+            }
+        });
+
+        // 高亮对应的含义项
+        document.querySelectorAll('.meaning-item').forEach(item => {
+            const strongText = item.querySelector('strong').textContent;
+            if (strongText.includes(symbol.replace('_', ''))) {
+                if (highlight) {
+                    item.style.background = 'rgba(79, 172, 254, 0.2)';
+                    item.style.borderColor = 'var(--accent-blue)';
+                } else {
+                    item.style.background = '';
+                    item.style.borderColor = 'transparent';
+                }
+            }
+        });
+    }
+
+    // ===== LSTM单元交互 =====
+    function initializeLSTMCanvas() {
+        const canvas = document.getElementById('lstmCanvas');
+        if (!canvas) return;
+
+        const ctx = canvas.getContext('2d');
+        canvas.width = canvas.offsetWidth;
+        canvas.height = 500;
+
+        // 绘制LSTM结构
+        drawLSTMStructure(ctx, canvas.width, canvas.height);
+    }
+
+    function drawLSTMStructure(ctx, width, height) {
+        // 清空画布
+        ctx.clearRect(0, 0, width, height);
+
+        // 绘制细胞状态高速公路
+        ctx.strokeStyle = '#a8edea';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(50, height/2);
+        ctx.lineTo(width - 50, height/2);
+        ctx.stroke();
+
+        // 绘制门
+        const gates = [
+            { name: '遗忘门', x: width * 0.25, y: height * 0.3, color: '#f5576c' },
+            { name: '输入门', x: width * 0.5, y: height * 0.3, color: '#4facfe' },
+            { name: '输出门', x: width * 0.75, y: height * 0.7, color: '#43e97b' }
+        ];
+
+        gates.forEach(gate => {
+            // 绘制门圆圈
+            ctx.beginPath();
+            ctx.arc(gate.x, gate.y, 40, 0, 2 * Math.PI);
+            ctx.fillStyle = gate.color;
+            ctx.fill();
+            ctx.strokeStyle = 'white';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // 绘制标签
+            ctx.fillStyle = 'white';
+            ctx.font = '14px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(gate.name, gate.x, gate.y + 60);
+        });
+    }
+
+    function highlightForgetGate() {
+        updateGateDescription('forget', '#f5576c');
+    }
+
+    function highlightInputGate() {
+        updateGateDescription('input', '#4facfe');
+    }
+
+    function highlightOutputGate() {
+        updateGateDescription('output', '#43e97b');
+    }
+
+    function animateDataFlow() {
+        // 实现数据流动画
+        console.log('Animating data flow...');
+    }
+
+    function updateGateDescription(gateType, color) {
+        const descriptions = {
+            forget: {
+                title: '遗忘门 (Forget Gate)',
+                formula: 'f_t = σ(W_f · [h_{t-1}, x_t] + b_f)',
+                description: '遗忘门决定从细胞状态中丢弃什么信息。它查看 h_{t-1} 和 x_t，输出一个 0 到 1 之间的数值给每个细胞状态。1 表示"完全保留"，0 表示"完全丢弃"。'
+            },
+            input: {
+                title: '输入门 (Input Gate)',
+                formula: 'i_t = σ(W_i · [h_{t-1}, x_t] + b_i)',
+                description: '输入门决定什么新信息要存储到细胞状态中。这包含两部分：sigmoid 层决定哪些值要更新，tanh 层创建新的候选值向量。'
+            },
+            output: {
+                title: '输出门 (Output Gate)',
+                formula: 'o_t = σ(W_o · [h_{t-1}, x_t] + b_o)',
+                description: '输出门决定基于细胞状态输出什么。首先运行 sigmoid 层决定细胞状态的哪些部分要输出，然后将细胞状态通过 tanh 并乘以 sigmoid 的输出。'
+            }
+        };
+
+        const desc = descriptions[gateType];
+        document.getElementById('gateDescription').innerHTML = `
+            <h3 style="color: ${color}; margin-bottom: 1rem;">${desc.title}</h3>
+            <div style="background: rgba(255, 255, 255, 0.05); padding: 1rem; border-radius: 0.5rem; margin-bottom: 1rem;">
+                <code style="font-size: 1.2rem;">${desc.formula}</code>
+            </div>
+            <p style="line-height: 1.8;">${desc.description}</p>
+        `;
+    }
+
+    // ===== 步进动画 =====
+    let currentStep = 0;
+    const totalSteps = 4;
+
+    document.querySelectorAll('.step-dot').forEach(dot => {
+        dot.addEventListener('click', function() {
+            currentStep = parseInt(this.getAttribute('data-step'));
+            updateStep();
+        });
+    });
+
+    document.getElementById('prevStep').addEventListener('click', () => {
+        if (currentStep > 0) {
+            currentStep--;
+            updateStep();
+        }
+    });
+
+    document.getElementById('nextStep').addEventListener('click', () => {
+        if (currentStep < totalSteps - 1) {
+            currentStep++;
+            updateStep();
+        }
+    });
+
+    function updateStep() {
+        // 更新步骤指示器
+        document.querySelectorAll('.step-dot').forEach((dot, index) => {
+            if (index === currentStep) {
+                dot.classList.add('active');
+            } else {
+                dot.classList.remove('active');
+            }
+        });
+
+        // 更新步骤内容
+        document.querySelectorAll('.step-visual').forEach((visual, index) => {
+            if (index === currentStep) {
+                visual.classList.add('active');
+            } else {
+                visual.classList.remove('active');
+            }
+        });
+
+        // 更新按钮状态
+        document.getElementById('prevStep').disabled = currentStep === 0;
+        document.getElementById('nextStep').disabled = currentStep === totalSteps - 1;
+    }
+
+    // ===== 代码层切换 =====
+    document.querySelectorAll('.code-layer-tab').forEach(tab => {
+        tab.addEventListener('click', function() {
+            const layer = this.getAttribute('data-layer');
+
+            // 更新标签状态
+            document.querySelectorAll('.code-layer-tab').forEach(t => t.classList.remove('active'));
+            this.classList.add('active');
+
+            // 更新内容显示
+            document.querySelectorAll('.code-layer-content').forEach(content => {
+                if (content.getAttribute('data-layer-content') === layer) {
+                    content.classList.add('active');
+                } else {
+                    content.classList.remove('active');
+                }
+            });
+        });
+    });
+
+    // ===== 思考题交互 =====
+    document.querySelectorAll('.think-option').forEach(option => {
+        option.addEventListener('click', function() {
+            const answer = this.getAttribute('data-answer');
+            const feedbackId = this.closest('.think-card').querySelector('.think-feedback').id;
+
+            // 移除其他选项的选中状态
+            this.parentElement.querySelectorAll('.think-option').forEach(opt => {
+                opt.classList.remove('selected');
+            });
+
+            // 添加选中状态
+            this.classList.add('selected');
+
+            // 显示反馈
+            showThinkFeedback(feedbackId, answer);
+        });
+    });
+
+    function showThinkFeedback(feedbackId, answer) {
+        const feedbackElement = document.getElementById(feedbackId);
+        const feedbacks = {
+            'thinkFeedback1': {
+                'a': { correct: false, text: '速度确实是个问题，但不是RNN失败的主要原因。' },
+                'b': { correct: true, text: '正确！梯度消失/爆炸是RNN处理长序列失败的根本原因。当序列很长时，梯度会指数级衰减或增长。' },
+                'c': { correct: false, text: 'RNN的参数量其实相对较少，这不是主要问题。' },
+                'd': { correct: false, text: '激活函数的选择会影响性能，但不是失败的主要原因。' }
+            },
+            'thinkFeedback2': {
+                'a': { correct: false, text: '增加模型容量不是主要目的。' },
+                'b': { correct: true, text: '正确！分离"什么"（候选值）和"多少"（权重）让网络可以更精确地控制信息流。' },
+                'c': { correct: false, text: '实际上增加了计算量。' },
+                'd': { correct: false, text: '虽然有一定道理，但主要还是为了更好的信息控制。' }
+            }
+        };
+
+        const feedback = feedbacks[feedbackId][answer];
+        feedbackElement.innerHTML = `
+            <div style="padding: 1rem; background: ${feedback.correct ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)'}; border-radius: 0.5rem;">
+                <p style="font-weight: bold; color: ${feedback.correct ? 'var(--accent-green)' : 'var(--accent-red)'};">
+                    ${feedback.correct ? '✅ 正确！' : '❌ 不太对'}
+                </p>
+                <p style="margin-top: 0.5rem;">${feedback.text}</p>
+            </div>
+        `;
+        feedbackElement.classList.add('show');
+    }
+
+    // ===== 折叠控制 =====
+    document.querySelectorAll('.collapsible-header').forEach(header => {
+        header.addEventListener('click', function() {
+            const collapsible = this.closest('.collapsible');
+            collapsible.classList.toggle('open');
+        });
+    });
+
+    // ===== 练习题展开 =====
+    document.querySelectorAll('.practice-item').forEach(item => {
+        item.addEventListener('click', function() {
+            this.classList.toggle('open');
+        });
+    });
+
+    // ===== 实时演示 =====
+    let model = null;
+
+    // 初始化情感分析（模拟）
+    async function initSentimentModel() {
+        // 在实际应用中，这里会加载预训练的TensorFlow.js模型
+        console.log('Sentiment model initialized');
+    }
+
+    document.getElementById('analyzeBtn').addEventListener('click', async () => {
+        const input = document.getElementById('sentimentInput').value;
+
+        // 添加加载动画
+        const btn = document.getElementById('analyzeBtn');
+        btn.innerHTML = '<span class="loading"></span> 分析中...';
+        btn.disabled = true;
+
+        // 模拟处理延迟
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        // 模拟分析
+        analyzeSentiment(input);
+
+        // 恢复按钮
+        btn.innerHTML = '分析情感 ✨';
+        btn.disabled = false;
+    });
+
+    function analyzeSentiment(text) {
+        // 简单的情感分析模拟
+        const positiveWords = ['棒', '好', '喜欢', '优秀', '推荐', '满意', '完美', '赞'];
+        const negativeWords = ['差', '糟', '失望', '不好', '垃圾', '讨厌', '糟糕', '烂'];
+
+        let score = 0.5;
+        positiveWords.forEach(word => {
+            if (text.includes(word)) score += 0.15;
+        });
+        negativeWords.forEach(word => {
+            if (text.includes(word)) score -= 0.15;
+        });
+
+        score = Math.max(0, Math.min(1, score));
+
+        // 更新结果
+        updatePredictionResult(score);
+
+        // 绘制门激活图
+        drawGateActivations();
+
+        // 绘制状态变化图
+        drawCellStateChart();
+        drawHiddenStateChart();
+    }
+
+    function updatePredictionResult(score) {
+        const isPositive = score > 0.5;
+        const confidence = isPositive ? score : 1 - score;
+        const emoji = isPositive ? '😊' : '😔';
+        const sentiment = isPositive ? '正面情感' : '负面情感';
+        const color = isPositive ? 'var(--accent-green)' : 'var(--accent-red)';
+
+        document.getElementById('predictionResult').innerHTML = `
+            <div style="font-size: 4rem; margin-bottom: 1rem;">${emoji}</div>
+            <div style="font-size: 1.5rem; font-weight: bold; color: ${color};">
+                ${sentiment}
+            </div>
+            <div style="font-size: 1.2rem; color: var(--text-secondary); margin-top: 0.5rem;">
+                置信度：${Math.round(confidence * 100)}%
+            </div>
+            <div style="margin-top: 1.5rem;">
+                <div style="background: rgba(255, 255, 255, 0.1); border-radius: 0.5rem; height: 20px; overflow: hidden;">
+                    <div style="height: 100%; width: ${confidence * 100}%; background: ${color}; transition: width 0.5s ease;"></div>
+                </div>
+            </div>
+        `;
+    }
+
+    function drawGateActivations() {
+        const canvas = document.getElementById('gateChart');
+        const ctx = canvas.getContext('2d');
+
+        // 设置画布大小
+        canvas.width = 400;
+        canvas.height = 250;
+
+        // 清空画布
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // 模拟门激活值
+        const gates = {
+            '遗忘门': Math.random() * 0.3 + 0.6,
+            '输入门': Math.random() * 0.4 + 0.3,
+            '输出门': Math.random() * 0.3 + 0.6
+        };
+
+        const colors = ['#f5576c', '#4facfe', '#43e97b'];
+        const labels = Object.keys(gates);
+        const values = Object.values(gates);
+
+        // 绘制柱状图
+        const barWidth = 80;
+        const spacing = 40;
+        const startX = (canvas.width - (barWidth * 3 + spacing * 2)) / 2;
+
+        values.forEach((value, i) => {
+            const x = startX + i * (barWidth + spacing);
+            const height = value * 150;
+            const y = canvas.height - height - 40;
+
+            // 绘制柱子
+            ctx.fillStyle = colors[i];
+            ctx.fillRect(x, y, barWidth, height);
+
+            // 绘制标签
+            ctx.fillStyle = '#f1f5f9';
+            ctx.font = '14px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(labels[i], x + barWidth/2, canvas.height - 15);
+            ctx.fillText((value * 100).toFixed(0) + '%', x + barWidth/2, y - 10);
+        });
+    }
+
+    function drawCellStateChart() {
+        const canvas = document.getElementById('cellStateChart');
+        const ctx = canvas.getContext('2d');
+
+        // 设置画布大小
+        canvas.width = canvas.offsetWidth;
+        canvas.height = 200;
+
+        // 清空画布
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // 模拟细胞状态变化
+        const steps = 30;
+        const values = [];
+        let current = 0;
+
+        for (let i = 0; i < steps; i++) {
+            current += (Math.random() - 0.5) * 0.3;
+            values.push(current);
+        }
+
+        // 绘制折线图
+        ctx.strokeStyle = '#fa709a';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+
+        const stepWidth = canvas.width / steps;
+        const midY = canvas.height / 2;
+        const scale = 40;
+
+        values.forEach((value, i) => {
+            const x = i * stepWidth;
+            const y = midY - value * scale;
+
+            if (i === 0) {
+                ctx.moveTo(x, y);
+            } else {
+                ctx.lineTo(x, y);
+            }
+        });
+
+        ctx.stroke();
+
+        // 绘制基准线
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([5, 5]);
+        ctx.beginPath();
+        ctx.moveTo(0, midY);
+        ctx.lineTo(canvas.width, midY);
+        ctx.stroke();
+        ctx.setLineDash([]);
+    }
+
+    function drawHiddenStateChart() {
+        const canvas = document.getElementById('hiddenStateChart');
+        const ctx = canvas.getContext('2d');
+
+        // 设置画布大小
+        canvas.width = canvas.offsetWidth;
+        canvas.height = 200;
+
+        // 清空画布
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // 模拟隐藏状态热图
+        const width = 30;
+        const height = 10;
+        const cellWidth = canvas.width / width;
+        const cellHeight = canvas.height / height;
+
+        for (let i = 0; i < width; i++) {
+            for (let j = 0; j < height; j++) {
+                const value = Math.random();
+                const intensity = Math.floor(value * 255);
+
+                // 使用渐变色
+                if (value > 0.7) {
+                    ctx.fillStyle = `rgb(${intensity}, ${100}, ${100})`;
+                } else if (value > 0.3) {
+                    ctx.fillStyle = `rgb(${100}, ${intensity}, ${100})`;
+                } else {
+                    ctx.fillStyle = `rgb(${100}, ${100}, ${intensity})`;
+                }
+
+                ctx.fillRect(i * cellWidth, j * cellHeight, cellWidth - 1, cellHeight - 1);
+            }
+        }
+    }
+
+    // ===== 梯度消失动画 =====
+    function animateGradientVanishing() {
+        const canvas = document.getElementById('gradientVanishingCanvas');
+        const ctx = canvas.getContext('2d');
+
+        canvas.width = 900;
+        canvas.height = 300;
+
+        let step = 0;
+        const totalSteps = 20;
+
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 绘制时间步
+            const stepWidth = canvas.width / totalSteps;
+
+            for (let i = 0; i <= step; i++) {
+                const x = i * stepWidth;
+                const gradientStrength = Math.pow(0.5, i);
+
+                // 绘制梯度强度
+                ctx.fillStyle = `rgba(239, 68, 68, ${gradientStrength})`;
+                ctx.fillRect(x, 50, stepWidth - 5, 200);
+
+                // 绘制数值
+                ctx.fillStyle = '#f1f5f9';
+                ctx.font = '12px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(`t=${i}`, x + stepWidth/2, 40);
+                ctx.fillText(gradientStrength.toFixed(3), x + stepWidth/2, 150);
+            }
+
+            step++;
+            if (step <= totalSteps) {
+                setTimeout(animate, 200);
+            }
+        }
+
+        animate();
+    }
+
+    function resetGradientAnimation() {
+        const canvas = document.getElementById('gradientVanishingCanvas');
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+
+    // ===== 音乐生成 =====
+    function generateMelody(mood) {
+        console.log(`Generating ${mood} melody...`);
+
+        // 更新可视化
+        const canvas = document.getElementById('musicCanvas');
+        const ctx = canvas.getContext('2d');
+
+        canvas.width = canvas.offsetWidth;
+        canvas.height = 300;
+
+        // 清空画布
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // 根据情绪生成不同的音符模式
+        const notePatterns = {
+            happy: [60, 64, 67, 72, 67, 64, 60],
+            sad: [60, 63, 65, 67, 65, 63, 60],
+            energetic: [60, 60, 67, 67, 72, 72, 67],
+            calm: [60, 62, 64, 65, 64, 62, 60]
+        };
+
+        const notes = notePatterns[mood];
+        const noteWidth = canvas.width / notes.length;
+
+        // 绘制音符
+        notes.forEach((note, i) => {
+            const x = i * noteWidth + noteWidth / 2;
+            const y = canvas.height - (note - 50) * 4;
+
+            // 绘制音符
+            ctx.beginPath();
+            ctx.arc(x, y, 15, 0, 2 * Math.PI);
+            ctx.fillStyle = getColorForMood(mood);
+            ctx.fill();
+
+            // 连接线
+            if (i > 0) {
+                ctx.beginPath();
+                ctx.moveTo((i-1) * noteWidth + noteWidth / 2, canvas.height - (notes[i-1] - 50) * 4);
+                ctx.lineTo(x, y);
+                ctx.strokeStyle = getColorForMood(mood);
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            }
+        });
+
+        // 模拟音频播放
+        document.getElementById('musicPlayer').src = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA=';
+    }
+
+    function getColorForMood(mood) {
+        const colors = {
+            happy: '#fbbf24',
+            sad: '#3b82f6',
+            energetic: '#ef4444',
+            calm: '#22c55e'
+        };
+        return colors[mood] || '#8b5cf6';
+    }
+
+    // ===== 初始化所有组件 =====
+    window.addEventListener('load', () => {
+        initializeLSTMCanvas();
+        initSentimentModel();
+        drawGateActivations();
+        drawCellStateChart();
+        drawHiddenStateChart();
+    });
+
+    // ===== 主题切换 =====
+    document.getElementById('toggle-theme').addEventListener('click', () => {
+        // 这里可以实现亮色/暗色主题切换
+        console.log('Toggle theme');
+    });
+
+    // ===== 动画控制 =====
+    let animationsEnabled = true;
+    document.getElementById('toggle-animations').addEventListener('click', () => {
+        animationsEnabled = !animationsEnabled;
+        document.body.style.setProperty('--animation-duration', animationsEnabled ? '0.3s' : '0s');
+    });
+
+    console.log('LSTM教程完整版加载完成！');
+</script>
+
+</body>
+</html>
+. 教学与认知优化 (Pedagogy & Cognitive Optimization)
+
+痛点：理论与实践的割裂感
+
+目前，公式讲解、交互图示和实时Demo是各自独立的模块。学习者理解了公式，但无法直观地看到公式在处理真实数据时是如何运作的。
+
+优化建议：
+
+将公式讲解与实时Demo深度联动：
+
+当用户在“实时情感分析”Demo中输入文本并点击分析时，不仅显示最终结果，还要同步驱动上方的“三栏式公式讲解”区域。
+
+例如，当模型处理第一个字时，“遗忘门”公式区域的 xt​ 和 ht−1​ 部分可以高亮，并短暂显示该字对应的向量值。紧接着，整个公式和矩阵可视化部分会“流动”一次，最终在“门激活值”图表中显示第一个点的结果。
+
+效果： 学习者可以真正地“看”到数据是如何流经公式的，将抽象的数学符号与具体的计算过程完美统一，实现“所见即所得”的终极理解。
+
+增加“失败案例”对比：
+
+在“RNN的困境”部分，可以增加一个与LSTM实时Demo并排的、简化的**“RNN实时Demo”**。
+
+让用户输入一个具有长距离依赖的句子（例如：“我在法国长大，……，所以我能说一口流利的法语。”）。
+
+用户会直观地看到，RNN在预测最后一个词时可能会失败（因为它忘记了“法国”），而LSTM则能成功预测。这种A/B测试的视觉冲击力远胜于单纯的文字解释。
+
+2. 交互体验与用户界面 (UX/UI Enhancement)
+
+痛点：交互深度不足
+
+当前的交互更多是“展示型”，用户的参与感还有提升空间。
+
+优化建议：
+
+公式可“点播”解释：
+
+在“三栏式公式讲解”中，允许用户点击公式中的具体符号（如 Ct​），弹出一个小浮窗，详细解释该符号的“前世今生”：它是如何从上一步计算得来的，以及它将如何参与下一步的计算。
+
+实时Demo的“过程化”反馈：
+
+在情感分析Demo中，当用户输入时，可以实时显示模型对下一个字的预测。例如，输入“这部电影很”时，模型可能会预测出“棒”或“好”。这能更好地展示LSTM作为语言模型的本质。
+
+音乐生成Demo的“可创作性”：
+
+与其仅提供固定的情绪按钮，不如提供一个迷你的虚拟钢琴键盘，让用户可以输入一小段“种子旋律”，然后由模型在此基础上进行续写。这能极大提升用户的参与感和创造欲。
+
+3. 内容深度与广度 (Content Depth & Breadth)
+
+痛点：部分核心概念一笔带过
+
+页面已经非常全面，但可以在某些关键对比和理论细节上进一步深化。
+
+优化建议：
+
+增加与GRU的详细对比：
+
+在“进阶内容”部分，可以专门增加一节“LSTM vs. GRU：繁与简的权衡”。
+
+并排展示LSTM和GRU的结构图与公式，用高亮和箭头清晰地指出GRU是如何将遗忘门和输入门合并为“更新门”，以及它如何舍弃独立的细胞状态。这能帮助学习者理解模型演化的内在逻辑。
+
+探讨LSTM的内在缺陷：
+
+在“总结与展望”的“局限性”部分，可以补充一点：虽然细胞状态是线性传播，但它仍可能无限增长或缩小，导致数值不稳定。这正是为什么tanh激活和层归一化（Layer Normalization）等技术在现代LSTM应用中很重要的原因。这个细节可以展现内容的专业深度。
+
+4. 性能与技术细节 (Performance & Technical Details)
+
+痛点：大型资源加载可能影响初次访问速度
+
+页面集成了大量高质量内容和交互脚本，可能会导致初始加载时间变长。
+
+优化建议：
+
+资源懒加载 (Lazy Loading)：
+
+“实时情感分析Demo”和“音乐生成器”及其背后的TensorFlow.js模型和Chart.js库，可以不随页面一起加载。
+
+使用IntersectionObserver API，当用户滚动到相应区域时，再开始加载相关的JS库和模型文件，并初始化功能。这将大大加快页面的初始渲染速度，优化首次访问体验。
+
+保存用户状态：
+
+使用浏览器的 localStorage，自动保存用户在“实时Demo”中输入的最后一句话。当用户刷新或下次访问时，输入框内会自动填充上次的内容，提供一种无缝的、个性化的连续体验。
+
+JavaScript代码封装：
+
+为了更规范和避免全局变量污染，可以将页面底部的所有JavaScript逻辑包裹在一个IIFE (立即调用函数表达式) (function() { ... })(); 或使用现代的 ES6模块 <script type="module">。注意矩阵乘法不要竖着叠加乘，左右放置，给我完整版修改的后的

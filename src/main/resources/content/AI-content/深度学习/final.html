@@ -1,0 +1,3077 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>第8章：长短期记忆网络LSTM - 深度理解与实践</title>
+    <meta name="description" content="从原理到实践，深入理解LSTM的设计智慧与数学原理">
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+
+    <style>
+        /* ===== CSS变量定义 ===== */
+        :root {
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --lstm-gradient: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+            --gru-gradient: linear-gradient(135deg, #fdbb2d 0%, #22c1c3 100%);
+            --forget-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            --input-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            --output-gradient: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+            --cell-gradient: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+            --bg-dark: #0f172a;
+            --bg-section: #1e293b;
+            --bg-card: #1e2439;
+            --text-primary: #f1f5f9;
+            --text-secondary: #cbd5e1;
+            --text-muted: #94a3b8;
+            --text-dim: #64748b;
+            --accent-red: #ef4444;
+            --accent-green: #22c55e;
+            --accent-blue: #3b82f6;
+            --accent-yellow: #fbbf24;
+            --accent-purple: #8b5cf6;
+            --accent-pink: #ec4899;
+            --accent-orange: #f97316;
+            --accent-cyan: #06b6d4;
+            --border-color: rgba(255, 255, 255, 0.1);
+            --shadow-lg: 0 10px 40px rgba(0, 0, 0, 0.3);
+            --glow-pink: rgba(244, 114, 182, 0.5);
+            --glow-cyan: rgba(34, 211, 238, 0.5);
+            --glow-blue: rgba(96, 165, 250, 0.5);
+        }
+
+        /* ===== 全局样式 ===== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        /* ===== 背景动画 ===== */
+        .bg-animation {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            overflow: hidden;
+            z-index: -1;
+        }
+
+        .bg-particle {
+            position: absolute;
+            width: 2px;
+            height: 2px;
+            background: rgba(168, 237, 234, 0.5);
+            border-radius: 50%;
+            animation: float 20s infinite linear;
+        }
+
+        @keyframes float {
+            from { transform: translateY(100vh) translateX(0); }
+            to { transform: translateY(-100px) translateX(100px); }
+        }
+
+        /* ===== 布局组件 ===== */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 1rem;
+        }
+
+        /* ===== 导航栏 ===== */
+        .nav-header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(10px);
+            z-index: 1000;
+            border-bottom: 1px solid var(--border-color);
+            transition: transform 0.3s ease;
+        }
+
+        .nav-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1rem 0;
+        }
+
+        .nav-title h1 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            background: var(--lstm-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .nav-progress {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: var(--lstm-gradient);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        /* ===== 侧边导航 ===== */
+        .sidebar {
+            position: fixed;
+            left: -300px;
+            top: 60px;
+            bottom: 0;
+            width: 300px;
+            background: var(--bg-section);
+            border-right: 1px solid var(--border-color);
+            padding: 2rem;
+            overflow-y: auto;
+            transition: transform 0.3s ease;
+            z-index: 999;
+        }
+
+        .sidebar.open { transform: translateX(300px); }
+
+        .toc-item {
+            display: block;
+            padding: 0.75rem 1rem;
+            color: var(--text-secondary);
+            text-decoration: none;
+            border-radius: 0.5rem;
+            transition: all 0.3s ease;
+            margin-bottom: 0.25rem;
+        }
+
+        .toc-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-primary);
+            transform: translateX(4px);
+        }
+
+        .toc-item.active {
+            background: var(--lstm-gradient);
+            color: #0f172a;
+        }
+
+        /* ===== 主内容 ===== */
+        main {
+            margin-top: 80px;
+            padding-bottom: 4rem;
+        }
+
+        /* ===== 章节标题 ===== */
+        .chapter-hero {
+            background: var(--lstm-gradient);
+            padding: 6rem 0;
+            margin-bottom: 3rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .chapter-hero-content {
+            position: relative;
+            z-index: 2;
+            text-align: center;
+            color: #0f172a;
+        }
+
+        .chapter-hero h1 {
+            font-size: 3.5rem;
+            margin-bottom: 1rem;
+            animation: fadeInUp 0.8s ease;
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ===== 内容卡片 ===== */
+        .section-card {
+            background: var(--bg-section);
+            border-radius: 1rem;
+            padding: 3rem;
+            margin-bottom: 2rem;
+            border: 1px solid var(--border-color);
+            box-shadow: var(--shadow-lg);
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* ===== 公式解释布局 ===== */
+        .formula-explainer {
+            display: grid;
+            grid-template-columns: 1fr 1.5fr 1fr;
+            gap: 2rem;
+            background: var(--bg-section);
+            border-radius: 1rem;
+            padding: 2.5rem;
+            margin: 2rem 0;
+            border: 1px solid var(--border-color);
+        }
+
+        .formula-column h4 {
+            color: var(--accent-cyan);
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .formula-math {
+            font-size: 1.3rem;
+            text-align: center;
+            padding: 2rem 1rem;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 0.5rem;
+        }
+
+        /* ===== 信息卡片网格 ===== */
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin: 2rem 0;
+        }
+
+        .info-card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 0.75rem;
+            padding: 2rem;
+            border: 1px solid var(--border-color);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .info-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .card-icon {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            display: block;
+        }
+
+        .card-title {
+            color: var(--accent-cyan);
+            margin-bottom: 1rem;
+            font-size: 1.1rem;
+        }
+
+        /* ===== 重要提示框 ===== */
+        .insight-box {
+            background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(6, 182, 212, 0.1));
+            border: 2px solid rgba(34, 197, 94, 0.3);
+            border-radius: 1rem;
+            padding: 2rem;
+            margin: 2rem 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .insight-title {
+            color: var(--accent-green);
+            margin-bottom: 1rem;
+            font-size: 1.3rem;
+        }
+
+        /* ===== 代码示例 ===== */
+        .code-example {
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            overflow-x: auto;
+        }
+
+        /* ===== 比较表格 ===== */
+        .comparison-table {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 1rem;
+            overflow: hidden;
+            margin: 2rem 0;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .comparison-table table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .comparison-table th {
+            background: var(--lstm-gradient);
+            color: #0f172a;
+            padding: 1.25rem;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        .comparison-table td {
+            padding: 1.25rem;
+            border-bottom: 1px solid var(--border-color);
+            transition: all 0.3s ease;
+        }
+
+        /* ===== 流程图 ===== */
+        .lstm-flow-diagram {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 1rem;
+            padding: 2rem;
+            margin: 2rem 0;
+            border: 1px solid var(--border-color);
+        }
+
+        .flow-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .flow-block {
+            background: var(--bg-section);
+            border: 2px solid var(--border-color);
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            text-align: center;
+            min-width: 150px;
+            transition: all 0.3s ease;
+        }
+
+        .flow-block:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .flow-arrow {
+            font-size: 2rem;
+            color: var(--accent-purple);
+        }
+
+        /* ===== 矩阵可视化 ===== */
+        .matrix-visualization {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 2rem;
+            flex-wrap: wrap;
+            margin: 2rem 0;
+        }
+
+        .matrix-container {
+            position: relative;
+            display: inline-block;
+            margin: 0.5rem;
+        }
+
+        .matrix-grid {
+            display: grid;
+            gap: 0.5rem;
+            padding: 0.5rem;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 0.5rem;
+        }
+
+        .matrix-cell {
+            width: 3.5rem;
+            height: 2.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            border-radius: 0.25rem;
+            font-size: 0.85rem;
+            transition: all 0.3s ease;
+        }
+
+        .matrix-cell:hover {
+            background: rgba(79, 172, 254, 0.2);
+            transform: scale(1.1);
+        }
+
+        /* ===== 交互式演示 ===== */
+        .interactive-demo {
+            background: linear-gradient(135deg, rgba(6, 182, 212, 0.1), rgba(59, 130, 246, 0.05));
+            border-radius: 1rem;
+            padding: 2rem;
+            margin: 2rem 0;
+            border: 2px solid var(--accent-cyan);
+        }
+
+        .demo-controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .control-group {
+            text-align: center;
+        }
+
+        .control-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-bottom: 1rem;
+        }
+
+        .slider {
+            width: 100%;
+            height: 8px;
+            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .forget-slider::-webkit-slider-thumb {
+            background: var(--forget-gradient);
+            box-shadow: 0 0 10px rgba(240, 147, 251, 0.5);
+        }
+
+        .input-slider::-webkit-slider-thumb {
+            background: var(--input-gradient);
+            box-shadow: 0 0 10px rgba(79, 172, 254, 0.5);
+        }
+
+        .output-slider::-webkit-slider-thumb {
+            background: var(--output-gradient);
+            box-shadow: 0 0 10px rgba(67, 233, 123, 0.5);
+        }
+
+        /* ===== 时间线 ===== */
+        .timeline {
+            position: relative;
+            padding: 2rem 0;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 50%;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: var(--border-color);
+        }
+
+        .timeline-item {
+            position: relative;
+            margin: 2rem 0;
+            padding: 0 2rem;
+            opacity: 0;
+            animation: fadeIn 0.5s ease forwards;
+        }
+
+        .timeline-item:nth-child(odd) {
+            text-align: right;
+            padding-right: 50%;
+        }
+
+        .timeline-item:nth-child(even) {
+            padding-left: 50%;
+        }
+
+        .timeline-dot {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 20px;
+            height: 20px;
+            background: var(--lstm-gradient);
+            border-radius: 50%;
+            z-index: 1;
+        }
+
+        /* ===== 思考卡片 ===== */
+        .think-card {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(236, 72, 153, 0.1));
+            border: 2px solid rgba(139, 92, 246, 0.3);
+            border-radius: 1rem;
+            padding: 2rem;
+            margin: 2rem 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .think-card h3 {
+            color: var(--accent-purple);
+            margin-bottom: 1rem;
+        }
+
+        .think-options {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+
+        .think-option {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 1rem;
+            border-radius: 0.5rem;
+            border: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .think-option:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(139, 92, 246, 0.3);
+        }
+
+        /* ===== 数学推导 ===== */
+        .math-derivation {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(236, 72, 153, 0.05));
+            border-radius: 1rem;
+            padding: 2.5rem;
+            margin: 2rem 0;
+        }
+
+        .derivation-step {
+            background: rgba(255, 255, 255, 0.05);
+            border-left: 4px solid var(--accent-cyan);
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            border-radius: 0 0.5rem 0.5rem 0;
+            position: relative;
+        }
+
+        /* ===== 按钮样式 ===== */
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            border: none;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            background: var(--lstm-gradient);
+            color: #0f172a;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(168, 237, 234, 0.3);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        /* ===== 提示框 ===== */
+        .tip {
+            display: flex;
+            gap: 1rem;
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            margin: 1.5rem 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .tip::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            width: 4px;
+        }
+
+        .tip.info {
+            background: rgba(79, 172, 254, 0.1);
+            border: 1px solid rgba(79, 172, 254, 0.3);
+        }
+        .tip.info::before { background: var(--accent-blue); }
+
+        .tip.warning {
+            background: rgba(251, 191, 36, 0.1);
+            border: 1px solid rgba(251, 191, 36, 0.3);
+        }
+        .tip.warning::before { background: var(--accent-yellow); }
+
+        .tip.success {
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+        .tip.success::before { background: var(--accent-green); }
+
+        /* ===== 新增样式 from paste-2 ===== */
+        .formula-display {
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 2.5rem;
+            margin: 2rem 0;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            animation: fadeInUp 0.8s ease-out;
+        }
+
+        .formula-display::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            opacity: 0.5;
+            animation: rotate 20s linear infinite;
+        }
+
+        .forget-formula {
+            background: linear-gradient(135deg, rgba(240, 147, 251, 0.05), rgba(245, 87, 108, 0.05));
+        }
+        .forget-formula::before {
+            background: radial-gradient(circle, rgba(240, 147, 251, 0.1) 0%, transparent 70%);
+        }
+
+        .input-formula {
+            background: linear-gradient(135deg, rgba(79, 172, 254, 0.05), rgba(0, 242, 254, 0.05));
+        }
+        .output-formula {
+            background: linear-gradient(135deg, rgba(250, 112, 154, 0.05), rgba(254, 225, 64, 0.05));
+        }
+
+        .main-formula {
+            font-size: clamp(1.5rem, 3vw, 2.5rem);
+            font-family: 'Georgia', 'Times New Roman', serif;
+            position: relative;
+            z-index: 1;
+            letter-spacing: 0.05em;
+        }
+
+        .info-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            transform: scaleX(0);
+            transition: transform 0.3s ease;
+        }
+
+        .info-card:hover::before {
+            transform: scaleX(1);
+        }
+
+        .forget-card:hover {
+            border-color: var(--accent-pink);
+            box-shadow: 0 10px 30px rgba(240, 147, 251, 0.2);
+        }
+        .forget-card::before { background: var(--forget-gradient); }
+        .forget-card .card-title { color: var(--accent-pink); }
+
+        .input-card:hover { border-color: var(--accent-cyan); }
+        .input-card::before { background: var(--input-gradient); }
+        .input-card .card-title { color: var(--accent-cyan); }
+
+        .output-card:hover { border-color: var(--accent-yellow); }
+        .output-card::before { background: var(--output-gradient); }
+        .output-card .card-title { color: var(--accent-yellow); }
+
+        .card-content {
+            color: var(--text-secondary);
+            line-height: 1.8;
+        }
+
+        .matrix-block {
+            background: var(--bg-card);
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .matrix-block:hover {
+            transform: scale(1.05);
+        }
+
+        .matrix-label {
+            font-weight: 700;
+            margin-bottom: 1rem;
+            font-size: 1.25rem;
+        }
+
+        .insight-content {
+            color: var(--text-primary);
+            line-height: 1.8;
+        }
+
+        .insight-list {
+            list-style: none;
+            margin-top: 1rem;
+        }
+
+        .insight-list li {
+            position: relative;
+            padding-left: 2rem;
+            margin-bottom: 1rem;
+            color: var(--text-secondary);
+        }
+
+        .insight-list li::before {
+            content: '✓';
+            position: absolute;
+            left: 0;
+            color: var(--accent-green);
+            font-weight: bold;
+            font-size: 1.25rem;
+        }
+
+        .code-example::before {
+            content: 'Python';
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            background: var(--accent-purple);
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .code-example code {
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            color: #e6edf3;
+        }
+
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+        }
+
+        .operation-arrow {
+            font-size: 2.5rem;
+            color: var(--accent-cyan);
+            font-weight: bold;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        .sequence-diagram {
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 2rem 0;
+            border: 1px solid var(--border-color);
+            overflow-x: auto;
+        }
+
+        .sequence-steps {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            min-width: fit-content;
+        }
+
+        .sequence-step {
+            flex: 1;
+            min-width: 120px;
+            text-align: center;
+        }
+
+        .step-circle {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.25rem;
+            margin: 0 auto 0.5rem;
+            color: white;
+        }
+
+        .forget-step { background: var(--forget-gradient); }
+        .input-step { background: var(--input-gradient); }
+        .output-step { background: var(--output-gradient); }
+
+        .step-name {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 2rem 0;
+            background: var(--bg-card);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .data-table th {
+            background: var(--forget-gradient);
+            color: white;
+            padding: 1.25rem;
+            text-align: left;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+        }
+
+        .data-table td {
+            padding: 1rem 1.25rem;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-secondary);
+        }
+
+        .data-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .data-table tr:hover td {
+            background: rgba(255, 255, 255, 0.02);
+            color: var(--text-primary);
+        }
+
+        .process-flow {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin: 3rem 0;
+            position: relative;
+            flex-wrap: wrap;
+            gap: 2rem;
+        }
+
+        .process-step {
+            flex: 1;
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 2rem;
+            text-align: center;
+            position: relative;
+            border: 2px solid var(--border-color);
+            transition: all 0.3s ease;
+            min-width: 250px;
+        }
+
+        .process-step:hover {
+            transform: translateY(-5px);
+            border-color: var(--accent-purple);
+            box-shadow: 0 10px 30px rgba(167, 139, 250, 0.3);
+        }
+
+        .step-number {
+            position: absolute;
+            top: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 40px;
+            height: 40px;
+            background: var(--forget-gradient);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.25rem;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .step-icon {
+            font-size: 3rem;
+            margin: 1rem 0;
+            display: block;
+        }
+
+        .step-title {
+            color: var(--accent-cyan);
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            font-size: 1.25rem;
+        }
+
+        .step-description {
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        .process-connector {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent 0%, var(--accent-purple) 50%, transparent 100%);
+            z-index: -1;
+        }
+
+        .result-display {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02));
+            border-radius: 12px;
+            padding: 2rem;
+            text-align: center;
+            font-size: 1.25rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        /* ===== 响应式设计 ===== */
+        @media (max-width: 1024px) {
+            .formula-explainer { grid-template-columns: 1fr; }
+            .card-grid { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+        }
+
+        @media (max-width: 768px) {
+            .chapter-hero h1 { font-size: 2.5rem; }
+            .section-card { padding: 2rem; }
+            .timeline-item:nth-child(odd),
+            .timeline-item:nth-child(even) {
+                padding-left: 3rem;
+                padding-right: 1rem;
+                text-align: left;
+            }
+            .timeline::before { left: 20px; }
+            .timeline-dot { left: 20px; }
+        }
+
+        @media (max-width: 1200px) {
+            .card-grid.five-columns {
+                grid-template-columns: repeat(3, 1fr) !important;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .card-grid.five-columns {
+                grid-template-columns: repeat(2, 1fr) !important;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .card-grid.five-columns {
+                grid-template-columns: 1fr !important;
+            }
+        }
+
+        /* ===== 动画 ===== */
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.05); opacity: 0.8; }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.6s ease-out;
+        }
+
+        .slide-in-left {
+            animation: slideInLeft 0.8s ease-out;
+        }
+
+        @keyframes slideInLeft {
+            from {
+                opacity: 0;
+                transform: translateX(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .slide-in-right {
+            animation: slideInRight 0.8s ease-out;
+        }
+
+        @keyframes slideInRight {
+            from {
+                opacity: 0;
+                transform: translateX(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        /* ===== 滚动条美化 ===== */
+        ::-webkit-scrollbar { width: 10px; height: 10px; }
+        ::-webkit-scrollbar-track { background: var(--bg-dark); }
+        ::-webkit-scrollbar-thumb {
+            background: var(--text-muted);
+            border-radius: 5px;
+        }
+        ::-webkit-scrollbar-thumb:hover { background: var(--text-secondary); }
+    </style>
+</head>
+<body>
+
+<!-- 背景动画 -->
+<div class="bg-animation" id="bgAnimation"></div>
+
+<!-- 导航栏 -->
+<nav class="nav-header" role="navigation" aria-label="主导航">
+    <div class="container">
+        <div class="nav-content">
+            <div class="nav-title">
+                <button id="toggle-sidebar" class="btn btn-secondary" style="margin-right: 1rem;">
+                    ☰ 目录
+                </button>
+                <h1>第8章：长短期记忆网络LSTM</h1>
+            </div>
+            <div>
+                <button id="toggle-theme" class="btn btn-secondary">🌙</button>
+            </div>
+        </div>
+        <div class="nav-progress">
+            <div class="progress-bar" id="progress-bar"></div>
+        </div>
+    </div>
+</nav>
+
+<!-- 侧边栏目录 -->
+<aside class="sidebar" id="sidebar">
+    <h3 style="margin-bottom: 1.5rem; color: var(--accent-pink);">📚 目录导航</h3>
+    <nav>
+        <a href="#intro" class="toc-item active">序言：记忆的艺术</a>
+        <a href="#problem" class="toc-item">RNN的困境</a>
+        <a href="#solution" class="toc-item">解决思路</a>
+        <a href="#lstm-structure" class="toc-item">LSTM核心结构</a>
+        <a href="#forget-gate" class="toc-item">遗忘门详解</a>
+        <a href="#input-gate" class="toc-item">输入门详解</a>
+        <a href="#output-gate" class="toc-item">输出门详解</a>
+        <a href="#integration" class="toc-item">整合过程</a>
+        <a href="#math-proof" class="toc-item">数学证明</a>
+        <a href="#implementation" class="toc-item">代码实现</a>
+        <a href="#comparison" class="toc-item">LSTM vs GRU</a>
+        <a href="#applications" class="toc-item">实际应用</a>
+        <a href="#summary" class="toc-item">总结与展望</a>
+    </nav>
+</aside>
+
+<!-- 主内容 -->
+<main>
+    <!-- 章节标题 -->
+    <section class="chapter-hero">
+        <div class="container">
+            <div class="chapter-hero-content">
+                <h1>长短期记忆网络：让AI学会遗忘与记忆</h1>
+                <p style="font-size: 1.5rem; margin-bottom: 2rem;">深入理解LSTM的精妙设计，掌握门控机制的数学原理</p>
+            </div>
+        </div>
+    </section>
+
+    <div class="container">
+        <!-- 序言：记忆的艺术 -->
+        <section id="intro" class="section-card">
+            <h2 style="color: var(--accent-pink); margin-bottom: 2rem;">📖 序言：一个关于记忆的故事</h2>
+
+            <div style="background: linear-gradient(135deg, rgba(240, 147, 251, 0.1), rgba(79, 172, 254, 0.1)); border-radius: 1rem; padding: 2rem; margin-bottom: 2rem;">
+                <p style="font-size: 1.3rem; line-height: 1.8; margin-bottom: 1.5rem; font-style: italic;">
+                    "我的网络能够学习，但它总是忘记..."
+                </p>
+                <p style="font-size: 1.1rem; line-height: 1.8; color: var(--text-secondary);">
+                    1991年，年轻的博士生 Sepp Hochreiter 在慕尼黑工业大学的实验室里，盯着电脑屏幕上不断下降的梯度值陷入了沉思。他正在训练一个循环神经网络来预测时间序列，但每当序列稍微长一点，网络就像得了"健忘症"一样，完全记不住早期的信息。
+                </p>
+            </div>
+
+            <div class="think-card" style="background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(6, 182, 212, 0.1)); border-color: var(--accent-green);">
+                <h3 style="color: var(--accent-green);">🤔 Hochreiter 的发现</h3>
+                <p style="margin-bottom: 1.5rem;">经过数月的数学推导和实验，Hochreiter 发现了一个惊人的事实：</p>
+
+                <div class="card-grid">
+                    <div class="info-card">
+                        <span class="card-icon">📉</span>
+                        <h4 style="color: var(--accent-red);">梯度消失</h4>
+                        <p>当他计算100步的梯度传播时，发现梯度缩小到了原来的 10<sup>-5</sup>！就像声音在山谷中的回声，越传越弱，最后完全消失。</p>
+                    </div>
+
+                    <div class="info-card">
+                        <span class="card-icon">💭</span>
+                        <h4 style="color: var(--accent-blue);">根本原因</h4>
+                        <p>问题出在激活函数上！tanh的导数最大值是1，但实际上通常远小于1，连续相乘导致指数级衰减。</p>
+                    </div>
+
+                    <div class="info-card">
+                        <span class="card-icon">🎯</span>
+                        <h4 style="color: var(--accent-purple);">核心矛盾</h4>
+                        <p>网络需要非线性来学习复杂模式，但非线性激活函数却导致梯度消失。这似乎是个无解的悖论！</p>
+                    </div>
+                </div>
+            </div>
+
+            <div style="background: rgba(255, 255, 255, 0.05); border-radius: 1rem; padding: 2rem; margin: 2rem 0;">
+                <h3 style="color: var(--accent-cyan); margin-bottom: 1.5rem;">💡 灵感的火花</h3>
+                <p style="font-size: 1.1rem; line-height: 1.8; margin-bottom: 1.5rem;">
+                    1995年的一个雨夜，Hochreiter 和他的导师 Jürgen Schmidhuber 在讨论这个问题时，Schmidhuber 突然说道：
+                </p>
+                <blockquote style="border-left: 4px solid var(--accent-cyan); padding-left: 1.5rem; margin: 1.5rem 0; font-style: italic;">
+                    "如果我们不能避免梯度在非线性函数中消失，那为什么不创建一条'高速公路'，让梯度可以直接通过呢？就像...就像城市中的地铁，可以跳过地面的红绿灯直达目的地。"
+                </blockquote>
+                <p style="font-size: 1.1rem; line-height: 1.8;">
+                    这个类比点燃了他们的灵感。但如何实现呢？他们需要一种机制，既能保持信息的长期传递，又能选择性地添加新信息...
+                </p>
+            </div>
+
+            <div class="timeline">
+                <div class="timeline-item">
+                    <div class="timeline-dot"></div>
+                    <h4 style="color: var(--accent-pink);">1991年</h4>
+                    <p><strong>发现问题：</strong>Hochreiter 在硕士论文中首次系统分析了梯度消失问题</p>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-dot"></div>
+                    <h4 style="color: var(--accent-blue);">1995年</h4>
+                    <p><strong>酝酿方案：</strong>"高速公路"的想法诞生，开始设计门控机制</p>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-dot"></div>
+                    <h4 style="color: var(--accent-green);">1997年</h4>
+                    <p><strong>突破性论文：</strong>LSTM正式发表，引入输入门和输出门</p>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-dot"></div>
+                    <h4 style="color: var(--accent-orange);">2000年</h4>
+                    <p><strong>完善设计：</strong>Felix Gers 添加遗忘门，LSTM达到现在的形式</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- RNN的困境 -->
+        <section id="problem" class="section-card">
+            <h2 style="color: var(--accent-red); margin-bottom: 2rem;">💔 RNN的困境：梯度消失问题</h2>
+
+            <div class="math-derivation">
+                <h3 style="color: var(--accent-red); margin-bottom: 1.5rem;">🔬 梯度消失的数学本质</h3>
+
+                <div class="derivation-step">
+                    <h4>RNN的梯度传播</h4>
+                    <p>回忆RNN的隐藏状态更新公式：</p>
+                    <div style="text-align: center; margin: 1rem 0; font-size: 1.2rem;">
+                        $h_t = \tanh(W_{hh} \cdot h_{t-1} + W_{xh} \cdot x_t + b_h)$
+                    </div>
+                    <p>当计算损失对早期隐藏状态的梯度时，会出现连乘：</p>
+                    <div style="text-align: center; margin: 1rem 0; font-size: 1.2rem;">
+                        $\frac{\partial L}{\partial h_1} = \frac{\partial L}{\partial h_T} \cdot \prod_{t=2}^{T} \frac{\partial h_t}{\partial h_{t-1}}$
+                    </div>
+                </div>
+
+                <div class="derivation-step">
+                    <h4>问题的根源</h4>
+                    <p>由于 $\tanh'(x) = 1 - \tanh^2(x) \in (0, 1]$，梯度会指数级衰减！</p>
+                </div>
+            </div>
+
+            <div class="tip warning">
+                <span style="font-size: 1.5rem;">⚠️</span>
+                <div>
+                    <strong>关键洞察：</strong>当序列长度为100时，如果每步梯度衰减0.9，最终梯度只有初始的 $0.9^{100} \approx 10^{-5}$！
+                </div>
+            </div>
+        </section>
+
+        <!-- 解决思路 -->
+        <section id="solution" class="section-card">
+            <h2 style="color: var(--accent-blue); margin-bottom: 2rem;">💡 解决思路：从绝境中寻找突破</h2>
+
+            <div style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(147, 51, 234, 0.1)); border-radius: 1rem; padding: 2rem; margin-bottom: 2rem;">
+                <h3 style="color: var(--accent-blue); margin-bottom: 1.5rem;">🌅 转机：一个关键的观察</h3>
+                <p style="font-size: 1.1rem; line-height: 1.8; margin-bottom: 1.5rem;">
+                    1995年春天，在一次失败的实验后，Hochreiter 注意到了一个奇怪的现象：
+                </p>
+
+                <div class="insight-box" style="background: rgba(255, 255, 255, 0.08); border-color: var(--accent-blue);">
+                    <h4 class="insight-title" style="color: var(--accent-blue);">👁️ 关键观察</h4>
+                    <div class="insight-content">
+                        <p>"在某些特殊初始化下，网络似乎能够保持一些信息更长时间。仔细分析后发现，当某些连接的权重接近1，且没有经过非线性变换时，信息可以几乎无损地传递。"</p>
+                        <p style="margin-top: 1rem; text-align: right; font-style: italic; color: var(--text-secondary);">—— Hochreiter 的实验笔记</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="think-card">
+                <h3>🧠 设计思考：如果你是他们，会怎么设计？</h3>
+                <p>在看LSTM的解决方案之前，让我们跟随 Hochreiter 和 Schmidhuber 的思路，一步步推导出解决方案：</p>
+
+                <div class="think-options">
+                    <div class="think-option">
+                        <h4 style="color: var(--accent-cyan);">💭 思考1：线性路径</h4>
+                        <p><strong>问题：</strong>梯度在非线性函数中消失</p>
+                        <p><strong>启发：</strong>能否创建一条不经过非线性变换的路径？</p>
+                        <p style="margin-top: 0.5rem; color: var(--accent-green);">→ 这导向了"细胞状态"的概念！</p>
+                    </div>
+                    <div class="think-option">
+                        <h4 style="color: var(--accent-pink);">💭 思考2：选择性记忆</h4>
+                        <p><strong>问题：</strong>不是所有信息都需要长期保存</p>
+                        <p><strong>启发：</strong>大脑是如何选择性记忆的？</p>
+                        <p style="margin-top: 0.5rem; color: var(--accent-green);">→ 这导向了"门控"的概念！</p>
+                    </div>
+                    <div class="think-option">
+                        <h4 style="color: var(--accent-green);">💭 思考3：控制机制</h4>
+                        <p><strong>问题：</strong>如何实现0到1之间的控制？</p>
+                        <p><strong>启发：</strong>Sigmoid函数正好输出[0,1]！</p>
+                        <p style="margin-top: 0.5rem; color: var(--accent-green);">→ 这确定了门的激活函数！</p>
+                    </div>
+                </div>
+            </div>
+
+            <div style="background: rgba(255, 255, 255, 0.05); border-radius: 1rem; padding: 2rem; margin: 2rem 0;">
+                <h3 style="color: var(--accent-purple); margin-bottom: 1.5rem;">🏗️ 设计过程：一步步构建LSTM</h3>
+
+                <div class="process-flow" style="margin-bottom: 2rem;">
+                    <div class="process-connector"></div>
+                    <div class="process-step">
+                        <span class="step-number">1</span>
+                        <span class="step-icon">🛤️</span>
+                        <h4 class="step-title">创建信息高速公路</h4>
+                        <div class="step-description">
+                            <p><strong>设计：</strong>细胞状态 C<sub>t</sub></p>
+                            <p style="margin-top: 0.5rem;">让信息可以线性传递，避免非线性函数的梯度消失</p>
+                        </div>
+                    </div>
+
+                    <div class="process-step">
+                        <span class="step-number">2</span>
+                        <span class="step-icon">🚪</span>
+                        <h4 class="step-title">添加控制门</h4>
+                        <div class="step-description">
+                            <p><strong>设计：</strong>输入门和输出门</p>
+                            <p style="margin-top: 0.5rem;">控制什么信息进入和离开这条高速公路</p>
+                        </div>
+                    </div>
+
+                    <div class="process-step">
+                        <span class="step-number">3</span>
+                        <span class="step-icon">🧹</span>
+                        <h4 class="step-title">完善遗忘机制</h4>
+                        <div class="step-description">
+                            <p><strong>设计：</strong>遗忘门（2000年添加）</p>
+                            <p style="margin-top: 0.5rem;">让网络能够主动忘记不再需要的信息</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card-grid">
+                    <div class="info-card" style="background: linear-gradient(135deg, rgba(168, 237, 234, 0.1), rgba(254, 214, 227, 0.1));">
+                        <span class="card-icon">🎨</span>
+                        <h4 style="color: var(--accent-cyan);">设计原则1：常数误差传播</h4>
+                        <p>细胞状态的更新使用加法而非乘法，确保梯度可以稳定传播：</p>
+                        <p style="margin-top: 0.5rem; font-family: monospace; text-align: center;">C<sub>t</sub> = f<sub>t</sub> × C<sub>t-1</sub> + ...</p>
+                        <p style="margin-top: 0.5rem; color: var(--accent-green);">✓ 当f<sub>t</sub>≈1时，梯度几乎无损传递</p>
+                    </div>
+
+                    <div class="info-card" style="background: linear-gradient(135deg, rgba(240, 147, 251, 0.1), rgba(245, 87, 108, 0.1));">
+                        <span class="card-icon">🎛️</span>
+                        <h4 style="color: var(--accent-pink);">设计原则2：学习控制</h4>
+                        <p>门的权重是可学习的，网络自己决定何时记忆/遗忘：</p>
+                        <p style="margin-top: 0.5rem; font-family: monospace; text-align: center;">f<sub>t</sub> = σ(W<sub>f</sub> · [h, x] + b<sub>f</sub>)</p>
+                        <p style="margin-top: 0.5rem; color: var(--accent-green);">✓ 网络学会了"元认知"能力</p>
+                    </div>
+
+                    <div class="info-card" style="background: linear-gradient(135deg, rgba(79, 172, 254, 0.1), rgba(0, 242, 254, 0.1));">
+                        <span class="card-icon">🔀</span>
+                        <h4 style="color: var(--accent-blue);">设计原则3：信息分离</h4>
+                        <p>细胞状态（记忆）和隐藏状态（输出）分离：</p>
+                        <p style="margin-top: 0.5rem;">• C<sub>t</sub>：完整的记忆存储</p>
+                        <p>• h<sub>t</sub>：过滤后的输出</p>
+                        <p style="margin-top: 0.5rem; color: var(--accent-green);">✓ 可以记住但不输出某些信息</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="insight-box">
+                <h3 class="insight-title">🎯 LSTM的天才之处</h3>
+                <p>LSTM的设计并非一蹴而就，而是经过深思熟虑的结果：</p>
+                <ul style="margin-top: 1rem; list-style: none;">
+                    <li style="margin-bottom: 0.8rem;">
+                        <strong>1️⃣ 问题导向：</strong>每个组件都针对特定问题设计
+                        <ul style="margin-left: 2rem; margin-top: 0.5rem;">
+                            <li>细胞状态 → 解决梯度消失</li>
+                            <li>门控机制 → 解决信息选择</li>
+                            <li>分离状态 → 解决信息存储与输出的矛盾</li>
+                        </ul>
+                    </li>
+                    <li style="margin-bottom: 0.8rem;">
+                        <strong>2️⃣ 生物启发：</strong>模仿大脑的记忆机制
+                        <ul style="margin-left: 2rem; margin-top: 0.5rem;">
+                            <li>工作记忆 vs 长期记忆</li>
+                            <li>选择性注意机制</li>
+                            <li>主动遗忘能力</li>
+                        </ul>
+                    </li>
+                    <li>
+                        <strong>3️⃣ 数学优雅：</strong>简单操作实现复杂功能
+                        <ul style="margin-left: 2rem; margin-top: 0.5rem;">
+                            <li>加法保持梯度</li>
+                            <li>乘法实现选择</li>
+                            <li>Sigmoid实现开关</li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+
+            <div style="background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(6, 182, 212, 0.1)); border-radius: 1rem; padding: 2rem; margin-top: 2rem;">
+                <h3 style="color: var(--accent-green); margin-bottom: 1rem;">✨ 顿悟时刻</h3>
+                <blockquote style="border-left: 4px solid var(--accent-green); padding-left: 1.5rem; font-style: italic;">
+                    "当我们意识到可以用门来控制信息流，就像水闸控制水流一样，一切都豁然开朗了。网络不需要记住所有东西，它只需要学会什么时候记住，什么时候忘记，什么时候输出。这就是智能的本质。"
+                    <p style="margin-top: 1rem; text-align: right; color: var(--text-secondary);">—— Jürgen Schmidhuber，1997年</p>
+                </blockquote>
+            </div>
+        </section>
+
+        <!-- LSTM核心结构 -->
+        <section id="lstm-structure" class="section-card">
+            <h2 style="color: var(--accent-purple); margin-bottom: 2rem;">🎯 LSTM核心结构：设计的结晶</h2>
+
+            <div style="background: linear-gradient(135deg, rgba(167, 139, 250, 0.1), rgba(236, 72, 153, 0.1)); border-radius: 1rem; padding: 2rem; margin-bottom: 2rem;">
+                <h3 style="color: var(--accent-purple); margin-bottom: 1.5rem;">🎨 从想法到实现</h3>
+                <p style="font-size: 1.1rem; line-height: 1.8;">
+                    经过两年的反复实验和改进，Hochreiter 和 Schmidhuber 终于在1997年发表了LSTM。让我们看看这个优雅的设计是如何工作的：
+                </p>
+            </div>
+
+            <div class="lstm-flow-diagram">
+                <h3 style="text-align: center; color: var(--accent-cyan); margin-bottom: 2rem;">LSTM信息流向图</h3>
+                <div class="flow-container">
+                    <div class="flow-block" style="border-color: var(--accent-green);">
+                        <div style="font-size: 2rem; margin-bottom: 0.5rem;">📊</div>
+                        <div style="color: var(--accent-green); font-weight: 600;">C<sub>t-1</sub></div>
+                        <div style="font-size: 0.875rem; color: var(--text-secondary);">前一时刻<br>细胞状态</div>
+                    </div>
+
+                    <div class="flow-arrow">→</div>
+
+                    <div class="flow-block" style="border-color: var(--accent-pink);">
+                        <div style="font-size: 2rem; margin-bottom: 0.5rem;">🚪</div>
+                        <div style="color: var(--accent-pink); font-weight: 600;">遗忘门</div>
+                        <div style="font-size: 0.875rem; color: var(--text-secondary);">决定遗忘<br>哪些信息</div>
+                    </div>
+
+                    <div class="flow-arrow">→</div>
+
+                    <div class="flow-block" style="border-color: var(--accent-cyan);">
+                        <div style="font-size: 2rem; margin-bottom: 0.5rem;">📥</div>
+                        <div style="color: var(--accent-cyan); font-weight: 600;">输入门</div>
+                        <div style="font-size: 0.875rem; color: var(--text-secondary);">决定存储<br>哪些新信息</div>
+                    </div>
+
+                    <div class="flow-arrow">→</div>
+
+                    <div class="flow-block" style="border-color: var(--accent-green);">
+                        <div style="font-size: 2rem; margin-bottom: 0.5rem;">📊</div>
+                        <div style="color: var(--accent-green); font-weight: 600;">C<sub>t</sub></div>
+                        <div style="font-size: 0.875rem; color: var(--text-secondary);">当前时刻<br>细胞状态</div>
+                    </div>
+
+                    <div class="flow-arrow">→</div>
+
+                    <div class="flow-block" style="border-color: var(--accent-yellow);">
+                        <div style="font-size: 2rem; margin-bottom: 0.5rem;">📤</div>
+                        <div style="color: var(--accent-yellow); font-weight: 600;">输出门</div>
+                        <div style="font-size: 0.875rem; color: var(--text-secondary);">决定输出<br>哪些信息</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="think-card" style="background: rgba(255, 255, 255, 0.05); border-color: var(--text-secondary); margin-top: 2rem;">
+                <h3 style="color: var(--accent-yellow);">🤔 为什么是这样的结构？</h3>
+                <p>让我们理解每个设计决策背后的原因：</p>
+
+                <div class="card-grid" style="margin-top: 1.5rem;">
+                    <div class="info-card">
+                        <span class="card-icon">🛤️</span>
+                        <h4 style="color: var(--accent-green);">细胞状态的意义</h4>
+                        <p><strong>问题：</strong>梯度在RNN中消失</p>
+                        <p><strong>解决：</strong>创建线性传递路径</p>
+                        <p style="margin-top: 0.5rem; color: var(--accent-cyan);">→ 信息可以几乎无损地流过整个网络</p>
+                    </div>
+
+                    <div class="info-card">
+                        <span class="card-icon">🎚️</span>
+                        <h4 style="color: var(--accent-pink);">为什么需要三个门？</h4>
+                        <p><strong>遗忘门：</strong>清理过时信息</p>
+                        <p><strong>输入门：</strong>选择新增信息</p>
+                        <p><strong>输出门：</strong>过滤输出内容</p>
+                        <p style="margin-top: 0.5rem; color: var(--accent-cyan);">→ 每个门都有独特且必要的功能</p>
+                    </div>
+
+                    <div class="info-card">
+                        <span class="card-icon">🔢</span>
+                        <h4 style="color: var(--accent-purple);">为什么用Sigmoid？</h4>
+                        <p><strong>特性：</strong>输出范围[0,1]</p>
+                        <p><strong>含义：</strong>0=完全阻断，1=完全通过</p>
+                        <p style="margin-top: 0.5rem; color: var(--accent-cyan);">→ 完美实现"门"的开关功能</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="insight-box" style="background: linear-gradient(135deg, rgba(167, 139, 250, 0.1), rgba(96, 165, 250, 0.1)); border: 2px solid rgba(167, 139, 250, 0.3);">
+                <h3 class="insight-title" style="color: var(--accent-purple);">LSTM的核心优势</h3>
+                <div class="insight-content">
+                    <p>LSTM通过三个门控机制巧妙地解决了传统RNN的梯度消失问题：</p>
+                    <ul style="list-style: none; margin-top: 1rem;">
+                        <li style="margin-bottom: 0.5rem;">✅ <strong>遗忘门：</strong>选择性地遗忘不重要的历史信息</li>
+                        <li style="margin-bottom: 0.5rem;">✅ <strong>输入门：</strong>选择性地记忆重要的新信息</li>
+                        <li style="margin-bottom: 0.5rem;">✅ <strong>输出门：</strong>选择性地输出当前需要的信息</li>
+                    </ul>
+                    <p style="margin-top: 1rem; color: var(--accent-cyan);">
+                        💡 这种设计让LSTM能够捕获长期依赖关系，适用于序列建模任务！
+                    </p>
+                </div>
+            </div>
+
+            <!-- 序列处理示意图 -->
+            <div class="sequence-diagram">
+                <h3 style="text-align: center; color: var(--accent-yellow); margin-bottom: 2rem;">时间步骤中的信息流动</h3>
+                <div class="sequence-steps">
+                    <div class="sequence-step">
+                        <div class="step-circle" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">t-1</div>
+                        <div class="step-name">前一时刻</div>
+                        <div style="margin-top: 0.5rem;">
+                            <div style="font-size: 0.875rem;">h<sub>t-1</sub></div>
+                            <div style="font-size: 0.875rem;">C<sub>t-1</sub></div>
+                        </div>
+                    </div>
+
+                    <div style="font-size: 2rem; color: var(--accent-purple);">→</div>
+
+                    <div class="sequence-step">
+                        <div class="step-circle forget-step">🚪</div>
+                        <div class="step-name">遗忘门</div>
+                        <div style="font-size: 0.75rem; color: var(--text-dim); margin-top: 0.5rem;">f<sub>t</sub> = σ(W<sub>f</sub>·[h<sub>t-1</sub>, x<sub>t</sub>] + b<sub>f</sub>)</div>
+                    </div>
+
+                    <div style="font-size: 2rem; color: var(--accent-purple);">→</div>
+
+                    <div class="sequence-step">
+                        <div class="step-circle input-step">📥</div>
+                        <div class="step-name">输入门</div>
+                        <div style="font-size: 0.75rem; color: var(--text-dim); margin-top: 0.5rem;">i<sub>t</sub> = σ(W<sub>i</sub>·[h<sub>t-1</sub>, x<sub>t</sub>] + b<sub>i</sub>)</div>
+                    </div>
+
+                    <div style="font-size: 2rem; color: var(--accent-purple);">→</div>
+
+                    <div class="sequence-step">
+                        <div class="step-circle output-step">📤</div>
+                        <div class="step-name">输出门</div>
+                        <div style="font-size: 0.75rem; color: var(--text-dim); margin-top: 0.5rem;">o<sub>t</sub> = σ(W<sub>o</sub>·[h<sub>t-1</sub>, x<sub>t</sub>] + b<sub>o</sub>)</div>
+                    </div>
+
+                    <div style="font-size: 2rem; color: var(--accent-purple);">→</div>
+
+                    <div class="sequence-step">
+                        <div class="step-circle" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">t</div>
+                        <div class="step-name">当前时刻</div>
+                        <div style="margin-top: 0.5rem;">
+                            <div style="font-size: 0.875rem;">h<sub>t</sub></div>
+                            <div style="font-size: 0.875rem;">C<sub>t</sub></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="background: rgba(255, 255, 255, 0.05); border-radius: 1rem; padding: 2rem; margin-top: 2rem;">
+                <h3 style="color: var(--accent-orange); margin-bottom: 1.5rem;">🎓 设计哲学：简单组件的复杂行为</h3>
+                <p style="font-size: 1.1rem; line-height: 1.8;">
+                    LSTM的美妙之处在于，它用几个简单的数学运算（加法、乘法、Sigmoid、tanh）构建出了能够进行复杂序列建模的系统。这正是深度学习的精髓：
+                </p>
+                <blockquote style="border-left: 4px solid var(--accent-orange); padding-left: 1.5rem; margin-top: 1.5rem; font-style: italic;">
+                    "复杂的智能行为并非来自复杂的规则，而是来自简单规则的精妙组合。"
+                    <p style="margin-top: 1rem; text-align: right; color: var(--text-secondary);">—— Sepp Hochreiter</p>
+                </blockquote>
+            </div>
+        </section>
+
+        <!-- 遗忘门详解 - 整合第二个文档的详细内容 -->
+        <section id="forget-gate" class="section-card">
+            <h2 style="color: var(--accent-pink); margin-bottom: 2rem;">🚪 遗忘门详细解析</h2>
+
+            <div style="background: linear-gradient(135deg, rgba(240, 147, 251, 0.1), rgba(245, 87, 108, 0.1)); border-radius: 1rem; padding: 2rem; margin-bottom: 2rem;">
+                <h3 style="color: var(--accent-pink); margin-bottom: 1.5rem;">📚 遗忘门的诞生故事</h3>
+                <p style="font-size: 1.1rem; line-height: 1.8; margin-bottom: 1.5rem;">
+                    有趣的是，原始的LSTM（1997年）并没有遗忘门！直到2000年，Felix Gers 在使用LSTM时发现了一个问题：
+                </p>
+
+                <div class="info-card" style="background: rgba(240, 147, 251, 0.15); border-color: var(--accent-pink);">
+                    <span class="card-icon">❓</span>
+                    <h4 style="color: var(--accent-pink);">发现的问题</h4>
+                    <p>"当处理连续的序列时，细胞状态会不断累积信息，最终导致饱和。就像一个永远不清理的仓库，最后会堆满无用的东西。"</p>
+                    <p style="margin-top: 0.5rem; text-align: right; font-style: italic; color: var(--text-secondary);">—— Felix Gers, 2000</p>
+                </div>
+
+                <p style="font-size: 1.1rem; line-height: 1.8; margin-top: 1.5rem;">
+                    这个发现促使他们添加了遗忘门，让LSTM具备了主动"遗忘"的能力。这个看似简单的改进，却让LSTM的性能有了质的飞跃！
+                </p>
+            </div>
+
+            <div class="formula-display forget-formula">
+                <div class="main-formula">
+                    f<sub>t</sub> = σ(W<sub>f</sub> · [h<sub>t-1</sub>, x<sub>t</sub>] + b<sub>f</sub>)
+                </div>
+            </div>
+
+            <!-- 使用5列网格布局的详细卡片 -->
+            <div class="card-grid five-columns" style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 1rem;">
+                <div class="info-card forget-card slide-in-left">
+                    <span class="card-icon">🎯</span>
+                    <h3 class="card-title">f<sub>t</sub> - 遗忘门输出</h3>
+                    <div class="card-content">
+                        <p>控制向量，每个元素∈[0,1]</p>
+                        <ul style="margin-top: 0.5rem; margin-left: 1rem; font-size: 0.875rem;">
+                            <li>0 = 完全遗忘</li>
+                            <li>1 = 完全保留</li>
+                            <li>0.5 = 保留一半</li>
+                        </ul>
+                        <p style="margin-top: 0.5rem; font-size: 0.875rem;"><strong>维度：</strong>与隐藏状态相同</p>
+
+                        <!-- 向量可视化 -->
+                        <div style="margin-top: 1rem; background: rgba(0,0,0,0.2); border-radius: 8px; padding: 0.75rem;">
+                            <div style="display: flex; align-items: center; justify-content: center; gap: 0.25rem; flex-wrap: wrap;">
+                                <span style="font-family: monospace; color: var(--accent-yellow); font-size: 0.8rem;">f<sub>t</sub> =</span>
+                                <div style="display: flex; flex-direction: column; align-items: center; border-left: 2px solid var(--accent-pink); border-right: 2px solid var(--accent-pink); padding: 0.2rem 0.4rem;">
+                                    <div style="background: rgba(244,114,182,0.2); padding: 0.2rem 0.4rem; margin: 0.05rem; border-radius: 3px; font-family: monospace; font-size: 0.75rem;">0.9</div>
+                                    <div style="background: rgba(244,114,182,0.2); padding: 0.2rem 0.4rem; margin: 0.05rem; border-radius: 3px; font-family: monospace; font-size: 0.75rem;">0.1</div>
+                                    <div style="background: rgba(244,114,182,0.2); padding: 0.2rem 0.4rem; margin: 0.05rem; border-radius: 3px; font-family: monospace; font-size: 0.75rem;">0.5</div>
+                                    <div style="color: var(--text-dim); font-size: 0.7rem;">⋮</div>
+                                </div>
+                                <span style="color: var(--text-secondary); font-size: 0.75rem; text-align: center;">每个值控制<br>对应特征</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="info-card forget-card slide-in-right">
+                    <span class="card-icon">🔄</span>
+                    <h3 class="card-title">σ(·) - Sigmoid函数</h3>
+                    <div class="card-content">
+                        <p style="font-size: 0.875rem;">将任意值映射到[0,1]</p>
+                        <p style="font-family: monospace; margin: 0.5rem 0; font-size: 0.875rem;">σ(x) = 1/(1+e<sup>-x</sup>)</p>
+                        <ul style="margin-top: 0.5rem; margin-left: 1rem; font-size: 0.875rem;">
+                            <li>大正数 → ≈1</li>
+                            <li>大负数 → ≈0</li>
+                            <li>0 → 0.5</li>
+                        </ul>
+
+                        <!-- Sigmoid函数曲线 -->
+                        <div style="margin-top: 1rem; background: rgba(0,0,0,0.2); border-radius: 8px; padding: 0.75rem;">
+                            <svg width="100%" height="100" viewBox="0 0 200 100" style="display: block;">
+                                <!-- 坐标轴 -->
+                                <line x1="20" y1="50" x2="180" y2="50" stroke="var(--text-dim)" stroke-width="1"/>
+                                <line x1="100" y1="10" x2="100" y2="90" stroke="var(--text-dim)" stroke-width="1"/>
+
+                                <!-- Sigmoid曲线 -->
+                                <path d="M 20 85 Q 50 85, 70 75 Q 85 60, 100 50 Q 115 40, 130 25 Q 150 15, 180 15"
+                                      fill="none" stroke="var(--accent-cyan)" stroke-width="2.5"/>
+
+                                <!-- 标注点 -->
+                                <circle cx="100" cy="50" r="3" fill="var(--accent-yellow)"/>
+                                <text x="105" y="55" fill="var(--text-secondary)" font-size="10">0.5</text>
+
+                                <circle cx="35" cy="85" r="2.5" fill="var(--accent-pink)"/>
+                                <text x="25" y="80" fill="var(--text-secondary)" font-size="9">≈0</text>
+
+                                <circle cx="165" cy="15" r="2.5" fill="var(--accent-green)"/>
+                                <text x="155" y="28" fill="var(--text-secondary)" font-size="9">≈1</text>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="info-card forget-card slide-in-left">
+                    <span class="card-icon">⚡</span>
+                    <h3 class="card-title">W<sub>f</sub> - 权重矩阵</h3>
+                    <div class="card-content">
+                        <p style="font-size: 0.875rem;">学习如何组合输入信息</p>
+                        <p style="margin-top: 0.5rem; font-size: 0.875rem;"><strong>维度：</strong></p>
+                        <ul style="margin-left: 1rem; font-size: 0.875rem;">
+                            <li>行 = 隐藏维度</li>
+                            <li>列 = h维度 + x维度</li>
+                        </ul>
+                        <p style="margin-top: 0.5rem; color: var(--accent-yellow); font-size: 0.875rem;">例：128×228矩阵</p>
+
+                        <!-- 矩阵结构可视化 -->
+                        <div style="margin-top: 1rem; background: rgba(0,0,0,0.2); border-radius: 8px; padding: 0.75rem;">
+                            <div style="text-align: center;">
+                                <div style="display: inline-block; position: relative;">
+                                    <!-- 矩阵表示 -->
+                                    <div style="display: grid; grid-template-columns: repeat(6, 30px); grid-template-rows: repeat(4, 25px); gap: 2px;">
+                                        <!-- 第一行 -->
+                                        <div style="background: rgba(244,114,182,0.3); border: 1px solid var(--accent-pink); border-radius: 2px; font-size: 10px; display: flex; align-items: center; justify-content: center; font-family: monospace;">w₁₁</div>
+                                        <div style="background: rgba(244,114,182,0.2); border: 1px solid var(--border-color); border-radius: 2px;"></div>
+                                        <div style="background: rgba(244,114,182,0.2); border: 1px solid var(--border-color); border-radius: 2px;"></div>
+                                        <div style="background: rgba(244,114,182,0.2); border: 1px solid var(--border-color); border-radius: 2px;"></div>
+                                        <div style="background: rgba(244,114,182,0.2); border: 1px solid var(--border-color); border-radius: 2px;"></div>
+                                        <div style="background: rgba(244,114,182,0.3); border: 1px solid var(--accent-pink); border-radius: 2px; font-size: 8px; display: flex; align-items: center; justify-content: center; font-family: monospace;">w₁,₂₂₈</div>
+
+                                        <!-- 第二行 -->
+                                        <div style="background: rgba(244,114,182,0.15); border: 1px solid var(--border-color); border-radius: 2px;"></div>
+                                        <div style="background: rgba(244,114,182,0.1); border: 1px solid var(--border-color); border-radius: 2px;"></div>
+                                        <div style="background: rgba(244,114,182,0.15); border: 1px solid var(--border-color); border-radius: 2px;"></div>
+                                        <div style="background: rgba(244,114,182,0.1); border: 1px solid var(--border-color); border-radius: 2px;"></div>
+                                        <div style="background: rgba(244,114,182,0.15); border: 1px solid var(--border-color); border-radius: 2px;"></div>
+                                        <div style="background: rgba(244,114,182,0.1); border: 1px solid var(--border-color); border-radius: 2px;"></div>
+
+                                        <!-- 第三行 - 省略号 -->
+                                        <div style="grid-column: 1/7; display: flex; align-items: center; justify-content: center; color: var(--text-dim); font-size: 16px; height: 25px;">⋮</div>
+
+                                        <!-- 第四行 -->
+                                        <div style="background: rgba(244,114,182,0.3); border: 1px solid var(--accent-pink); border-radius: 2px; font-size: 8px; display: flex; align-items: center; justify-content: center; font-family: monospace;">w₁₂₈,₁</div>
+                                        <div style="background: rgba(244,114,182,0.2); border: 1px solid var(--border-color); border-radius: 2px;"></div>
+                                        <div style="background: rgba(244,114,182,0.2); border: 1px solid var(--border-color); border-radius: 2px;"></div>
+                                        <div style="background: rgba(244,114,182,0.2); border: 1px solid var(--border-color); border-radius: 2px;"></div>
+                                        <div style="background: rgba(244,114,182,0.2); border: 1px solid var(--border-color); border-radius: 2px;"></div>
+                                        <div style="background: rgba(244,114,182,0.3); border: 1px solid var(--accent-pink); border-radius: 2px; font-size: 7px; display: flex; align-items: center; justify-content: center; font-family: monospace;">w₁₂₈,₂₂₈</div>
+                                    </div>
+
+                                    <!-- 维度标注 -->
+                                    <div style="position: absolute; left: -40px; top: 50%; transform: translateY(-50%); color: var(--accent-yellow); font-size: 12px; font-weight: 600;">128</div>
+                                    <div style="position: absolute; bottom: -25px; left: 50%; transform: translateX(-50%); color: var(--accent-yellow); font-size: 12px; font-weight: 600;">228</div>
+                                </div>
+                            </div>
+                            <p style="text-align: center; margin-top: 1.5rem; color: var(--text-secondary); font-size: 0.75rem;">
+                                将228维输入映射到128维
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="info-card forget-card slide-in-right">
+                    <span class="card-icon">🔗</span>
+                    <h3 class="card-title">[h<sub>t-1</sub>, x<sub>t</sub>] - 拼接输入</h3>
+                    <div class="card-content">
+                        <p style="font-size: 0.875rem;">垂直拼接两个向量</p>
+                        <ul style="margin-top: 0.5rem; margin-left: 1rem; font-size: 0.875rem;">
+                            <li>h<sub>t-1</sub>: 历史信息</li>
+                            <li>x<sub>t</sub>: 当前输入</li>
+                        </ul>
+                        <p style="margin-top: 0.5rem; font-family: monospace; font-size: 0.8rem;">
+                            [a,b] + [c,d] = [a,b,c,d]
+                        </p>
+
+                        <!-- 拼接过程可视化 -->
+                        <div style="margin-top: 1rem; background: rgba(0,0,0,0.2); border-radius: 8px; padding: 0.75rem;">
+                            <div style="display: flex; align-items: center; justify-content: center; gap: 0.5rem; flex-wrap: wrap;">
+                                <!-- h向量 -->
+                                <div style="text-align: center;">
+                                    <div style="font-size: 0.7rem; color: var(--accent-yellow); margin-bottom: 0.2rem;">h<sub>t-1</sub></div>
+                                    <div style="display: flex; flex-direction: column; border: 2px solid var(--accent-pink); border-radius: 3px; padding: 0.2rem;">
+                                        <div style="background: rgba(244,114,182,0.2); padding: 0.15rem 0.3rem; margin: 0.05rem; border-radius: 2px; font-size: 0.7rem;">h₁</div>
+                                        <div style="background: rgba(244,114,182,0.2); padding: 0.15rem 0.3rem; margin: 0.05rem; border-radius: 2px; font-size: 0.7rem;">h₂</div>
+                                        <div style="color: var(--text-dim); font-size: 0.5rem;">⋮</div>
+                                    </div>
+                                    <div style="font-size: 0.65rem; color: var(--text-secondary); margin-top: 0.2rem;">128维</div>
+                                </div>
+
+                                <div style="font-size: 1.2rem; color: var(--accent-cyan);">+</div>
+
+                                <!-- x向量 -->
+                                <div style="text-align: center;">
+                                    <div style="font-size: 0.7rem; color: var(--accent-yellow); margin-bottom: 0.2rem;">x<sub>t</sub></div>
+                                    <div style="display: flex; flex-direction: column; border: 2px solid var(--accent-cyan); border-radius: 3px; padding: 0.2rem;">
+                                        <div style="background: rgba(34,211,238,0.2); padding: 0.15rem 0.3rem; margin: 0.05rem; border-radius: 2px; font-size: 0.7rem;">x₁</div>
+                                        <div style="background: rgba(34,211,238,0.2); padding: 0.15rem 0.3rem; margin: 0.05rem; border-radius: 2px; font-size: 0.7rem;">x₂</div>
+                                        <div style="color: var(--text-dim); font-size: 0.5rem;">⋮</div>
+                                    </div>
+                                    <div style="font-size: 0.65rem; color: var(--text-secondary); margin-top: 0.2rem;">100维</div>
+                                </div>
+
+                                <div style="font-size: 1.2rem; color: var(--accent-green);">=</div>
+
+                                <!-- 结果向量 -->
+                                <div style="text-align: center;">
+                                    <div style="font-size: 0.7rem; color: var(--accent-yellow); margin-bottom: 0.2rem;">[h,x]</div>
+                                    <div style="display: flex; flex-direction: column; border: 2px solid var(--accent-purple); border-radius: 3px; padding: 0.2rem;">
+                                        <div style="background: rgba(244,114,182,0.2); padding: 0.15rem 0.3rem; margin: 0.05rem; border-radius: 2px; font-size: 0.7rem;">h₁</div>
+                                        <div style="color: var(--text-dim); font-size: 0.5rem;">⋮</div>
+                                        <div style="background: rgba(34,211,238,0.2); padding: 0.15rem 0.3rem; margin: 0.05rem; border-radius: 2px; font-size: 0.7rem;">x₁</div>
+                                        <div style="color: var(--text-dim); font-size: 0.5rem;">⋮</div>
+                                    </div>
+                                    <div style="font-size: 0.65rem; color: var(--text-secondary); margin-top: 0.2rem;">228维</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="info-card forget-card slide-in-left">
+                    <span class="card-icon">➕</span>
+                    <h3 class="card-title">b<sub>f</sub> - 偏置向量</h3>
+                    <div class="card-content">
+                        <p style="font-size: 0.875rem;">可训练的偏置向量，提供基准值</p>
+                        <ul style="margin-top: 0.5rem; margin-left: 1rem; font-size: 0.875rem;">
+                            <li>维度 = 隐藏状态维度</li>
+                            <li>通常初始化为正值</li>
+                        </ul>
+                        <p style="margin-top: 0.5rem; font-size: 0.875rem;"><strong>作用：</strong>让模型默认倾向于记住</p>
+
+                        <!-- 偏置效果可视化 -->
+                        <div style="margin-top: 1rem; background: rgba(0,0,0,0.2); border-radius: 8px; padding: 0.75rem;">
+                            <div style="text-align: center;">
+                                <p style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.5rem;">偏置如何影响遗忘倾向</p>
+                                <div style="display: flex; justify-content: space-around; align-items: flex-end; height: 60px; margin-top: 0.5rem;">
+                                    <div style="text-align: center;">
+                                        <div style="width: 30px; height: 20px; background: rgba(244,114,182,0.3); border: 1px solid var(--accent-pink); border-radius: 3px 3px 0 0;"></div>
+                                        <div style="font-size: 0.7rem; color: var(--accent-pink); margin-top: 0.2rem;">b=-1</div>
+                                        <div style="font-size: 0.65rem; color: var(--text-dim);">易忘</div>
+                                    </div>
+                                    <div style="text-align: center;">
+                                        <div style="width: 30px; height: 35px; background: rgba(251,191,36,0.3); border: 1px solid var(--accent-yellow); border-radius: 3px 3px 0 0;"></div>
+                                        <div style="font-size: 0.7rem; color: var(--accent-yellow); margin-top: 0.2rem;">b=0</div>
+                                        <div style="font-size: 0.65rem; color: var(--text-dim);">中性</div>
+                                    </div>
+                                    <div style="text-align: center;">
+                                        <div style="width: 30px; height: 50px; background: rgba(34,197,94,0.3); border: 1px solid var(--accent-green); border-radius: 3px 3px 0 0;"></div>
+                                        <div style="font-size: 0.7rem; color: var(--accent-green); margin-top: 0.2rem;">b=1</div>
+                                        <div style="font-size: 0.65rem; color: var(--text-dim);">易记</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 矩阵运算详解 -->
+            <h3 style="text-align: center; color: var(--accent-cyan); margin: 3rem 0 2rem;">🔢 矩阵维度变化详解</h3>
+
+            <p style="text-align: center; color: var(--text-secondary); margin-bottom: 2rem;">
+                假设：隐藏状态h为128维，输入x为100维
+            </p>
+
+            <div class="matrix-visualization">
+                <div class="matrix-block">
+                    <div class="matrix-label" style="color: var(--accent-green);">h<sub>t-1</sub></div>
+                    <div class="matrix-grid" style="grid-template-columns: 1fr;">
+                        <div class="matrix-cell">h₁</div>
+                        <div class="matrix-cell">⋮</div>
+                        <div class="matrix-cell">h₁₂₈</div>
+                    </div>
+                    <div style="color: var(--accent-green); margin-top: 0.5rem;">[128×1]</div>
+                </div>
+
+                <span class="operation-arrow">+</span>
+
+                <div class="matrix-block">
+                    <div class="matrix-label" style="color: var(--accent-cyan);">x<sub>t</sub></div>
+                    <div class="matrix-grid" style="grid-template-columns: 1fr;">
+                        <div class="matrix-cell">x₁</div>
+                        <div class="matrix-cell">⋮</div>
+                        <div class="matrix-cell">x₁₀₀</div>
+                    </div>
+                    <div style="color: var(--accent-cyan); margin-top: 0.5rem;">[100×1]</div>
+                </div>
+
+                <span class="operation-arrow">=</span>
+
+                <div class="matrix-block">
+                    <div class="matrix-label" style="color: var(--accent-purple);">[h,x]</div>
+                    <div class="matrix-grid" style="grid-template-columns: 1fr;">
+                        <div class="matrix-cell">h₁</div>
+                        <div class="matrix-cell">⋮</div>
+                        <div class="matrix-cell">x₁₀₀</div>
+                    </div>
+                    <div style="color: var(--accent-purple); margin-top: 0.5rem;">[228×1]</div>
+                </div>
+            </div>
+
+            <!-- 维度总结表 -->
+            <table class="data-table">
+                <thead>
+                <tr>
+                    <th>符号</th>
+                    <th>含义</th>
+                    <th>维度</th>
+                    <th>说明</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr>
+                    <td><strong>h<sub>t-1</sub></strong></td>
+                    <td>前一时刻隐藏状态</td>
+                    <td>128×1</td>
+                    <td>包含历史信息的向量</td>
+                </tr>
+                <tr>
+                    <td><strong>x<sub>t</sub></strong></td>
+                    <td>当前输入</td>
+                    <td>100×1</td>
+                    <td>当前时刻的输入特征</td>
+                </tr>
+                <tr>
+                    <td><strong>W<sub>f</sub></strong></td>
+                    <td>遗忘门权重</td>
+                    <td>128×228</td>
+                    <td>学习如何组合输入信息</td>
+                </tr>
+                <tr>
+                    <td><strong>b<sub>f</sub></strong></td>
+                    <td>遗忘门偏置</td>
+                    <td>128×1</td>
+                    <td>每个隐藏单元的基准值</td>
+                </tr>
+                <tr>
+                    <td><strong>f<sub>t</sub></strong></td>
+                    <td>遗忘门输出</td>
+                    <td>128×1</td>
+                    <td>控制遗忘程度，值∈[0,1]</td>
+                </tr>
+                </tbody>
+            </table>
+
+            <!-- 核心概念与应用 -->
+            <h3 style="text-align: center; color: var(--accent-yellow); margin: 3rem 0 2rem;">💡 核心概念与应用</h3>
+
+            <div class="insight-box" style="background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(6, 182, 212, 0.1)); border: 2px solid rgba(34, 197, 94, 0.3);">
+                <h3 class="insight-title" style="color: var(--accent-green);">遗忘门如何作用于细胞状态？</h3>
+                <div class="formula-display" style="margin: 1.5rem 0; background: rgba(0,0,0,0.2);">
+                    <div style="font-size: 1.75rem; font-family: Georgia, serif;">
+                        C<sub>t</sub><sup>new</sup> = f<sub>t</sub> ⊙ C<sub>t-1</sub>
+                    </div>
+                    <p style="color: var(--text-secondary); margin-top: 1rem;">
+                        ⊙ 表示逐元素相乘（Hadamard积）
+                    </p>
+                </div>
+
+                <div class="card-grid" style="margin-top: 2rem;">
+                    <div class="info-card" style="background: rgba(34, 197, 94, 0.1); border-color: var(--accent-green);">
+                        <h4 style="color: var(--accent-green);">f = 0.9 (强记忆)</h4>
+                        <p>C<sub>old</sub> = 2.0</p>
+                        <p>C<sub>new</sub> = 0.9 × 2.0 = 1.8</p>
+                        <p style="margin-top: 0.5rem; font-weight: 600;">保留90%的信息</p>
+
+                        <!-- 可视化进度条 -->
+                        <div style="margin-top: 1rem; background: rgba(0,0,0,0.3); border-radius: 8px; padding: 0.75rem;">
+                            <div style="position: relative; height: 40px;">
+                                <!-- 原始值 -->
+                                <div style="position: absolute; width: 100%; height: 20px; background: rgba(255,255,255,0.1); border-radius: 10px; top: 0;">
+                                    <div style="width: 100%; height: 100%; background: linear-gradient(90deg, var(--accent-green) 0%, var(--accent-cyan) 100%); border-radius: 10px;"></div>
+                                </div>
+                                <!-- 保留值 -->
+                                <div style="position: absolute; width: 90%; height: 20px; background: rgba(255,255,255,0.2); border-radius: 10px; bottom: 0; box-shadow: 0 2px 10px rgba(34,197,94,0.5);">
+                                    <div style="width: 100%; height: 100%; background: var(--accent-green); border-radius: 10px;"></div>
+                                </div>
+                                <!-- 标签 -->
+                                <div style="position: absolute; right: 5px; top: 1px; color: white; font-size: 0.75rem;">100%</div>
+                                <div style="position: absolute; right: 15%; bottom: 1px; color: white; font-size: 0.75rem;">90%</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="info-card" style="background: rgba(251, 191, 36, 0.1); border-color: var(--accent-yellow);">
+                        <h4 style="color: var(--accent-yellow);">f = 0.5 (中等记忆)</h4>
+                        <p>C<sub>old</sub> = 2.0</p>
+                        <p>C<sub>new</sub> = 0.5 × 2.0 = 1.0</p>
+                        <p style="margin-top: 0.5rem; font-weight: 600;">保留50%的信息</p>
+
+                        <!-- 可视化进度条 -->
+                        <div style="margin-top: 1rem; background: rgba(0,0,0,0.3); border-radius: 8px; padding: 0.75rem;">
+                            <div style="position: relative; height: 40px;">
+                                <!-- 原始值 -->
+                                <div style="position: absolute; width: 100%; height: 20px; background: rgba(255,255,255,0.1); border-radius: 10px; top: 0;">
+                                    <div style="width: 100%; height: 100%; background: linear-gradient(90deg, var(--accent-yellow) 0%, var(--accent-purple) 100%); border-radius: 10px;"></div>
+                                </div>
+                                <!-- 保留值 -->
+                                <div style="position: absolute; width: 50%; height: 20px; background: rgba(255,255,255,0.2); border-radius: 10px; bottom: 0; box-shadow: 0 2px 10px rgba(251,191,36,0.5);">
+                                    <div style="width: 100%; height: 100%; background: var(--accent-yellow); border-radius: 10px;"></div>
+                                </div>
+                                <!-- 标签 -->
+                                <div style="position: absolute; right: 5px; top: 1px; color: white; font-size: 0.75rem;">100%</div>
+                                <div style="position: absolute; right: 52%; bottom: 1px; color: white; font-size: 0.75rem;">50%</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="info-card" style="background: rgba(244, 114, 182, 0.1); border-color: var(--accent-pink);">
+                        <h4 style="color: var(--accent-pink);">f = 0.1 (弱记忆)</h4>
+                        <p>C<sub>old</sub> = 2.0</p>
+                        <p>C<sub>new</sub> = 0.1 × 2.0 = 0.2</p>
+                        <p style="margin-top: 0.5rem; font-weight: 600;">仅保留10%的信息</p>
+
+                        <!-- 可视化进度条 -->
+                        <div style="margin-top: 1rem; background: rgba(0,0,0,0.3); border-radius: 8px; padding: 0.75rem;">
+                            <div style="position: relative; height: 40px;">
+                                <!-- 原始值 -->
+                                <div style="position: absolute; width: 100%; height: 20px; background: rgba(255,255,255,0.1); border-radius: 10px; top: 0;">
+                                    <div style="width: 100%; height: 100%; background: linear-gradient(90deg, var(--accent-pink) 0%, var(--accent-purple) 100%); border-radius: 10px; opacity: 0.5;"></div>
+                                </div>
+                                <!-- 保留值 -->
+                                <div style="position: absolute; width: 10%; height: 20px; background: rgba(255,255,255,0.2); border-radius: 10px; bottom: 0; box-shadow: 0 2px 10px rgba(244,114,182,0.5);">
+                                    <div style="width: 100%; height: 100%; background: var(--accent-pink); border-radius: 10px;"></div>
+                                </div>
+                                <!-- 标签 -->
+                                <div style="position: absolute; right: 5px; top: 1px; color: white; font-size: 0.75rem;">100%</div>
+                                <div style="position: absolute; left: 12%; bottom: 1px; color: white; font-size: 0.75rem;">10%</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="insight-box" style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(96, 165, 250, 0.1)); border-color: var(--accent-purple);">
+                <h3 class="insight-title" style="color: var(--accent-purple);">🔑 设计的巧妙之处</h3>
+                <ul class="insight-list">
+                    <li><strong>线性路径：</strong>通过简单乘法更新，避免梯度消失</li>
+                    <li><strong>选择性控制：</strong>每个维度独立，精确控制特征保留</li>
+                    <li><strong>可学习性：</strong>反向传播自动学习遗忘策略</li>
+                    <li><strong>数值稳定：</strong>Sigmoid确保输出在[0,1]范围</li>
+                </ul>
+            </div>
+
+            <!-- 直观理解 -->
+            <h3 style="text-align: center; color: var(--accent-cyan); margin: 3rem 0 2rem;">🎭 用生活类比理解遗忘门</h3>
+
+            <div class="insight-box" style="background: linear-gradient(135deg, rgba(240, 147, 251, 0.1), rgba(34, 211, 238, 0.1)); border: 2px solid rgba(240, 147, 251, 0.3);">
+                <h3 class="insight-title" style="color: var(--accent-pink);">遗忘门就像大脑的"记忆过滤器"</h3>
+                <div class="insight-content">
+                    <p>想象你在听一个精彩的故事，你的大脑会自动：</p>
+                    <ul class="insight-list">
+                        <li><strong>重要情节（f ≈ 0.9）：</strong>主角名字、关键转折 → 深刻记忆</li>
+                        <li><strong>普通细节（f ≈ 0.5）：</strong>环境描述、背景音乐 → 模糊印象</li>
+                        <li><strong>无关信息（f ≈ 0.1）：</strong>路人对话、重复内容 → 自动过滤</li>
+                    </ul>
+                    <p style="margin-top: 1rem; color: var(--accent-cyan);">
+                        💡 遗忘门通过训练，学会识别哪些信息对任务重要！
+                    </p>
+                </div>
+            </div>
+
+            <div class="process-flow">
+                <div class="process-connector"></div>
+                <div class="process-step">
+                    <span class="step-number">1</span>
+                    <span class="step-icon">📥</span>
+                    <h4 class="step-title">接收信息</h4>
+                    <p class="step-description">
+                        结合历史状态h<sub>t-1</sub>和当前输入x<sub>t</sub>
+                    </p>
+                </div>
+
+                <div class="process-step">
+                    <span class="step-number">2</span>
+                    <span class="step-icon">⚖️</span>
+                    <h4 class="step-title">权重评估</h4>
+                    <p class="step-description">
+                        通过W<sub>f</sub>矩阵计算每个特征的重要性
+                    </p>
+                </div>
+
+                <div class="process-step">
+                    <span class="step-number">3</span>
+                    <span class="step-icon">🎚️</span>
+                    <h4 class="step-title">生成控制信号</h4>
+                    <p class="step-description">
+                        Sigmoid函数输出0-1之间的遗忘系数
+                    </p>
+                </div>
+            </div>
+
+            <!-- 实际应用示例 -->
+            <h3 style="text-align: center; color: var(--accent-yellow); margin: 3rem 0 2rem;">📝 实际应用场景</h3>
+
+            <div class="card-grid">
+                <div class="info-card">
+                    <span class="card-icon">📖</span>
+                    <h3 class="card-title">文本处理</h3>
+                    <div class="card-content">
+                        <p>在句子"小明去了北京，他很喜欢那里"中：</p>
+                        <ul style="margin-top: 0.5rem; margin-left: 1rem;">
+                            <li>看到"他"时，遗忘门保留"小明"的信息</li>
+                            <li>看到"那里"时，遗忘门保留"北京"的信息</li>
+                            <li>自动过滤标点符号等无关信息</li>
+                        </ul>
+
+                        <!-- 文本处理可视化 -->
+                        <div style="margin-top: 1rem; background: rgba(0,0,0,0.2); border-radius: 8px; padding: 0.75rem;">
+                            <div style="display: flex; justify-content: space-around; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+                                <div style="text-align: center;">
+                                    <div style="background: rgba(244,114,182,0.3); padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.875rem;">小明</div>
+                                    <div style="color: var(--accent-green); font-size: 0.75rem; margin-top: 0.25rem;">f=0.9</div>
+                                </div>
+                                <div style="color: var(--text-dim);">→</div>
+                                <div style="text-align: center;">
+                                    <div style="background: rgba(100,100,100,0.2); padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.875rem;">去了</div>
+                                    <div style="color: var(--text-dim); font-size: 0.75rem; margin-top: 0.25rem;">f=0.3</div>
+                                </div>
+                                <div style="color: var(--text-dim);">→</div>
+                                <div style="text-align: center;">
+                                    <div style="background: rgba(34,211,238,0.3); padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.875rem;">北京</div>
+                                    <div style="color: var(--accent-green); font-size: 0.75rem; margin-top: 0.25rem;">f=0.8</div>
+                                </div>
+                                <div style="color: var(--text-dim);">→</div>
+                                <div style="text-align: center;">
+                                    <div style="background: rgba(100,100,100,0.1); padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.875rem;">，</div>
+                                    <div style="color: var(--accent-pink); font-size: 0.75rem; margin-top: 0.25rem;">f=0.1</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="info-card">
+                    <span class="card-icon">📊</span>
+                    <h3 class="card-title">时序预测</h3>
+                    <div class="card-content">
+                        <p>在股票价格预测中：</p>
+                        <ul style="margin-top: 0.5rem; margin-left: 1rem;">
+                            <li>长期趋势信息被高度保留（f ≈ 0.9）</li>
+                            <li>短期波动逐渐被遗忘（f ≈ 0.3）</li>
+                            <li>异常值影响被快速消除（f ≈ 0.1）</li>
+                        </ul>
+
+                        <!-- 时序数据可视化 -->
+                        <div style="margin-top: 1rem; background: rgba(0,0,0,0.2); border-radius: 8px; padding: 0.75rem;">
+                            <svg width="100%" height="80" viewBox="0 0 200 80" style="display: block;">
+                                <!-- 趋势线 -->
+                                <path d="M 10 60 Q 50 50, 100 40 T 190 20" fill="none" stroke="var(--accent-green)" stroke-width="2" stroke-dasharray="5,5" opacity="0.8"/>
+                                <!-- 实际数据线 -->
+                                <path d="M 10 60 L 30 55 L 50 52 L 70 48 L 90 44 L 110 38 L 130 36 L 150 30 L 170 26 L 190 20"
+                                      fill="none" stroke="var(--accent-cyan)" stroke-width="2"/>
+                                <!-- 异常点 -->
+                                <circle cx="70" cy="35" r="3" fill="var(--accent-pink)"/>
+                                <circle cx="130" cy="45" r="3" fill="var(--accent-pink)"/>
+
+                                <!-- 标注 -->
+                                <text x="100" y="15" text-anchor="middle" fill="var(--text-secondary)" font-size="10">长期趋势 (f≈0.9)</text>
+                                <text x="70" y="30" text-anchor="middle" fill="var(--accent-pink)" font-size="9">异常值 (f≈0.1)</text>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="info-card">
+                    <span class="card-icon">🗣️</span>
+                    <h3 class="card-title">语音识别</h3>
+                    <div class="card-content">
+                        <p>在连续语音流中：</p>
+                        <ul style="margin-top: 0.5rem; margin-left: 1rem;">
+                            <li>关键音素特征被保留</li>
+                            <li>背景噪音被过滤</li>
+                            <li>语调变化选择性记忆</li>
+                        </ul>
+
+                        <!-- 音频波形可视化 -->
+                        <div style="margin-top: 1rem; background: rgba(0,0,0,0.2); border-radius: 8px; padding: 0.75rem;">
+                            <div style="position: relative; height: 60px;">
+                                <!-- 背景噪音 -->
+                                <div style="position: absolute; width: 100%; height: 100%; display: flex; align-items: center; justify-content: space-around;">
+                                    <div style="width: 3px; height: 20%; background: var(--text-dim); opacity: 0.3;"></div>
+                                    <div style="width: 3px; height: 15%; background: var(--text-dim); opacity: 0.3;"></div>
+                                    <div style="width: 3px; height: 25%; background: var(--text-dim); opacity: 0.3;"></div>
+                                    <div style="width: 3px; height: 18%; background: var(--text-dim); opacity: 0.3;"></div>
+                                </div>
+                                <!-- 语音信号 -->
+                                <div style="position: absolute; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; gap: 2px;">
+                                    <div style="width: 4px; height: 30%; background: var(--accent-cyan); border-radius: 2px;"></div>
+                                    <div style="width: 4px; height: 50%; background: var(--accent-green); border-radius: 2px;"></div>
+                                    <div style="width: 4px; height: 80%; background: var(--accent-green); border-radius: 2px;"></div>
+                                    <div style="width: 4px; height: 90%; background: var(--accent-yellow); border-radius: 2px;"></div>
+                                    <div style="width: 4px; height: 70%; background: var(--accent-green); border-radius: 2px;"></div>
+                                    <div style="width: 4px; height: 40%; background: var(--accent-cyan); border-radius: 2px;"></div>
+                                    <div style="width: 4px; height: 20%; background: var(--accent-cyan); border-radius: 2px;"></div>
+                                </div>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin-top: 0.5rem; font-size: 0.75rem;">
+                                <span style="color: var(--text-dim);">噪音 (f≈0.1)</span>
+                                <span style="color: var(--accent-yellow);">关键音素 (f≈0.9)</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 输入门详解 - 整合第二个文档的内容 -->
+        <section id="input-gate" class="section-card">
+            <h2 style="color: var(--accent-cyan); margin-bottom: 2rem;">📥 输入门与候选值详解</h2>
+
+            <div class="formula-display input-formula">
+                <div class="main-formula">
+                    i<sub>t</sub> = σ(W<sub>i</sub> · [h<sub>t-1</sub>, x<sub>t</sub>] + b<sub>i</sub>)
+                </div>
+                <div style="margin-top: 1rem; font-size: 1.5rem;">
+                    C̃<sub>t</sub> = tanh(W<sub>C</sub> · [h<sub>t-1</sub>, x<sub>t</sub>] + b<sub>C</sub>)
+                </div>
+            </div>
+
+            <div class="card-grid">
+                <div class="info-card input-card">
+                    <span class="card-icon">🎚️</span>
+                    <h3 class="card-title">i<sub>t</sub> - 输入门控制</h3>
+                    <div class="card-content">
+                        <p>决定哪些新信息值得存储</p>
+                        <ul style="margin-top: 0.5rem; margin-left: 1rem;">
+                            <li>i ≈ 1: 存储该特征</li>
+                            <li>i ≈ 0: 忽略该特征</li>
+                        </ul>
+                        <p style="margin-top: 0.5rem;"><strong>作用：</strong>信息过滤器</p>
+                    </div>
+                </div>
+
+                <div class="info-card input-card">
+                    <span class="card-icon">🆕</span>
+                    <h3 class="card-title">C̃<sub>t</sub> - 候选值</h3>
+                    <div class="card-content">
+                        <p>通过tanh生成候选记忆</p>
+                        <p style="margin-top: 0.5rem;"><strong>特点：</strong></p>
+                        <ul style="margin-left: 1rem;">
+                            <li>值域：[-1, 1]</li>
+                            <li>包含当前输入的信息</li>
+                            <li>与输入门配合使用</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="info-card input-card">
+                    <span class="card-icon">🔧</span>
+                    <h3 class="card-title">tanh函数</h3>
+                    <div class="card-content">
+                        <p>双曲正切函数</p>
+                        <p style="font-family: monospace; margin: 0.5rem 0;">tanh(x) = (e<sup>x</sup>-e<sup>-x</sup>)/(e<sup>x</sup>+e<sup>-x</sup>)</p>
+                        <ul style="margin-top: 0.5rem; margin-left: 1rem;">
+                            <li>输出范围：[-1, 1]</li>
+                            <li>零中心化</li>
+                            <li>梯度更稳定</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="insight-box" style="background: linear-gradient(135deg, rgba(79, 172, 254, 0.1), rgba(0, 242, 254, 0.1)); border: 2px solid rgba(79, 172, 254, 0.3);">
+                <h3 class="insight-title" style="color: var(--accent-cyan);">输入门的更新机制</h3>
+                <div class="insight-content">
+                    <p>输入门通过两步更新细胞状态：</p>
+                    <div class="formula-display" style="margin: 1.5rem 0; background: rgba(0,0,0,0.2);">
+                        <div style="font-size: 1.75rem; font-family: Georgia, serif;">
+                            C<sub>t</sub> = f<sub>t</sub> ⊙ C<sub>t-1</sub> + i<sub>t</sub> ⊙ C̃<sub>t</sub>
+                        </div>
+                    </div>
+                    <p style="margin-top: 1rem;">这个公式结合了：</p>
+                    <ul style="list-style: none; margin-top: 0.5rem;">
+                        <li>📌 遗忘门的输出（选择性保留旧信息）</li>
+                        <li>📌 输入门的输出（选择性添加新信息）</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- 输入门矩阵可视化 -->
+            <div class="matrix-visualization">
+                <div class="matrix-block">
+                    <div class="matrix-label" style="color: var(--accent-cyan);">W<sub>i</sub> 权重矩阵</div>
+                    <div style="display: inline-block; position: relative;">
+                        <div style="display: grid; grid-template-columns: repeat(6, 30px); grid-template-rows: repeat(4, 25px); gap: 2px;">
+                            <!-- 矩阵内容 -->
+                            <div style="background: rgba(79,172,254,0.3); border: 1px solid var(--accent-cyan); border-radius: 2px; font-size: 10px; display: flex; align-items: center; justify-content: center; font-family: monospace;">w₁₁</div>
+                            <div style="background: rgba(79,172,254,0.2); border: 1px solid var(--border-color); border-radius: 2px;"></div>
+                            <div style="background: rgba(79,172,254,0.2); border: 1px solid var(--border-color); border-radius: 2px;"></div>
+                            <div style="background: rgba(79,172,254,0.2); border: 1px solid var(--border-color); border-radius: 2px;"></div>
+                            <div style="background: rgba(79,172,254,0.2); border: 1px solid var(--border-color); border-radius: 2px;"></div>
+                            <div style="background: rgba(79,172,254,0.3); border: 1px solid var(--accent-cyan); border-radius: 2px; font-size: 8px; display: flex; align-items: center; justify-content: center; font-family: monospace;">w₁,₂₂₈</div>
+
+                            <div style="background: rgba(79,172,254,0.15); border: 1px solid var(--border-color); border-radius: 2px;"></div>
+                            <div style="background: rgba(79,172,254,0.1); border: 1px solid var(--border-color); border-radius: 2px;"></div>
+                            <div style="background: rgba(79,172,254,0.15); border: 1px solid var(--border-color); border-radius: 2px;"></div>
+                            <div style="background: rgba(79,172,254,0.1); border: 1px solid var(--border-color); border-radius: 2px;"></div>
+                            <div style="background: rgba(79,172,254,0.15); border: 1px solid var(--border-color); border-radius: 2px;"></div>
+                            <div style="background: rgba(79,172,254,0.1); border: 1px solid var(--border-color); border-radius: 2px;"></div>
+
+                            <div style="grid-column: 1/7; display: flex; align-items: center; justify-content: center; color: var(--text-dim); font-size: 16px; height: 25px;">⋮</div>
+
+                            <div style="background: rgba(79,172,254,0.3); border: 1px solid var(--accent-cyan); border-radius: 2px; font-size: 8px; display: flex; align-items: center; justify-content: center; font-family: monospace;">w₁₂₈,₁</div>
+                            <div style="background: rgba(79,172,254,0.2); border: 1px solid var(--border-color); border-radius: 2px;"></div>
+                            <div style="background: rgba(79,172,254,0.2); border: 1px solid var(--border-color); border-radius: 2px;"></div>
+                            <div style="background: rgba(79,172,254,0.2); border: 1px solid var(--border-color); border-radius: 2px;"></div>
+                            <div style="background: rgba(79,172,254,0.2); border: 1px solid var(--border-color); border-radius: 2px;"></div>
+                            <div style="background: rgba(79,172,254,0.3); border: 1px solid var(--accent-cyan); border-radius: 2px; font-size: 7px; display: flex; align-items: center; justify-content: center; font-family: monospace;">w₁₂₈,₂₂₈</div>
+                        </div>
+                        <div style="position: absolute; left: -40px; top: 50%; transform: translateY(-50%); color: var(--accent-cyan); font-size: 12px; font-weight: 600;">128</div>
+                        <div style="position: absolute; bottom: -25px; left: 50%; transform: translateX(-50%); color: var(--accent-cyan); font-size: 12px; font-weight: 600;">228</div>
+                    </div>
+                </div>
+
+                <span class="flow-arrow">→</span>
+
+                <div class="matrix-block">
+                    <div class="matrix-label" style="color: var(--accent-green);">作用过程</div>
+                    <div style="text-align: center; padding: 1rem;">
+                        <p style="margin-bottom: 1rem;">1. 计算输入门值 i<sub>t</sub></p>
+                        <p style="margin-bottom: 1rem;">2. 计算候选值 C̃<sub>t</sub></p>
+                        <p style="font-weight: 600; color: var(--accent-cyan);">3. i<sub>t</sub> ⊙ C̃<sub>t</sub> = 新增信息</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 输出门详解 - 整合第二个文档的内容 -->
+        <section id="output-gate" class="section-card">
+            <h2 style="color: var(--accent-yellow); margin-bottom: 2rem;">📤 输出门详解</h2>
+
+            <div class="formula-display output-formula">
+                <div class="main-formula">
+                    o<sub>t</sub> = σ(W<sub>o</sub> · [h<sub>t-1</sub>, x<sub>t</sub>] + b<sub>o</sub>)
+                </div>
+                <div style="margin-top: 1rem; font-size: 1.5rem;">
+                    h<sub>t</sub> = o<sub>t</sub> ⊙ tanh(C<sub>t</sub>)
+                </div>
+            </div>
+
+            <div class="card-grid">
+                <div class="info-card output-card">
+                    <span class="card-icon">🎛️</span>
+                    <h3 class="card-title">o<sub>t</sub> - 输出门控制</h3>
+                    <div class="card-content">
+                        <p>决定输出细胞状态的哪些部分</p>
+                        <ul style="margin-top: 0.5rem; margin-left: 1rem;">
+                            <li>o ≈ 1: 输出该特征</li>
+                            <li>o ≈ 0: 隐藏该特征</li>
+                        </ul>
+                        <p style="margin-top: 0.5rem;"><strong>作用：</strong>信息选择器</p>
+                    </div>
+                </div>
+
+                <div class="info-card output-card">
+                    <span class="card-icon">📊</span>
+                    <h3 class="card-title">h<sub>t</sub> - 隐藏状态</h3>
+                    <div class="card-content">
+                        <p>LSTM的最终输出</p>
+                        <p style="margin-top: 0.5rem;"><strong>特点：</strong></p>
+                        <ul style="margin-left: 1rem;">
+                            <li>包含过滤后的信息</li>
+                            <li>传递给下一时刻</li>
+                            <li>用于预测或分类</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="info-card output-card">
+                    <span class="card-icon">🔀</span>
+                    <h3 class="card-title">tanh(C<sub>t</sub>)</h3>
+                    <div class="card-content">
+                        <p>将细胞状态压缩到[-1,1]</p>
+                        <ul style="margin-top: 0.5rem; margin-left: 1rem;">
+                            <li>提供非线性变换</li>
+                            <li>控制输出范围</li>
+                            <li>与输出门配合</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="insight-box" style="background: linear-gradient(135deg, rgba(250, 112, 154, 0.1), rgba(254, 225, 64, 0.1)); border: 2px solid rgba(250, 112, 154, 0.3);">
+                <h3 class="insight-title" style="color: var(--accent-yellow);">输出门的智能选择</h3>
+                <div class="insight-content">
+                    <p>输出门实现了两个关键功能：</p>
+                    <ol style="margin-top: 1rem; margin-left: 1.5rem;">
+                        <li style="margin-bottom: 0.5rem;"><strong>信息过滤：</strong>从丰富的细胞状态中选择当前需要的信息</li>
+                        <li style="margin-bottom: 0.5rem;"><strong>范围控制：</strong>通过tanh函数确保输出在合理范围内</li>
+                    </ol>
+                    <p style="margin-top: 1rem; padding: 1rem; background: rgba(0,0,0,0.2); border-radius: 8px;">
+                        💡 输出门让LSTM能够维护丰富的内部状态，同时只输出当前任务需要的信息
+                    </p>
+                </div>
+            </div>
+
+            <!-- 输出过程可视化 -->
+            <div class="matrix-visualization">
+                <div class="matrix-block">
+                    <div class="matrix-label" style="color: var(--accent-green);">C<sub>t</sub> 细胞状态</div>
+                    <div style="padding: 1rem;">
+                        <div style="display: flex; flex-direction: column; align-items: center;">
+                            <div style="width: 80px; height: 120px; background: linear-gradient(to bottom, rgba(168,237,234,0.3), rgba(254,214,227,0.3)); border: 2px solid var(--accent-green); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                                <span style="font-size: 0.875rem;">丰富信息</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <span class="flow-arrow">×</span>
+
+                <div class="matrix-block">
+                    <div class="matrix-label" style="color: var(--accent-yellow);">o<sub>t</sub> 输出门</div>
+                    <div style="padding: 1rem;">
+                        <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+                            <div style="background: rgba(250,112,154,0.3); padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.875rem;">0.9</div>
+                            <div style="background: rgba(250,112,154,0.2); padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.875rem;">0.1</div>
+                            <div style="background: rgba(250,112,154,0.25); padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.875rem;">0.7</div>
+                            <div style="color: var(--text-dim);">⋮</div>
+                        </div>
+                    </div>
+                </div>
+
+                <span class="flow-arrow">=</span>
+
+                <div class="matrix-block">
+                    <div class="matrix-label" style="color: var(--accent-purple);">h<sub>t</sub> 输出</div>
+                    <div style="padding: 1rem;">
+                        <div style="display: flex; flex-direction: column; align-items: center;">
+                            <div style="width: 80px; height: 80px; background: linear-gradient(135deg, rgba(167,139,250,0.3), rgba(96,165,250,0.3)); border: 2px solid var(--accent-purple); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                                <span style="font-size: 0.875rem;">筛选信息</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 整合过程 -->
+        <section id="integration" class="section-card" style="background: linear-gradient(135deg, rgba(102, 126, 234, 0.05), rgba(118, 75, 162, 0.05));">
+            <h2 style="color: var(--accent-purple); margin-bottom: 2rem;">🔄 整合过程：三个门的协同效果</h2>
+
+            <div class="formula-explainer">
+                <div class="formula-column">
+                    <h4>细胞状态更新</h4>
+                    <div class="formula-math">
+                        C<sub>t</sub> = f<sub>t</sub> ⊙ C<sub>t-1</sub> + i<sub>t</sub> ⊙ C̃<sub>t</sub>
+                    </div>
+                </div>
+
+                <div class="formula-column">
+                    <h4>三个门的作用</h4>
+                    <div style="text-align: left; padding: 1rem;">
+                        <p><span style="color: var(--accent-pink);">遗忘门:</span> 选择性遗忘</p>
+                        <p><span style="color: var(--accent-cyan);">输入门:</span> 选择性记忆</p>
+                        <p><span style="color: var(--accent-yellow);">输出门:</span> 选择性输出</p>
+                    </div>
+                </div>
+
+                <div class="formula-column">
+                    <h4>最终效果</h4>
+                    <div style="text-align: center; padding: 1rem;">
+                        <div style="font-size: 2rem;">✨</div>
+                        <p>精确控制信息流<br>解决长期依赖问题</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 整合过程详解 -->
+            <div class="insight-box" style="background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1)); border: 2px solid rgba(102, 126, 234, 0.3);">
+                <h3 class="insight-title" style="color: var(--accent-purple);">完整的前向传播流程</h3>
+                <div class="insight-content">
+                    <ol style="margin-left: 1.5rem; line-height: 2;">
+                        <li><strong>遗忘阶段：</strong>f<sub>t</sub> = σ(W<sub>f</sub>·[h<sub>t-1</sub>, x<sub>t</sub>] + b<sub>f</sub>)</li>
+                        <li><strong>输入阶段：</strong>
+                            <ul style="margin-left: 1rem; margin-top: 0.5rem;">
+                                <li>i<sub>t</sub> = σ(W<sub>i</sub>·[h<sub>t-1</sub>, x<sub>t</sub>] + b<sub>i</sub>)</li>
+                                <li>C̃<sub>t</sub> = tanh(W<sub>C</sub>·[h<sub>t-1</sub>, x<sub>t</sub>] + b<sub>C</sub>)</li>
+                            </ul>
+                        </li>
+                        <li><strong>更新细胞状态：</strong>C<sub>t</sub> = f<sub>t</sub> ⊙ C<sub>t-1</sub> + i<sub>t</sub> ⊙ C̃<sub>t</sub></li>
+                        <li><strong>输出阶段：</strong>
+                            <ul style="margin-left: 1rem; margin-top: 0.5rem;">
+                                <li>o<sub>t</sub> = σ(W<sub>o</sub>·[h<sub>t-1</sub>, x<sub>t</sub>] + b<sub>o</sub>)</li>
+                                <li>h<sub>t</sub> = o<sub>t</sub> ⊙ tanh(C<sub>t</sub>)</li>
+                            </ul>
+                        </li>
+                    </ol>
+                </div>
+            </div>
+
+            <!-- 矩阵维度变化详解 -->
+            <div class="insight-box" style="background: linear-gradient(135deg, rgba(167, 139, 250, 0.1), rgba(96, 165, 250, 0.1)); border-color: var(--accent-purple); margin-top: 3rem;">
+                <h3 class="insight-title" style="color: var(--accent-purple);">📐 矩阵维度变化详解</h3>
+                <div class="insight-content">
+                    <p>假设：隐藏维度 = 128，输入维度 = 100，批次大小 = 32</p>
+
+                    <div style="margin-top: 1.5rem;">
+                        <h4 style="color: var(--accent-cyan); margin-bottom: 1rem;">第一步：输入拼接</h4>
+                        <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 0.5rem; font-family: monospace;">
+                            [h<sub>t-1</sub>, x<sub>t</sub>] = [32×128, 32×100] → 32×228
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 1.5rem;">
+                        <h4 style="color: var(--accent-pink); margin-bottom: 1rem;">第二步：计算三个门</h4>
+                        <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 0.5rem;">
+                            <p style="font-family: monospace; margin-bottom: 0.5rem;">
+                                f<sub>t</sub> = σ(W<sub>f</sub>[32×228] + b<sub>f</sub>) → 32×128
+                            </p>
+                            <p style="font-family: monospace; margin-bottom: 0.5rem;">
+                                i<sub>t</sub> = σ(W<sub>i</sub>[32×228] + b<sub>i</sub>) → 32×128
+                            </p>
+                            <p style="font-family: monospace; margin-bottom: 0.5rem;">
+                                o<sub>t</sub> = σ(W<sub>o</sub>[32×228] + b<sub>o</sub>) → 32×128
+                            </p>
+                            <p style="font-family: monospace;">
+                                C̃<sub>t</sub> = tanh(W<sub>c</sub>[32×228] + b<sub>c</sub>) → 32×128
+                            </p>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 1.5rem;">
+                        <h4 style="color: var(--accent-green); margin-bottom: 1rem;">第三步：更新细胞状态</h4>
+                        <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 0.5rem; font-family: monospace;">
+                            <p style="margin-bottom: 0.5rem;">C<sub>t</sub> = f<sub>t</sub> ⊙ C<sub>t-1</sub> + i<sub>t</sub> ⊙ C̃<sub>t</sub></p>
+                            <p>= [32×128] ⊙ [32×128] + [32×128] ⊙ [32×128] → 32×128</p>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 1.5rem;">
+                        <h4 style="color: var(--accent-yellow); margin-bottom: 1rem;">第四步：计算输出</h4>
+                        <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 0.5rem; font-family: monospace;">
+                            <p style="margin-bottom: 0.5rem;">h<sub>t</sub> = o<sub>t</sub> ⊙ tanh(C<sub>t</sub>)</p>
+                            <p>= [32×128] ⊙ tanh([32×128]) → 32×128</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 效果展示 -->
+            <div class="card-grid" style="margin-top: 3rem;">
+                <div class="info-card">
+                    <span class="card-icon">🎯</span>
+                    <h3 class="card-title">遗忘门的效果</h3>
+                    <p>通过 f<sub>t</sub> ⊙ C<sub>t-1</sub>：</p>
+                    <ul style="margin-top: 0.5rem;">
+                        <li>选择性保留历史信息</li>
+                        <li>过滤掉不相关的记忆</li>
+                        <li>避免信息过载</li>
+                    </ul>
+                </div>
+
+                <div class="info-card">
+                    <span class="card-icon">✨</span>
+                    <h3 class="card-title">输入门的效果</h3>
+                    <p>通过 i<sub>t</sub> ⊙ C̃<sub>t</sub>：</p>
+                    <ul style="margin-top: 0.5rem;">
+                        <li>控制新信息的强度</li>
+                        <li>选择重要特征存储</li>
+                        <li>防止噪声干扰</li>
+                    </ul>
+                </div>
+
+                <div class="info-card">
+                    <span class="card-icon">🔍</span>
+                    <h3 class="card-title">输出门的效果</h3>
+                    <p>通过 o<sub>t</sub> ⊙ tanh(C<sub>t</sub>)：</p>
+                    <ul style="margin-top: 0.5rem;">
+                        <li>过滤输出信息</li>
+                        <li>保持内部状态私密</li>
+                        <li>适应不同任务需求</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- 交互式演示 -->
+            <div class="interactive-demo">
+                <h3 style="color: var(--accent-cyan); text-align: center; margin-bottom: 2rem;">🎮 LSTM门控交互演示</h3>
+
+                <div class="demo-controls">
+                    <div class="control-group">
+                        <label>遗忘门 f<sub>t</sub></label>
+                        <div class="control-value" style="color: var(--accent-pink);" id="forget-value">0.5</div>
+                        <input type="range" class="slider forget-slider" id="forget-slider" min="0" max="1" step="0.01" value="0.5">
+                    </div>
+
+                    <div class="control-group">
+                        <label>输入门 i<sub>t</sub></label>
+                        <div class="control-value" style="color: var(--accent-cyan);" id="input-value">0.5</div>
+                        <input type="range" class="slider input-slider" id="input-slider" min="0" max="1" step="0.01" value="0.5">
+                    </div>
+
+                    <div class="control-group">
+                        <label>输出门 o<sub>t</sub></label>
+                        <div class="control-value" style="color: var(--accent-yellow);" id="output-value">0.5</div>
+                        <input type="range" class="slider output-slider" id="output-slider" min="0" max="1" step="0.01" value="0.5">
+                    </div>
+                </div>
+
+                <div class="result-display">
+                    <h4 style="color: var(--accent-purple); margin-bottom: 1rem;">计算结果</h4>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; text-align: left;">
+                        <div>
+                            <strong>前一细胞状态：</strong>C<sub>t-1</sub> = 1.0<br>
+                            <strong>候选值：</strong>C̃<sub>t</sub> = 0.8
+                        </div>
+                        <div>
+                            <strong>遗忘后：</strong><span id="after-forget">0.50</span><br>
+                            <strong>新增信息：</strong><span id="new-info">0.40</span>
+                        </div>
+                        <div>
+                            <strong>新细胞状态：</strong>C<sub>t</sub> = <span id="new-cell">0.90</span><br>
+                            <strong>最终输出：</strong>h<sub>t</sub> = <span id="final-output">0.36</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 实际效果对比 -->
+            <div style="margin-top: 3rem;">
+                <h3 style="color: var(--accent-purple); text-align: center; margin-bottom: 2rem;">🔬 实际效果对比</h3>
+
+                <div class="comparison-table">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th>场景</th>
+                            <th>遗忘门设置</th>
+                            <th>输入门设置</th>
+                            <th>输出门设置</th>
+                            <th>效果</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr>
+                            <td><strong>句子开始</strong></td>
+                            <td>f ≈ 0.1 (低)</td>
+                            <td>i ≈ 0.9 (高)</td>
+                            <td>o ≈ 0.8 (高)</td>
+                            <td>清空旧信息，接收新句子</td>
+                        </tr>
+                        <tr>
+                            <td><strong>重要实体</strong></td>
+                            <td>f ≈ 0.9 (高)</td>
+                            <td>i ≈ 0.8 (高)</td>
+                            <td>o ≈ 0.5 (中)</td>
+                            <td>保留历史，添加新信息</td>
+                        </tr>
+                        <tr>
+                            <td><strong>标点符号</strong></td>
+                            <td>f ≈ 0.8 (高)</td>
+                            <td>i ≈ 0.1 (低)</td>
+                            <td>o ≈ 0.3 (低)</td>
+                            <td>维持状态，忽略无关信息</td>
+                        </tr>
+                        <tr>
+                            <td><strong>句子结束</strong></td>
+                            <td>f ≈ 0.7 (中高)</td>
+                            <td>i ≈ 0.3 (低)</td>
+                            <td>o ≈ 0.9 (高)</td>
+                            <td>输出总结信息</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="tip success">
+                <span style="font-size: 1.5rem;">🎯</span>
+                <div>
+                    <strong>关键洞察：</strong>通过三个门的协同工作，LSTM实现了：
+                    <ul style="margin-left: 1.5rem; margin-top: 0.5rem;">
+                        <li><strong>梯度稳定传播：</strong>细胞状态的线性路径避免梯度消失</li>
+                        <li><strong>选择性记忆：</strong>精确控制信息的保留、更新和输出</li>
+                        <li><strong>长期依赖建模：</strong>重要信息可以跨越很长的时间步传递</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- 实际应用示例 -->
+            <div class="card-grid" style="margin-top: 3rem;">
+                <div class="info-card">
+                    <span class="card-icon">🌐</span>
+                    <h3 class="card-title" style="color: var(--accent-purple);">机器翻译</h3>
+                    <div class="card-content">
+                        <p>LSTM在翻译中的应用：</p>
+                        <ul style="margin-top: 0.5rem; margin-left: 1rem;">
+                            <li><strong>遗忘门：</strong>忘记源语言特定语法</li>
+                            <li><strong>输入门：</strong>记住关键词汇含义</li>
+                            <li><strong>输出门：</strong>生成目标语言表达</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="info-card">
+                    <span class="card-icon">🎵</span>
+                    <h3 class="card-title" style="color: var(--accent-purple);">音乐生成</h3>
+                    <div class="card-content">
+                        <p>LSTM在音乐创作中的应用：</p>
+                        <ul style="margin-top: 0.5rem; margin-left: 1rem;">
+                            <li><strong>遗忘门：</strong>结束旧乐句</li>
+                            <li><strong>输入门：</strong>引入新主题</li>
+                            <li><strong>输出门：</strong>控制音符输出</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="info-card">
+                    <span class="card-icon">📈</span>
+                    <h3 class="card-title" style="color: var(--accent-purple);">股票预测</h3>
+                    <div class="card-content">
+                        <p>LSTM在金融预测中的应用：</p>
+                        <ul style="margin-top: 0.5rem; margin-left: 1rem;">
+                            <li><strong>遗忘门：</strong>过滤短期噪音</li>
+                            <li><strong>输入门：</strong>捕获趋势变化</li>
+                            <li><strong>输出门：</strong>输出预测信号</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 代码实现整合 -->
+            <div class="code-example">
+                <code>
+                    # 完整的LSTM前向传播实现<br>
+                    import torch<br>
+                    import torch.nn as nn<br><br>
+
+                    class LSTMCell(nn.Module):<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;def __init__(self, input_size, hidden_size):<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;super().__init__()<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;self.hidden_size = hidden_size<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;# 定义所有门的权重矩阵<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;self.W_f = nn.Linear(hidden_size + input_size, hidden_size)  # 遗忘门<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;self.W_i = nn.Linear(hidden_size + input_size, hidden_size)  # 输入门<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;self.W_C = nn.Linear(hidden_size + input_size, hidden_size)  # 候选值<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;self.W_o = nn.Linear(hidden_size + input_size, hidden_size)  # 输出门<br><br>
+
+                    &nbsp;&nbsp;&nbsp;&nbsp;def forward(self, x_t, h_prev, C_prev):<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;# 拼接输入<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;combined = torch.cat([h_prev, x_t], dim=1)<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;# 1. 遗忘门<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;f_t = torch.sigmoid(self.W_f(combined))<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;# 2. 输入门<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;i_t = torch.sigmoid(self.W_i(combined))<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;C_tilde = torch.tanh(self.W_C(combined))<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;# 3. 更新细胞状态<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;C_t = f_t * C_prev + i_t * C_tilde<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;# 4. 输出门<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;o_t = torch.sigmoid(self.W_o(combined))<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;h_t = o_t * torch.tanh(C_t)<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return h_t, C_t
+                </code>
+            </div>
+        </section>
+
+        <!-- 数学证明 -->
+        <section id="math-proof" class="section-card">
+            <h2 style="color: var(--accent-red); margin-bottom: 2rem;">🔬 数学证明：LSTM如何解决梯度消失</h2>
+
+            <div class="math-derivation">
+                <h3 style="color: var(--accent-red); margin-bottom: 1.5rem;">📐 梯度传播分析</h3>
+
+                <div class="derivation-step">
+                    <h4>细胞状态的梯度传播</h4>
+                    <p>从细胞状态更新公式出发：</p>
+                    <div style="text-align: center; margin: 1rem 0; font-size: 1.2rem;">
+                        $C_t = f_t \odot C_{t-1} + i_t \odot \tilde{C}_t$
+                    </div>
+                    <p>计算梯度：</p>
+                    <div style="text-align: center; margin: 1rem 0; font-size: 1.2rem;">
+                        $\frac{\partial C_t}{\partial C_{t-1}} = \text{diag}(f_t)$
+                    </div>
+                </div>
+
+                <div class="derivation-step">
+                    <h4>关键洞察</h4>
+                    <p>梯度通过<strong>对角矩阵</strong>传播，而不是密集矩阵！</p>
+                    <div class="tip success">
+                        <span>💡</span>
+                        <div>
+                            这意味着：
+                            <ul style="margin-left: 1.5rem;">
+                                <li>每个维度的梯度独立传播</li>
+                                <li>网络可以学习让 $f_t \approx 1$ 来保持梯度</li>
+                                <li>避免了梯度的指数级衰减</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 代码实现 -->
+        <section id="implementation" class="section-card">
+            <h2 style="color: var(--accent-yellow); margin-bottom: 2rem;">🛠️ 从零实现LSTM</h2>
+
+            <div class="code-example">
+                <pre><code class="language-python">import numpy as np
+
+class LSTMCell:
+    """LSTM单元的NumPy实现"""
+    def __init__(self, input_dim, hidden_dim):
+        # 初始化权重矩阵
+        scale = np.sqrt(2.0 / (input_dim + hidden_dim))
+
+        # 遗忘门参数
+        self.Wf = np.random.randn(hidden_dim, input_dim + hidden_dim) * scale
+        self.bf = np.ones((hidden_dim, 1))  # 初始化为1，促进记忆
+
+        # 输入门参数
+        self.Wi = np.random.randn(hidden_dim, input_dim + hidden_dim) * scale
+        self.bi = np.zeros((hidden_dim, 1))
+
+        # 候选值参数
+        self.Wc = np.random.randn(hidden_dim, input_dim + hidden_dim) * scale
+        self.bc = np.zeros((hidden_dim, 1))
+
+        # 输出门参数
+        self.Wo = np.random.randn(hidden_dim, input_dim + hidden_dim) * scale
+        self.bo = np.zeros((hidden_dim, 1))
+
+    def forward(self, x_t, h_prev, c_prev):
+        """LSTM前向传播"""
+        # 拼接输入
+        concat = np.vstack([h_prev, x_t])
+
+        # 计算四个门
+        f_t = self.sigmoid(np.dot(self.Wf, concat) + self.bf)  # 遗忘门
+        i_t = self.sigmoid(np.dot(self.Wi, concat) + self.bi)  # 输入门
+        c_tilde_t = np.tanh(np.dot(self.Wc, concat) + self.bc)  # 候选值
+        o_t = self.sigmoid(np.dot(self.Wo, concat) + self.bo)  # 输出门
+
+        # 更新细胞状态
+        c_t = f_t * c_prev + i_t * c_tilde_t
+
+        # 计算隐藏状态
+        h_t = o_t * np.tanh(c_t)
+
+        return h_t, c_t
+
+    @staticmethod
+    def sigmoid(x):
+        """数值稳定的sigmoid函数"""
+        return np.where(x >= 0,
+                       1 / (1 + np.exp(-x)),
+                       np.exp(x) / (1 + np.exp(x)))</code></pre>
+            </div>
+        </section>
+
+        <!-- LSTM vs GRU对比 -->
+        <section id="comparison" class="section-card">
+            <h2 style="color: var(--accent-yellow); margin-bottom: 2rem;">⚔️ LSTM vs GRU：繁与简的权衡</h2>
+
+            <div class="comparison-table">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>特性</th>
+                        <th>LSTM (1997)</th>
+                        <th>GRU (2014)</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td><strong>门的数量</strong></td>
+                        <td>3个门（遗忘、输入、输出）</td>
+                        <td>2个门（重置、更新）</td>
+                    </tr>
+                    <tr>
+                        <td><strong>状态数量</strong></td>
+                        <td>双状态（细胞状态+隐藏状态）</td>
+                        <td>单状态（只有隐藏状态）</td>
+                    </tr>
+                    <tr>
+                        <td><strong>参数量</strong></td>
+                        <td>4个权重矩阵</td>
+                        <td>3个权重矩阵</td>
+                    </tr>
+                    <tr>
+                        <td><strong>优势</strong></td>
+                        <td>表达能力强，适合复杂任务</td>
+                        <td>参数少，训练快</td>
+                    </tr>
+                    <tr>
+                        <td><strong>劣势</strong></td>
+                        <td>参数多，训练慢</td>
+                        <td>表达能力稍弱</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- 实际应用 -->
+        <section id="applications" class="section-card">
+            <h2 style="color: var(--accent-green); margin-bottom: 2rem;">🚀 实际应用案例</h2>
+
+            <div class="card-grid">
+                <div class="info-card">
+                    <span class="card-icon">🌐</span>
+                    <h3 class="card-title">机器翻译</h3>
+                    <p>Google翻译使用LSTM实现高质量的序列到序列翻译，准确处理长句子中的语法和语义关系。</p>
+                </div>
+
+                <div class="info-card">
+                    <span class="card-icon">🗣️</span>
+                    <h3 class="card-title">语音识别</h3>
+                    <p>Apple Siri、Amazon Alexa等语音助手使用LSTM处理连续语音流，准确识别用户意图。</p>
+                </div>
+
+                <div class="info-card">
+                    <span class="card-icon">📈</span>
+                    <h3 class="card-title">时序预测</h3>
+                    <p>金融市场预测、天气预报、交通流量预测等领域广泛使用LSTM捕获时间序列中的长期模式。</p>
+                </div>
+
+                <div class="info-card">
+                    <span class="card-icon">✍️</span>
+                    <h3 class="card-title">文本生成</h3>
+                    <p>GPT系列模型的前身，LSTM在文本生成、诗歌创作、代码补全等任务中表现出色。</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 总结与展望 -->
+        <section id="summary" class="section-card">
+            <h2 style="color: var(--accent-purple); margin-bottom: 2rem;">🎯 本章总结：LSTM的精妙设计</h2>
+
+            <div class="card-grid">
+                <div class="info-card">
+                    <span class="card-icon">🎯</span>
+                    <h3 class="card-title">核心创新</h3>
+                    <ul>
+                        <li>细胞状态：线性信息高速公路</li>
+                        <li>门控机制：精确的信息流控制</li>
+                        <li>梯度高速路：解决长期依赖</li>
+                    </ul>
+                </div>
+
+                <div class="info-card">
+                    <span class="card-icon">💡</span>
+                    <h3 class="card-title">设计智慧</h3>
+                    <ul>
+                        <li>遗忘门：选择性遗忘</li>
+                        <li>输入门：选择性记忆</li>
+                        <li>输出门：按需提取</li>
+                    </ul>
+                </div>
+
+                <div class="info-card">
+                    <span class="card-icon">🚀</span>
+                    <h3 class="card-title">应用领域</h3>
+                    <ul>
+                        <li>自然语言处理</li>
+                        <li>语音识别</li>
+                        <li>时序预测</li>
+                        <li>序列生成</li>
+                    </ul>
+                </div>
+
+                <div class="info-card">
+                    <span class="card-icon">⚠️</span>
+                    <h3 class="card-title">局限性</h3>
+                    <ul>
+                        <li>计算复杂度高</li>
+                        <li>难以并行化</li>
+                        <li>参数量大</li>
+                        <li>训练时间长</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="tip success" style="margin-top: 3rem;">
+                <span style="font-size: 2rem;">🎓</span>
+                <div>
+                    <h3 style="margin-bottom: 1rem;">学习LSTM的收获</h3>
+                    <p style="font-size: 1.1rem; line-height: 1.8;">
+                        通过本章的深度学习，你已经掌握了：<br>
+                        • LSTM如何通过巧妙的门控机制解决梯度消失问题<br>
+                        • 细胞状态作为信息高速公路的设计智慧<br>
+                        • 从零实现LSTM的完整代码和数学推导<br>
+                        • LSTM与GRU的详细对比和选择策略<br>
+                        • 在实际应用中的优化技巧和最佳实践
+                    </p>
+                    <p style="margin-top: 1rem; font-size: 1.2rem; color: var(--accent-cyan);">
+                        <strong>下一步：</strong>学习Transformer和自注意力机制，了解序列建模的最新突破！
+                    </p>
+                </div>
+            </div>
+        </section>
+    </div>
+</main>
+
+<!-- 页脚 -->
+<footer style="background: var(--bg-section); padding: 3rem 0; border-top: 1px solid var(--border-color);">
+    <div class="container">
+        <div style="text-align: center; color: var(--text-secondary);">
+            <p style="margin-bottom: 1rem; font-size: 1.1rem;">
+                📖 深度学习序列建模 | 第8章：长短期记忆网络LSTM
+            </p>
+            <p>© 2024 Deep Learning Tutorial Series. 教育目的使用。</p>
+        </div>
+    </div>
+</footer>
+
+<script>
+    // 主要交互功能
+    (function() {
+        'use strict';
+
+        // 导航功能
+        const toggleSidebar = document.getElementById('toggle-sidebar');
+        const sidebar = document.getElementById('sidebar');
+
+        toggleSidebar.addEventListener('click', () => {
+            sidebar.classList.toggle('open');
+        });
+
+        // 进度条
+        window.addEventListener('scroll', () => {
+            const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+            const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+            const scrolled = (winScroll / height) * 100;
+            document.getElementById('progress-bar').style.width = scrolled + '%';
+
+            // 更新侧边栏高亮
+            updateSidebarHighlight();
+        });
+
+        // 更新侧边栏高亮
+        function updateSidebarHighlight() {
+            const sections = document.querySelectorAll('section[id]');
+            const tocItems = document.querySelectorAll('.toc-item');
+            let current = '';
+
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                if (pageYOffset >= sectionTop - 200) {
+                    current = section.getAttribute('id');
+                }
+            });
+
+            tocItems.forEach(item => {
+                item.classList.remove('active');
+                if (item.getAttribute('href') === `#${current}`) {
+                    item.classList.add('active');
+                }
+            });
+        }
+
+        // 交互式演示
+        const forgetSlider = document.getElementById('forget-slider');
+        const inputSlider = document.getElementById('input-slider');
+        const outputSlider = document.getElementById('output-slider');
+
+        function updateCalculations() {
+            const ft = parseFloat(forgetSlider.value);
+            const it = parseFloat(inputSlider.value);
+            const ot = parseFloat(outputSlider.value);
+
+            // 更新显示值
+            document.getElementById('forget-value').textContent = ft.toFixed(2);
+            document.getElementById('input-value').textContent = it.toFixed(2);
+            document.getElementById('output-value').textContent = ot.toFixed(2);
+
+            // 计算
+            const Ct_prev = 1.0;
+            const C_tilde = 0.8;
+
+            const forgotten = ft * Ct_prev;
+            const newInfo = it * C_tilde;
+            const Ct = forgotten + newInfo;
+            const ht = ot * Math.tanh(Ct);
+
+            // 更新结果
+            document.getElementById('after-forget').textContent = forgotten.toFixed(2);
+            document.getElementById('new-info').textContent = newInfo.toFixed(2);
+            document.getElementById('new-cell').textContent = Ct.toFixed(2);
+            document.getElementById('final-output').textContent = ht.toFixed(2);
+        }
+
+        forgetSlider.addEventListener('input', updateCalculations);
+        inputSlider.addEventListener('input', updateCalculations);
+        outputSlider.addEventListener('input', updateCalculations);
+
+        // 初始计算
+        updateCalculations();
+
+        // 平滑滚动
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function(e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        });
+
+        // 背景动画
+        const bgAnimation = document.getElementById('bgAnimation');
+        for (let i = 0; i < 50; i++) {
+            const particle = document.createElement('div');
+            particle.className = 'bg-particle';
+            particle.style.left = Math.random() * 100 + '%';
+            particle.style.animationDelay = Math.random() * 20 + 's';
+            particle.style.animationDuration = (20 + Math.random() * 10) + 's';
+            bgAnimation.appendChild(particle);
+        }
+
+    })();
+</script>
+
+<!-- 外部依赖加载 -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+<script>
+    // 代码高亮
+    if (window.hljs) {
+        hljs.highlightAll();
+    }
+
+    // 数学公式渲染
+    if (window.renderMathInElement) {
+        renderMathInElement(document.body, {
+            delimiters: [
+                {left: '$', right: '$', display: true},
+                {left: ', right: ', display: false}
+            ],
+            throwOnError: false
+        });
+    }
+</script>
+
+</body>
+</html>

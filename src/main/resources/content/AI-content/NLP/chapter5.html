@@ -1,0 +1,3638 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>第5章：注意力机制与Transformer - NLP的革命</title>
+    <meta name="description" content="理解Attention is All You Need背后的魔法">
+
+    <!-- KaTeX支持 -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+            onload="renderMathInElement(document.body, {
+                delimiters: [
+                    {left: '$$', right: '$$', display: true},
+                    {left: '$', right: '$', display: false}
+                ]
+            });"></script>
+
+    <style>
+        /* ===== CSS变量定义 ===== */
+        :root {
+            /* 渐变色 */
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --hero-gradient: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+            --card-gradient: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.05));
+            --attention-gradient: linear-gradient(135deg, #ff6b6b 0%, #4ecdc4 100%);
+
+            /* 主题色 */
+            --primary: #6366f1;
+            --primary-light: #818cf8;
+            --primary-dark: #4f46e5;
+            --secondary: #ec4899;
+            --accent: #10b981;
+            --attention-color: #ff6b6b;
+
+            /* 功能色 */
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --info: #3b82f6;
+
+            /* 背景色 */
+            --bg-dark: #0f172a;
+            --bg-section: #1e293b;
+            --bg-card: #334155;
+            --bg-code: #0d1117;
+
+            /* 文字色 */
+            --text-primary: #f1f5f9;
+            --text-secondary: #cbd5e1;
+            --text-muted: #94a3b8;
+
+            /* 其他 */
+            --border-color: rgba(255, 255, 255, 0.1);
+            --shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+            --shadow-lg: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            --radius: 1rem;
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* ===== 全局样式 ===== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            line-height: 1.7;
+            font-size: 16px;
+            overflow-x: hidden;
+        }
+
+        /* ===== 背景效果 ===== */
+        .bg-pattern {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            opacity: 0.03;
+            background-image:
+                    repeating-linear-gradient(45deg, transparent, transparent 35px, rgba(255,255,255,.5) 35px, rgba(255,255,255,.5) 70px);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .floating-shapes {
+            position: fixed;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            z-index: 0;
+        }
+
+        .shape {
+            position: absolute;
+            opacity: 0.1;
+            animation: float 20s infinite ease-in-out;
+        }
+
+        .shape:nth-child(1) {
+            width: 80px;
+            height: 80px;
+            background: var(--primary);
+            border-radius: 50%;
+            left: 10%;
+            top: 20%;
+            animation-delay: 0s;
+        }
+
+        .shape:nth-child(2) {
+            width: 120px;
+            height: 120px;
+            background: var(--secondary);
+            border-radius: 38% 62% 63% 37% / 41% 44% 56% 59%;
+            left: 70%;
+            top: 60%;
+            animation-delay: 2s;
+        }
+
+        .shape:nth-child(3) {
+            width: 100px;
+            height: 100px;
+            background: var(--accent);
+            border-radius: 63% 37% 54% 46% / 55% 48% 52% 45%;
+            left: 40%;
+            top: 80%;
+            animation-delay: 4s;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            33% { transform: translateY(-30px) rotate(120deg); }
+            66% { transform: translateY(30px) rotate(240deg); }
+        }
+
+        /* ===== 布局 ===== */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 1.5rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ===== 导航栏 ===== */
+        .nav-header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(20px);
+            z-index: 1000;
+            border-bottom: 1px solid var(--border-color);
+            transition: var(--transition);
+        }
+
+        .nav-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1rem 0;
+        }
+
+        .nav-title {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .nav-title h1 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .nav-menu {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        /* 进度条 */
+        .progress-container {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: var(--primary-gradient);
+            width: 0;
+            transition: width 0.3s ease;
+        }
+
+        /* ===== 侧边栏 ===== */
+        .sidebar {
+            position: fixed;
+            left: -300px;
+            top: 60px;
+            bottom: 0;
+            width: 300px;
+            background: var(--bg-section);
+            border-right: 1px solid var(--border-color);
+            padding: 2rem;
+            overflow-y: auto;
+            transition: transform 0.3s ease;
+            z-index: 999;
+            box-shadow: 5px 0 25px rgba(0, 0, 0, 0.5);
+        }
+
+        .sidebar.open {
+            transform: translateX(300px);
+        }
+
+        .toc-title {
+            color: var(--primary-light);
+            margin-bottom: 1.5rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .toc-section {
+            margin-bottom: 1.5rem;
+        }
+
+        .toc-section-title {
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.5rem;
+            padding-left: 0.5rem;
+        }
+
+        .toc-item {
+            display: block;
+            padding: 0.75rem 1rem;
+            color: var(--text-secondary);
+            text-decoration: none;
+            border-radius: 0.5rem;
+            transition: all 0.3s ease;
+            margin-bottom: 0.25rem;
+            font-size: 0.95rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .toc-item::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: var(--primary);
+            transform: translateX(-100%);
+            transition: transform 0.3s ease;
+        }
+
+        .toc-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-primary);
+            padding-left: 1.5rem;
+        }
+
+        .toc-item.active {
+            background: var(--card-gradient);
+            color: var(--primary-light);
+        }
+
+        .toc-item.active::before {
+            transform: translateX(0);
+        }
+
+        /* ===== 按钮样式 ===== */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            font-size: 0.95rem;
+            font-weight: 500;
+            text-decoration: none;
+            transition: var(--transition);
+            cursor: pointer;
+            border: none;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            transition: width 0.5s, height 0.5s;
+        }
+
+        .btn:hover::before {
+            width: 300px;
+            height: 300px;
+        }
+
+        .btn-primary {
+            background: var(--primary-gradient);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-icon {
+            background: transparent;
+            padding: 0.5rem;
+            color: var(--text-secondary);
+        }
+
+        /* ===== 主内容 ===== */
+        main {
+            margin-top: 80px;
+            padding-bottom: 4rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ===== 章节头部 ===== */
+        .chapter-hero {
+            background: var(--hero-gradient);
+            padding: 6rem 0;
+            margin-bottom: 3rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .chapter-hero::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            animation: rotate 30s linear infinite;
+        }
+
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .chapter-hero-content {
+            text-align: center;
+            color: white;
+            position: relative;
+            z-index: 1;
+        }
+
+        .chapter-hero h1 {
+            font-size: 3.5rem;
+            margin-bottom: 1rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            animation: fadeInUp 0.8s ease;
+        }
+
+        .chapter-hero p {
+            font-size: 1.5rem;
+            opacity: 0.95;
+            animation: fadeInUp 0.8s ease 0.2s both;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* ===== 内容卡片 ===== */
+        .section-card {
+            background: var(--bg-section);
+            border-radius: var(--radius);
+            padding: 3rem;
+            margin-bottom: 2rem;
+            box-shadow: var(--shadow);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .section-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--primary-gradient);
+            transform: scaleX(0);
+            transform-origin: left;
+            transition: transform 0.5s ease;
+        }
+
+        .section-card:hover::before {
+            transform: scaleX(1);
+        }
+
+        .section-card h2 {
+            color: var(--primary-light);
+            margin-bottom: 2rem;
+            font-size: 2.25rem;
+            font-weight: 700;
+        }
+
+        .section-card h3 {
+            color: var(--text-primary);
+            margin: 2rem 0 1rem;
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        /* ===== 故事卡片 ===== */
+        .story-card {
+            background: linear-gradient(135deg, rgba(250, 112, 154, 0.1), rgba(254, 225, 64, 0.1));
+            border: 2px solid rgba(250, 112, 154, 0.3);
+            border-radius: var(--radius);
+            padding: 2.5rem;
+            margin: 2rem 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .story-card::after {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            background: var(--hero-gradient);
+            z-index: -1;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            border-radius: var(--radius);
+        }
+
+        .story-card:hover::after {
+            opacity: 0.3;
+        }
+
+        .story-icon {
+            font-size: 3rem;
+            display: block;
+            margin-bottom: 1rem;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        /* ===== 代码块 ===== */
+        .code-block {
+            background: var(--bg-code);
+            border: 1px solid #30363d;
+            border-radius: 0.75rem;
+            margin: 1.5rem 0;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .code-header {
+            background: #161b22;
+            padding: 1rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #30363d;
+        }
+
+        .code-lang {
+            color: var(--primary-light);
+            font-size: 0.875rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .code-lang::before {
+            content: '';
+            width: 12px;
+            height: 12px;
+            background: var(--primary);
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .code-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .code-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: var(--text-secondary);
+            padding: 0.375rem 0.875rem;
+            border-radius: 0.375rem;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+
+        .code-btn:hover {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+            transform: translateY(-1px);
+        }
+
+        .code-content {
+            padding: 1.5rem;
+            overflow-x: auto;
+            font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', monospace;
+            font-size: 0.875rem;
+            line-height: 1.7;
+        }
+
+        .code-content pre {
+            margin: 0;
+            color: #e6edf3;
+        }
+
+        .code-content.collapsed {
+            max-height: 300px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .code-content.collapsed::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 100px;
+            background: linear-gradient(transparent, var(--bg-code));
+        }
+
+        /* 代码高亮 */
+        .keyword { color: #ff79c6; }
+        .string { color: #f1fa8c; }
+        .comment { color: #6272a4; }
+        .function { color: #50fa7b; }
+        .number { color: #bd93f9; }
+
+        /* ===== 卡片网格 ===== */
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 2rem;
+            margin: 2rem 0;
+        }
+
+        .info-card {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 2rem;
+            border: 1px solid var(--border-color);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .info-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: var(--primary-gradient);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .info-card:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--shadow-lg);
+            border-color: var(--primary);
+        }
+
+        .info-card:hover::before {
+            opacity: 0.05;
+        }
+
+        .card-icon {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            display: block;
+        }
+
+        .card-title {
+            color: var(--primary-light);
+            margin-bottom: 1rem;
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+        /* ===== 互动演示 ===== */
+        .demo-container {
+            background: linear-gradient(135deg, rgba(255, 107, 107, 0.1), rgba(78, 205, 196, 0.1));
+            border: 2px solid rgba(255, 107, 107, 0.3);
+            border-radius: var(--radius);
+            padding: 2.5rem;
+            margin: 2rem 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .demo-container::before {
+            content: '🧪';
+            position: absolute;
+            top: -20px;
+            right: 20px;
+            font-size: 4rem;
+            opacity: 0.1;
+        }
+
+        /* ===== 注意力可视化 ===== */
+        .attention-visualization {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 2rem;
+            margin: 2rem 0;
+            overflow: hidden;
+        }
+
+        .attention-matrix {
+            display: grid;
+            gap: 0.5rem;
+            margin: 1rem 0;
+        }
+
+        .attention-cell {
+            width: 60px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 0.5rem;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .attention-cell:hover {
+            transform: scale(1.1);
+            box-shadow: 0 4px 12px rgba(255, 107, 107, 0.3);
+        }
+
+        /* ===== 思考框 ===== */
+        .think-box {
+            background: linear-gradient(135deg, rgba(251, 191, 36, 0.1), rgba(245, 158, 11, 0.1));
+            border: 2px solid rgba(251, 191, 36, 0.3);
+            border-radius: var(--radius);
+            padding: 2rem;
+            margin: 2rem 0;
+            position: relative;
+        }
+
+        .think-box::before {
+            content: '🤔';
+            position: absolute;
+            top: -15px;
+            left: 25px;
+            font-size: 2rem;
+            background: var(--bg-section);
+            padding: 0 0.5rem;
+        }
+
+        .think-box h4 {
+            color: var(--warning);
+            margin-bottom: 1rem;
+        }
+
+        .think-box ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .think-box li {
+            margin-bottom: 0.5rem;
+            padding-left: 1.5rem;
+            position: relative;
+        }
+
+        .think-box li::before {
+            content: '💭';
+            position: absolute;
+            left: 0;
+        }
+
+        /* ===== 深度思考框 ===== */
+        .deep-think-box {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(99, 102, 241, 0.1));
+            border: 2px solid rgba(139, 92, 246, 0.4);
+            border-radius: var(--radius);
+            padding: 2.5rem;
+            margin: 3rem 0;
+            position: relative;
+        }
+
+        .deep-think-box::before {
+            content: '🧩';
+            position: absolute;
+            top: -18px;
+            left: 30px;
+            font-size: 2.5rem;
+            background: var(--bg-section);
+            padding: 0 0.75rem;
+        }
+
+        .deep-think-box h4 {
+            color: var(--primary-light);
+            margin-bottom: 1.25rem;
+            font-size: 1.25rem;
+        }
+
+        .deep-think-box .think-item {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 1.25rem;
+            border-radius: 0.75rem;
+            margin-bottom: 1rem;
+            border-left: 3px solid var(--primary);
+        }
+
+        .deep-think-box .think-item h5 {
+            color: var(--primary-light);
+            margin-bottom: 0.5rem;
+        }
+
+        /* ===== 探索框 ===== */
+        .explore-box {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(59, 130, 246, 0.1));
+            border: 2px solid rgba(16, 185, 129, 0.3);
+            border-radius: var(--radius);
+            padding: 2rem;
+            margin: 2rem 0;
+            position: relative;
+        }
+
+        .explore-box::before {
+            content: '🔍';
+            position: absolute;
+            top: -15px;
+            left: 25px;
+            font-size: 2rem;
+            background: var(--bg-section);
+            padding: 0 0.5rem;
+        }
+
+        .explore-box h4 {
+            color: var(--success);
+            margin-bottom: 1rem;
+        }
+
+        /* ===== 数学公式解释样式 ===== */
+        .formula-explanation {
+            background: rgba(99, 102, 241, 0.05);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            margin-top: 1.5rem;
+        }
+
+        .formula-explanation h5 {
+            color: var(--primary-light);
+            margin-bottom: 1rem;
+            font-size: 1.1rem;
+        }
+
+        .formula-table {
+            width: 100%;
+            margin: 1rem 0;
+        }
+
+        .formula-table td {
+            padding: 0.75rem;
+            vertical-align: middle;
+        }
+
+        .formula-table .formula-part {
+            font-family: 'KaTeX_Math', serif;
+            font-size: 1.2rem;
+            color: var(--primary);
+            white-space: nowrap;
+            width: 30%;
+        }
+
+        .formula-table .formula-meaning {
+            color: var(--text-primary);
+            font-size: 0.95rem;
+            line-height: 1.6;
+        }
+
+        .code-from-math {
+            background: var(--bg-code);
+            border: 1px solid #30363d;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin-top: 1rem;
+        }
+
+        .code-from-math h6 {
+            color: var(--success);
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        /* ===== 提示框 ===== */
+        .tip {
+            padding: 1.5rem 2rem;
+            border-radius: var(--radius);
+            margin: 2rem 0;
+            border-left: 4px solid;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .tip::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            opacity: 0.05;
+            background: currentColor;
+        }
+
+        .tip-icon {
+            font-size: 1.5rem;
+            margin-right: 1rem;
+            vertical-align: middle;
+        }
+
+        .tip.info {
+            background: rgba(59, 130, 246, 0.1);
+            border-color: var(--info);
+            color: var(--text-primary);
+        }
+
+        .tip.warning {
+            background: rgba(245, 158, 11, 0.1);
+            border-color: var(--warning);
+            color: var(--text-primary);
+        }
+
+        .tip.success {
+            background: rgba(16, 185, 129, 0.1);
+            border-color: var(--success);
+            color: var(--text-primary);
+        }
+
+        .tip.danger {
+            background: rgba(239, 68, 68, 0.1);
+            border-color: var(--danger);
+            color: var(--text-primary);
+        }
+
+        /* ===== 快速导航 ===== */
+        .quick-nav {
+            position: fixed;
+            right: 2rem;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .quick-nav-item {
+            width: 12px;
+            height: 12px;
+            background: var(--text-muted);
+            border-radius: 50%;
+            transition: all 0.3s;
+            position: relative;
+            cursor: pointer;
+        }
+
+        .quick-nav-item:hover,
+        .quick-nav-item.active {
+            background: var(--primary);
+            transform: scale(1.5);
+        }
+
+        .quick-nav-tooltip {
+            position: absolute;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: var(--bg-dark);
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+            border: 1px solid var(--border-color);
+            font-size: 0.875rem;
+        }
+
+        .quick-nav-item:hover .quick-nav-tooltip {
+            opacity: 1;
+        }
+
+        /* ===== 比较表格 ===== */
+        .comparison-table {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            overflow: hidden;
+            margin: 2rem 0;
+            box-shadow: var(--shadow);
+        }
+
+        .comparison-table table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .comparison-table th {
+            background: var(--primary-gradient);
+            color: white;
+            padding: 1.25rem;
+            text-align: left;
+            font-weight: 600;
+            font-size: 0.95rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .comparison-table td {
+            padding: 1.25rem;
+            border-bottom: 1px solid var(--border-color);
+            transition: all 0.3s ease;
+        }
+
+        .comparison-table tr:hover td {
+            background: rgba(99, 102, 241, 0.05);
+        }
+
+        .comparison-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* ===== 算法步骤 ===== */
+        .algorithm-steps {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(167, 139, 250, 0.05));
+            border: 2px solid rgba(139, 92, 246, 0.3);
+            border-radius: var(--radius);
+            padding: 2.5rem;
+            margin: 2rem 0;
+        }
+
+        .step-item {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 2rem;
+            position: relative;
+        }
+
+        .step-item:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            left: 24px;
+            top: 50px;
+            bottom: -30px;
+            width: 2px;
+            background: linear-gradient(to bottom, var(--primary), transparent);
+        }
+
+        .step-number {
+            width: 48px;
+            height: 48px;
+            background: var(--primary-gradient);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.25rem;
+            margin-right: 1.5rem;
+            flex-shrink: 0;
+            position: relative;
+            z-index: 1;
+        }
+
+        .step-content h5 {
+            color: var(--primary-light);
+            margin-bottom: 0.5rem;
+            font-size: 1.25rem;
+        }
+
+        /* ===== 数学公式 ===== */
+        .math-display {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.05), rgba(99, 102, 241, 0.05));
+            border: 2px solid rgba(139, 92, 246, 0.2);
+            border-radius: var(--radius);
+            padding: 2rem;
+            margin: 2rem 0;
+            text-align: center;
+            font-size: 1.2rem;
+            overflow-x: auto;
+        }
+
+        .math-formula {
+            font-family: 'KaTeX_Math', 'Times New Roman', serif;
+            font-style: italic;
+            color: var(--primary-light);
+            font-size: 1.3rem;
+            margin: 1rem 0;
+        }
+
+        /* KaTeX样式调整 */
+        .katex-display {
+            margin: 1.5rem 0 !important;
+        }
+
+        .katex {
+            font-size: 1.1em;
+            color: var(--primary-light);
+        }
+
+        /* ===== Transformer特有样式 ===== */
+        .transformer-architecture {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 3rem;
+            margin: 2rem 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .architecture-component {
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid var(--primary);
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            margin: 1rem 0;
+            transition: all 0.3s ease;
+        }
+
+        .architecture-component:hover {
+            background: rgba(99, 102, 241, 0.1);
+            transform: translateX(10px);
+        }
+
+        .attention-weights {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(50px, 1fr));
+            gap: 0.5rem;
+            margin: 1rem 0;
+        }
+
+        .weight-cell {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 0.25rem;
+            font-weight: bold;
+            font-size: 0.875rem;
+            transition: all 0.3s ease;
+        }
+
+        /* ===== 响应式设计 ===== */
+        @media (max-width: 768px) {
+            .chapter-hero h1 {
+                font-size: 2.5rem;
+            }
+
+            .section-card {
+                padding: 2rem;
+            }
+
+            .quick-nav {
+                display: none;
+            }
+
+            .card-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .attention-matrix {
+                font-size: 0.75rem;
+            }
+        }
+
+        /* ===== 工具类 ===== */
+        .text-center { text-align: center; }
+        .text-muted { color: var(--text-muted); }
+        .mt-1 { margin-top: 0.5rem; }
+        .mt-2 { margin-top: 1rem; }
+        .mt-3 { margin-top: 1.5rem; }
+        .mt-4 { margin-top: 2rem; }
+        .mb-1 { margin-bottom: 0.5rem; }
+        .mb-2 { margin-bottom: 1rem; }
+        .mb-3 { margin-bottom: 1.5rem; }
+        .mb-4 { margin-bottom: 2rem; }
+    </style>
+</head>
+<body>
+
+<!-- 背景效果 -->
+<div class="bg-pattern"></div>
+<div class="floating-shapes">
+    <div class="shape"></div>
+    <div class="shape"></div>
+    <div class="shape"></div>
+</div>
+
+<!-- 导航栏 -->
+<nav class="nav-header">
+    <div class="container">
+        <div class="nav-content">
+            <div class="nav-title">
+                <button id="toggle-sidebar" class="btn btn-icon">
+                    <svg width="20" height="20" fill="currentColor">
+                        <path d="M3 5h14M3 10h14M3 15h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </button>
+                <h1>第5章：注意力机制与Transformer</h1>
+            </div>
+            <div class="nav-menu">
+                <button class="btn btn-icon" id="theme-toggle">🌙</button>
+                <a href="#summary" class="btn btn-secondary">章节总结</a>
+            </div>
+        </div>
+        <div class="progress-container">
+            <div class="progress-bar" id="progress-bar"></div>
+        </div>
+    </div>
+</nav>
+
+<!-- 侧边栏 -->
+<aside class="sidebar" id="sidebar">
+    <h3 class="toc-title">
+        <span>📚</span>
+        <span>本章导航</span>
+    </h3>
+
+    <div class="toc-section">
+        <div class="toc-section-title">开篇</div>
+        <a href="#intro" class="toc-item active">序言：注意力的革命</a>
+        <a href="#rnn-limits" class="toc-item">RNN的局限性</a>
+    </div>
+
+    <div class="toc-section">
+        <div class="toc-section-title">注意力机制</div>
+        <a href="#attention-basics" class="toc-item">什么是注意力？</a>
+        <a href="#attention-math" class="toc-item">注意力的数学原理</a>
+        <a href="#self-attention" class="toc-item">自注意力机制</a>
+    </div>
+
+    <div class="toc-section">
+        <div class="toc-section-title">Transformer</div>
+        <a href="#transformer-intro" class="toc-item">Transformer诞生</a>
+        <a href="#transformer-architecture" class="toc-item">架构详解</a>
+        <a href="#multi-head" class="toc-item">多头注意力</a>
+        <a href="#positional-encoding" class="toc-item">位置编码</a>
+    </div>
+
+    <div class="toc-section">
+        <div class="toc-section-title">实践与应用</div>
+        <a href="#training" class="toc-item">训练技巧</a>
+        <a href="#applications" class="toc-item">实际应用</a>
+        <a href="#bert-gpt" class="toc-item">BERT与GPT</a>
+    </div>
+
+    <div class="toc-section">
+        <div class="toc-section-title">总结展望</div>
+        <a href="#summary" class="toc-item">本章总结</a>
+        <a href="#future" class="toc-item">未来展望</a>
+    </div>
+</aside>
+
+<!-- 快速导航 -->
+<div class="quick-nav" id="quick-nav">
+    <div class="quick-nav-item active" data-section="intro">
+        <span class="quick-nav-tooltip">开篇故事</span>
+    </div>
+    <div class="quick-nav-item" data-section="attention-basics">
+        <span class="quick-nav-tooltip">注意力机制</span>
+    </div>
+    <div class="quick-nav-item" data-section="transformer-intro">
+        <span class="quick-nav-tooltip">Transformer</span>
+    </div>
+    <div class="quick-nav-item" data-section="applications">
+        <span class="quick-nav-tooltip">应用案例</span>
+    </div>
+    <div class="quick-nav-item" data-section="summary">
+        <span class="quick-nav-tooltip">章节总结</span>
+    </div>
+</div>
+
+<!-- 主内容 -->
+<main>
+    <!-- 章节标题 -->
+    <section class="chapter-hero">
+        <div class="container">
+            <div class="chapter-hero-content">
+                <h1>注意力机制与Transformer</h1>
+                <p>Attention is All You Need</p>
+            </div>
+        </div>
+    </section>
+
+    <div class="container">
+        <!-- 序言 -->
+        <section id="intro" class="section-card">
+            <h2>🌟 序言：注意力的革命</h2>
+
+            <div class="story-card">
+                <span class="story-icon">👁️</span>
+                <p><strong>一个改变世界的发现</strong></p>
+                <p class="mt-2">
+                    2017年，Google的一篇论文《Attention is All You Need》震撼了整个AI界。
+                    它抛弃了传统的RNN和CNN，仅用"注意力"机制就达到了前所未有的效果。
+                </p>
+                <p class="mt-3" style="font-size: 1.25rem; color: var(--warning); text-align: center;">
+                    💡 这不仅是一个技术突破，更是一种思想革命！
+                </p>
+            </div>
+
+            <div class="deep-think-box">
+                <h4>为什么"注意力"如此重要？</h4>
+                <div class="think-item">
+                    <h5>👀 人类的注意力机制</h5>
+                    <p>想象你在看这幅场景：</p>
+                    <p style="font-style: italic; margin: 1rem 0; padding: 1rem; background: rgba(255,255,255,0.05); border-radius: 0.5rem;">
+                        "一只<strong style="color: var(--danger);">红色</strong>的小鸟停在<strong style="color: var(--success);">绿色</strong>的树枝上，
+                        旁边是蓝天白云，远处有山峦起伏..."
+                    </p>
+                    <p>你的大脑会自动：</p>
+                    <ul>
+                        <li>聚焦于"红色小鸟"（主体）</li>
+                        <li>注意"绿色树枝"（相关背景）</li>
+                        <li>忽略"山峦起伏"（不相关细节）</li>
+                    </ul>
+                    <p class="mt-2"><strong>这就是注意力：有选择地关注重要信息！</strong></p>
+                </div>
+                <div class="think-item">
+                    <h5>🧠 机器也需要"注意力"</h5>
+                    <p>在处理"我爱中国北京天安门"时：</p>
+                    <ul>
+                        <li>理解"爱"需要知道主语是"我"</li>
+                        <li>理解"天安门"需要知道它在"北京"</li>
+                        <li>但"我"和"天安门"的关系较弱</li>
+                    </ul>
+                    <p class="mt-2"><strong>关键：让模型学会"看哪里"！</strong></p>
+                </div>
+            </div>
+
+            <div class="demo-container">
+                <h3 class="text-center mb-3" style="color: var(--primary-light);">🎯 体验注意力的魔力</h3>
+
+                <p><strong>句子：</strong>"机器学习改变了世界"</p>
+
+                <div class="attention-visualization">
+                    <p class="text-center mb-3">当理解"改变"这个词时，模型的注意力分布：</p>
+                    <div style="display: flex; justify-content: center; gap: 2rem; flex-wrap: wrap;">
+                        <div style="text-align: center;">
+                            <div class="attention-cell" style="background: rgba(255, 107, 107, 0.3);">机器</div>
+                            <p style="color: var(--text-muted); font-size: 0.875rem; margin-top: 0.5rem;">20%</p>
+                        </div>
+                        <div style="text-align: center;">
+                            <div class="attention-cell" style="background: rgba(255, 107, 107, 0.8); color: white;">学习</div>
+                            <p style="color: var(--text-muted); font-size: 0.875rem; margin-top: 0.5rem;">45%</p>
+                        </div>
+                        <div style="text-align: center;">
+                            <div class="attention-cell" style="background: rgba(255, 107, 107, 1); color: white; transform: scale(1.1);">改变</div>
+                            <p style="color: var(--text-muted); font-size: 0.875rem; margin-top: 0.5rem;">自己</p>
+                        </div>
+                        <div style="text-align: center;">
+                            <div class="attention-cell" style="background: rgba(255, 107, 107, 0.1);">了</div>
+                            <p style="color: var(--text-muted); font-size: 0.875rem; margin-top: 0.5rem;">5%</p>
+                        </div>
+                        <div style="text-align: center;">
+                            <div class="attention-cell" style="background: rgba(255, 107, 107, 0.5);">世界</div>
+                            <p style="color: var(--text-muted); font-size: 0.875rem; margin-top: 0.5rem;">30%</p>
+                        </div>
+                    </div>
+                    <p class="text-center mt-3 text-muted">颜色越深，注意力权重越大</p>
+                </div>
+
+                <div class="tip info mt-3">
+                    <span class="tip-icon">💡</span>
+                    <strong>核心洞察</strong>
+                    <p class="mt-2">
+                        注意力机制让模型能够动态地决定关注输入的哪些部分，
+                        而不是像RNN那样机械地按顺序处理。这带来了巨大的灵活性！
+                    </p>
+                </div>
+            </div>
+
+            <div class="think-box">
+                <h4>🤔 开始思考</h4>
+                <ul>
+                    <li>为什么RNN按顺序处理会有问题？</li>
+                    <li>如何数学化地表示"注意力"？</li>
+                    <li>为什么说"Attention is All You Need"？</li>
+                </ul>
+            </div>
+
+            <div class="explore-box">
+                <h4>小实验：人类的注意力</h4>
+                <p><strong>任务：</strong>快速阅读下面的句子，然后回答问题</p>
+                <p style="padding: 1rem; background: rgba(255,255,255,0.05); border-radius: 0.5rem; margin: 1rem 0;">
+                    "昨天晚上，小明在图书馆认真复习数学，他的同学小红在旁边看英语书，
+                    突然停电了，大家都很惊讶，但是5分钟后就恢复了供电。"
+                </p>
+                <p><strong>问题：</strong>谁在复习数学？</p>
+                <p class="mt-3"><strong>观察：</strong>你是如何找到答案的？是否自动忽略了"停电"等无关信息？</p>
+            </div>
+        </section>
+
+        <!-- RNN的局限性 -->
+        <section id="rnn-limits" class="section-card">
+            <h2>🚧 RNN的局限性</h2>
+
+            <div class="story-card">
+                <span class="story-icon">🐌</span>
+                <p><strong>顺序处理的诅咒</strong></p>
+                <p class="mt-2">
+                    RNN就像一个只能单线程工作的处理器，必须一个字一个字地读完整个句子。
+                    在并行计算的时代，这成了致命的弱点。
+                </p>
+            </div>
+
+            <div class="deep-think-box">
+                <h4>深入理解RNN的问题</h4>
+                <div class="think-item">
+                    <h5>⏰ 时间复杂度</h5>
+                    <p>处理一个长度为n的序列：</p>
+                    <ul>
+                        <li><strong>RNN：</strong>必须计算n次，无法并行</li>
+                        <li><strong>理想情况：</strong>如果能并行，只需要O(1)时间</li>
+                        <li><strong>问题：</strong>训练一个长文本需要等待很久</li>
+                    </ul>
+                </div>
+                <div class="think-item">
+                    <h5>📏 长距离依赖</h5>
+                    <p>即使有LSTM/GRU，仍然存在问题：</p>
+                    <ul>
+                        <li>信息仍需要逐步传递</li>
+                        <li>梯度仍会衰减（虽然缓解了）</li>
+                        <li>难以捕捉超长距离（>100词）的依赖</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="comparison-table">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>问题</th>
+                        <th>RNN表现</th>
+                        <th>期望的解决方案</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td>并行化</td>
+                        <td>❌ 必须顺序计算</td>
+                        <td>✅ 所有位置同时计算</td>
+                    </tr>
+                    <tr>
+                        <td>长距离依赖</td>
+                        <td>😐 通过多步传递</td>
+                        <td>✅ 直接连接任意位置</td>
+                    </tr>
+                    <tr>
+                        <td>计算效率</td>
+                        <td>🐌 O(n)顺序时间</td>
+                        <td>🚀 O(1)并行时间</td>
+                    </tr>
+                    <tr>
+                        <td>信息瓶颈</td>
+                        <td>😰 固定大小的隐藏状态</td>
+                        <td>✅ 动态的信息流</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="demo-container mt-4">
+                <h3 class="mb-3">可视化：RNN vs 理想模型</h3>
+
+                <div class="card-grid">
+                    <div class="info-card">
+                        <h4 class="text-center mb-3">RNN的信息流</h4>
+                        <svg width="250" height="150" viewBox="0 0 250 150">
+                            <!-- RNN顺序处理 -->
+                            <circle cx="30" cy="75" r="20" fill="#8b5cf6" opacity="0.3"/>
+                            <circle cx="80" cy="75" r="20" fill="#8b5cf6" opacity="0.5"/>
+                            <circle cx="130" cy="75" r="20" fill="#8b5cf6" opacity="0.7"/>
+                            <circle cx="180" cy="75" r="20" fill="#8b5cf6" opacity="0.9"/>
+                            <circle cx="230" cy="75" r="20" fill="#8b5cf6"/>
+
+                            <!-- 箭头 -->
+                            <path d="M 50 75 L 60 75" stroke="#64748b" stroke-width="2" marker-end="url(#arrowhead)"/>
+                            <path d="M 100 75 L 110 75" stroke="#64748b" stroke-width="2" marker-end="url(#arrowhead)"/>
+                            <path d="M 150 75 L 160 75" stroke="#64748b" stroke-width="2" marker-end="url(#arrowhead)"/>
+                            <path d="M 200 75 L 210 75" stroke="#64748b" stroke-width="2" marker-end="url(#arrowhead)"/>
+
+                            <text x="125" y="130" text-anchor="middle" fill="#94a3b8" font-size="12">必须等待前一步完成</text>
+
+                            <defs>
+                                <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                                    <polygon points="0 0, 10 3.5, 0 7" fill="#64748b"/>
+                                </marker>
+                            </defs>
+                        </svg>
+                    </div>
+
+                    <div class="info-card">
+                        <h4 class="text-center mb-3">理想的信息流</h4>
+                        <svg width="250" height="150" viewBox="0 0 250 150">
+                            <!-- 全连接 -->
+                            <circle cx="50" cy="30" r="15" fill="#ff6b6b"/>
+                            <circle cx="125" cy="30" r="15" fill="#ff6b6b"/>
+                            <circle cx="200" cy="30" r="15" fill="#ff6b6b"/>
+
+                            <circle cx="50" cy="120" r="15" fill="#4ecdc4"/>
+                            <circle cx="125" cy="120" r="15" fill="#4ecdc4"/>
+                            <circle cx="200" cy="120" r="15" fill="#4ecdc4"/>
+
+                            <!-- 连接线 -->
+                            <line x1="50" y1="45" x2="50" y2="105" stroke="#94a3b8" stroke-width="1" opacity="0.5"/>
+                            <line x1="50" y1="45" x2="125" y2="105" stroke="#94a3b8" stroke-width="1" opacity="0.5"/>
+                            <line x1="50" y1="45" x2="200" y2="105" stroke="#94a3b8" stroke-width="1" opacity="0.5"/>
+
+                            <line x1="125" y1="45" x2="50" y2="105" stroke="#94a3b8" stroke-width="1" opacity="0.5"/>
+                            <line x1="125" y1="45" x2="125" y2="105" stroke="#94a3b8" stroke-width="1" opacity="0.5"/>
+                            <line x1="125" y1="45" x2="200" y2="105" stroke="#94a3b8" stroke-width="1" opacity="0.5"/>
+
+                            <line x1="200" y1="45" x2="50" y2="105" stroke="#94a3b8" stroke-width="1" opacity="0.5"/>
+                            <line x1="200" y1="45" x2="125" y2="105" stroke="#94a3b8" stroke-width="1" opacity="0.5"/>
+                            <line x1="200" y1="45" x2="200" y2="105" stroke="#94a3b8" stroke-width="1" opacity="0.5"/>
+
+                            <text x="125" y="145" text-anchor="middle" fill="#94a3b8" font-size="12">所有位置直接交互</text>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+
+            <div class="explore-box mt-4">
+                <h4>思考实验：设计你的解决方案</h4>
+                <p><strong>问题：</strong>如何让模型同时"看到"整个句子的所有词？</p>
+                <p><strong>提示：</strong></p>
+                <ul>
+                    <li>想想人类是如何一眼看到整个句子的</li>
+                    <li>如何衡量词与词之间的相关性？</li>
+                    <li>能否用某种"相似度"来决定关注程度？</li>
+                </ul>
+                <p class="mt-3"><strong>这就是注意力机制的核心思想！</strong></p>
+            </div>
+
+            <div class="tip warning mt-4">
+                <span class="tip-icon">⚠️</span>
+                <strong>关键认识</strong>
+                <p class="mt-2">
+                    RNN的顺序处理不仅慢，还限制了模型的表达能力。
+                    我们需要一种新的机制，能够让任意两个位置直接交互。
+                </p>
+            </div>
+        </section>
+
+        <!-- 什么是注意力 -->
+        <section id="attention-basics" class="section-card">
+            <h2>👁️ 什么是注意力机制？</h2>
+
+            <div class="story-card">
+                <span class="story-icon">🔍</span>
+                <p><strong>从查字典说起</strong></p>
+                <p class="mt-2">
+                    想象你在查字典找"apple"的中文意思。你会：
+                </p>
+                <ol class="mt-2">
+                    <li>用"apple"作为<strong>查询(Query)</strong></li>
+                    <li>在字典的所有<strong>键(Key)</strong>中寻找</li>
+                    <li>找到匹配后，获取对应的<strong>值(Value)</strong>："苹果"</li>
+                </ol>
+                <p class="mt-3" style="text-align: center; font-size: 1.1rem; color: var(--primary-light);">
+                    <strong>注意力机制就是一个"软"字典查询！</strong>
+                </p>
+            </div>
+
+            <div class="deep-think-box">
+                <h4>注意力的三个核心概念</h4>
+                <div class="think-item">
+                    <h5>🔑 Query, Key, Value</h5>
+                    <p><strong>硬查询（字典）：</strong></p>
+                    <ul>
+                        <li>Query = "apple"</li>
+                        <li>Key = ["apple", "banana", "cat", ...]</li>
+                        <li>Value = ["苹果", "香蕉", "猫", ...]</li>
+                        <li>结果：精确匹配，只返回"苹果"</li>
+                    </ul>
+                    <p class="mt-2"><strong>软查询（注意力）：</strong></p>
+                    <ul>
+                        <li>Query = "fruit"（水果）</li>
+                        <li>Key = ["apple", "banana", "cat", ...]</li>
+                        <li>Value = ["苹果", "香蕉", "猫", ...]</li>
+                        <li>结果：70%"苹果" + 25%"香蕉" + 5%其他</li>
+                    </ul>
+                </div>
+                <div class="think-item">
+                    <h5>📊 相似度计算</h5>
+                    <p>如何衡量Query和Key的相似度？</p>
+                    <ul>
+                        <li><strong>点积：</strong>最简单，计算快速</li>
+                        <li><strong>缩放点积：</strong>避免梯度问题</li>
+                        <li><strong>加性注意力：</strong>更复杂但更灵活</li>
+                    </ul>
+                    <p class="mt-2">Transformer选择了缩放点积，因为效果好且高效！</p>
+                </div>
+            </div>
+
+            <div class="attention-visualization">
+                <h3 class="text-center mb-3" style="color: var(--primary-light);">注意力机制工作流程</h3>
+
+                <div class="algorithm-steps">
+                    <div class="step-item">
+                        <div class="step-number">1</div>
+                        <div class="step-content">
+                            <h5>准备Q、K、V</h5>
+                            <p>将输入转换为查询(Q)、键(K)、值(V)向量</p>
+                            <div class="code-block mt-2">
+                                <div class="code-header">
+                                    <span class="code-lang">转换示例</span>
+                                </div>
+                                <div class="code-content">
+                                    <pre>输入: "我爱你"
+Q = [我的查询向量, 爱的查询向量, 你的查询向量]
+K = [我的键向量, 爱的键向量, 你的键向量]
+V = [我的值向量, 爱的值向量, 你的值向量]</pre>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="step-item">
+                        <div class="step-number">2</div>
+                        <div class="step-content">
+                            <h5>计算注意力分数</h5>
+                            <p>用Q和K计算相似度（注意力分数）</p>
+                            <div class="demo-container mt-2">
+                                <p>例如，"爱"对其他词的注意力：</p>
+                                <div class="attention-weights">
+                                    <div class="weight-cell" style="background: rgba(255, 107, 107, 0.8); color: white;">
+                                        我: 0.4
+                                    </div>
+                                    <div class="weight-cell" style="background: rgba(255, 107, 107, 1); color: white;">
+                                        爱: 0.2
+                                    </div>
+                                    <div class="weight-cell" style="background: rgba(255, 107, 107, 0.6);">
+                                        你: 0.4
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="step-item">
+                        <div class="step-number">3</div>
+                        <div class="step-content">
+                            <h5>加权求和</h5>
+                            <p>用注意力分数对V进行加权求和</p>
+                            <p class="mt-2" style="background: rgba(255,255,255,0.05); padding: 1rem; border-radius: 0.5rem;">
+                                输出 = 0.4×V[我] + 0.2×V[爱] + 0.4×V[你]
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="demo-container mt-4">
+                <h3 class="mb-3">🎮 互动演示：注意力可视化</h3>
+
+                <p><strong>句子：</strong>"The cat sat on the mat"（猫坐在垫子上）</p>
+
+                <div class="attention-matrix" style="display: grid; grid-template-columns: 60px repeat(6, 1fr); gap: 0.5rem;">
+                    <!-- 表头 -->
+                    <div></div>
+                    <div class="text-center text-muted">The</div>
+                    <div class="text-center text-muted">cat</div>
+                    <div class="text-center text-muted">sat</div>
+                    <div class="text-center text-muted">on</div>
+                    <div class="text-center text-muted">the</div>
+                    <div class="text-center text-muted">mat</div>
+
+                    <!-- The行 -->
+                    <div class="text-muted">The</div>
+                    <div class="attention-cell" style="background: rgba(255, 107, 107, 0.3);">0.1</div>
+                    <div class="attention-cell" style="background: rgba(255, 107, 107, 0.8); color: white;">0.7</div>
+                    <div class="attention-cell" style="background: rgba(255, 107, 107, 0.1);">0.05</div>
+                    <div class="attention-cell" style="background: rgba(255, 107, 107, 0.1);">0.05</div>
+                    <div class="attention-cell" style="background: rgba(255, 107, 107, 0.1);">0.05</div>
+                    <div class="attention-cell" style="background: rgba(255, 107, 107, 0.1);">0.05</div>
+
+                    <!-- cat行 -->
+                    <div class="text-muted">cat</div>
+                    <div class="attention-cell" style="background: rgba(255, 107, 107, 0.1);">0.1</div>
+                    <div class="attention-cell" style="background: rgba(255, 107, 107, 0.5);">0.3</div>
+                    <div class="attention-cell" style="background: rgba(255, 107, 107, 0.8); color: white;">0.5</div>
+                    <div class="attention-cell" style="background: rgba(255, 107, 107, 0.1);">0.05</div>
+                    <div class="attention-cell" style="background: rgba(255, 107, 107, 0.1);">0.03</div>
+                    <div class="attention-cell" style="background: rgba(255, 107, 107, 0.1);">0.02</div>
+
+                    <!-- 更多行... -->
+                </div>
+
+                <div class="tip info mt-3">
+                    <span class="tip-icon">💡</span>
+                    <strong>观察</strong>
+                    <p class="mt-2">
+                        "The"主要关注"cat"（冠词关注名词）
+                        "cat"主要关注"sat"（主语关注动词）
+                        模型学会了语法关系！
+                    </p>
+                </div>
+            </div>
+
+            <div class="explore-box mt-4">
+                <h4>动手计算：简化的注意力</h4>
+                <p><strong>给定：</strong></p>
+                <ul>
+                    <li>Q = [1, 0]（查询向量）</li>
+                    <li>K₁ = [1, 0], K₂ = [0, 1], K₃ = [0.7, 0.7]（键向量）</li>
+                    <li>V₁ = [A], V₂ = [B], V₃ = [C]（值）</li>
+                </ul>
+                <p class="mt-2"><strong>计算：</strong></p>
+                <ol>
+                    <li>相似度：Q·K₁ = ?, Q·K₂ = ?, Q·K₃ = ?</li>
+                    <li>注意力权重（softmax归一化）</li>
+                    <li>最终输出是什么？</li>
+                </ol>
+                <p class="mt-3"><strong>答案提示：</strong>Q最像K₁，所以输出主要是V₁(A)</p>
+            </div>
+
+            <div class="think-box mt-4">
+                <h4>🤔 深入思考</h4>
+                <ul>
+                    <li>为什么要分成Q、K、V三个向量？直接用原始向量不行吗？</li>
+                    <li>注意力权重加起来为什么要等于1？</li>
+                    <li>这种机制如何实现"选择性注意"？</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- 注意力的数学原理 -->
+        <section id="attention-math" class="section-card">
+            <h2>📐 注意力的数学原理</h2>
+
+            <div class="story-card">
+                <span class="story-icon">🧮</span>
+                <p><strong>从直觉到公式</strong></p>
+                <p class="mt-2">
+                    让我们把"软字典查询"的直觉转化为精确的数学公式。
+                    别担心，我们会一步步解释每个符号的含义！
+                </p>
+            </div>
+
+            <div class="math-display">
+                <h4 class="mb-3" style="color: var(--primary-light);">缩放点积注意力（Scaled Dot-Product Attention）</h4>
+
+                <p class="math-formula">
+                    $\text{Attention}(Q, K, V) = \text{softmax}\left(\frac{QK^T}{\sqrt{d_k}}\right)V$
+                </p>
+
+                <div class="formula-explanation">
+                    <h5>📖 公式解读</h5>
+
+                    <table class="formula-table">
+                        <tr>
+                            <td class="formula-part">$Q$</td>
+                            <td class="formula-meaning">查询矩阵（n×d_k），n个查询，每个d_k维</td>
+                        </tr>
+                        <tr>
+                            <td class="formula-part">$K$</td>
+                            <td class="formula-meaning">键矩阵（m×d_k），m个键，每个d_k维</td>
+                        </tr>
+                        <tr>
+                            <td class="formula-part">$V$</td>
+                            <td class="formula-meaning">值矩阵（m×d_v），m个值，每个d_v维</td>
+                        </tr>
+                        <tr>
+                            <td class="formula-part">$QK^T$</td>
+                            <td class="formula-meaning">点积，计算所有Q-K对的相似度（n×m矩阵）</td>
+                        </tr>
+                        <tr>
+                            <td class="formula-part">$\sqrt{d_k}$</td>
+                            <td class="formula-meaning">缩放因子，防止点积过大导致梯度消失</td>
+                        </tr>
+                        <tr>
+                            <td class="formula-part">softmax</td>
+                            <td class="formula-meaning">归一化为概率分布（每行和为1）</td>
+                        </tr>
+                    </table>
+
+                    <div class="deep-think-box mt-3">
+                        <h4>为什么需要缩放？</h4>
+                        <div class="think-item">
+                            <h5>🔢 数值稳定性</h5>
+                            <p>当d_k很大时（如512）：</p>
+                            <ul>
+                                <li>点积的期望值正比于d_k</li>
+                                <li>点积可能变得很大（如100+）</li>
+                                <li>softmax(100) ≈ 1，softmax(-100) ≈ 0</li>
+                                <li>导致梯度消失，训练困难</li>
+                            </ul>
+                            <p class="mt-2"><strong>解决：</strong>除以√d_k，让点积的方差保持为1</p>
+                        </div>
+                    </div>
+
+                    <div class="code-from-math">
+                        <h6>💻 代码实现：</h6>
+                        <pre style="color: #e6edf3; margin: 0;">
+<span class="keyword">import</span> numpy <span class="keyword">as</span> np
+
+<span class="keyword">def</span> <span class="function">scaled_dot_product_attention</span>(Q, K, V, mask=None):
+    <span class="string">"""
+    缩放点积注意力
+    Q: [batch_size, n_heads, seq_len, d_k]
+    K: [batch_size, n_heads, seq_len, d_k]
+    V: [batch_size, n_heads, seq_len, d_v]
+    """</span>
+    d_k = Q.shape[-1]
+
+    <span class="comment"># 1. 计算注意力分数</span>
+    scores = np.matmul(Q, K.transpose(-2, -1)) / np.sqrt(d_k)
+
+    <span class="comment"># 2. 应用mask（可选，用于屏蔽padding等）</span>
+    <span class="keyword">if</span> mask <span class="keyword">is not</span> None:
+        scores = scores.masked_fill(mask == 0, -1e9)
+
+    <span class="comment"># 3. Softmax归一化</span>
+    attention_weights = softmax(scores, axis=-1)
+
+    <span class="comment"># 4. 加权求和</span>
+    output = np.matmul(attention_weights, V)
+
+    <span class="keyword">return</span> output, attention_weights
+
+<span class="keyword">def</span> <span class="function">softmax</span>(x, axis=-1):
+    <span class="string">"""数值稳定的softmax"""</span>
+    x_exp = np.exp(x - np.max(x, axis=axis, keepdims=True))
+    <span class="keyword">return</span> x_exp / np.sum(x_exp, axis=axis, keepdims=True)</pre>
+                    </div>
+                </div>
+            </div>
+
+            <div class="demo-container mt-4">
+                <h3 class="mb-3">步骤分解：计算注意力</h3>
+
+                <div class="algorithm-steps">
+                    <div class="step-item">
+                        <div class="step-number">1</div>
+                        <div class="step-content">
+                            <h5>计算相似度矩阵</h5>
+                            <p>$S = QK^T$ 得到n×m的分数矩阵</p>
+                            <div style="background: rgba(255,255,255,0.05); padding: 1rem; border-radius: 0.5rem; margin-top: 1rem;">
+                                <pre>Q = [[1, 0],    K = [[1, 0],     S = QK^T = [[1, 0],
+     [0, 1]]         [0, 1]]              [0, 1]]</pre>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="step-item">
+                        <div class="step-number">2</div>
+                        <div class="step-content">
+                            <h5>缩放</h5>
+                            <p>$S' = S / \sqrt{d_k}$ 防止数值过大</p>
+                            <div style="background: rgba(255,255,255,0.05); padding: 1rem; border-radius: 0.5rem; margin-top: 1rem;">
+                                <pre>d_k = 2, √d_k = 1.414
+S' = [[0.707, 0],
+      [0, 0.707]]</pre>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="step-item">
+                        <div class="step-number">3</div>
+                        <div class="step-content">
+                            <h5>Softmax归一化</h5>
+                            <p>$A = \text{softmax}(S')$ 转换为概率</p>
+                            <div style="background: rgba(255,255,255,0.05); padding: 1rem; border-radius: 0.5rem; margin-top: 1rem;">
+                                <pre>A = [[0.67, 0.33],   # 第一个查询：67%关注第一个键
+     [0.33, 0.67]]   # 第二个查询：67%关注第二个键</pre>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="step-item">
+                        <div class="step-number">4</div>
+                        <div class="step-content">
+                            <h5>加权求和</h5>
+                            <p>$\text{Output} = AV$ 得到最终输出</p>
+                            <div style="background: rgba(255,255,255,0.05); padding: 1rem; border-radius: 0.5rem; margin-top: 1rem;">
+                                <pre>V = [["苹果"],    Output = [[0.67×"苹果" + 0.33×"香蕉"],
+     ["香蕉"]]              [0.33×"苹果" + 0.67×"香蕉"]]</pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="explore-box mt-4">
+                <h4>实验：温度参数的影响</h4>
+                <p>修改公式为：$\text{softmax}(QK^T / (\sqrt{d_k} \cdot T))$</p>
+                <p><strong>T是温度参数：</strong></p>
+                <ul>
+                    <li>T = 0.1：注意力非常集中（硬注意力）</li>
+                    <li>T = 1.0：正常的注意力分布</li>
+                    <li>T = 10：注意力非常分散（接近均匀分布）</li>
+                </ul>
+                <p class="mt-3"><strong>思考：</strong>什么场景需要集中的注意力？什么场景需要分散的注意力？</p>
+            </div>
+
+            <div class="think-box mt-4">
+                <h4>🤔 深度理解</h4>
+                <ul>
+                    <li>为什么softmax是按行计算的？（提示：每个查询的注意力独立）</li>
+                    <li>如果K和V不是同一个矩阵会怎样？（提示：更灵活的映射）</li>
+                    <li>注意力矩阵的秩说明了什么？（提示：信息瓶颈）</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- 自注意力机制 -->
+        <section id="self-attention" class="section-card">
+            <h2>🔄 自注意力机制</h2>
+
+            <div class="story-card">
+                <span class="story-icon">🪞</span>
+                <p><strong>自己关注自己</strong></p>
+                <p class="mt-2">
+                    如果说注意力机制是在两个序列之间建立联系（如翻译），
+                    那么自注意力就是序列内部的自我审视——每个词都要看看句子中的其他词。
+                </p>
+            </div>
+
+            <div class="deep-think-box">
+                <h4>为什么需要自注意力？</h4>
+                <div class="think-item">
+                    <h5>🔗 建立全局依赖</h5>
+                    <p>考虑这个句子：</p>
+                    <p style="padding: 1rem; background: rgba(255,255,255,0.05); border-radius: 0.5rem;">
+                        "The <span style="color: var(--primary);">animal</span> didn't cross the street because
+                        <span style="color: var(--danger);">it</span> was too tired."
+                    </p>
+                    <p>"it"指代什么？</p>
+                    <ul>
+                        <li>需要理解"it"和"animal"的关系</li>
+                        <li>RNN：需要记住"animal"直到遇到"it"</li>
+                        <li>自注意力：直接建立"it"→"animal"的连接</li>
+                    </ul>
+                </div>
+                <div class="think-item">
+                    <h5>🎯 并行计算</h5>
+                    <p>自注意力的革命性优势：</p>
+                    <ul>
+                        <li>所有位置同时计算注意力</li>
+                        <li>不需要等待前一个位置</li>
+                        <li>GPU可以充分并行化</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="attention-visualization">
+                <h3 class="text-center mb-3" style="color: var(--primary-light);">自注意力 vs 普通注意力</h3>
+
+                <div class="card-grid">
+                    <div class="info-card">
+                        <h4 class="card-title">普通注意力（如翻译）</h4>
+                        <div style="text-align: center; margin: 1rem 0;">
+                            <p>英文：The cat → 中文：猫</p>
+                            <svg width="200" height="100" viewBox="0 0 200 100">
+                                <text x="30" y="30" fill="#ff6b6b">The cat</text>
+                                <text x="140" y="30" fill="#4ecdc4">猫</text>
+                                <path d="M 80 35 L 120 35" stroke="#94a3b8" stroke-width="2" marker-end="url(#arrowhead2)"/>
+                                <defs>
+                                    <marker id="arrowhead2" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                                        <polygon points="0 0, 10 3.5, 0 7" fill="#94a3b8"/>
+                                    </marker>
+                                </defs>
+                            </svg>
+                        </div>
+                        <p>Query来自目标，Key/Value来自源</p>
+                    </div>
+
+                    <div class="info-card">
+                        <h4 class="card-title">自注意力</h4>
+                        <div style="text-align: center; margin: 1rem 0;">
+                            <p>The cat sat</p>
+                            <svg width="200" height="100" viewBox="0 0 200 100">
+                                <text x="30" y="30" fill="#ff6b6b">The</text>
+                                <text x="90" y="30" fill="#ff6b6b">cat</text>
+                                <text x="150" y="30" fill="#ff6b6b">sat</text>
+                                <!-- 相互连接 -->
+                                <path d="M 40 35 Q 65 50 80 35" stroke="#94a3b8" stroke-width="1" opacity="0.5"/>
+                                <path d="M 100 35 Q 125 50 140 35" stroke="#94a3b8" stroke-width="1" opacity="0.5"/>
+                                <path d="M 80 25 Q 65 10 50 25" stroke="#94a3b8" stroke-width="1" opacity="0.5"/>
+                            </svg>
+                        </div>
+                        <p>Q、K、V都来自同一序列</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="code-block mt-4">
+                <div class="code-header">
+                    <span class="code-lang">Python - 自注意力实现</span>
+                    <div class="code-actions">
+                        <button class="code-btn" onclick="toggleCode(this)">展开</button>
+                        <button class="code-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+                </div>
+                <div class="code-content collapsed">
+                    <pre><span class="keyword">import</span> torch
+<span class="keyword">import</span> torch.nn <span class="keyword">as</span> nn
+<span class="keyword">import</span> torch.nn.functional <span class="keyword">as</span> F
+
+<span class="keyword">class</span> <span class="function">SelfAttention</span>(nn.Module):
+    <span class="keyword">def</span> <span class="function">__init__</span>(self, embed_size, heads):
+        <span class="string">"""
+        自注意力层
+        embed_size: 词嵌入维度
+        heads: 注意力头数
+        """</span>
+        super(SelfAttention, self).__init__()
+        self.embed_size = embed_size
+        self.heads = heads
+        self.head_dim = embed_size // heads
+
+        assert embed_size % heads == 0, <span class="string">"嵌入维度必须能被头数整除"</span>
+
+        <span class="comment"># 定义线性变换层</span>
+        self.values = nn.Linear(embed_size, embed_size, bias=False)
+        self.keys = nn.Linear(embed_size, embed_size, bias=False)
+        self.queries = nn.Linear(embed_size, embed_size, bias=False)
+        self.fc_out = nn.Linear(embed_size, embed_size)
+
+    <span class="keyword">def</span> <span class="function">forward</span>(self, values, keys, query, mask=None):
+        <span class="string">"""
+        前向传播
+        values, keys, query: [batch_size, seq_len, embed_size]
+        mask: [batch_size, seq_len, seq_len]
+        """</span>
+        batch_size = query.shape[0]
+        value_len, key_len, query_len = values.shape[1], keys.shape[1], query.shape[1]
+
+        <span class="comment"># 1. 线性变换得到Q、K、V</span>
+        values = self.values(values)
+        keys = self.keys(keys)
+        queries = self.queries(query)
+
+        <span class="comment"># 2. 重塑为多头形式</span>
+        values = values.reshape(batch_size, value_len, self.heads, self.head_dim)
+        keys = keys.reshape(batch_size, key_len, self.heads, self.head_dim)
+        queries = queries.reshape(batch_size, query_len, self.heads, self.head_dim)
+
+        <span class="comment"># 3. 计算缩放点积注意力</span>
+        energy = torch.einsum(<span class="string">"bqhd,bkhd->bhqk"</span>, queries, keys)
+        <span class="comment"># queries: [batch, query_len, heads, head_dim]</span>
+        <span class="comment"># keys: [batch, key_len, heads, head_dim]</span>
+        <span class="comment"># energy: [batch, heads, query_len, key_len]</span>
+
+        <span class="comment"># 4. 应用mask（可选）</span>
+        <span class="keyword">if</span> mask <span class="keyword">is not</span> None:
+            energy = energy.masked_fill(mask == 0, float(<span class="string">"-1e20"</span>))
+
+        <span class="comment"># 5. Softmax归一化</span>
+        attention = F.softmax(energy / (self.head_dim ** 0.5), dim=-1)
+
+        <span class="comment"># 6. 加权求和</span>
+        out = torch.einsum(<span class="string">"bhqk,bvhd->bqhd"</span>, attention, values)
+        <span class="comment"># attention: [batch, heads, query_len, key_len]</span>
+        <span class="comment"># values: [batch, value_len, heads, head_dim]</span>
+        <span class="comment"># out: [batch, query_len, heads, head_dim]</span>
+
+        <span class="comment"># 7. 合并多头</span>
+        out = out.reshape(batch_size, query_len, self.embed_size)
+
+        <span class="comment"># 8. 最终线性层</span>
+        out = self.fc_out(out)
+
+        <span class="keyword">return</span> out
+
+<span class="comment"># 使用示例</span>
+<span class="keyword">def</span> <span class="function">demo_self_attention</span>():
+    <span class="string">"""演示自注意力的使用"""</span>
+    batch_size = 2
+    seq_len = 5
+    embed_size = 512
+    heads = 8
+
+    <span class="comment"># 创建自注意力层</span>
+    self_attention = SelfAttention(embed_size, heads)
+
+    <span class="comment"># 模拟输入（如词嵌入）</span>
+    x = torch.randn(batch_size, seq_len, embed_size)
+
+    <span class="comment"># 自注意力：Q=K=V=x</span>
+    output = self_attention(x, x, x)
+
+    print(<span class="string">f"输入形状: {x.shape}"</span>)
+    print(<span class="string">f"输出形状: {output.shape}"</span>)
+    print(<span class="string">"注意：输出形状与输入相同！"</span>)</pre>
+                </div>
+            </div>
+
+            <div class="deep-think-box mt-4">
+                <h4>自注意力的深层含义</h4>
+                <div class="think-item">
+                    <h5>🌐 全连接的信息流</h5>
+                    <p>每个位置都能直接访问所有其他位置：</p>
+                    <ul>
+                        <li>不再有RNN的信息瓶颈</li>
+                        <li>长距离依赖变得容易</li>
+                        <li>但也失去了位置信息（需要额外处理）</li>
+                    </ul>
+                </div>
+                <div class="think-item">
+                    <h5>💡 学习内部表示</h5>
+                    <p>自注意力让模型学会：</p>
+                    <ul>
+                        <li>词与词的语法关系</li>
+                        <li>语义相似性</li>
+                        <li>上下文相关性</li>
+                    </ul>
+                    <p class="mt-2">这些都是自动学习的，不需要人工标注！</p>
+                </div>
+            </div>
+
+            <div class="explore-box mt-4">
+                <h4>可视化实验：注意力模式</h4>
+                <p>常见的自注意力模式：</p>
+                <ol>
+                    <li><strong>局部模式：</strong>相邻词之间的强连接（如形容词→名词）</li>
+                    <li><strong>全局模式：</strong>某些词（如主语）被广泛关注</li>
+                    <li><strong>语法模式：</strong>动词关注主语，介词关注名词等</li>
+                    <li><strong>特殊模式：</strong>[CLS]标记聚合全句信息</li>
+                </ol>
+                <p class="mt-3"><strong>思考：</strong>这些模式是如何自动形成的？</p>
+            </div>
+
+            <div class="tip success mt-4">
+                <span class="tip-icon">✨</span>
+                <strong>革命性创新</strong>
+                <p class="mt-2">
+                    自注意力机制让每个词都能"看到"整个句子，打破了RNN的顺序限制。
+                    这不仅提高了并行度，更重要的是增强了模型的表达能力！
+                </p>
+            </div>
+        </section>
+
+        <!-- Transformer诞生 -->
+        <section id="transformer-intro" class="section-card">
+            <h2>🚀 Transformer的诞生</h2>
+
+            <div class="story-card">
+                <span class="story-icon">⚡</span>
+                <p><strong>"Attention is All You Need"</strong></p>
+                <p class="mt-2">
+                    2017年，Google团队提出了一个大胆的想法：
+                    既然注意力机制这么强大，为什么不完全抛弃RNN和CNN，只用注意力？
+                </p>
+                <p class="mt-3" style="text-align: center; font-size: 1.2rem; color: var(--primary-light);">
+                    结果：Transformer横空出世，开启了NLP的新纪元！
+                </p>
+            </div>
+
+            <div class="deep-think-box">
+                <h4>Transformer的核心创新</h4>
+                <div class="think-item">
+                    <h5>🏗️ 纯注意力架构</h5>
+                    <ul>
+                        <li>没有RNN，没有CNN</li>
+                        <li>只有注意力和前馈网络</li>
+                        <li>极致的并行化</li>
+                    </ul>
+                </div>
+                <div class="think-item">
+                    <h5>🔧 关键组件</h5>
+                    <ul>
+                        <li><strong>多头注意力：</strong>从多个角度理解信息</li>
+                        <li><strong>位置编码：</strong>弥补没有顺序信息的缺陷</li>
+                        <li><strong>残差连接：</strong>让深层网络易于训练</li>
+                        <li><strong>层归一化：</strong>稳定训练过程</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="transformer-architecture">
+                <h3 class="text-center mb-3" style="color: var(--primary-light);">Transformer整体架构</h3>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+                    <div>
+                        <h4 class="text-center mb-3">编码器（Encoder）</h4>
+                        <div class="architecture-component">
+                            <h5>输入嵌入 + 位置编码</h5>
+                            <p>将词转换为向量，加入位置信息</p>
+                        </div>
+                        <div class="architecture-component">
+                            <h5>多头自注意力</h5>
+                            <p>理解输入序列的内部关系</p>
+                        </div>
+                        <div class="architecture-component">
+                            <h5>前馈网络</h5>
+                            <p>对每个位置独立处理</p>
+                        </div>
+                        <p class="text-center mt-2 text-muted">× N层</p>
+                    </div>
+
+                    <div>
+                        <h4 class="text-center mb-3">解码器（Decoder）</h4>
+                        <div class="architecture-component">
+                            <h5>输出嵌入 + 位置编码</h5>
+                            <p>目标序列的向量表示</p>
+                        </div>
+                        <div class="architecture-component">
+                            <h5>掩码多头自注意力</h5>
+                            <p>防止看到未来信息</p>
+                        </div>
+                        <div class="architecture-component">
+                            <h5>编码器-解码器注意力</h5>
+                            <p>关注编码器的输出</p>
+                        </div>
+                        <div class="architecture-component">
+                            <h5>前馈网络</h5>
+                            <p>最终的特征变换</p>
+                        </div>
+                        <p class="text-center mt-2 text-muted">× N层</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="comparison-table mt-4">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>特性</th>
+                        <th>RNN</th>
+                        <th>CNN</th>
+                        <th>Transformer</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td>并行化</td>
+                        <td>❌ 必须顺序</td>
+                        <td>✅ 可并行</td>
+                        <td>✅ 完全并行</td>
+                    </tr>
+                    <tr>
+                        <td>长距离依赖</td>
+                        <td>😐 困难</td>
+                        <td>😐 受限于卷积核</td>
+                        <td>✅ 直接建模</td>
+                    </tr>
+                    <tr>
+                        <td>计算复杂度</td>
+                        <td>O(n)</td>
+                        <td>O(n×k)</td>
+                        <td>O(n²)</td>
+                    </tr>
+                    <tr>
+                        <td>可解释性</td>
+                        <td>😐 隐藏状态</td>
+                        <td>😐 特征图</td>
+                        <td>✅ 注意力权重</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="think-box mt-4">
+                <h4>🤔 深入思考</h4>
+                <ul>
+                    <li>为什么Transformer的计算复杂度是O(n²)？这会带来什么问题？</li>
+                    <li>完全没有递归结构，如何保证输出的连贯性？</li>
+                    <li>为什么Transformer特别适合预训练？</li>
+                </ul>
+            </div>
+
+            <div class="explore-box mt-4">
+                <h4>历史时刻：影响力</h4>
+                <p><strong>Transformer带来的革命：</strong></p>
+                <ul>
+                    <li><strong>2018：</strong>BERT刷新11项NLP任务记录</li>
+                    <li><strong>2019：</strong>GPT-2展示惊人的生成能力</li>
+                    <li><strong>2020：</strong>GPT-3达到1750亿参数</li>
+                    <li><strong>2022：</strong>ChatGPT引爆AI应用</li>
+                    <li><strong>现在：</strong>几乎所有大模型都基于Transformer</li>
+                </ul>
+                <p class="mt-3" style="text-align: center; font-size: 1.1rem; color: var(--warning);">
+                    <strong>一个架构，改变了整个AI领域！</strong>
+                </p>
+            </div>
+        </section>
+
+        <!-- 架构详解 -->
+        <section id="transformer-architecture" class="section-card">
+            <h2>🏛️ Transformer架构详解</h2>
+
+            <div class="story-card">
+                <span class="story-icon">🔧</span>
+                <p><strong>精密的机器</strong></p>
+                <p class="mt-2">
+                    Transformer就像一台精密的机器，每个组件都经过精心设计。
+                    让我们拆解这台机器，看看每个零件是如何工作的。
+                </p>
+            </div>
+
+            <div class="algorithm-steps">
+                <div class="step-item">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <h5>输入处理层</h5>
+                        <p>将文本转换为模型能理解的形式</p>
+
+                        <div class="code-block mt-3">
+                            <div class="code-header">
+                                <span class="code-lang">组件详解</span>
+                            </div>
+                            <div class="code-content">
+                                <pre><span class="comment"># 1. 词嵌入（Word Embedding）</span>
+输入: "我爱你" → [101, 2769, 3221, 102]（词ID）
+嵌入: 每个ID → 512维向量
+
+<span class="comment"># 2. 位置编码（Positional Encoding）</span>
+位置0: PE(0) = [sin(0), cos(0), sin(0/100), ...]
+位置1: PE(1) = [sin(1), cos(1), sin(1/100), ...]
+
+<span class="comment"># 3. 相加</span>
+最终输入 = 词嵌入 + 位置编码</pre>
+                            </div>
+                        </div>
+
+                        <div class="think-box mt-3">
+                            <h4>🤔 为什么要加位置编码？</h4>
+                            <ul>
+                                <li>自注意力没有顺序概念</li>
+                                <li>"我爱你"和"你爱我"的词嵌入相同</li>
+                                <li>位置编码提供了顺序信息</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="step-item">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <h5>编码器层（Encoder Layer）</h5>
+                        <p>Transformer的核心处理单元</p>
+
+                        <div class="demo-container mt-3">
+                            <h6>子层1：多头自注意力</h6>
+                            <ul>
+                                <li>输入：X</li>
+                                <li>处理：MultiHeadAttention(X, X, X)</li>
+                                <li>输出：注意力加权后的表示</li>
+                            </ul>
+
+                            <h6 class="mt-3">子层2：前馈网络</h6>
+                            <ul>
+                                <li>两层全连接：FFN(x) = ReLU(xW₁ + b₁)W₂ + b₂</li>
+                                <li>中间层通常是4×隐藏层大小（如2048）</li>
+                                <li>对每个位置独立处理</li>
+                            </ul>
+
+                            <h6 class="mt-3">关键技巧</h6>
+                            <ul>
+                                <li><strong>残差连接：</strong>output = LayerNorm(x + Sublayer(x))</li>
+                                <li><strong>层归一化：</strong>稳定训练，加速收敛</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="step-item">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <h5>解码器层（Decoder Layer）</h5>
+                        <p>生成输出的核心组件</p>
+
+                        <div class="info-card">
+                            <h6>三个子层：</h6>
+                            <ol>
+                                <li><strong>掩码自注意力：</strong>防止看到未来的词</li>
+                                <li><strong>交叉注意力：</strong>关注编码器输出</li>
+                                <li><strong>前馈网络：</strong>同编码器</li>
+                            </ol>
+
+                            <div class="tip warning mt-3">
+                                <span class="tip-icon">⚠️</span>
+                                <strong>掩码的重要性</strong>
+                                <p class="mt-2">
+                                    训练时，模型能看到完整的目标序列。
+                                    掩码确保在预测第i个词时，只能看到前i-1个词。
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="code-block mt-4">
+                <div class="code-header">
+                    <span class="code-lang">Python - 完整的Transformer块</span>
+                    <div class="code-actions">
+                        <button class="code-btn" onclick="toggleCode(this)">展开</button>
+                        <button class="code-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+                </div>
+                <div class="code-content collapsed">
+                    <pre><span class="keyword">class</span> <span class="function">TransformerBlock</span>(nn.Module):
+    <span class="keyword">def</span> <span class="function">__init__</span>(self, embed_size, heads, dropout, forward_expansion):
+        super(TransformerBlock, self).__init__()
+        self.attention = SelfAttention(embed_size, heads)
+        self.norm1 = nn.LayerNorm(embed_size)
+        self.norm2 = nn.LayerNorm(embed_size)
+
+        <span class="comment"># 前馈网络</span>
+        self.feed_forward = nn.Sequential(
+            nn.Linear(embed_size, forward_expansion * embed_size),
+            nn.ReLU(),
+            nn.Linear(forward_expansion * embed_size, embed_size)
+        )
+
+        self.dropout = nn.Dropout(dropout)
+
+    <span class="keyword">def</span> <span class="function">forward</span>(self, value, key, query, mask=None):
+        <span class="comment"># 1. 多头自注意力</span>
+        attention = self.attention(value, key, query, mask)
+
+        <span class="comment"># 2. 残差连接 + 层归一化</span>
+        x = self.norm1(attention + query)
+        x = self.dropout(x)
+
+        <span class="comment"># 3. 前馈网络</span>
+        forward = self.feed_forward(x)
+
+        <span class="comment"># 4. 残差连接 + 层归一化</span>
+        out = self.norm2(forward + x)
+        out = self.dropout(out)
+
+        <span class="keyword">return</span> out
+
+<span class="keyword">class</span> <span class="function">Encoder</span>(nn.Module):
+    <span class="keyword">def</span> <span class="function">__init__</span>(self,
+                 src_vocab_size,
+                 embed_size,
+                 num_layers,
+                 heads,
+                 device,
+                 forward_expansion,
+                 dropout,
+                 max_length):
+        super(Encoder, self).__init__()
+        self.embed_size = embed_size
+        self.device = device
+
+        <span class="comment"># 词嵌入</span>
+        self.word_embedding = nn.Embedding(src_vocab_size, embed_size)
+
+        <span class="comment"># 位置编码</span>
+        self.position_embedding = nn.Embedding(max_length, embed_size)
+
+        <span class="comment"># N个编码器层</span>
+        self.layers = nn.ModuleList([
+            TransformerBlock(
+                embed_size,
+                heads,
+                dropout=dropout,
+                forward_expansion=forward_expansion
+            )
+            <span class="keyword">for</span> _ <span class="keyword">in</span> range(num_layers)
+        ])
+
+        self.dropout = nn.Dropout(dropout)
+
+    <span class="keyword">def</span> <span class="function">forward</span>(self, x, mask=None):
+        batch_size, seq_length = x.shape
+
+        <span class="comment"># 生成位置索引</span>
+        positions = torch.arange(0, seq_length).expand(batch_size, seq_length).to(self.device)
+
+        <span class="comment"># 嵌入 + 位置编码</span>
+        out = self.word_embedding(x) + self.position_embedding(positions)
+        out = self.dropout(out)
+
+        <span class="comment"># 通过N个编码器层</span>
+        <span class="keyword">for</span> layer <span class="keyword">in</span> self.layers:
+            out = layer(out, out, out, mask)
+
+        <span class="keyword">return</span> out</pre>
+                </div>
+            </div>
+
+            <div class="deep-think-box mt-4">
+                <h4>架构设计的智慧</h4>
+                <div class="think-item">
+                    <h5>🔄 残差连接的必要性</h5>
+                    <p>为什么每个子层都需要残差连接？</p>
+                    <ul>
+                        <li>缓解梯度消失（深层网络的通病）</li>
+                        <li>让模型可以"选择"使用或跳过某层</li>
+                        <li>保留原始信息，防止信息损失</li>
+                    </ul>
+                </div>
+                <div class="think-item">
+                    <h5>📊 层归一化 vs 批归一化</h5>
+                    <p>为什么选择LayerNorm而不是BatchNorm？</p>
+                    <ul>
+                        <li>序列长度可变，批归一化不稳定</li>
+                        <li>层归一化对每个样本独立，更适合NLP</li>
+                        <li>训练和推理行为一致</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="explore-box mt-4">
+                <h4>实验：层数的影响</h4>
+                <p><strong>不同模型的层数：</strong></p>
+                <ul>
+                    <li>BERT-Base: 12层</li>
+                    <li>BERT-Large: 24层</li>
+                    <li>GPT-3: 96层</li>
+                </ul>
+                <p class="mt-3"><strong>观察：</strong></p>
+                <ul>
+                    <li>更深的模型通常性能更好</li>
+                    <li>但训练难度和计算成本急剧增加</li>
+                    <li>需要更多技巧（如渐进式训练）</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- 多头注意力 -->
+        <section id="multi-head" class="section-card">
+            <h2>🎭 多头注意力机制</h2>
+
+            <div class="story-card">
+                <span class="story-icon">👥</span>
+                <p><strong>团队的力量</strong></p>
+                <p class="mt-2">
+                    想象一个团队在分析一份文档：律师关注法律条款，会计关注数字，
+                    市场人员关注客户需求。多头注意力就是让模型同时从多个角度理解信息！
+                </p>
+            </div>
+
+            <div class="deep-think-box">
+                <h4>为什么需要"多头"？</h4>
+                <div class="think-item">
+                    <h5>🎯 不同的关注点</h5>
+                    <p>单一的注意力可能过于局限：</p>
+                    <ul>
+                        <li>头1：关注语法关系（主谓宾）</li>
+                        <li>头2：关注语义相似性</li>
+                        <li>头3：关注位置关系</li>
+                        <li>头4：关注特定模式（如否定词）</li>
+                    </ul>
+                </div>
+                <div class="think-item">
+                    <h5>💡 表达能力</h5>
+                    <p>数学视角：</p>
+                    <ul>
+                        <li>单头：学习一种映射关系</li>
+                        <li>多头：学习多个子空间的映射</li>
+                        <li>组合：更丰富的表示能力</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="math-display">
+                <h4 class="mb-3" style="color: var(--primary-light);">多头注意力的数学表达</h4>
+
+                <p class="math-formula">
+                    $\text{MultiHead}(Q, K, V) = \text{Concat}(\text{head}_1, ..., \text{head}_h)W^O$
+                </p>
+                <p class="text-center">其中：</p>
+                <p class="math-formula">
+                    $\text{head}_i = \text{Attention}(QW_i^Q, KW_i^K, VW_i^V)$
+                </p>
+
+                <div class="formula-explanation">
+                    <h5>📖 公式解读</h5>
+
+                    <table class="formula-table">
+                        <tr>
+                            <td class="formula-part">$W_i^Q, W_i^K, W_i^V$</td>
+                            <td class="formula-meaning">第i个头的投影矩阵，将输入投影到不同子空间</td>
+                        </tr>
+                        <tr>
+                            <td class="formula-part">$\text{head}_i$</td>
+                            <td class="formula-meaning">第i个注意力头的输出</td>
+                        </tr>
+                        <tr>
+                            <td class="formula-part">Concat</td>
+                            <td class="formula-meaning">将所有头的输出拼接起来</td>
+                        </tr>
+                        <tr>
+                            <td class="formula-part">$W^O$</td>
+                            <td class="formula-meaning">输出投影矩阵，整合所有头的信息</td>
+                        </tr>
+                    </table>
+
+                    <div class="demo-container mt-3">
+                        <p><strong>维度变化示例（8头注意力）：</strong></p>
+                        <pre style="background: var(--bg-code); padding: 1rem; border-radius: 0.5rem; color: #e6edf3;">
+输入: [batch, seq_len, 512]
+↓ 分成8个头
+每个头: [batch, seq_len, 64]  (512 ÷ 8 = 64)
+↓ 各自计算注意力
+每个头输出: [batch, seq_len, 64]
+↓ 拼接
+拼接结果: [batch, seq_len, 512]  (64 × 8 = 512)
+↓ 输出投影
+最终输出: [batch, seq_len, 512]</pre>
+                    </div>
+                </div>
+            </div>
+
+            <div class="attention-visualization mt-4">
+                <h3 class="text-center mb-3" style="color: var(--primary-light);">多头注意力可视化</h3>
+
+                <p class="text-center mb-3">句子："The cat sat on the mat" 的不同注意力头</p>
+
+                <div class="card-grid">
+                    <div class="info-card">
+                        <h5 class="card-title">Head 1: 语法关系</h5>
+                        <div style="text-align: center;">
+                            <p>The → cat (冠词→名词)</p>
+                            <p>cat → sat (主语→动词)</p>
+                            <p>on → mat (介词→名词)</p>
+                        </div>
+                    </div>
+
+                    <div class="info-card">
+                        <h5 class="card-title">Head 2: 局部关系</h5>
+                        <div style="text-align: center;">
+                            <p>每个词主要关注相邻词</p>
+                            <p>The ↔ cat</p>
+                            <p>the ↔ mat</p>
+                        </div>
+                    </div>
+
+                    <div class="info-card">
+                        <h5 class="card-title">Head 3: 主题词</h5>
+                        <div style="text-align: center;">
+                            <p>所有词都关注"cat"</p>
+                            <p>（识别句子主语）</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tip info mt-3">
+                    <span class="tip-icon">💡</span>
+                    <strong>关键洞察</strong>
+                    <p class="mt-2">
+                        不同的头学会了不同的语言模式，它们的组合提供了丰富的语言理解能力。
+                        这就像一个专家团队，每个专家负责不同方面！
+                    </p>
+                </div>
+            </div>
+
+            <div class="code-block mt-4">
+                <div class="code-header">
+                    <span class="code-lang">Python - 多头注意力实现核心</span>
+                </div>
+                <div class="code-content">
+                    <pre><span class="keyword">def</span> <span class="function">multi_head_attention</span>(query, key, value, num_heads):
+    <span class="string">"""简化的多头注意力实现"""</span>
+    batch_size, seq_len, d_model = query.shape
+    d_k = d_model // num_heads
+
+    <span class="comment"># 1. 线性变换并分头</span>
+    Q = query.view(batch_size, seq_len, num_heads, d_k).transpose(1, 2)
+    K = key.view(batch_size, seq_len, num_heads, d_k).transpose(1, 2)
+    V = value.view(batch_size, seq_len, num_heads, d_k).transpose(1, 2)
+    <span class="comment"># 现在: [batch, heads, seq_len, d_k]</span>
+
+    <span class="comment"># 2. 计算注意力（每个头独立）</span>
+    scores = torch.matmul(Q, K.transpose(-2, -1)) / math.sqrt(d_k)
+    attention_weights = F.softmax(scores, dim=-1)
+    context = torch.matmul(attention_weights, V)
+
+    <span class="comment"># 3. 合并多头</span>
+    context = context.transpose(1, 2).contiguous().view(
+        batch_size, seq_len, d_model
+    )
+
+    return context</pre>
+                </div>
+            </div>
+
+            <div class="deep-think-box mt-4">
+                <h4>多头注意力的优势</h4>
+                <div class="think-item">
+                    <h5>📊 并行学习不同的表示</h5>
+                    <p>8个头可能学到：</p>
+                    <ul>
+                        <li>语法依赖（主谓宾结构）</li>
+                        <li>局部上下文（相邻词关系）</li>
+                        <li>长距离依赖（指代关系）</li>
+                        <li>语义相似性（同义词）</li>
+                    </ul>
+                </div>
+                <div class="think-item">
+                    <h5>🔧 计算效率</h5>
+                    <p>虽然有多个头，但总计算量不变：</p>
+                    <ul>
+                        <li>每个头的维度 = 总维度 ÷ 头数</li>
+                        <li>8个64维的头 = 1个512维的头</li>
+                        <li>但表达能力更强！</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="explore-box mt-4">
+                <h4>实验：头数的选择</h4>
+                <p><strong>常见的头数配置：</strong></p>
+                <ul>
+                    <li>小模型：4-8头</li>
+                    <li>BERT/GPT-2：12-16头</li>
+                    <li>大模型：32-64头</li>
+                </ul>
+                <p class="mt-3"><strong>权衡：</strong></p>
+                <ul>
+                    <li>头太少：表达能力不足</li>
+                    <li>头太多：每个头维度太小，难以学习有意义的模式</li>
+                    <li>经验法则：确保每个头至少有64维</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- 位置编码 -->
+        <section id="positional-encoding" class="section-card">
+            <h2>📍 位置编码</h2>
+
+            <div class="story-card">
+                <span class="story-icon">🗺️</span>
+                <p><strong>给词语一个"GPS坐标"</strong></p>
+                <p class="mt-2">
+                    自注意力机制没有位置概念，"我爱你"和"你爱我"看起来一样。
+                    位置编码就像给每个词加上GPS坐标，让模型知道谁在前谁在后。
+                </p>
+            </div>
+
+            <div class="deep-think-box">
+                <h4>为什么需要位置编码？</h4>
+                <div class="think-item">
+                    <h5>🔄 自注意力的"健忘症"</h5>
+                    <p>考虑两个句子：</p>
+                    <ul>
+                        <li>"猫追老鼠" vs "老鼠追猫"</li>
+                        <li>词相同，但意思完全不同</li>
+                        <li>区别在于：位置！</li>
+                    </ul>
+                </div>
+                <div class="think-item">
+                    <h5>🎯 设计要求</h5>
+                    <p>好的位置编码需要：</p>
+                    <ul>
+                        <li>能区分不同位置</li>
+                        <li>能推广到任意长度</li>
+                        <li>能表达相对位置关系</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="math-display">
+                <h4 class="mb-3" style="color: var(--primary-light);">Transformer的位置编码公式</h4>
+
+                <p class="math-formula">
+                    $PE_{(pos,2i)} = \sin\left(\frac{pos}{10000^{2i/d_{model}}}\right)$
+                </p>
+                <p class="math-formula">
+                    $PE_{(pos,2i+1)} = \cos\left(\frac{pos}{10000^{2i/d_{model}}}\right)$
+                </p>
+
+                <div class="formula-explanation">
+                    <h5>📖 公式解读</h5>
+
+                    <table class="formula-table">
+                        <tr>
+                            <td class="formula-part">$pos$</td>
+                            <td class="formula-meaning">词在句子中的位置（0, 1, 2, ...）</td>
+                        </tr>
+                        <tr>
+                            <td class="formula-part">$i$</td>
+                            <td class="formula-meaning">维度索引（0到d_model/2）</td>
+                        </tr>
+                        <tr>
+                            <td class="formula-part">$d_{model}$</td>
+                            <td class="formula-meaning">嵌入维度（如512）</td>
+                        </tr>
+                        <tr>
+                            <td class="formula-part">sin/cos</td>
+                            <td class="formula-meaning">正弦用于偶数维度，余弦用于奇数维度</td>
+                        </tr>
+                    </table>
+
+                    <div class="demo-container mt-3">
+                        <h5>🎨 位置编码可视化</h5>
+                        <p>不同位置的编码模式（前8个维度）：</p>
+                        <div style="display: grid; grid-template-columns: auto repeat(8, 1fr); gap: 0.25rem; font-size: 0.875rem;">
+                            <div style="padding: 0.5rem;">位置</div>
+                            <div style="text-align: center; color: var(--text-muted);">dim0</div>
+                            <div style="text-align: center; color: var(--text-muted);">dim1</div>
+                            <div style="text-align: center; color: var(--text-muted);">dim2</div>
+                            <div style="text-align: center; color: var(--text-muted);">dim3</div>
+                            <div style="text-align: center; color: var(--text-muted);">dim4</div>
+                            <div style="text-align: center; color: var(--text-muted);">dim5</div>
+                            <div style="text-align: center; color: var(--text-muted);">dim6</div>
+                            <div style="text-align: center; color: var(--text-muted);">dim7</div>
+
+                            <div style="padding: 0.5rem;">0</div>
+                            <div class="weight-cell" style="background: rgba(255, 107, 107, 0);">0.00</div>
+                            <div class="weight-cell" style="background: rgba(78, 205, 196, 1);">1.00</div>
+                            <div class="weight-cell" style="background: rgba(255, 107, 107, 0);">0.00</div>
+                            <div class="weight-cell" style="background: rgba(78, 205, 196, 1);">1.00</div>
+                            <div class="weight-cell" style="background: rgba(255, 107, 107, 0);">0.00</div>
+                            <div class="weight-cell" style="background: rgba(78, 205, 196, 1);">1.00</div>
+                            <div class="weight-cell" style="background: rgba(255, 107, 107, 0);">0.00</div>
+                            <div class="weight-cell" style="background: rgba(78, 205, 196, 1);">1.00</div>
+
+                            <div style="padding: 0.5rem;">1</div>
+                            <div class="weight-cell" style="background: rgba(255, 107, 107, 0.8);">0.84</div>
+                            <div class="weight-cell" style="background: rgba(78, 205, 196, 0.5);">0.54</div>
+                            <div class="weight-cell" style="background: rgba(255, 107, 107, 0.1);">0.10</div>
+                            <div class="weight-cell" style="background: rgba(78, 205, 196, 0.99);">0.99</div>
+                            <div class="weight-cell" style="background: rgba(255, 107, 107, 0.01);">0.01</div>
+                            <div class="weight-cell" style="background: rgba(78, 205, 196, 1);">1.00</div>
+                            <div class="weight-cell" style="background: rgba(255, 107, 107, 0);">0.00</div>
+                            <div class="weight-cell" style="background: rgba(78, 205, 196, 1);">1.00</div>
+                        </div>
+                        <p class="text-center mt-2 text-muted">红色=sin值，青色=cos值</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="code-block mt-4">
+                <div class="code-header">
+                    <span class="code-lang">Python - 位置编码实现</span>
+                </div>
+                <div class="code-content">
+                    <pre><span class="keyword">import</span> numpy <span class="keyword">as</span> np
+<span class="keyword">import</span> torch
+
+<span class="keyword">def</span> <span class="function">get_positional_encoding</span>(seq_len, d_model):
+    <span class="string">"""
+    生成位置编码
+    seq_len: 序列长度
+    d_model: 模型维度
+    """</span>
+    pe = torch.zeros(seq_len, d_model)
+    position = torch.arange(0, seq_len).unsqueeze(1).float()
+
+    <span class="comment"># 创建一个几何级数：1, 1/10000^(2/d_model), 1/10000^(4/d_model), ...</span>
+    div_term = torch.exp(torch.arange(0, d_model, 2).float() *
+                        -(np.log(10000.0) / d_model))
+
+    <span class="comment"># 计算位置编码</span>
+    pe[:, 0::2] = torch.sin(position * div_term)  <span class="comment"># 偶数维度</span>
+    pe[:, 1::2] = torch.cos(position * div_term)  <span class="comment"># 奇数维度</span>
+
+    <span class="keyword">return</span> pe
+
+<span class="comment"># 可视化位置编码的特性</span>
+<span class="keyword">def</span> <span class="function">visualize_positional_encoding</span>():
+    pe = get_positional_encoding(100, 512)
+
+    <span class="comment"># 观察1：不同位置的编码是唯一的</span>
+    print(<span class="string">"位置0和位置1的相似度:"</span>,
+          torch.cosine_similarity(pe[0], pe[1], dim=0).item())
+
+    <span class="comment"># 观察2：相对位置信息被保留</span>
+    <span class="comment"># PE(pos+k) 可以表示为 PE(pos) 和 PE(k) 的线性组合</span>
+    print(<span class="string">"位置编码允许模型学习相对位置!"</span>)</pre>
+                </div>
+            </div>
+
+            <div class="deep-think-box mt-4">
+                <h4>位置编码的巧妙之处</h4>
+                <div class="think-item">
+                    <h5>🌊 为什么用正弦/余弦？</h5>
+                    <ul>
+                        <li>周期性：可以推广到任意长度</li>
+                        <li>相对位置：sin(x+k)可以用sin(x)和cos(x)线性表示</li>
+                        <li>平滑变化：相邻位置的编码相似</li>
+                    </ul>
+                </div>
+                <div class="think-item">
+                    <h5>🎛️ 不同频率的作用</h5>
+                    <ul>
+                        <li>低频（大波长）：捕捉全局位置</li>
+                        <li>高频（小波长）：区分相邻位置</li>
+                        <li>组合使用：精确定位每个位置</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="explore-box mt-4">
+                <h4>其他位置编码方案</h4>
+                <ol>
+                    <li><strong>可学习位置编码：</strong>
+                        <ul>
+                            <li>每个位置一个可训练的向量</li>
+                            <li>优点：灵活，可以学习任意模式</li>
+                            <li>缺点：不能推广到训练时没见过的长度</li>
+                        </ul>
+                    </li>
+                    <li><strong>相对位置编码：</strong>
+                        <ul>
+                            <li>直接建模位置差异</li>
+                            <li>更适合某些任务</li>
+                            <li>计算更复杂</li>
+                        </ul>
+                    </li>
+                </ol>
+            </div>
+
+            <div class="tip success mt-4">
+                <span class="tip-icon">✨</span>
+                <strong>精妙设计</strong>
+                <p class="mt-2">
+                    位置编码虽然看起来简单，但它巧妙地解决了自注意力的根本缺陷。
+                    正弦/余弦编码不仅能区分位置，还能表达相对关系，真是一举两得！
+                </p>
+            </div>
+        </section>
+
+        <!-- 训练技巧 -->
+        <section id="training" class="section-card">
+            <h2>🎯 训练技巧</h2>
+
+            <div class="story-card">
+                <span class="story-icon">🏋️</span>
+                <p><strong>训练Transformer的艺术</strong></p>
+                <p class="mt-2">
+                    Transformer虽然强大，但训练起来充满挑战。
+                    就像训练一匹烈马，需要技巧、耐心和正确的方法。
+                </p>
+            </div>
+
+            <div class="algorithm-steps">
+                <div class="step-item">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <h5>学习率调度（Learning Rate Schedule）</h5>
+                        <p>Transformer使用特殊的学习率调度策略</p>
+
+                        <div class="math-display mt-3">
+                            <p class="math-formula">
+                                $lr = d_{model}^{-0.5} \cdot \min(step^{-0.5}, step \cdot warmup\_steps^{-1.5})$
+                            </p>
+                        </div>
+
+                        <div class="demo-container mt-3">
+                            <h6>Warmup的重要性：</h6>
+                            <ul>
+                                <li>开始时学习率线性增长（warmup）</li>
+                                <li>达到峰值后按步数平方根衰减</li>
+                                <li>防止训练初期的不稳定</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="step-item">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <h5>梯度裁剪（Gradient Clipping）</h5>
+                        <p>防止梯度爆炸</p>
+
+                        <div class="code-block mt-3">
+                            <div class="code-header">
+                                <span class="code-lang">实现示例</span>
+                            </div>
+                            <div class="code-content">
+                                <pre><span class="comment"># 梯度裁剪</span>
+torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+
+<span class="comment"># 为什么重要？</span>
+<span class="comment"># 1. Transformer有很多矩阵乘法</span>
+<span class="comment"># 2. 深层网络容易梯度爆炸</span>
+<span class="comment"># 3. 注意力的softmax可能产生极端值</span></pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="step-item">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <h5>标签平滑（Label Smoothing）</h5>
+                        <p>防止过拟合，提高泛化能力</p>
+
+                        <div class="info-card">
+                            <h6>原理：</h6>
+                            <ul>
+                                <li>不使用硬标签[0, 0, 1, 0]</li>
+                                <li>使用软标签[0.025, 0.025, 0.9, 0.025]</li>
+                                <li>防止模型过于自信</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="deep-think-box mt-4">
+                <h4>高级训练技巧</h4>
+                <div class="think-item">
+                    <h5>🎲 Dropout策略</h5>
+                    <ul>
+                        <li>注意力dropout：随机丢弃注意力权重</li>
+                        <li>残差dropout：在残差连接前</li>
+                        <li>嵌入dropout：在位置编码后</li>
+                        <li>典型值：0.1（不要太大）</li>
+                    </ul>
+                </div>
+                <div class="think-item">
+                    <h5>⚡ 混合精度训练</h5>
+                    <ul>
+                        <li>使用FP16计算，FP32累积</li>
+                        <li>速度提升2-3倍</li>
+                        <li>需要loss scaling防止下溢</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="comparison-table mt-4">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>技巧</th>
+                        <th>目的</th>
+                        <th>效果</th>
+                        <th>注意事项</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td>Warmup</td>
+                        <td>稳定初期训练</td>
+                        <td>✅ 必要</td>
+                        <td>4000步通常足够</td>
+                    </tr>
+                    <tr>
+                        <td>梯度累积</td>
+                        <td>模拟大batch</td>
+                        <td>✅ 内存受限时</td>
+                        <td>等效于大batch</td>
+                    </tr>
+                    <tr>
+                        <td>层归一化</td>
+                        <td>稳定激活值</td>
+                        <td>✅ 标配</td>
+                        <td>Pre-LN vs Post-LN</td>
+                    </tr>
+                    <tr>
+                        <td>权重初始化</td>
+                        <td>防止梯度问题</td>
+                        <td>✅ Xavier/He</td>
+                        <td>根据激活函数选择</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="explore-box mt-4">
+                <h4>调试技巧</h4>
+                <p><strong>常见问题及解决方案：</strong></p>
+                <ol>
+                    <li><strong>Loss不下降：</strong>
+                        <ul>
+                            <li>检查学习率（可能太大或太小）</li>
+                            <li>检查数据预处理</li>
+                            <li>先在小数据集上过拟合</li>
+                        </ul>
+                    </li>
+                    <li><strong>梯度爆炸/消失：</strong>
+                        <ul>
+                            <li>使用梯度裁剪</li>
+                            <li>检查初始化</li>
+                            <li>减少层数先调试</li>
+                        </ul>
+                    </li>
+                    <li><strong>显存不足：</strong>
+                        <ul>
+                            <li>梯度累积</li>
+                            <li>减小序列长度</li>
+                            <li>使用混合精度</li>
+                        </ul>
+                    </li>
+                </ol>
+            </div>
+        </section>
+
+        <!-- 实际应用 -->
+        <section id="applications" class="section-card">
+            <h2>💼 实际应用</h2>
+
+            <div class="story-card">
+                <span class="story-icon">🌍</span>
+                <p><strong>改变世界的应用</strong></p>
+                <p class="mt-2">
+                    从机器翻译到ChatGPT，Transformer已经渗透到NLP的方方面面。
+                    让我们看看这个架构是如何改变世界的。
+                </p>
+            </div>
+
+            <div class="card-grid">
+                <div class="info-card">
+                    <span class="card-icon">🌐</span>
+                    <h4 class="card-title">机器翻译</h4>
+                    <p>Transformer的第一个杀手级应用</p>
+                    <ul class="mt-2">
+                        <li>Google翻译的核心</li>
+                        <li>支持100+语言</li>
+                        <li>接近人类翻译水平</li>
+                    </ul>
+                </div>
+
+                <div class="info-card">
+                    <span class="card-icon">💬</span>
+                    <h4 class="card-title">对话系统</h4>
+                    <p>ChatGPT等对话AI的基础</p>
+                    <ul class="mt-2">
+                        <li>理解上下文</li>
+                        <li>生成连贯回复</li>
+                        <li>多轮对话能力</li>
+                    </ul>
+                </div>
+
+                <div class="info-card">
+                    <span class="card-icon">📝</span>
+                    <h4 class="card-title">文本生成</h4>
+                    <p>创作助手和内容生成</p>
+                    <ul class="mt-2">
+                        <li>文章写作</li>
+                        <li>代码生成</li>
+                        <li>创意写作</li>
+                    </ul>
+                </div>
+
+                <div class="info-card">
+                    <span class="card-icon">🔍</span>
+                    <h4 class="card-title">信息抽取</h4>
+                    <p>从文本中提取结构化信息</p>
+                    <ul class="mt-2">
+                        <li>命名实体识别</li>
+                        <li>关系抽取</li>
+                        <li>事件检测</li>
+                    </ul>
+                </div>
+
+                <div class="info-card">
+                    <span class="card-icon">❓</span>
+                    <h4 class="card-title">问答系统</h4>
+                    <p>理解问题，精准回答</p>
+                    <ul class="mt-2">
+                        <li>阅读理解</li>
+                        <li>知识问答</li>
+                        <li>多跳推理</li>
+                    </ul>
+                </div>
+
+                <div class="info-card">
+                    <span class="card-icon">🎯</span>
+                    <h4 class="card-title">文本分类</h4>
+                    <p>情感分析和主题分类</p>
+                    <ul class="mt-2">
+                        <li>情感分析</li>
+                        <li>垃圾邮件检测</li>
+                        <li>新闻分类</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="demo-container mt-4">
+                <h3 class="mb-3">🚀 代表性模型时间线</h3>
+
+                <div class="algorithm-steps">
+                    <div class="step-item">
+                        <div class="step-number">2017</div>
+                        <div class="step-content">
+                            <h5>Transformer</h5>
+                            <p>开山之作，"Attention is All You Need"</p>
+                        </div>
+                    </div>
+
+                    <div class="step-item">
+                        <div class="step-number">2018</div>
+                        <div class="step-content">
+                            <h5>BERT</h5>
+                            <p>双向预训练，11个NLP任务SOTA</p>
+                        </div>
+                    </div>
+
+                    <div class="step-item">
+                        <div class="step-number">2019</div>
+                        <div class="step-content">
+                            <h5>GPT-2</h5>
+                            <p>展示了大规模语言模型的潜力</p>
+                        </div>
+                    </div>
+
+                    <div class="step-item">
+                        <div class="step-number">2020</div>
+                        <div class="step-content">
+                            <h5>GPT-3</h5>
+                            <p>1750亿参数，few-shot学习能力</p>
+                        </div>
+                    </div>
+
+                    <div class="step-item">
+                        <div class="step-number">2022</div>
+                        <div class="step-content">
+                            <h5>ChatGPT</h5>
+                            <p>对话式AI，改变人机交互</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="think-box mt-4">
+                <h4>🤔 应用中的挑战</h4>
+                <ul>
+                    <li><strong>计算成本：</strong>O(n²)的复杂度限制了序列长度</li>
+                    <li><strong>可解释性：</strong>黑盒模型，难以解释决策过程</li>
+                    <li><strong>偏见问题：</strong>可能学习到训练数据中的偏见</li>
+                    <li><strong>幻觉问题：</strong>有时会生成看似合理但错误的内容</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- BERT与GPT -->
+        <section id="bert-gpt" class="section-card">
+            <h2>🎭 BERT与GPT：两大流派</h2>
+
+            <div class="story-card">
+                <span class="story-icon">⚔️</span>
+                <p><strong>两种哲学，各有千秋</strong></p>
+                <p class="mt-2">
+                    BERT和GPT代表了Transformer的两种使用哲学：
+                    一个追求深度理解（编码器），一个追求流畅生成（解码器）。
+                </p>
+            </div>
+
+            <div class="comparison-table">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>特性</th>
+                        <th>BERT（编码器）</th>
+                        <th>GPT（解码器）</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td>架构</td>
+                        <td>只用Transformer编码器</td>
+                        <td>只用Transformer解码器</td>
+                    </tr>
+                    <tr>
+                        <td>注意力</td>
+                        <td>双向（看到全部上下文）</td>
+                        <td>单向（只看到左侧上下文）</td>
+                    </tr>
+                    <tr>
+                        <td>预训练任务</td>
+                        <td>掩码语言模型（MLM）</td>
+                        <td>下一词预测（LM）</td>
+                    </tr>
+                    <tr>
+                        <td>擅长任务</td>
+                        <td>理解类（分类、问答）</td>
+                        <td>生成类（写作、对话）</td>
+                    </tr>
+                    <tr>
+                        <td>代表模型</td>
+                        <td>BERT, RoBERTa, ELECTRA</td>
+                        <td>GPT-2, GPT-3, ChatGPT</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="deep-think-box mt-4">
+                <h4>BERT：双向理解的艺术</h4>
+                <div class="think-item">
+                    <h5>🎯 掩码语言模型（MLM）</h5>
+                    <p>训练方式：</p>
+                    <ul>
+                        <li>输入："我爱[MASK]中国"</li>
+                        <li>目标：预测[MASK]是"吃"还是"看"还是其他</li>
+                        <li>效果：学会理解上下文</li>
+                    </ul>
+                </div>
+                <div class="think-item">
+                    <h5>💡 为什么双向很重要？</h5>
+                    <p>考虑："银行"这个词</p>
+                    <ul>
+                        <li>"我去银行存钱" → 金融机构</li>
+                        <li>"我在河岸边钓鱼" → 河岸</li>
+                        <li>需要看到整个句子才能理解</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="deep-think-box mt-4">
+                <h4>GPT：生成的魔法</h4>
+                <div class="think-item">
+                    <h5>🔮 自回归生成</h5>
+                    <p>生成过程：</p>
+                    <ul>
+                        <li>输入："今天天气"</li>
+                        <li>预测下一个词："很"</li>
+                        <li>输入："今天天气很"</li>
+                        <li>预测下一个词："好"</li>
+                        <li>持续生成...</li>
+                    </ul>
+                </div>
+                <div class="think-item">
+                    <h5>🚀 规模的力量</h5>
+                    <ul>
+                        <li>GPT-2: 15亿参数</li>
+                        <li>GPT-3: 1750亿参数</li>
+                        <li>发现：规模越大，能力越强</li>
+                        <li>涌现能力：few-shot学习</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="code-block mt-4">
+                <div class="code-header">
+                    <span class="code-lang">概念对比：BERT vs GPT</span>
+                </div>
+                <div class="code-content">
+                    <pre><span class="comment"># BERT的训练</span>
+输入: "The [MASK] sat on the mat"
+任务: 预测[MASK]是什么（cat? dog? bird?）
+优势: 可以看到"sat"和"mat"，更好地推断
+
+<span class="comment"># GPT的训练</span>
+输入: "The cat"
+任务: 预测下一个词（sat? ran? jumped?）
+优势: 自然的生成顺序，适合创作
+
+<span class="comment"># 使用场景</span>
+BERT适合:
+- 文本分类："这是垃圾邮件吗？"
+- 问答："文章中谁发明了电话？"
+- 情感分析："这条评论是正面的吗？"
+
+GPT适合:
+- 文本生成："续写这个故事..."
+- 对话："回答用户的问题"
+- 代码生成："写一个排序函数"</pre>
+                </div>
+            </div>
+
+            <div class="explore-box mt-4">
+                <h4>融合的趋势</h4>
+                <p><strong>最新发展：</strong></p>
+                <ul>
+                    <li><strong>T5：</strong>统一的文本到文本框架</li>
+                    <li><strong>BART：</strong>结合BERT和GPT的优点</li>
+                    <li><strong>GLM：</strong>自回归空白填充</li>
+                </ul>
+                <p class="mt-3"><strong>趋势：</strong>界限越来越模糊，追求通用能力</p>
+            </div>
+
+            <div class="tip info mt-4">
+                <span class="tip-icon">💡</span>
+                <strong>选择建议</strong>
+                <p class="mt-2">
+                    如果你的任务需要深度理解（如情感分析、信息抽取），选择BERT类模型。
+                    如果需要生成能力（如对话、创作），选择GPT类模型。
+                    当然，现在的大模型正在融合两者的优点！
+                </p>
+            </div>
+        </section>
+
+        <!-- 本章总结 -->
+        <section id="summary" class="section-card">
+            <h2>📚 本章总结</h2>
+
+            <div class="story-card">
+                <span class="story-icon">🎓</span>
+                <p><strong>回顾与展望</strong></p>
+                <p class="mt-2">
+                    我们一起走过了Transformer的诞生、原理和应用。
+                    这个优雅的架构不仅解决了RNN的问题，更开启了AI的新时代。
+                </p>
+            </div>
+
+            <div class="deep-think-box">
+                <h4>核心要点回顾</h4>
+                <div class="think-item">
+                    <h5>🎯 注意力机制</h5>
+                    <ul>
+                        <li>本质：软字典查询（Q、K、V）</li>
+                        <li>优势：并行计算，直接建模依赖</li>
+                        <li>公式：Attention(Q,K,V) = softmax(QK^T/√d_k)V</li>
+                    </ul>
+                </div>
+                <div class="think-item">
+                    <h5>🏗️ Transformer架构</h5>
+                    <ul>
+                        <li>多头注意力：多角度理解信息</li>
+                        <li>位置编码：提供序列信息</li>
+                        <li>残差+归一化：稳定深层网络</li>
+                        <li>前馈网络：增加非线性</li>
+                    </ul>
+                </div>
+                <div class="think-item">
+                    <h5>💪 关键优势</h5>
+                    <ul>
+                        <li>完全并行化：训练效率高</li>
+                        <li>长距离依赖：不再是问题</li>
+                        <li>可解释性：注意力权重可视化</li>
+                        <li>迁移能力：预训练-微调范式</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="algorithm-steps mt-4">
+                <h3 class="mb-3">学习路径建议</h3>
+
+                <div class="step-item">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <h5>理解基础</h5>
+                        <ul>
+                            <li>深入理解注意力机制</li>
+                            <li>手动实现简单的Transformer</li>
+                            <li>可视化注意力权重</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="step-item">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <h5>实践应用</h5>
+                        <ul>
+                            <li>使用预训练模型（Hugging Face）</li>
+                            <li>在自己的任务上微调</li>
+                            <li>比较不同模型的效果</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="step-item">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <h5>深入研究</h5>
+                        <ul>
+                            <li>阅读原始论文</li>
+                            <li>了解最新变体（Reformer、Linformer等）</li>
+                            <li>探索多模态Transformer</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tip success mt-4">
+                <span class="tip-icon">🎉</span>
+                <strong>恭喜你！</strong>
+                <p class="mt-2">
+                    你已经掌握了当今AI最重要的架构之一。Transformer不仅是一个模型，
+                    更是一种思想——让机器学会"注意"。继续探索，未来属于你！
+                </p>
+            </div>
+        </section>
+
+        <!-- 未来展望 -->
+        <section id="future" class="section-card">
+            <h2>🔮 未来展望</h2>
+
+            <div class="story-card">
+                <span class="story-icon">🚀</span>
+                <p><strong>下一步是什么？</strong></p>
+                <p class="mt-2">
+                    Transformer已经统治了NLP，但这只是开始。
+                    让我们展望一下激动人心的未来。
+                </p>
+            </div>
+
+            <div class="card-grid">
+                <div class="info-card">
+                    <span class="card-icon">🎨</span>
+                    <h4 class="card-title">多模态Transformer</h4>
+                    <p>统一处理文本、图像、音频</p>
+                    <ul class="mt-2">
+                        <li>CLIP：文本-图像对齐</li>
+                        <li>DALL-E：文本生成图像</li>
+                        <li>Flamingo：视觉语言理解</li>
+                    </ul>
+                </div>
+
+                <div class="info-card">
+                    <span class="card-icon">⚡</span>
+                    <h4 class="card-title">高效Transformer</h4>
+                    <p>解决O(n²)复杂度问题</p>
+                    <ul class="mt-2">
+                        <li>Linear Transformer</li>
+                        <li>Sparse Transformer</li>
+                        <li>Flash Attention</li>
+                    </ul>
+                </div>
+
+                <div class="info-card">
+                    <span class="card-icon">🧠</span>
+                    <h4 class="card-title">超大规模模型</h4>
+                    <p>追求AGI的道路</p>
+                    <ul class="mt-2">
+                        <li>万亿参数模型</li>
+                        <li>涌现能力研究</li>
+                        <li>思维链推理</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="explore-box mt-4">
+                <h4>研究前沿</h4>
+                <ol>
+                    <li><strong>长序列处理：</strong>
+                        <ul>
+                            <li>处理整本书、长视频</li>
+                            <li>无限长度的记忆机制</li>
+                        </ul>
+                    </li>
+                    <li><strong>可解释性：</strong>
+                        <ul>
+                            <li>理解模型的"思考"过程</li>
+                            <li>可控生成</li>
+                        </ul>
+                    </li>
+                    <li><strong>持续学习：</strong>
+                        <ul>
+                            <li>不遗忘旧知识</li>
+                            <li>快速适应新任务</li>
+                        </ul>
+                    </li>
+                </ol>
+            </div>
+
+            <div class="deep-think-box mt-4">
+                <h4>思考：Transformer的局限与突破</h4>
+                <div class="think-item">
+                    <h5>🤔 当前局限</h5>
+                    <ul>
+                        <li>二次复杂度限制序列长度</li>
+                        <li>缺乏真正的推理能力</li>
+                        <li>需要海量数据和计算</li>
+                        <li>难以处理结构化知识</li>
+                    </ul>
+                </div>
+                <div class="think-item">
+                    <h5>💡 可能的突破</h5>
+                    <ul>
+                        <li>神经符号结合</li>
+                        <li>因果推理能力</li>
+                        <li>小样本学习</li>
+                        <li>与知识图谱结合</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="tip info mt-4">
+                <span class="tip-icon">🌟</span>
+                <strong>你的机会</strong>
+                <p class="mt-2">
+                    Transformer的故事还在继续书写。也许下一个突破就来自于你！
+                    保持好奇心，勇于创新，AI的未来充满无限可能。
+                </p>
+            </div>
+
+            <div class="text-center mt-4">
+                <h3 style="color: var(--primary-light); margin-bottom: 1rem;">
+                    "Attention is All You Need"
+                </h3>
+                <p style="font-size: 1.1rem; color: var(--text-secondary);">
+                    —— 但这仅仅是开始
+                </p>
+            </div>
+        </section>
+    </div>
+</main>
+
+<!-- JavaScript交互 -->
+<script>
+    // 侧边栏切换
+    const sidebar = document.getElementById('sidebar');
+    const toggleBtn = document.getElementById('toggle-sidebar');
+
+    toggleBtn.addEventListener('click', () => {
+        sidebar.classList.toggle('open');
+    });
+
+    // 进度条
+    function updateProgressBar() {
+        const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+        const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+        const scrolled = (winScroll / height) * 100;
+        document.getElementById("progress-bar").style.width = scrolled + "%";
+    }
+
+    window.addEventListener('scroll', updateProgressBar);
+
+    // 目录高亮
+    const sections = document.querySelectorAll('section[id]');
+    const tocItems = document.querySelectorAll('.toc-item');
+
+    function highlightTOC() {
+        let current = '';
+        sections.forEach(section => {
+            const sectionTop = section.offsetTop;
+            const sectionHeight = section.clientHeight;
+            if (scrollY >= sectionTop - 200) {
+                current = section.getAttribute('id');
+            }
+        });
+
+        tocItems.forEach(item => {
+            item.classList.remove('active');
+            if (item.getAttribute('href') === `#${current}`) {
+                item.classList.add('active');
+            }
+        });
+    }
+
+    window.addEventListener('scroll', highlightTOC);
+
+    // 快速导航
+    const quickNavItems = document.querySelectorAll('.quick-nav-item');
+
+    quickNavItems.forEach(item => {
+        item.addEventListener('click', () => {
+            const section = item.getAttribute('data-section');
+            document.getElementById(section).scrollIntoView({ behavior: 'smooth' });
+        });
+    });
+
+    // 代码展开/折叠
+    function toggleCode(btn) {
+        const codeContent = btn.closest('.code-block').querySelector('.code-content');
+        codeContent.classList.toggle('collapsed');
+        btn.textContent = codeContent.classList.contains('collapsed') ? '展开' : '折叠';
+    }
+
+    // 代码复制
+    function copyCode(btn) {
+        const code = btn.closest('.code-block').querySelector('pre').textContent;
+        navigator.clipboard.writeText(code).then(() => {
+            const originalText = btn.textContent;
+            btn.textContent = '已复制!';
+            setTimeout(() => {
+                btn.textContent = originalText;
+            }, 2000);
+        });
+    }
+
+    // 主题切换（简单实现）
+    const themeToggle = document.getElementById('theme-toggle');
+    let isDark = true;
+
+    themeToggle.addEventListener('click', () => {
+        isDark = !isDark;
+        themeToggle.textContent = isDark ? '🌙' : '☀️';
+        // 这里可以添加更多主题切换逻辑
+    });
+
+    // 页面加载动画
+    window.addEventListener('load', () => {
+        document.body.style.opacity = '1';
+    });
+</script>
+
+</body>
+</html>

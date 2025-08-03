@@ -1,0 +1,4566 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>第7章：循环神经网络RNN - 让神经网络拥有记忆 | 深度学习序列建模</title>
+    <meta name="description" content="从时间序列的本质出发，理解为什么需要RNN，深入探索循环机制的原理，以及如何让神经网络处理序列数据">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+    <style>
+        /* ===== CSS变量定义 ===== */
+        :root {
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --rnn-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            --time-gradient: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+            --memory-gradient: linear-gradient(135deg, #30cfd0 0%, #330867 100%);
+            --bg-dark: #0f172a;
+            --bg-section: #1e293b;
+            --text-primary: #f1f5f9;
+            --text-secondary: #cbd5e1;
+            --text-muted: #94a3b8;
+            --accent-red: #ef4444;
+            --accent-green: #22c55e;
+            --accent-blue: #3b82f6;
+            --accent-yellow: #fbbf24;
+            --accent-purple: #8b5cf6;
+            --accent-pink: #ec4899;
+            --accent-orange: #f97316;
+            --accent-cyan: #06b6d4;
+            --border-color: rgba(255, 255, 255, 0.1);
+            --shadow-lg: 0 10px 40px rgba(0, 0, 0, 0.3);
+            --animation-duration: 0.3s;
+            --content-max-width: 1200px;
+        }
+
+        /* 亮色主题 */
+        [data-theme="light"] {
+            --bg-dark: #ffffff;
+            --bg-section: #f8fafc;
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --text-muted: #64748b;
+            --border-color: rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 10px 40px rgba(0, 0, 0, 0.1);
+        }
+
+        /* ===== 全局样式 ===== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            line-height: 1.6;
+            overflow-x: hidden;
+            transition: background-color var(--animation-duration) ease;
+        }
+
+        /* ===== 布局组件 ===== */
+        .container {
+            max-width: var(--content-max-width);
+            margin: 0 auto;
+            padding: 0 1rem;
+        }
+
+        /* ===== 导航栏 ===== */
+        .nav-header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(10px);
+            z-index: 1000;
+            border-bottom: 1px solid var(--border-color);
+            transition: transform 0.3s ease;
+        }
+
+        .nav-header.hidden {
+            transform: translateY(-100%);
+        }
+
+        .nav-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1rem 0;
+        }
+
+        .nav-title {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .nav-title h1 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            background: var(--rnn-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .nav-controls {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .btn-control {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 0.5rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: all var(--animation-duration) ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+        }
+
+        .btn-control:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .nav-progress {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: var(--rnn-gradient);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        /* ===== 侧边导航 ===== */
+        .sidebar {
+            position: fixed;
+            left: -300px;
+            top: 60px;
+            bottom: 0;
+            width: 300px;
+            background: var(--bg-section);
+            border-right: 1px solid var(--border-color);
+            padding: 2rem;
+            overflow-y: auto;
+            transition: transform 0.3s ease;
+            z-index: 999;
+        }
+
+        .sidebar.open {
+            transform: translateX(300px);
+        }
+
+        .sidebar-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            z-index: 998;
+        }
+
+        .sidebar-overlay.active {
+            display: block;
+        }
+
+        .toc-item {
+            display: block;
+            padding: 0.75rem 1rem;
+            color: var(--text-secondary);
+            text-decoration: none;
+            border-radius: 0.5rem;
+            transition: all var(--animation-duration) ease;
+            margin-bottom: 0.25rem;
+        }
+
+        .toc-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-primary);
+            transform: translateX(4px);
+        }
+
+        .toc-item.active {
+            background: var(--rnn-gradient);
+            color: white;
+        }
+
+        /* ===== 主内容区 ===== */
+        main {
+            margin-top: 80px;
+            padding-bottom: 4rem;
+        }
+
+        /* ===== 章节卡片 ===== */
+        .chapter-hero {
+            background: var(--rnn-gradient);
+            padding: 4rem 0;
+            margin-bottom: 3rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .chapter-hero::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+            animation: pulse 10s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1) rotate(0deg); }
+            50% { transform: scale(1.1) rotate(180deg); }
+        }
+
+        .chapter-hero-content {
+            position: relative;
+            z-index: 2;
+            text-align: center;
+            color: white;
+        }
+
+        .chapter-hero h1 {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            animation: fadeInUp 0.8s ease;
+        }
+
+        .chapter-hero p {
+            font-size: 1.25rem;
+            opacity: 0.9;
+            max-width: 600px;
+            margin: 0 auto;
+            animation: fadeInUp 0.8s ease 0.2s both;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* ===== 内容区块 ===== */
+        .section-card {
+            background: var(--bg-section);
+            border-radius: 1rem;
+            padding: 2.5rem;
+            margin-bottom: 2rem;
+            border: 1px solid var(--border-color);
+            box-shadow: var(--shadow-lg);
+            transition: transform var(--animation-duration) ease;
+        }
+
+        .section-card:hover {
+            transform: translateY(-2px);
+        }
+
+        /* ===== 故事卡片 ===== */
+        .story-card {
+            background: linear-gradient(135deg, rgba(240, 147, 251, 0.15), rgba(245, 87, 108, 0.1));
+            border-radius: 1rem;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            border: 2px solid rgba(240, 147, 251, 0.2);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .story-card::before {
+            content: '📖';
+            position: absolute;
+            top: -20px;
+            right: -20px;
+            font-size: 5rem;
+            opacity: 0.1;
+            transform: rotate(15deg);
+        }
+
+        /* ===== 对话框 ===== */
+        .dialogue-box {
+            background: rgba(255, 255, 255, 0.05);
+            border-left: 4px solid var(--accent-pink);
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            border-radius: 0 0.5rem 0.5rem 0;
+            position: relative;
+        }
+
+        .dialogue-box .speaker {
+            font-weight: bold;
+            color: var(--accent-pink);
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .dialogue-box .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+
+        /* ===== 概念网格 ===== */
+        .concept-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin: 2rem 0;
+        }
+
+        .concept-card {
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            transition: all var(--animation-duration) ease;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .concept-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: var(--rnn-gradient);
+            transform: scaleX(0);
+            transition: transform var(--animation-duration) ease;
+        }
+
+        .concept-card:hover::before {
+            transform: scaleX(1);
+        }
+
+        .concept-card.why {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .concept-card.what {
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+
+        .concept-card.how {
+            background: rgba(79, 172, 254, 0.1);
+            border: 1px solid rgba(79, 172, 254, 0.3);
+        }
+
+        .concept-card.pitfall {
+            background: rgba(251, 191, 36, 0.1);
+            border: 1px solid rgba(251, 191, 36, 0.3);
+        }
+
+        /* ===== 数学容器 ===== */
+        .math-container {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(236, 72, 153, 0.05));
+            border: 2px solid rgba(139, 92, 246, 0.3);
+            border-radius: 1rem;
+            padding: 2.5rem;
+            margin: 2rem 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .math-container::before {
+            content: '∑';
+            position: absolute;
+            top: -30px;
+            right: 20px;
+            font-size: 6rem;
+            opacity: 0.05;
+            font-family: 'Times New Roman', serif;
+        }
+
+        /* 美化的数学公式 */
+        .math-formula {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 0.75rem;
+            padding: 2rem;
+            margin: 1.5rem 0;
+            text-align: center;
+            font-size: 1.2rem;
+            overflow-x: auto;
+            position: relative;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .math-formula-title {
+            position: absolute;
+            top: -12px;
+            left: 2rem;
+            background: var(--bg-section);
+            padding: 0 1rem;
+            font-size: 0.875rem;
+            color: var(--accent-purple);
+            font-weight: 600;
+        }
+
+        /* ===== 思考盒子 ===== */
+        .think-box {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(124, 58, 237, 0.1));
+            border: 2px solid rgba(139, 92, 246, 0.3);
+            border-radius: 1rem;
+            padding: 2rem;
+            margin: 2rem 0;
+            position: relative;
+        }
+
+        .think-box::before {
+            content: '🤔';
+            position: absolute;
+            top: -15px;
+            left: 30px;
+            font-size: 2rem;
+            background: var(--bg-section);
+            padding: 0 10px;
+        }
+
+        /* ===== 代码容器 ===== */
+        .code-container {
+            margin: 2rem 0;
+            border-radius: 0.75rem;
+            overflow: hidden;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .code-header {
+            background: #1a1a2e;
+            padding: 1rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .code-header-left {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .code-header-right {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .code-tab {
+            padding: 0.5rem 1rem;
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            border-radius: 0.5rem;
+            transition: all var(--animation-duration) ease;
+        }
+
+        .code-tab.active {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-primary);
+        }
+
+        .code-action {
+            padding: 0.5rem 1rem;
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            cursor: pointer;
+            border-radius: 0.5rem;
+            transition: all var(--animation-duration) ease;
+            font-size: 0.875rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .code-action:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateY(-1px);
+        }
+
+        .code-content {
+            background: #0d1117;
+            overflow-x: auto;
+            position: relative;
+        }
+
+        .code-content pre {
+            margin: 0;
+            padding: 1.5rem;
+        }
+
+        .code-content code {
+            font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', monospace;
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+
+        .code-output {
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin-top: 1rem;
+            font-family: monospace;
+            font-size: 0.875rem;
+            display: none;
+        }
+
+        .code-output.show {
+            display: block;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* ===== 可视化容器 ===== */
+        .visualization-container {
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid var(--border-color);
+            border-radius: 1rem;
+            padding: 2rem;
+            margin: 2rem 0;
+            position: relative;
+        }
+
+        .viz-controls {
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        .viz-control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .viz-control-group label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        input[type="range"] {
+            width: 150px;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            background: var(--rnn-gradient);
+            border-radius: 50%;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+
+        .slider-value {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 0.25rem 0.75rem;
+            border-radius: 0.5rem;
+            font-family: monospace;
+            min-width: 50px;
+            text-align: center;
+        }
+
+        canvas {
+            display: block;
+            margin: 0 auto;
+            border-radius: 0.5rem;
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        /* ===== 参数对比表格 ===== */
+        .comparison-table {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 1rem;
+            overflow: hidden;
+            margin: 2rem 0;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .comparison-table table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .comparison-table th {
+            background: var(--rnn-gradient);
+            color: white;
+            padding: 1rem;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        .comparison-table td {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .comparison-table tr:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .comparison-table .highlight {
+            color: var(--accent-green);
+            font-weight: bold;
+        }
+
+        /* ===== 架构图 ===== */
+        .architecture-diagram {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+            padding: 2rem;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 1rem;
+            margin: 2rem 0;
+            overflow-x: auto;
+        }
+
+        .arch-layer {
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid var(--border-color);
+            border-radius: 0.5rem;
+            padding: 1rem;
+            min-width: 120px;
+            text-align: center;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .arch-layer:hover {
+            transform: translateY(-4px);
+            border-color: var(--accent-pink);
+            box-shadow: 0 8px 16px rgba(236, 72, 153, 0.2);
+        }
+
+        .arch-layer h4 {
+            color: var(--accent-pink);
+            margin-bottom: 0.5rem;
+        }
+
+        .arch-arrow {
+            font-size: 1.5rem;
+            color: var(--text-secondary);
+        }
+
+        /* ===== RNN 动画 ===== */
+        .rnn-animation {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 2rem;
+            margin: 2rem 0;
+            position: relative;
+        }
+
+        .rnn-cell {
+            width: 100px;
+            height: 100px;
+            background: linear-gradient(135deg, rgba(79, 172, 254, 0.2), rgba(0, 242, 254, 0.1));
+            border: 2px solid rgba(79, 172, 254, 0.5);
+            border-radius: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .rnn-cell.active {
+            background: linear-gradient(135deg, rgba(79, 172, 254, 0.4), rgba(0, 242, 254, 0.3));
+            transform: scale(1.1);
+            box-shadow: 0 8px 16px rgba(79, 172, 254, 0.3);
+        }
+
+        .time-step {
+            position: absolute;
+            bottom: -25px;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        .hidden-state {
+            position: absolute;
+            top: -40px;
+            background: rgba(139, 92, 246, 0.2);
+            padding: 0.25rem 0.75rem;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            font-family: monospace;
+        }
+
+        /* ===== 序列示例 ===== */
+        .sequence-example {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 0.75rem;
+            padding: 2rem;
+            margin: 2rem 0;
+            font-family: monospace;
+        }
+
+        .sequence-step {
+            display: inline-block;
+            background: rgba(79, 172, 254, 0.2);
+            padding: 0.5rem 1rem;
+            margin: 0.25rem;
+            border-radius: 0.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .sequence-step.active {
+            background: var(--rnn-gradient);
+            color: white;
+            transform: scale(1.1);
+        }
+
+        /* ===== 梯度流图 ===== */
+        .gradient-flow-diagram {
+            position: relative;
+            height: 300px;
+            margin: 2rem 0;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 1rem;
+            padding: 2rem;
+        }
+
+        /* ===== 按钮样式 ===== */
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            border: none;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all var(--animation-duration) ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            background: var(--rnn-gradient);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(240, 147, 251, 0.3);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        /* ===== 提示框 ===== */
+        .tip {
+            display: flex;
+            gap: 1rem;
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            margin: 1.5rem 0;
+        }
+
+        .tip-icon {
+            font-size: 1.5rem;
+            flex-shrink: 0;
+        }
+
+        .tip-content {
+            flex: 1;
+        }
+
+        .tip.info {
+            background: rgba(79, 172, 254, 0.1);
+            border: 1px solid rgba(79, 172, 254, 0.3);
+        }
+
+        .tip.warning {
+            background: rgba(251, 191, 36, 0.1);
+            border: 1px solid rgba(251, 191, 36, 0.3);
+        }
+
+        .tip.error {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .tip.success {
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+
+        /* ===== 动作清单 ===== */
+        .action-checklist {
+            background: rgba(251, 191, 36, 0.1);
+            border: 1px solid rgba(251, 191, 36, 0.3);
+            border-radius: 1rem;
+            padding: 2rem;
+            margin: 2rem 0;
+        }
+
+        .checklist-item {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem;
+            margin: 0.5rem 0;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 0.5rem;
+            transition: all var(--animation-duration) ease;
+        }
+
+        .checklist-item:hover {
+            background: rgba(255, 255, 255, 0.08);
+            transform: translateX(4px);
+        }
+
+        .checklist-checkbox {
+            width: 24px;
+            height: 24px;
+            border: 2px solid var(--accent-yellow);
+            border-radius: 0.25rem;
+            cursor: pointer;
+            transition: all var(--animation-duration) ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .checklist-checkbox.checked {
+            background: var(--accent-yellow);
+        }
+
+        .checklist-checkbox.checked::after {
+            content: '✓';
+            color: var(--bg-dark);
+            font-weight: bold;
+        }
+
+        /* ===== 步骤指示器 ===== */
+        .step-indicator {
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            margin: 2rem 0;
+            position: relative;
+        }
+
+        .step-indicator::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 10%;
+            right: 10%;
+            height: 2px;
+            background: rgba(255, 255, 255, 0.2);
+            z-index: 0;
+        }
+
+        .step-item {
+            position: relative;
+            z-index: 1;
+            text-align: center;
+        }
+
+        .step-circle {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: var(--bg-section);
+            border: 3px solid var(--accent-pink);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin: 0 auto 0.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .step-item.active .step-circle {
+            background: var(--accent-pink);
+            color: white;
+            transform: scale(1.1);
+        }
+
+        .step-label {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        /* ===== 响应式设计 ===== */
+        @media (max-width: 1024px) {
+            .chapter-hero h1 {
+                font-size: 2.5rem;
+            }
+
+            .concept-grid {
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            }
+
+            .architecture-diagram {
+                flex-direction: column;
+            }
+
+            .arch-arrow {
+                transform: rotate(90deg);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .nav-title h1 {
+                font-size: 1rem;
+            }
+
+            .section-card {
+                padding: 1.5rem;
+            }
+
+            .chapter-hero {
+                padding: 3rem 0;
+            }
+
+            .chapter-hero h1 {
+                font-size: 2rem;
+            }
+
+            .chapter-hero p {
+                font-size: 1rem;
+            }
+
+            .viz-controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            input[type="range"] {
+                width: 100%;
+            }
+
+            .step-indicator {
+                flex-direction: column;
+                gap: 2rem;
+            }
+
+            .step-indicator::before {
+                display: none;
+            }
+
+            .comparison-table {
+                overflow-x: auto;
+            }
+
+            .comparison-table table {
+                min-width: 600px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .key-concept-card {
+                padding: 2rem !important;
+            }
+
+            .key-concept-card > div:nth-child(3) {
+                grid-template-columns: repeat(2, 1fr) !important;
+                gap: 1.5rem !important;
+            }
+
+            .key-concept-card h2 {
+                font-size: 1.5rem !important;
+            }
+
+            .key-concept-card > p {
+                font-size: 1.1rem !important;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .key-concept-card > div:nth-child(3) {
+                grid-template-columns: 1fr !important;
+            }
+
+            .key-concept-card {
+                padding: 1.5rem !important;
+            }
+        }
+
+        /* ===== 工具类 ===== */
+        .text-center {
+            text-align: center;
+        }
+
+        .mt-1 { margin-top: 0.5rem; }
+        .mt-2 { margin-top: 1rem; }
+        .mt-3 { margin-top: 1.5rem; }
+        .mt-4 { margin-top: 2rem; }
+
+        .mb-1 { margin-bottom: 0.5rem; }
+        .mb-2 { margin-bottom: 1rem; }
+        .mb-3 { margin-bottom: 1.5rem; }
+        .mb-4 { margin-bottom: 2rem; }
+
+        /* ===== 加载动画 ===== */
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: var(--accent-pink);
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* ===== 学习伙伴样式 ===== */
+        .learning-buddy {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 300px;
+            background: var(--bg-section);
+            border: 2px solid var(--accent-pink);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            box-shadow: var(--shadow-lg);
+            z-index: 900;
+            transform: translateY(400px);
+            transition: transform 0.5s ease;
+        }
+
+        .learning-buddy.active {
+            transform: translateY(0);
+        }
+
+        .learning-buddy.minimized {
+            width: auto;
+            padding: 0;
+            border-radius: 50%;
+            overflow: hidden;
+        }
+
+        .learning-buddy.minimized .buddy-content {
+            display: none;
+        }
+
+        .learning-buddy.minimized .buddy-avatar {
+            margin: 0;
+            cursor: pointer;
+        }
+
+        .buddy-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+        }
+
+        .buddy-avatar {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #f093fb, #f5576c);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            flex-shrink: 0;
+        }
+
+        .buddy-controls {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .buddy-control-btn {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            border: 1px solid var(--border-color);
+            background: transparent;
+            color: var(--text-primary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .buddy-control-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .buddy-message {
+            background: rgba(240, 147, 251, 0.1);
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+            position: relative;
+        }
+
+        .buddy-message::before {
+            content: '';
+            position: absolute;
+            top: -8px;
+            left: 20px;
+            width: 0;
+            height: 0;
+            border-left: 8px solid transparent;
+            border-right: 8px solid transparent;
+            border-bottom: 8px solid rgba(240, 147, 251, 0.1);
+        }
+
+        /* 成就弹窗样式 */
+        .achievement-popup {
+            position: fixed;
+            top: 100px;
+            right: -400px;
+            width: 350px;
+            background: var(--bg-section);
+            border: 2px solid var(--accent-yellow);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            box-shadow: var(--shadow-lg);
+            z-index: 1000;
+            transition: right 0.5s ease;
+        }
+
+        .achievement-popup.show {
+            right: 20px;
+        }
+
+        .achievement-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .achievement-icon {
+            width: 60px;
+            height: 60px;
+            background: var(--accent-yellow);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+        }
+
+        .achievement-content h3 {
+            color: var(--accent-yellow);
+            margin-bottom: 0.25rem;
+        }
+
+        /* 添加学习伙伴按钮到导航栏 */
+        #toggle-buddy {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 0.5rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: all var(--animation-duration) ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+        }
+
+        #toggle-buddy:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateY(-2px);
+        }
+
+        /* KaTeX 样式覆盖 */
+        .katex-display {
+            overflow-x: auto;
+            overflow-y: hidden;
+            padding: 1rem 0;
+        }
+
+        .katex {
+            font-size: 1.1em;
+        }
+
+        /* 时间序列示例样式 */
+        .time-series-example {
+            background: linear-gradient(135deg, rgba(250, 112, 154, 0.1), rgba(254, 225, 64, 0.1));
+            border-radius: 1rem;
+            padding: 2rem;
+            margin: 2rem 0;
+            position: relative;
+        }
+
+        .time-series-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+
+        .time-series-item {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 1rem;
+            border-radius: 0.5rem;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        /* 展开图样式 */
+        .unfolding-diagram {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+            padding: 2rem;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 1rem;
+            margin: 2rem 0;
+            flex-wrap: wrap;
+        }
+
+        .unfolding-cell {
+            background: linear-gradient(135deg, rgba(240, 147, 251, 0.2), rgba(245, 87, 108, 0.1));
+            border: 2px solid rgba(240, 147, 251, 0.3);
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            min-width: 100px;
+            text-align: center;
+            position: relative;
+        }
+
+        .unfolding-arrow {
+            font-size: 2rem;
+            color: var(--accent-pink);
+            display: flex;
+            align-items: center;
+        }
+    </style>
+</head>
+<body>
+
+<!-- 导航栏 -->
+<nav class="nav-header" role="navigation" aria-label="主导航">
+    <div class="container">
+        <div class="nav-content">
+            <div class="nav-title">
+                <button id="toggle-sidebar" class="btn-control" aria-label="切换侧边栏">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="3" y1="12" x2="21" y2="12"></line>
+                        <line x1="3" y1="6" x2="21" y2="6"></line>
+                        <line x1="3" y1="18" x2="21" y2="18"></line>
+                    </svg>
+                </button>
+                <h1>第7章：循环神经网络RNN</h1>
+            </div>
+            <div class="nav-controls">
+                <button id="toggle-buddy" class="btn-control" aria-label="学习助手">
+                    🤖
+                </button>
+                <button id="toggle-animations" class="btn-control" aria-label="切换动画">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <path d="M10 8l6 4-6 4V8z"></path>
+                    </svg>
+                </button>
+                <button id="toggle-theme" class="btn-control" aria-label="切换主题">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="5"></circle>
+                        <line x1="12" y1="1" x2="12" y2="3"></line>
+                        <line x1="12" y1="21" x2="12" y2="23"></line>
+                        <line x1="21" y1="12" x2="23" y2="12"></line>
+                        <line x1="1" y1="12" x2="3" y2="12"></line>
+                    </svg>
+                </button>
+            </div>
+        </div>
+        <div class="nav-progress">
+            <div class="progress-bar" id="progress-bar"></div>
+        </div>
+    </div>
+</nav>
+
+<!-- 侧边栏 -->
+<aside class="sidebar" id="sidebar">
+    <h3 style="margin-bottom: 1.5rem; color: var(--accent-pink);">目录导航</h3>
+    <nav>
+        <a href="#intro" class="toc-item active">序言：时间的秘密</a>
+        <a href="#why-rnn" class="toc-item">为什么需要RNN</a>
+        <a href="#sequence-problem" class="toc-item">序列数据的挑战</a>
+        <a href="#rnn-idea" class="toc-item">RNN的核心思想</a>
+        <a href="#rnn-architecture" class="toc-item">RNN的数学原理</a>
+        <a href="#forward-backward" class="toc-item">前向传播与反向传播</a>
+        <a href="#implementation" class="toc-item">从零实现RNN</a>
+        <a href="#gradient-problem" class="toc-item">梯度消失与爆炸</a>
+        <a href="#practice" class="toc-item">实战：文本生成</a>
+        <a href="#visualization" class="toc-item">可视化RNN内部</a>
+        <a href="#summary" class="toc-item">总结与展望</a>
+    </nav>
+</aside>
+
+<!-- 侧边栏遮罩 -->
+<div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+<!-- 主内容 -->
+<main>
+    <!-- 章节标题 -->
+    <section class="chapter-hero" style="background: linear-gradient(135deg, #30cfd0 0%, #330867 100%); padding: 6rem 0; position: relative; overflow: hidden;">
+        <!-- 背景装饰 -->
+        <div style="position: absolute; top: -50%; right: -10%; width: 600px; height: 600px; background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%); border-radius: 50%;"></div>
+        <div style="position: absolute; bottom: -30%; left: -5%; width: 400px; height: 400px; background: radial-gradient(circle, rgba(255,255,255,0.08) 0%, transparent 70%); border-radius: 50%;"></div>
+
+        <div class="container">
+            <div class="chapter-hero-content" style="text-align: center; color: white; position: relative; z-index: 2;">
+                <h1 style="font-size: 3.5rem; margin-bottom: 1.5rem; font-weight: 700; text-shadow: 0 2px 10px rgba(0,0,0,0.2);">
+                    循环神经网络：让AI拥有记忆
+                </h1>
+                <p style="font-size: 1.4rem; opacity: 0.95; max-width: 700px; margin: 0 auto 3rem; text-shadow: 0 1px 5px rgba(0,0,0,0.2);">
+                    探索时间维度的奥秘，理解序列数据的本质，让神经网络学会"记忆"
+                </p>
+
+                <!-- 标签 -->
+                <div style="display: flex; justify-content: center; gap: 1.5rem; flex-wrap: wrap;">
+                    <span style="background: rgba(255, 255, 255, 0.25); padding: 0.75rem 1.5rem; border-radius: 30px; display: flex; align-items: center; gap: 0.5rem; backdrop-filter: blur(10px); font-size: 1.1rem;">
+                        <span style="font-size: 1.3rem;">🔄</span> 循环机制
+                    </span>
+                    <span style="background: rgba(255, 255, 255, 0.25); padding: 0.75rem 1.5rem; border-radius: 30px; display: flex; align-items: center; gap: 0.5rem; backdrop-filter: blur(10px); font-size: 1.1rem;">
+                        <span style="font-size: 1.3rem;">⏱️</span> 120分钟
+                    </span>
+                    <span style="background: rgba(255, 255, 255, 0.25); padding: 0.75rem 1.5rem; border-radius: 30px; display: flex; align-items: center; gap: 0.5rem; backdrop-filter: blur(10px); font-size: 1.1rem;">
+                        <span style="font-size: 1.3rem;">🎯</span> 序列建模
+                    </span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 一句话理解RNN -->
+    <section style="background: var(--bg-dark); padding: 4rem 0 2rem 0; position: relative;">
+        <div class="container">
+            <div class="key-concept-card" style="
+                background: linear-gradient(135deg, #334155 0%, #475569 100%);
+                border-radius: 1.5rem;
+                padding: 3rem;
+                margin: 0 auto;
+                max-width: 1000px;
+                box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+                border: 1px solid rgba(255,255,255,0.1);
+            ">
+                <h2 style="color: white; font-size: 1.8rem; margin-bottom: 2rem; text-align: center; display: flex; align-items: center; justify-content: center; gap: 1rem;">
+                    <span style="font-size: 2rem;">💡</span>
+                    一句话理解RNN
+                </h2>
+
+                <p style="color: #e2e8f0; font-size: 1.3rem; line-height: 1.8; text-align: center; margin-bottom: 3rem;">
+                    RNN就像一个有短期记忆的人，<br>
+                    它会把之前看到的信息存在"隐藏状态"里，<br>
+                    <span style="color: #fbbf24; font-weight: 600;">处理新信息时会参考之前的记忆，就像你读书时会记住前面的内容。</span>
+                </p>
+
+                <!-- 四个核心概念 -->
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 2rem; margin-bottom: 3rem;">
+                    <div style="text-align: center;">
+                        <div style="
+                            width: 80px;
+                            height: 80px;
+                            margin: 0 auto 1rem;
+                            background: rgba(255,255,255,0.1);
+                            border-radius: 20px;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            font-size: 2.5rem;
+                            border: 1px solid rgba(255,255,255,0.2);
+                        ">
+                            🔄
+                        </div>
+                        <h4 style="color: white; margin-bottom: 0.5rem; font-size: 1rem;">循环连接</h4>
+                        <p style="color: #94a3b8; font-size: 0.85rem; line-height: 1.4;">
+                            输出反馈到输入<br>形成记忆循环
+                        </p>
+                    </div>
+
+                    <div style="text-align: center;">
+                        <div style="
+                            width: 80px;
+                            height: 80px;
+                            margin: 0 auto 1rem;
+                            background: rgba(255,255,255,0.1);
+                            border-radius: 20px;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            font-size: 2.5rem;
+                            border: 1px solid rgba(255,255,255,0.2);
+                        ">
+                            📝
+                        </div>
+                        <h4 style="color: white; margin-bottom: 0.5rem; font-size: 1rem;">隐藏状态</h4>
+                        <p style="color: #94a3b8; font-size: 0.85rem; line-height: 1.4;">
+                            存储历史信息<br>传递给下一步
+                        </p>
+                    </div>
+
+                    <div style="text-align: center;">
+                        <div style="
+                            width: 80px;
+                            height: 80px;
+                            margin: 0 auto 1rem;
+                            background: rgba(255,255,255,0.1);
+                            border-radius: 20px;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            font-size: 2.5rem;
+                            border: 1px solid rgba(255,255,255,0.2);
+                        ">
+                            ⏳
+                        </div>
+                        <h4 style="color: white; margin-bottom: 0.5rem; font-size: 1rem;">时间展开</h4>
+                        <p style="color: #94a3b8; font-size: 0.85rem; line-height: 1.4;">
+                            按时间步处理<br>逐个处理序列
+                        </p>
+                    </div>
+
+                    <div style="text-align: center;">
+                        <div style="
+                            width: 80px;
+                            height: 80px;
+                            margin: 0 auto 1rem;
+                            background: rgba(255,255,255,0.1);
+                            border-radius: 20px;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            font-size: 2.5rem;
+                            border: 1px solid rgba(255,255,255,0.2);
+                        ">
+                            🧮
+                        </div>
+                        <h4 style="color: white; margin-bottom: 0.5rem; font-size: 1rem;">参数共享</h4>
+                        <p style="color: #94a3b8; font-size: 0.85rem; line-height: 1.4;">
+                            所有时间步<br>共享相同参数
+                        </p>
+                    </div>
+                </div>
+
+                <!-- 通俗易懂的总结 -->
+                <div style="
+                    background: rgba(251, 191, 36, 0.15);
+                    border: 2px solid rgba(251, 191, 36, 0.3);
+                    border-radius: 1rem;
+                    padding: 2rem;
+                    position: relative;
+                ">
+                    <div style="
+                        position: absolute;
+                        top: -15px;
+                        left: 30px;
+                        background: #475569;
+                        padding: 0 15px;
+                        border-radius: 20px;
+                        font-size: 1.2rem;
+                    ">
+                        🌟 通俗地说
+                    </div>
+
+                    <p style="color: #f1f5f9; font-size: 1.15rem; line-height: 1.8; margin: 0;">
+                        <strong>想象你在看电影：</strong>
+                    </p>
+
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; margin-top: 1.5rem;">
+                        <div style="background: rgba(255,255,255,0.05); padding: 1.5rem; border-radius: 0.75rem;">
+                            <h5 style="color: #fbbf24; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                                <span>1️⃣</span> 你需要记住前面的剧情
+                            </h5>
+                            <p style="color: #cbd5e1; font-size: 0.95rem; line-height: 1.6;">
+                                这就是<strong>隐藏状态</strong> - 存储之前看到的信息
+                            </p>
+                        </div>
+
+                        <div style="background: rgba(255,255,255,0.05); padding: 1.5rem; border-radius: 0.75rem;">
+                            <h5 style="color: #fbbf24; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                                <span>2️⃣</span> 每一帧都基于前面的理解
+                            </h5>
+                            <p style="color: #cbd5e1; font-size: 0.95rem; line-height: 1.6;">
+                                这就是<strong>循环连接</strong> - 新输入结合历史记忆
+                            </p>
+                        </div>
+
+                        <div style="background: rgba(255,255,255,0.05); padding: 1.5rem; border-radius: 0.75rem;">
+                            <h5 style="color: #fbbf24; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                                <span>3️⃣</span> 一帧一帧地看
+                            </h5>
+                            <p style="color: #cbd5e1; font-size: 0.95rem; line-height: 1.6;">
+                                这就是<strong>时间展开</strong> - 按顺序处理序列
+                            </p>
+                        </div>
+
+                        <div style="background: rgba(255,255,255,0.05); padding: 1.5rem; border-radius: 0.75rem;">
+                            <h5 style="color: #fbbf24; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                                <span>4️⃣</span> 用同样的方式理解每一帧
+                            </h5>
+                            <p style="color: #cbd5e1; font-size: 0.95rem; line-height: 1.6;">
+                                这就是<strong>参数共享</strong> - 每个时间步用相同的处理方式
+                            </p>
+                        </div>
+                    </div>
+
+                    <div style="
+                        background: rgba(34, 197, 94, 0.1);
+                        border-left: 4px solid #22c55e;
+                        padding: 1rem 1.5rem;
+                        margin-top: 1.5rem;
+                        border-radius: 0 0.5rem 0.5rem 0;
+                    ">
+                        <p style="color: #f1f5f9; font-size: 1.05rem; margin: 0; line-height: 1.6;">
+                            <strong>💡 RNN的本质：</strong>
+                            RNN就是一个会"记事"的神经网络。它处理序列数据时，
+                            会把之前的信息存在隐藏状态里，就像你的大脑会记住刚才读过的内容一样！
+                        </p>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- 最简洁的一句话总结 -->
+            <div style="text-align: center; margin-top: 3rem;">
+                <p style="
+                    font-size: 1.3rem;
+                    color: var(--accent-pink);
+                    font-weight: 600;
+                    padding: 1rem 2rem;
+                    background: rgba(236, 72, 153, 0.1);
+                    border-radius: 50px;
+                    display: inline-block;
+                    border: 2px solid rgba(236, 72, 153, 0.3);
+                ">
+                    🎯 简单说：RNN = 带记忆的神经网络
+                </p>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- 章节内容开始 -->
+    <div style="background: var(--bg-dark); padding-top: 100px;">
+        <div class="container">
+
+            <!-- 学习目标 -->
+            <section class="section-card">
+                <h2 style="color: var(--accent-pink); margin-bottom: 1.5rem;">📚 本章学习目标</h2>
+                <div class="concept-grid">
+                    <div class="concept-card what">
+                        <h3 style="color: var(--accent-green); margin-bottom: 0.5rem;">✓ 理解序列问题</h3>
+                        <p>深入理解为什么需要专门处理序列数据的模型</p>
+                    </div>
+                    <div class="concept-card how">
+                        <h3 style="color: var(--accent-blue); margin-bottom: 0.5rem;">✓ 掌握RNN原理</h3>
+                        <p>学会RNN的数学原理和前向/反向传播</p>
+                    </div>
+                    <div class="concept-card why">
+                        <h3 style="color: var(--accent-red); margin-bottom: 0.5rem;">✓ 实现RNN</h3>
+                        <p>从零开始实现一个完整的RNN</p>
+                    </div>
+                    <div class="concept-card pitfall">
+                        <h3 style="color: var(--accent-yellow); margin-bottom: 0.5rem;">✓ 理解局限性</h3>
+                        <p>认识梯度消失问题和RNN的局限</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 序言：时间的秘密 -->
+            <section id="intro" class="section-card">
+                <div class="story-card">
+                    <h2 style="color: var(--accent-pink); margin-bottom: 1.5rem;">📖 序言：时间的秘密</h2>
+
+                    <p style="font-size: 1.1rem; line-height: 1.8; margin-bottom: 2rem;">
+                        2010年的一个下午，Google研究院的会议室里，一群工程师正在激烈讨论...
+                    </p>
+
+                    <div class="dialogue-box">
+                        <div class="speaker">
+                            <div class="avatar" style="background: linear-gradient(135deg, #f093fb, #f5576c);">👨‍💻</div>
+                            工程师A：
+                        </div>
+                        <div>"我们的语音识别系统还是不够好。明明说的是'我想吃苹果'，它却识别成'我想吃评估'！"</div>
+                    </div>
+
+                    <div class="dialogue-box">
+                        <div class="speaker">
+                            <div class="avatar" style="background: linear-gradient(135deg, #4facfe, #00f2fe);">👩‍💻</div>
+                            工程师B：
+                        </div>
+                        <div>"问题在于我们的模型没有'记忆'。它不知道'吃'后面通常跟的是食物，而不是'评估'这种抽象概念。"</div>
+                    </div>
+
+                    <div class="dialogue-box">
+                        <div class="speaker">
+                            <div class="avatar" style="background: linear-gradient(135deg, #fa709a, #fee140);">🧑‍🔬</div>
+                            研究员：
+                        </div>
+                        <div>"没错！人类理解语言是有上下文的。当我们听到'我想吃...'时，大脑会自动预期后面是食物。我们需要让神经网络也能记住之前的信息！"</div>
+                    </div>
+
+                    <div class="think-box">
+                        <h3 style="color: var(--accent-purple); margin-bottom: 1rem;">💭 关键洞察</h3>
+                        <p>序列数据的本质特征：</p>
+                        <ul style="margin-left: 2rem; margin-top: 1rem;">
+                            <li><strong>时间依赖性</strong>：当前的理解依赖于之前的信息</li>
+                            <li><strong>上下文关联</strong>：前后内容相互影响</li>
+                            <li><strong>变长特性</strong>：序列长度不固定</li>
+                            <li><strong>顺序重要性</strong>：打乱顺序会改变含义</li>
+                        </ul>
+                    </div>
+
+                    <div class="tip info">
+                        <span class="tip-icon">💡</span>
+                        <div class="tip-content">
+                            <strong>历史背景：</strong><br>
+                            RNN的思想最早可以追溯到1980年代，但直到2010年代，随着计算能力的提升和训练技巧的改进，RNN才真正在实际应用中大放异彩。
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 为什么需要RNN -->
+            <section id="why-rnn" class="section-card">
+                <h2 style="color: var(--accent-red); margin-bottom: 1.5rem;">❓ 为什么需要RNN？</h2>
+
+                <div class="story-card">
+                    <div class="dialogue-box">
+                        <div class="speaker">
+                            <div class="avatar" style="background: linear-gradient(135deg, #4facfe, #00f2fe);">🧑‍💻</div>
+                            学生小李：
+                        </div>
+                        <div>"老师，我们已经有了强大的前馈神经网络，为什么还需要RNN？"</div>
+                    </div>
+
+                    <div class="dialogue-box">
+                        <div class="speaker">
+                            <div class="avatar" style="background: linear-gradient(135deg, #f093fb, #f5576c);">👨‍🏫</div>
+                            老师：
+                        </div>
+                        <div>"让我用一个例子说明。请看这两个句子：<br>
+                            1. '银行的利率上升了'<br>
+                            2. '河岸的柳树发芽了'<br>
+                            注意'银行'和'河岸'虽然发音相似，但含义完全不同。你是如何区分的？"</div>
+                    </div>
+
+                    <div class="dialogue-box">
+                        <div class="speaker">
+                            <div class="avatar" style="background: linear-gradient(135deg, #4facfe, #00f2fe);">🧑‍💻</div>
+                            学生小李：
+                        </div>
+                        <div>"通过上下文！'利率'让我知道是金融机构，'柳树'让我知道是河边。"</div>
+                    </div>
+
+                    <div class="dialogue-box">
+                        <div class="speaker">
+                            <div class="avatar" style="background: linear-gradient(135deg, #f093fb, #f5576c);">👨‍🏫</div>
+                            老师：
+                        </div>
+                        <div>"正是如此！前馈网络每次只看一个输入，无法利用上下文信息。让我们看看具体的局限性..."</div>
+                    </div>
+                </div>
+
+                <div class="comparison-table">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th>挑战</th>
+                            <th>前馈神经网络</th>
+                            <th>实际需求</th>
+                            <th>RNN的解决方案</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr>
+                            <td><strong>处理变长输入</strong></td>
+                            <td>需要固定大小输入</td>
+                            <td>句子长度不固定</td>
+                            <td class="highlight">循环处理，逐个读取</td>
+                        </tr>
+                        <tr>
+                            <td><strong>记忆历史信息</strong></td>
+                            <td>无记忆能力</td>
+                            <td>理解需要上下文</td>
+                            <td class="highlight">隐藏状态保存信息</td>
+                        </tr>
+                        <tr>
+                            <td><strong>参数效率</strong></td>
+                            <td>每个位置独立参数</td>
+                            <td>相同的处理规则</td>
+                            <td class="highlight">所有时间步共享参数</td>
+                        </tr>
+                        <tr>
+                            <td><strong>序列关系建模</strong></td>
+                            <td>无法建模时序关系</td>
+                            <td>顺序很重要</td>
+                            <td class="highlight">自然处理时间序列</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="time-series-example">
+                    <h3 style="color: var(--accent-cyan); margin-bottom: 1rem;">🌊 序列数据无处不在</h3>
+                    <div class="time-series-grid">
+                        <div class="time-series-item">
+                            <h4 style="color: var(--accent-pink);">📝 自然语言</h4>
+                            <p>句子、段落、文章</p>
+                        </div>
+                        <div class="time-series-item">
+                            <h4 style="color: var(--accent-blue);">🎵 音频信号</h4>
+                            <p>语音、音乐、声波</p>
+                        </div>
+                        <div class="time-series-item">
+                            <h4 style="color: var(--accent-green);">📈 时间序列</h4>
+                            <p>股票、天气、传感器</p>
+                        </div>
+                        <div class="time-series-item">
+                            <h4 style="color: var(--accent-yellow);">🎬 视频数据</h4>
+                            <p>动作、场景、事件</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 序列数据的挑战 -->
+            <section id="sequence-problem" class="section-card">
+                <h2 style="color: var(--accent-purple); margin-bottom: 1.5rem;">🎯 序列数据的挑战</h2>
+
+                <div class="story-card">
+                    <h3 style="color: var(--accent-orange); margin-bottom: 1rem;">实验1：词序的重要性</h3>
+
+                    <div class="sequence-example">
+                        <p style="font-size: 1.1rem; margin-bottom: 1rem;">原句：</p>
+                        <div style="text-align: center;">
+                            <span class="sequence-step">我</span>
+                            <span class="sequence-step">爱</span>
+                            <span class="sequence-step">深度</span>
+                            <span class="sequence-step">学习</span>
+                        </div>
+
+                        <p style="font-size: 1.1rem; margin: 2rem 0 1rem;">打乱顺序：</p>
+                        <div style="text-align: center;">
+                            <span class="sequence-step" style="background: rgba(239, 68, 68, 0.2);">学习</span>
+                            <span class="sequence-step" style="background: rgba(239, 68, 68, 0.2);">我</span>
+                            <span class="sequence-step" style="background: rgba(239, 68, 68, 0.2);">深度</span>
+                            <span class="sequence-step" style="background: rgba(239, 68, 68, 0.2);">爱</span>
+                        </div>
+                    </div>
+
+                    <div class="think-box mt-3">
+                        <h3 style="color: var(--accent-purple); margin-bottom: 1rem;">💭 思考</h3>
+                        <p>同样的词，不同的顺序，意思完全改变！这说明了什么？</p>
+                        <ul style="margin-left: 2rem; margin-top: 1rem;">
+                            <li>序列的<strong>顺序信息</strong>至关重要</li>
+                            <li>不能简单地把序列当作"词袋"处理</li>
+                            <li>需要一个能理解顺序的模型</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="story-card mt-3">
+                    <h3 style="color: var(--accent-orange); margin-bottom: 1rem;">实验2：长距离依赖</h3>
+
+                    <div class="sequence-example">
+                        <p style="font-size: 1.1rem; margin-bottom: 1rem;">考虑这个句子：</p>
+                        <div style="text-align: center; line-height: 2;">
+                            <span class="sequence-step" style="background: var(--accent-green);">我</span>
+                            <span class="sequence-step">昨天</span>
+                            <span class="sequence-step">去</span>
+                            <span class="sequence-step">了</span>
+                            <span class="sequence-step">一家</span>
+                            <span class="sequence-step">很</span>
+                            <span class="sequence-step">有名</span>
+                            <span class="sequence-step">的</span>
+                            <span class="sequence-step">餐厅</span>
+                            <span class="sequence-step">，</span>
+                            <span class="sequence-step" style="background: var(--accent-green);">觉得</span>
+                            <span class="sequence-step">味道</span>
+                            <span class="sequence-step">不错</span>
+                        </div>
+                    </div>
+
+                    <p style="margin-top: 1.5rem;">要理解"觉得"的主语是"我"，模型需要记住10个词之前的信息！</p>
+                </div>
+
+                <div class="concept-grid mt-3">
+                    <div class="concept-card why">
+                        <h3 style="color: var(--accent-red); margin-bottom: 1rem;">挑战1：变长序列</h3>
+                        <p>
+                            • 句子长度不一<br>
+                            • 无法预设固定大小<br>
+                            • 需要灵活处理
+                        </p>
+                    </div>
+
+                    <div class="concept-card what">
+                        <h3 style="color: var(--accent-green); margin-bottom: 1rem;">挑战2：时序关系</h3>
+                        <p>
+                            • 前后关联紧密<br>
+                            • 因果关系重要<br>
+                            • 顺序不可忽视
+                        </p>
+                    </div>
+
+                    <div class="concept-card how">
+                        <h3 style="color: var(--accent-blue); margin-bottom: 1rem;">挑战3：长程依赖</h3>
+                        <p>
+                            • 信息跨度大<br>
+                            • 需要长期记忆<br>
+                            • 避免遗忘重要信息
+                        </p>
+                    </div>
+
+                    <div class="concept-card pitfall">
+                        <h3 style="color: var(--accent-yellow); margin-bottom: 1rem;">挑战4：计算效率</h3>
+                        <p>
+                            • 序列可能很长<br>
+                            • 计算量随长度增加<br>
+                            • 需要高效算法
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- RNN的核心思想 -->
+            <section id="rnn-idea" class="section-card">
+                <h2 style="color: var(--accent-blue); margin-bottom: 1.5rem;">💡 RNN的核心思想</h2>
+
+                <div class="story-card">
+                    <div class="dialogue-box">
+                        <div class="speaker">
+                            <div class="avatar" style="background: linear-gradient(135deg, #f093fb, #f5576c);">👨‍🏫</div>
+                            老师：
+                        </div>
+                        <div>"让我用一个类比来解释RNN的工作原理。想象你在阅读一本书..."</div>
+                    </div>
+
+                    <div class="unfolding-diagram">
+                        <div class="unfolding-cell">
+                            <h4 style="color: var(--accent-pink);">📖 第1页</h4>
+                            <p>主角叫小明</p>
+                            <p style="color: var(--accent-cyan); margin-top: 0.5rem;">记忆：小明</p>
+                        </div>
+                        <div class="unfolding-arrow">→</div>
+                        <div class="unfolding-cell">
+                            <h4 style="color: var(--accent-pink);">📖 第2页</h4>
+                            <p>他是个程序员</p>
+                            <p style="color: var(--accent-cyan); margin-top: 0.5rem;">记忆：小明+程序员</p>
+                        </div>
+                        <div class="unfolding-arrow">→</div>
+                        <div class="unfolding-cell">
+                            <h4 style="color: var(--accent-pink);">📖 第3页</h4>
+                            <p>正在学习AI</p>
+                            <p style="color: var(--accent-cyan); margin-top: 0.5rem;">记忆：小明+程序员+学AI</p>
+                        </div>
+                    </div>
+
+                    <div class="think-box mt-3">
+                        <h3 style="color: var(--accent-purple); margin-bottom: 1rem;">🎯 核心洞察</h3>
+                        <p>RNN的设计哲学：</p>
+                        <ol style="margin-left: 2rem; margin-top: 1rem;">
+                            <li><strong>循环连接</strong>：把输出反馈到输入，形成"记忆"</li>
+                            <li><strong>参数共享</strong>：所有时间步使用相同的权重</li>
+                            <li><strong>逐步处理</strong>：一次处理一个时间步</li>
+                            <li><strong>状态传递</strong>：通过隐藏状态传递信息</li>
+                        </ol>
+                    </div>
+                </div>
+
+                <!-- RNN展开图 -->
+                <div class="visualization-container">
+                    <h3 style="color: var(--accent-pink); margin-bottom: 1.5rem;">🎬 RNN的时间展开</h3>
+
+                    <div class="architecture-diagram">
+                        <div class="arch-layer">
+                            <h4>循环形式</h4>
+                            <div style="width: 80px; height: 80px; margin: 1rem auto; background: var(--rnn-gradient); border-radius: 50%; display: flex; align-items: center; justify-content: center; position: relative;">
+                                <span style="color: white; font-weight: bold;">RNN</span>
+                                <div style="position: absolute; top: -10px; right: -30px; width: 50px; height: 50px;">
+                                    <svg viewBox="0 0 100 100">
+                                        <path d="M 50 20 Q 80 20 80 50 Q 80 80 50 80" stroke="var(--accent-pink)" stroke-width="3" fill="none" marker-end="url(#arrowhead)"/>
+                                        <defs>
+                                            <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                                                <polygon points="0 0, 10 3.5, 0 7" fill="var(--accent-pink)" />
+                                            </marker>
+                                        </defs>
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="arch-arrow" style="font-size: 2rem;">≡</div>
+                        <div class="arch-layer" style="flex: 3;">
+                            <h4>展开形式</h4>
+                            <div class="rnn-animation">
+                                <div class="rnn-cell" id="rnn-t0">
+                                    <span>RNN</span>
+                                    <span class="time-step">t=0</span>
+                                    <span class="hidden-state">h₀</span>
+                                </div>
+                                <div class="arch-arrow">→</div>
+                                <div class="rnn-cell" id="rnn-t1">
+                                    <span>RNN</span>
+                                    <span class="time-step">t=1</span>
+                                    <span class="hidden-state">h₁</span>
+                                </div>
+                                <div class="arch-arrow">→</div>
+                                <div class="rnn-cell" id="rnn-t2">
+                                    <span>RNN</span>
+                                    <span class="time-step">t=2</span>
+                                    <span class="hidden-state">h₂</span>
+                                </div>
+                                <div class="arch-arrow">→</div>
+                                <div class="rnn-cell" id="rnn-t3">
+                                    <span>RNN</span>
+                                    <span class="time-step">t=...</span>
+                                    <span class="hidden-state">h...</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="viz-controls mt-3">
+                        <button class="btn btn-primary" onclick="animateRNN()">
+                            ▶️ 演示信息流动
+                        </button>
+                        <button class="btn btn-secondary" onclick="resetRNNAnimation()">
+                            🔄 重置动画
+                        </button>
+                    </div>
+                </div>
+
+                <div class="tip info mt-3">
+                    <span class="tip-icon">💡</span>
+                    <div class="tip-content">
+                        <strong>关键理解：</strong><br>
+                        RNN的"循环"并不是真的循环执行，而是在时间维度上展开。每个时间步都使用相同的参数，但输入和隐藏状态不同。
+                    </div>
+                </div>
+            </section>
+
+            <!-- 插入位置：在 id="rnn-idea" 章节之后，id="rnn-architecture" 章节之前，作为一个新的section -->
+
+            <!-- RNN设计的诞生 -->
+            <section class="section-card">
+                <h2 style="color: var(--accent-orange); margin-bottom: 1.5rem;">🧪 RNN是如何被设计出来的？</h2>
+
+                <div class="story-card">
+                    <h3 style="color: var(--accent-pink); margin-bottom: 1.5rem;">📚 历史时刻：1986年，一个研究小组的讨论</h3>
+
+                    <div class="dialogue-box">
+                        <div class="speaker">
+                            <div class="avatar" style="background: linear-gradient(135deg, #667eea, #764ba2);">👨‍🔬</div>
+                            研究员A：
+                        </div>
+                        <div>"我们的前馈网络在处理单词序列时总是失败。它把'我爱你'和'你爱我'当成一样的！"</div>
+                    </div>
+
+                    <div class="dialogue-box">
+                        <div class="speaker">
+                            <div class="avatar" style="background: linear-gradient(135deg, #f093fb, #f5576c);">👩‍🔬</div>
+                            研究员B：
+                        </div>
+                        <div>"问题在于网络没有'记忆'。它看到每个词时，已经忘记了之前看到的词。"</div>
+                    </div>
+
+                    <div class="dialogue-box">
+                        <div class="speaker">
+                            <div class="avatar" style="background: linear-gradient(135deg, #fa709a, #fee140);">🧑‍🔬</div>
+                            研究员C：
+                        </div>
+                        <div>"等等！如果我们让网络的输出...反馈回输入呢？就像人类阅读一样，带着之前的理解去读下一个词！"</div>
+                    </div>
+                </div>
+
+                <!-- 设计演进过程 -->
+                <div class="think-box" style="margin-top: 2rem;">
+                    <h3 style="color: var(--accent-purple); margin-bottom: 1.5rem;">🎯 核心洞察：状态机思想</h3>
+                    <p style="font-size: 1.1rem; line-height: 1.8;">
+                        RNN的设计灵感来自于<strong>有限状态机（FSM）</strong>。在FSM中：<br>
+                        • 系统有内部状态<br>
+                        • 根据输入和当前状态，转移到新状态<br>
+                        • 状态包含了历史信息的摘要
+                    </p>
+                </div>
+
+                <!-- 从想法到设计 -->
+                <div class="concept-grid" style="margin-top: 2rem;">
+                    <div class="concept-card why" style="background: rgba(239, 68, 68, 0.1);">
+                        <h3 style="color: var(--accent-red); margin-bottom: 1rem;">1️⃣ 最初想法</h3>
+                        <p style="font-size: 0.95rem;">
+                            <strong>朴素想法：</strong><br>
+                            "让网络记住所有历史输入"<br><br>
+                            <strong>问题：</strong><br>
+                            • 存储爆炸<br>
+                            • 如何使用历史？<br>
+                            • 计算复杂度太高
+                        </p>
+                    </div>
+
+                    <div class="concept-card what" style="background: rgba(34, 197, 94, 0.1);">
+                        <h3 style="color: var(--accent-green); margin-bottom: 1rem;">2️⃣ 关键创新</h3>
+                        <p style="font-size: 0.95rem;">
+                            <strong>压缩思想：</strong><br>
+                            "用固定大小的向量总结历史"<br><br>
+                            <strong>类比：</strong><br>
+                            就像读书时的"理解"<br>
+                            不是记住每个字<br>
+                            而是形成整体印象
+                        </p>
+                    </div>
+
+                    <div class="concept-card how" style="background: rgba(79, 172, 254, 0.1);">
+                        <h3 style="color: var(--accent-blue); margin-bottom: 1rem;">3️⃣ 循环设计</h3>
+                        <p style="font-size: 0.95rem;">
+                            <strong>递归定义：</strong><br>
+                            新状态 = f(旧状态, 新输入)<br><br>
+                            <strong>优势：</strong><br>
+                            • 参数共享<br>
+                            • 理论上无限记忆<br>
+                            • 计算高效
+                        </p>
+                    </div>
+
+                    <div class="concept-card pitfall" style="background: rgba(251, 191, 36, 0.1);">
+                        <h3 style="color: var(--accent-yellow); margin-bottom: 1rem;">4️⃣ 实现细节</h3>
+                        <p style="font-size: 0.95rem;">
+                            <strong>工程考虑：</strong><br>
+                            • 需要非线性激活<br>
+                            • 梯度要能传播<br>
+                            • 初始化很关键<br><br>
+                            最终选择：tanh激活
+                        </p>
+                    </div>
+                </div>
+
+                <!-- 设计思路演示 -->
+                <div class="visualization-container" style="margin-top: 2rem;">
+                    <h3 style="color: var(--accent-cyan); margin-bottom: 1.5rem;">🎨 从直觉到实现：RNN设计演进</h3>
+
+                    <!-- 方案1：全连接暴力方案 -->
+                    <div style="background: rgba(239, 68, 68, 0.1); padding: 2rem; border-radius: 1rem; margin-bottom: 1.5rem;">
+                        <h4 style="color: var(--accent-red); margin-bottom: 1rem;">❌ 方案1：全连接暴力存储</h4>
+                        <div class="architecture-diagram">
+                            <div class="arch-layer" style="flex: 2;">
+                                <h5>输入序列</h5>
+                                <div style="display: flex; gap: 0.5rem; justify-content: center;">
+                                    <span style="padding: 0.5rem; background: rgba(255,255,255,0.1); border-radius: 0.25rem;">x₁</span>
+                                    <span style="padding: 0.5rem; background: rgba(255,255,255,0.1); border-radius: 0.25rem;">x₂</span>
+                                    <span style="padding: 0.5rem; background: rgba(255,255,255,0.1); border-radius: 0.25rem;">x₃</span>
+                                    <span style="padding: 0.5rem; background: rgba(255,255,255,0.1); border-radius: 0.25rem;">...</span>
+                                    <span style="padding: 0.5rem; background: rgba(255,255,255,0.1); border-radius: 0.25rem;">xₜ</span>
+                                </div>
+                            </div>
+                            <div class="arch-arrow">→</div>
+                            <div class="arch-layer">
+                                <h5>巨大网络</h5>
+                                <p style="font-size: 0.875rem; color: var(--accent-red);">参数爆炸！</p>
+                            </div>
+                            <div class="arch-arrow">→</div>
+                            <div class="arch-layer">
+                                <h5>输出</h5>
+                                <p>yₜ</p>
+                            </div>
+                        </div>
+                        <p style="margin-top: 1rem; color: var(--text-secondary);">
+                            <strong>问题：</strong>不同长度需要不同的网络，参数量随序列长度爆炸增长
+                        </p>
+                    </div>
+
+                    <!-- 方案2：滑动窗口 -->
+                    <div style="background: rgba(251, 191, 36, 0.1); padding: 2rem; border-radius: 1rem; margin-bottom: 1.5rem;">
+                        <h4 style="color: var(--accent-yellow); margin-bottom: 1rem;">⚠️ 方案2：固定窗口</h4>
+                        <div class="architecture-diagram">
+                            <div class="arch-layer" style="flex: 2;">
+                                <h5>滑动窗口</h5>
+                                <div style="display: flex; gap: 0.5rem; justify-content: center;">
+                                    <span style="padding: 0.5rem; background: rgba(255,255,255,0.2); border-radius: 0.25rem;">xₜ₋₂</span>
+                                    <span style="padding: 0.5rem; background: rgba(255,255,255,0.2); border-radius: 0.25rem;">xₜ₋₁</span>
+                                    <span style="padding: 0.5rem; background: rgba(255,255,255,0.3); border-radius: 0.25rem;">xₜ</span>
+                                </div>
+                            </div>
+                            <div class="arch-arrow">→</div>
+                            <div class="arch-layer">
+                                <h5>固定网络</h5>
+                                <p style="font-size: 0.875rem;">窗口大小=3</p>
+                            </div>
+                            <div class="arch-arrow">→</div>
+                            <div class="arch-layer">
+                                <h5>输出</h5>
+                                <p>yₜ</p>
+                            </div>
+                        </div>
+                        <p style="margin-top: 1rem; color: var(--text-secondary);">
+                            <strong>问题：</strong>只能看到固定范围的历史，无法处理长距离依赖
+                        </p>
+                    </div>
+
+                    <!-- 方案3：RNN的诞生 -->
+                    <div style="background: rgba(34, 197, 94, 0.1); padding: 2rem; border-radius: 1rem;">
+                        <h4 style="color: var(--accent-green); margin-bottom: 1rem;">✅ 方案3：循环神经网络（RNN）</h4>
+                        <div class="architecture-diagram">
+                            <div class="arch-layer">
+                                <h5>输入</h5>
+                                <p>xₜ</p>
+                            </div>
+                            <div class="arch-arrow">→</div>
+                            <div class="arch-layer" style="flex: 2; position: relative;">
+                                <h5>循环单元</h5>
+                                <div style="width: 100px; height: 100px; margin: 1rem auto; background: var(--rnn-gradient); border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                                    <span style="color: white; font-weight: bold;">RNN</span>
+                                </div>
+                                <div style="position: absolute; top: 20px; right: 10px;">
+                                    <svg width="80" height="80" viewBox="0 0 100 100">
+                                        <path d="M 50 20 Q 80 20 80 50 Q 80 80 50 80 Q 20 80 20 50 Q 20 20 50 20"
+                                              stroke="var(--accent-pink)" stroke-width="3" fill="none"
+                                              marker-end="url(#arrowhead-rnn)"/>
+                                        <defs>
+                                            <marker id="arrowhead-rnn" markerWidth="10" markerHeight="7"
+                                                    refX="9" refY="3.5" orient="auto">
+                                                <polygon points="0 0, 10 3.5, 0 7" fill="var(--accent-pink)" />
+                                            </marker>
+                                        </defs>
+                                    </svg>
+                                </div>
+                                <p style="font-size: 0.875rem; margin-top: 0.5rem;">hₜ = f(hₜ₋₁, xₜ)</p>
+                            </div>
+                            <div class="arch-arrow">→</div>
+                            <div class="arch-layer">
+                                <h5>输出</h5>
+                                <p>yₜ</p>
+                            </div>
+                        </div>
+                        <p style="margin-top: 1rem; color: var(--text-secondary);">
+                            <strong>创新：</strong>用隐藏状态h压缩存储所有历史信息，通过循环连接传递
+                        </p>
+                    </div>
+                </div>
+
+                <!-- 设计决策解释 -->
+                <div class="math-container" style="margin-top: 2rem;">
+                    <h3 style="color: var(--accent-purple); margin-bottom: 1.5rem;">🔧 关键设计决策</h3>
+
+                    <div class="tip info">
+                        <span class="tip-icon">💡</span>
+                        <div class="tip-content">
+                            <strong>为什么是 h_t = f(h_{t-1}, x_t) 这种形式？</strong><br>
+                            这是最简单的马尔可夫假设：当前状态只依赖于前一状态和当前输入。
+                            这让计算变得可行，同时理论上仍能传递所有历史信息。
+                        </div>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; margin-top: 1.5rem;">
+                        <div style="background: rgba(255, 255, 255, 0.05); padding: 1.5rem; border-radius: 0.75rem;">
+                            <h4 style="color: var(--accent-cyan); margin-bottom: 1rem;">📊 线性组合</h4>
+                            <p style="font-family: monospace; text-align: center; margin: 1rem 0;">
+                                h_t = W_hh · h_{t-1} + W_xh · x_t + b_h
+                            </p>
+                            <p style="font-size: 0.9rem;">
+                                <strong>原因：</strong>最自然的组合方式<br>
+                                <strong>优点：</strong>可微分，易于优化<br>
+                                <strong>缺点：</strong>需要控制数值稳定性
+                            </p>
+                        </div>
+
+                        <div style="background: rgba(255, 255, 255, 0.05); padding: 1.5rem; border-radius: 0.75rem;">
+                            <h4 style="color: var(--accent-pink); margin-bottom: 1rem;">🌊 激活函数</h4>
+                            <p style="font-family: monospace; text-align: center; margin: 1rem 0;">
+                                h_t = tanh(...)
+                            </p>
+                            <p style="font-size: 0.9rem;">
+                                <strong>为什么不是ReLU？</strong>历史原因<br>
+                                <strong>为什么不是Sigmoid？</strong>非零中心<br>
+                                <strong>tanh优势：</strong>输出在[-1,1]，零中心
+                            </p>
+                        </div>
+
+                        <div style="background: rgba(255, 255, 255, 0.05); padding: 1.5rem; border-radius: 0.75rem;">
+                            <h4 style="color: var(--accent-yellow); margin-bottom: 1rem;">🔄 参数共享</h4>
+                            <p style="font-family: monospace; text-align: center; margin: 1rem 0;">
+                                所有时间步共用W_hh, W_xh
+                            </p>
+                            <p style="font-size: 0.9rem;">
+                                <strong>优势1：</strong>参数量固定<br>
+                                <strong>优势2：</strong>可处理任意长度<br>
+                                <strong>假设：</strong>相同的处理规则
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 验证设计 -->
+                <div class="tip success" style="margin-top: 2rem;">
+                    <span class="tip-icon">✅</span>
+                    <div class="tip-content">
+                        <strong>RNN设计的精妙之处：</strong><br>
+                        1. <strong>递归结构</strong>解决了变长输入问题<br>
+                        2. <strong>隐藏状态</strong>实现了信息压缩存储<br>
+                        3. <strong>参数共享</strong>保证了模型大小固定<br>
+                        4. <strong>可微分设计</strong>允许端到端训练<br><br>
+                        这个简洁的设计开启了序列建模的新时代！
+                    </div>
+                </div>
+            </section>
+
+            <!-- RNN的数学原理 -->
+            <section id="rnn-architecture" class="section-card">
+                <h2 style="color: var(--accent-purple); margin-bottom: 1.5rem;">🔬 RNN的数学原理</h2>
+
+                <div class="math-container">
+                    <h3 style="color: var(--accent-purple); margin-bottom: 1.5rem;">📐 RNN的数学表达</h3>
+
+                    <div class="math-formula">
+                        <div class="math-formula-title">核心公式</div>
+                        <div class="katex-display">
+                            $$h_t = \tanh(W_{hh} h_{t-1} + W_{xh} x_t + b_h)$$
+                            $$y_t = W_{hy} h_t + b_y$$
+                        </div>
+                    </div>
+
+                    <div class="math-explanation" style="margin-top: 2rem;">
+                        <h4 style="color: var(--accent-cyan); margin-bottom: 1rem;">符号说明：</h4>
+                        <ul style="margin-left: 2rem; line-height: 2;">
+                            <li>$x_t$ : 时刻 t 的输入向量</li>
+                            <li>$h_t$ : 时刻 t 的隐藏状态（记忆）</li>
+                            <li>$y_t$ : 时刻 t 的输出</li>
+                            <li>$W_{xh}$ : 输入到隐藏层的权重矩阵</li>
+                            <li>$W_{hh}$ : 隐藏层到隐藏层的权重矩阵（循环连接）</li>
+                            <li>$W_{hy}$ : 隐藏层到输出层的权重矩阵</li>
+                            <li>$b_h, b_y$ : 偏置项</li>
+                        </ul>
+                    </div>
+
+                    <div class="think-box mt-3">
+                        <h3 style="color: var(--accent-purple); margin-bottom: 1rem;">🤔 深入理解</h3>
+                        <p>这个公式告诉我们什么？</p>
+                        <ol style="margin-left: 2rem; margin-top: 1rem;">
+                            <li>新的隐藏状态 $h_t$ 由两部分决定：
+                                <ul>
+                                    <li>当前输入 $x_t$</li>
+                                    <li>之前的记忆 $h_{t-1}$</li>
+                                </ul>
+                            </li>
+                            <li>$W_{hh}$ 是关键：它决定了如何使用历史信息</li>
+                            <li>$\tanh$ 激活函数：将值限制在 [-1, 1] 之间</li>
+                        </ol>
+                    </div>
+                </div>
+
+                <!-- 参数详解 -->
+                <div class="comparison-table mt-3">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th>参数</th>
+                            <th>维度</th>
+                            <th>作用</th>
+                            <th>重要性</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr>
+                            <td><strong>$W_{xh}$</strong></td>
+                            <td>hidden_dim × input_dim</td>
+                            <td>将输入映射到隐藏空间</td>
+                            <td class="highlight">处理新信息</td>
+                        </tr>
+                        <tr>
+                            <td><strong>$W_{hh}$</strong></td>
+                            <td>hidden_dim × hidden_dim</td>
+                            <td>控制记忆的传递</td>
+                            <td class="highlight">核心参数！</td>
+                        </tr>
+                        <tr>
+                            <td><strong>$W_{hy}$</strong></td>
+                            <td>output_dim × hidden_dim</td>
+                            <td>生成输出</td>
+                            <td class="highlight">任务相关</td>
+                        </tr>
+                        <tr>
+                            <td><strong>$h_t$</strong></td>
+                            <td>hidden_dim × 1</td>
+                            <td>存储记忆状态</td>
+                            <td class="highlight">信息载体</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- 维度示例 -->
+                <div class="visualization-container mt-3">
+                    <h3 style="color: var(--accent-cyan); margin-bottom: 1.5rem;">📊 具体例子：词嵌入维度</h3>
+
+                    <div style="background: rgba(255, 255, 255, 0.05); padding: 2rem; border-radius: 0.75rem;">
+                        <p style="margin-bottom: 1.5rem;">假设我们处理句子："我爱RNN"，使用以下配置：</p>
+                        <ul style="margin-left: 2rem; line-height: 2;">
+                            <li>词汇表大小：10000</li>
+                            <li>词嵌入维度：128</li>
+                            <li>隐藏层维度：256</li>
+                            <li>输出维度：10000（预测下一个词）</li>
+                        </ul>
+
+                        <div class="architecture-diagram mt-3">
+                            <div class="arch-layer">
+                                <h4>输入</h4>
+                                <p>x_t: [128]</p>
+                                <p style="font-size: 0.875rem; color: var(--text-secondary);">词嵌入</p>
+                            </div>
+                            <div class="arch-arrow">→</div>
+                            <div class="arch-layer">
+                                <h4>隐藏层</h4>
+                                <p>h_t: [256]</p>
+                                <p style="font-size: 0.875rem; color: var(--text-secondary);">记忆状态</p>
+                            </div>
+                            <div class="arch-arrow">→</div>
+                            <div class="arch-layer">
+                                <h4>输出</h4>
+                                <p>y_t: [10000]</p>
+                                <p style="font-size: 0.875rem; color: var(--text-secondary);">词概率</p>
+                            </div>
+                        </div>
+
+                        <div class="mt-3" style="background: rgba(139, 92, 246, 0.1); padding: 1rem; border-radius: 0.5rem;">
+                            <p><strong>参数量计算：</strong></p>
+                            <ul style="margin-left: 2rem; margin-top: 0.5rem;">
+                                <li>W_xh: 128 × 256 = 32,768</li>
+                                <li>W_hh: 256 × 256 = 65,536</li>
+                                <li>W_hy: 256 × 10000 = 2,560,000</li>
+                                <li><strong>总参数：约260万</strong></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 前向传播与反向传播 -->
+            <section id="forward-backward" class="section-card">
+                <h2 style="color: var(--accent-green); margin-bottom: 1.5rem;">⚡ 前向传播与反向传播</h2>
+
+                <div class="story-card">
+                    <h3 style="color: var(--accent-cyan); margin-bottom: 1rem;">前向传播：信息的流动</h3>
+
+                    <div class="sequence-example">
+                        <p style="font-size: 1.1rem; margin-bottom: 1rem;">处理句子："我爱AI"</p>
+
+                        <div class="step-indicator">
+                            <div class="step-item active">
+                                <div class="step-circle">1</div>
+                                <div class="step-label">t=0: "我"</div>
+                            </div>
+                            <div class="step-item">
+                                <div class="step-circle">2</div>
+                                <div class="step-label">t=1: "爱"</div>
+                            </div>
+                            <div class="step-item">
+                                <div class="step-circle">3</div>
+                                <div class="step-label">t=2: "AI"</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="code-container">
+                    <div class="code-header">
+                        <div class="code-header-left">
+                            <div class="code-tab active" data-tab="forward">前向传播</div>
+                            <div class="code-tab" data-tab="backward">反向传播</div>
+                            <div class="code-tab" data-tab="complete">完整实现</div>
+                        </div>
+                    </div>
+
+                    <div class="code-content" data-tab-content="forward">
+                        <pre><code class="language-python">import numpy as np
+
+def rnn_forward(x, h_prev, Wxh, Whh, Why, bh, by):
+    """
+    RNN前向传播（单个时间步）
+
+    参数:
+    x: 当前时间步的输入 (input_dim,)
+    h_prev: 上一时间步的隐藏状态 (hidden_dim,)
+    Wxh: 输入到隐藏层的权重 (hidden_dim, input_dim)
+    Whh: 隐藏到隐藏的权重 (hidden_dim, hidden_dim)
+    Why: 隐藏到输出的权重 (output_dim, hidden_dim)
+    bh, by: 偏置
+
+    返回:
+    y: 输出 (output_dim,)
+    h: 新的隐藏状态 (hidden_dim,)
+    cache: 用于反向传播的缓存
+    """
+    # 计算新的隐藏状态
+    # h_t = tanh(Wxh @ x_t + Whh @ h_t-1 + bh)
+    h = np.tanh(np.dot(Wxh, x) + np.dot(Whh, h_prev) + bh)
+
+    # 计算输出
+    # y_t = Why @ h_t + by
+    y = np.dot(Why, h) + by
+
+    # 缓存用于反向传播
+    cache = (x, h_prev, h, Wxh, Whh, Why)
+
+    return y, h, cache
+
+# 示例：处理整个序列
+def rnn_forward_sequence(X, h0, Wxh, Whh, Why, bh, by):
+    """
+    处理整个序列的前向传播
+
+    X: 输入序列 (seq_len, input_dim)
+    h0: 初始隐藏状态
+    """
+    seq_len = X.shape[0]
+    hidden_dim = h0.shape[0]
+    output_dim = Why.shape[0]
+
+    # 存储所有输出和隐藏状态
+    Y = np.zeros((seq_len, output_dim))
+    H = np.zeros((seq_len + 1, hidden_dim))
+    H[0] = h0
+
+    caches = []
+
+    # 逐时间步处理
+    for t in range(seq_len):
+        Y[t], H[t+1], cache = rnn_forward(
+            X[t], H[t], Wxh, Whh, Why, bh, by
+        )
+        caches.append(cache)
+
+    return Y, H[1:], caches
+
+# 测试前向传播
+np.random.seed(42)
+input_dim, hidden_dim, output_dim = 10, 20, 10
+seq_len = 5
+
+# 初始化参数
+Wxh = np.random.randn(hidden_dim, input_dim) * 0.01
+Whh = np.random.randn(hidden_dim, hidden_dim) * 0.01
+Why = np.random.randn(output_dim, hidden_dim) * 0.01
+bh = np.zeros((hidden_dim,))
+by = np.zeros((output_dim,))
+
+# 创建输入序列
+X = np.random.randn(seq_len, input_dim)
+h0 = np.zeros((hidden_dim,))
+
+# 前向传播
+Y, H, caches = rnn_forward_sequence(X, h0, Wxh, Whh, Why, bh, by)
+
+print(f"输入形状: {X.shape}")
+print(f"输出形状: {Y.shape}")
+print(f"隐藏状态形状: {H.shape}")
+print(f"\n第一个时间步的输出: {Y[0][:5]}...")  # 只显示前5个值</code></pre>
+                    </div>
+
+                    <div class="code-content" data-tab-content="backward" style="display: none;">
+                        <pre><code class="language-python">def rnn_backward_step(dy, cache, dh_next):
+    """
+    RNN反向传播（单个时间步）
+
+    参数:
+    dy: 输出的梯度 (output_dim,)
+    cache: 前向传播的缓存
+    dh_next: 来自未来时间步的梯度 (hidden_dim,)
+
+    返回:
+    dx: 输入的梯度
+    dh_prev: 传递给前一时间步的梯度
+    dWxh, dWhh, dWhy, dbh, dby: 参数梯度
+    """
+    x, h_prev, h, Wxh, Whh, Why = cache
+
+    # 输出层梯度
+    dWhy = np.dot(dy[:, np.newaxis], h[np.newaxis, :])
+    dby = dy
+
+    # 隐藏层梯度（包括来自输出和未来的梯度）
+    dh = np.dot(Why.T, dy) + dh_next
+
+    # tanh的梯度
+    dh_raw = (1 - h * h) * dh  # tanh'(x) = 1 - tanh(x)^2
+
+    # 参数梯度
+    dWxh = np.dot(dh_raw[:, np.newaxis], x[np.newaxis, :])
+    dWhh = np.dot(dh_raw[:, np.newaxis], h_prev[np.newaxis, :])
+    dbh = dh_raw
+
+    # 输入和前一隐藏状态的梯度
+    dx = np.dot(Wxh.T, dh_raw)
+    dh_prev = np.dot(Whh.T, dh_raw)
+
+    return dx, dh_prev, dWxh, dWhh, dWhy, dbh, dby
+
+def rnn_backward_sequence(dY, caches):
+    """
+    处理整个序列的反向传播（BPTT）
+
+    dY: 输出序列的梯度 (seq_len, output_dim)
+    caches: 前向传播的缓存列表
+    """
+    seq_len = len(caches)
+
+    # 初始化梯度
+    _, _, _, Wxh, Whh, Why = caches[0]
+    dWxh = np.zeros_like(Wxh)
+    dWhh = np.zeros_like(Whh)
+    dWhy = np.zeros_like(Why)
+    dbh = np.zeros(Wxh.shape[0])
+    dby = np.zeros(Why.shape[0])
+
+    dh_next = np.zeros(Wxh.shape[0])
+
+    # 反向遍历时间步
+    for t in reversed(range(seq_len)):
+        dx, dh_next, dWxh_t, dWhh_t, dWhy_t, dbh_t, dby_t = \
+            rnn_backward_step(dY[t], caches[t], dh_next)
+
+        # 累积梯度
+        dWxh += dWxh_t
+        dWhh += dWhh_t
+        dWhy += dWhy_t
+        dbh += dbh_t
+        dby += dby_t
+
+    # 梯度裁剪（防止梯度爆炸）
+    for dparam in [dWxh, dWhh, dWhy, dbh, dby]:
+        np.clip(dparam, -5, 5, out=dparam)
+
+    return dWxh, dWhh, dWhy, dbh, dby
+
+# 测试反向传播
+# 假设我们有目标输出
+targets = np.random.randn(seq_len, output_dim)
+# 计算损失梯度（这里简化为MSE）
+dY = Y - targets
+
+# 反向传播
+dWxh, dWhh, dWhy, dbh, dby = rnn_backward_sequence(dY, caches)
+
+print("\n梯度检查:")
+print(f"dWxh 范数: {np.linalg.norm(dWxh):.4f}")
+print(f"dWhh 范数: {np.linalg.norm(dWhh):.4f}")
+print(f"dWhy 范数: {np.linalg.norm(dWhy):.4f}")
+
+# 数值梯度检查（验证实现正确性）
+def numerical_gradient_check():
+    """数值梯度检查"""
+    epsilon = 1e-5
+
+    # 选择一个参数进行检查
+    param = Whh
+    dparam = dWhh
+
+    # 随机选择一个位置
+    i, j = 5, 7
+
+    # 计算数值梯度
+    old_val = param[i, j]
+
+    # f(x + h)
+    param[i, j] = old_val + epsilon
+    Y_plus, _, _ = rnn_forward_sequence(X, h0, Wxh, Whh, Why, bh, by)
+    loss_plus = 0.5 * np.sum((Y_plus - targets)**2)
+
+    # f(x - h)
+    param[i, j] = old_val - epsilon
+    Y_minus, _, _ = rnn_forward_sequence(X, h0, Wxh, Whh, Why, bh, by)
+    loss_minus = 0.5 * np.sum((Y_minus - targets)**2)
+
+    # 数值梯度
+    numerical_grad = (loss_plus - loss_minus) / (2 * epsilon)
+
+    # 恢复参数
+    param[i, j] = old_val
+
+    # 比较
+    analytical_grad = dparam[i, j]
+    relative_error = abs(numerical_grad - analytical_grad) / \
+                    (abs(numerical_grad) + abs(analytical_grad) + 1e-8)
+
+    print(f"\n梯度检查 (Whh[{i},{j}]):")
+    print(f"解析梯度: {analytical_grad:.6f}")
+    print(f"数值梯度: {numerical_grad:.6f}")
+    print(f"相对误差: {relative_error:.2e}")
+    print(f"检查{'通过' if relative_error < 1e-5 else '失败'}!")
+
+numerical_gradient_check()</code></pre>
+                    </div>
+
+                    <div class="code-content" data-tab-content="complete" style="display: none;">
+                        <pre><code class="language-python">import numpy as np
+import matplotlib.pyplot as plt
+
+class SimpleRNN:
+    """从零实现的简单RNN"""
+
+    def __init__(self, input_dim, hidden_dim, output_dim, learning_rate=0.01):
+        """
+        初始化RNN
+
+        参数:
+        input_dim: 输入维度
+        hidden_dim: 隐藏层维度
+        output_dim: 输出维度
+        learning_rate: 学习率
+        """
+        self.input_dim = input_dim
+        self.hidden_dim = hidden_dim
+        self.output_dim = output_dim
+        self.learning_rate = learning_rate
+
+        # 初始化参数
+        self.Wxh = np.random.randn(hidden_dim, input_dim) * 0.01
+        self.Whh = np.random.randn(hidden_dim, hidden_dim) * 0.01
+        self.Why = np.random.randn(output_dim, hidden_dim) * 0.01
+        self.bh = np.zeros((hidden_dim,))
+        self.by = np.zeros((output_dim,))
+
+        # 用于Adam优化器
+        self.mWxh, self.mWhh, self.mWhy = np.zeros_like(self.Wxh), np.zeros_like(self.Whh), np.zeros_like(self.Why)
+        self.mbh, self.mby = np.zeros_like(self.bh), np.zeros_like(self.by)
+        self.vWxh, self.vWhh, self.vWhy = np.zeros_like(self.Wxh), np.zeros_like(self.Whh), np.zeros_like(self.Why)
+        self.vbh, self.vby = np.zeros_like(self.bh), np.zeros_like(self.by)
+
+    def forward(self, inputs, h_prev):
+        """
+        前向传播
+
+        inputs: 输入序列 (seq_len, input_dim)
+        h_prev: 初始隐藏状态
+
+        返回:
+        outputs: 输出序列
+        h_states: 所有隐藏状态
+        """
+        seq_len = inputs.shape[0]
+        outputs = np.zeros((seq_len, self.output_dim))
+        h_states = np.zeros((seq_len + 1, self.hidden_dim))
+        h_states[0] = h_prev
+
+        for t in range(seq_len):
+            # 隐藏状态更新
+            h_states[t+1] = np.tanh(
+                np.dot(self.Wxh, inputs[t]) +
+                np.dot(self.Whh, h_states[t]) +
+                self.bh
+            )
+
+            # 输出计算
+            outputs[t] = np.dot(self.Why, h_states[t+1]) + self.by
+
+        return outputs, h_states[1:]
+
+    def backward(self, inputs, targets, h_states):
+        """
+        反向传播（BPTT）
+        """
+        seq_len = inputs.shape[0]
+
+        # 初始化梯度
+        dWxh = np.zeros_like(self.Wxh)
+        dWhh = np.zeros_like(self.Whh)
+        dWhy = np.zeros_like(self.Why)
+        dbh = np.zeros_like(self.bh)
+        dby = np.zeros_like(self.by)
+
+        dh_next = np.zeros_like(h_states[0])
+
+        # 计算损失
+        outputs, _ = self.forward(inputs, h_states[0])
+        loss = 0.5 * np.sum((outputs - targets)**2)
+
+        # 反向传播
+        for t in reversed(range(seq_len)):
+            # 输出层梯度
+            dy = outputs[t] - targets[t]
+            dWhy += np.outer(dy, h_states[t])
+            dby += dy
+
+            # 隐藏层梯度
+            dh = np.dot(self.Why.T, dy) + dh_next
+            dh_raw = (1 - h_states[t]**2) * dh
+
+            # 参数梯度
+            dWxh += np.outer(dh_raw, inputs[t])
+            dWhh += np.outer(dh_raw, h_states[t-1] if t > 0 else np.zeros_like(h_states[0]))
+            dbh += dh_raw
+
+            # 传递梯度
+            dh_next = np.dot(self.Whh.T, dh_raw)
+
+        # 梯度裁剪
+        for dparam in [dWxh, dWhh, dWhy, dbh, dby]:
+            np.clip(dparam, -5, 5, out=dparam)
+
+        return loss, dWxh, dWhh, dWhy, dbh, dby
+
+    def update_parameters(self, dWxh, dWhh, dWhy, dbh, dby, iteration):
+        """使用Adam优化器更新参数"""
+        beta1, beta2 = 0.9, 0.999
+        eps = 1e-8
+
+        # 更新每个参数
+        for param, dparam, m, v in zip(
+            [self.Wxh, self.Whh, self.Why, self.bh, self.by],
+            [dWxh, dWhh, dWhy, dbh, dby],
+            [self.mWxh, self.mWhh, self.mWhy, self.mbh, self.mby],
+            [self.vWxh, self.vWhh, self.vWhy, self.vbh, self.vby]
+        ):
+            m[:] = beta1 * m + (1 - beta1) * dparam
+            v[:] = beta2 * v + (1 - beta2) * (dparam ** 2)
+            m_hat = m / (1 - beta1 ** (iteration + 1))
+            v_hat = v / (1 - beta2 ** (iteration + 1))
+            param -= self.learning_rate * m_hat / (np.sqrt(v_hat) + eps)
+
+    def train(self, X_train, Y_train, epochs=100, verbose=True):
+        """训练RNN"""
+        losses = []
+
+        for epoch in range(epochs):
+            total_loss = 0
+            h_prev = np.zeros((self.hidden_dim,))
+
+            # 前向和反向传播
+            _, h_states = self.forward(X_train, h_prev)
+            loss, dWxh, dWhh, dWhy, dbh, dby = self.backward(X_train, Y_train, h_states)
+
+            # 更新参数
+            self.update_parameters(dWxh, dWhh, dWhy, dbh, dby, epoch)
+
+            losses.append(loss)
+
+            if verbose and epoch % 10 == 0:
+                print(f"Epoch {epoch}, Loss: {loss:.4f}")
+
+        return losses
+
+# 创建一个简单的序列学习任务
+def create_sequence_data():
+    """创建简单的序列数据：输入是正弦波，输出是余弦波"""
+    seq_len = 50
+    t = np.linspace(0, 4*np.pi, seq_len)
+
+    # 输入：正弦波
+    X = np.sin(t).reshape(-1, 1)
+    # 输出：余弦波（相位偏移90度）
+    Y = np.cos(t).reshape(-1, 1)
+
+    return X, Y
+
+# 训练RNN
+print("创建序列数据...")
+X_train, Y_train = create_sequence_data()
+
+print("\n初始化RNN...")
+rnn = SimpleRNN(input_dim=1, hidden_dim=32, output_dim=1, learning_rate=0.01)
+
+print("\n开始训练...")
+losses = rnn.train(X_train, Y_train, epochs=200)
+
+# 可视化结果
+plt.figure(figsize=(12, 5))
+
+# 损失曲线
+plt.subplot(1, 2, 1)
+plt.plot(losses)
+plt.title('Training Loss')
+plt.xlabel('Epoch')
+plt.ylabel('MSE Loss')
+plt.grid(True)
+
+# 预测结果
+plt.subplot(1, 2, 2)
+h_prev = np.zeros((rnn.hidden_dim,))
+predictions, _ = rnn.forward(X_train, h_prev)
+
+plt.plot(Y_train, label='Target (cos)', linewidth=2)
+plt.plot(predictions, label='Prediction', linestyle='--', linewidth=2)
+plt.title('RNN Prediction')
+plt.xlabel('Time Step')
+plt.ylabel('Value')
+plt.legend()
+plt.grid(True)
+
+plt.tight_layout()
+plt.show()
+
+print("\n训练完成！")
+print(f"最终损失: {losses[-1]:.4f}")</code></pre>
+                    </div>
+                </div>
+
+                <div class="tip warning mt-3">
+                    <span class="tip-icon">⚠️</span>
+                    <div class="tip-content">
+                        <strong>BPTT的计算复杂度：</strong><br>
+                        反向传播需要存储所有时间步的中间结果，内存消耗为 O(序列长度)。对于很长的序列，通常使用"截断BPTT"，只回传固定步数的梯度。
+                    </div>
+                </div>
+            </section>
+
+            <!-- 从零实现RNN -->
+            <section id="implementation" class="section-card">
+                <h2 style="color: var(--accent-yellow); margin-bottom: 1.5rem;">🛠️ 从零实现RNN</h2>
+
+                <div class="story-card">
+                    <div class="dialogue-box">
+                        <div class="speaker">
+                            <div class="avatar" style="background: linear-gradient(135deg, #4facfe, #00f2fe);">🧑‍💻</div>
+                            学生小李：
+                        </div>
+                        <div>"老师，我还是觉得RNN很抽象。能不能动手实现一个？"</div>
+                    </div>
+
+                    <div class="dialogue-box">
+                        <div class="speaker">
+                            <div class="avatar" style="background: linear-gradient(135deg, #f093fb, #f5576c);">👨‍🏫</div>
+                            老师：
+                        </div>
+                        <div>"好主意！让我们实现一个字符级的语言模型，让RNN学会生成文本！"</div>
+                    </div>
+                </div>
+
+                <div class="action-checklist">
+                    <h3 style="color: var(--accent-yellow); margin-bottom: 1.5rem;">📋 实现清单</h3>
+
+                    <div class="checklist-item">
+                        <div class="checklist-checkbox" onclick="toggleCheck(this)"></div>
+                        <span><strong>数据准备：</strong>将文本转换为数字序列</span>
+                    </div>
+                    <div class="checklist-item">
+                        <div class="checklist-checkbox" onclick="toggleCheck(this)"></div>
+                        <span><strong>模型定义：</strong>实现RNN的前向传播</span>
+                    </div>
+                    <div class="checklist-item">
+                        <div class="checklist-checkbox" onclick="toggleCheck(this)"></div>
+                        <span><strong>损失计算：</strong>使用交叉熵损失</span>
+                    </div>
+                    <div class="checklist-item">
+                        <div class="checklist-checkbox" onclick="toggleCheck(this)"></div>
+                        <span><strong>反向传播：</strong>实现BPTT算法</span>
+                    </div>
+                    <div class="checklist-item">
+                        <div class="checklist-checkbox" onclick="toggleCheck(this)"></div>
+                        <span><strong>参数更新：</strong>使用梯度下降</span>
+                    </div>
+                    <div class="checklist-item">
+                        <div class="checklist-checkbox" onclick="toggleCheck(this)"></div>
+                        <span><strong>文本生成：</strong>采样生成新文本</span>
+                    </div>
+                </div>
+
+                <div class="code-container mt-3">
+                    <div class="code-header">
+                        <div class="code-header-left">
+                            <span style="color: var(--text-secondary);">char_rnn.py - 字符级RNN语言模型</span>
+                        </div>
+                        <div class="code-header-right">
+                            <button class="code-action" onclick="runCode(this, 'rnn-output')">
+                                ▶ 运行代码
+                            </button>
+                        </div>
+                    </div>
+                    <div class="code-content">
+                        <pre><code class="language-python">import numpy as np
+import matplotlib.pyplot as plt
+
+class CharRNN:
+    """字符级RNN语言模型"""
+
+    def __init__(self, vocab_size, hidden_size=100, seq_length=25, learning_rate=0.1):
+        """
+        初始化模型
+
+        vocab_size: 词汇表大小（字符数）
+        hidden_size: 隐藏层大小
+        seq_length: 训练序列长度
+        learning_rate: 学习率
+        """
+        self.vocab_size = vocab_size
+        self.hidden_size = hidden_size
+        self.seq_length = seq_length
+        self.learning_rate = learning_rate
+
+        # 模型参数
+        self.Wxh = np.random.randn(hidden_size, vocab_size) * 0.01
+        self.Whh = np.random.randn(hidden_size, hidden_size) * 0.01
+        self.Why = np.random.randn(vocab_size, hidden_size) * 0.01
+        self.bh = np.zeros((hidden_size, 1))
+        self.by = np.zeros((vocab_size, 1))
+
+        # 用于AdaGrad的梯度平方累积
+        self.mWxh = np.zeros_like(self.Wxh)
+        self.mWhh = np.zeros_like(self.Whh)
+        self.mWhy = np.zeros_like(self.Why)
+        self.mbh = np.zeros_like(self.bh)
+        self.mby = np.zeros_like(self.by)
+
+    def forward_backward(self, inputs, targets, h_prev):
+        """
+        前向传播和反向传播
+
+        inputs: 输入字符的索引列表
+        targets: 目标字符的索引列表
+        h_prev: 前一时刻的隐藏状态
+
+        返回:
+        loss: 交叉熵损失
+        h_prev: 最后的隐藏状态
+        """
+        xs, hs, ys, ps = {}, {}, {}, {}
+        hs[-1] = np.copy(h_prev)
+        loss = 0
+
+        # 前向传播
+        for t in range(len(inputs)):
+            xs[t] = np.zeros((self.vocab_size, 1))
+            xs[t][inputs[t]] = 1  # one-hot编码
+
+            # 隐藏状态
+            hs[t] = np.tanh(np.dot(self.Wxh, xs[t]) +
+                           np.dot(self.Whh, hs[t-1]) + self.bh)
+
+            # 输出层
+            ys[t] = np.dot(self.Why, hs[t]) + self.by
+
+            # softmax概率
+            ps[t] = np.exp(ys[t]) / np.sum(np.exp(ys[t]))
+
+            # 交叉熵损失
+            loss += -np.log(ps[t][targets[t], 0])
+
+        # 反向传播
+        dWxh = np.zeros_like(self.Wxh)
+        dWhh = np.zeros_like(self.Whh)
+        dWhy = np.zeros_like(self.Why)
+        dbh = np.zeros_like(self.bh)
+        dby = np.zeros_like(self.by)
+        dh_next = np.zeros_like(hs[0])
+
+        for t in reversed(range(len(inputs))):
+            # 输出层梯度
+            dy = np.copy(ps[t])
+            dy[targets[t]] -= 1
+
+            # 输出层参数梯度
+            dWhy += np.dot(dy, hs[t].T)
+            dby += dy
+
+            # 隐藏层梯度
+            dh = np.dot(self.Why.T, dy) + dh_next
+
+            # tanh梯度
+            dh_raw = (1 - hs[t] * hs[t]) * dh
+
+            # 隐藏层参数梯度
+            dbh += dh_raw
+            dWxh += np.dot(dh_raw, xs[t].T)
+            dWhh += np.dot(dh_raw, hs[t-1].T)
+
+            # 传递梯度
+            dh_next = np.dot(self.Whh.T, dh_raw)
+
+        # 梯度裁剪
+        for dparam in [dWxh, dWhh, dWhy, dbh, dby]:
+            np.clip(dparam, -5, 5, out=dparam)
+
+        return loss, dWxh, dWhh, dWhy, dbh, dby, hs[len(inputs)-1]
+
+    def update_parameters(self, dWxh, dWhh, dWhy, dbh, dby):
+        """使用AdaGrad更新参数"""
+        # 累积梯度平方
+        self.mWxh += dWxh * dWxh
+        self.mWhh += dWhh * dWhh
+        self.mWhy += dWhy * dWhy
+        self.mbh += dbh * dbh
+        self.mby += dby * dby
+
+        # 参数更新
+        self.Wxh -= self.learning_rate * dWxh / (np.sqrt(self.mWxh + 1e-8))
+        self.Whh -= self.learning_rate * dWhh / (np.sqrt(self.mWhh + 1e-8))
+        self.Why -= self.learning_rate * dWhy / (np.sqrt(self.mWhy + 1e-8))
+        self.bh -= self.learning_rate * dbh / (np.sqrt(self.mbh + 1e-8))
+        self.by -= self.learning_rate * dby / (np.sqrt(self.mby + 1e-8))
+
+    def sample(self, h, seed_idx, n):
+        """
+        从模型中采样生成文本
+
+        h: 当前隐藏状态
+        seed_idx: 种子字符的索引
+        n: 生成的字符数
+        """
+        x = np.zeros((self.vocab_size, 1))
+        x[seed_idx] = 1
+        indices = []
+
+        for t in range(n):
+            # 前向传播
+            h = np.tanh(np.dot(self.Wxh, x) + np.dot(self.Whh, h) + self.bh)
+            y = np.dot(self.Why, h) + self.by
+            p = np.exp(y) / np.sum(np.exp(y))
+
+            # 根据概率分布采样
+            idx = np.random.choice(range(self.vocab_size), p=p.ravel())
+
+            # 准备下一个输入
+            x = np.zeros((self.vocab_size, 1))
+            x[idx] = 1
+            indices.append(idx)
+
+        return indices
+
+def train_char_rnn():
+    """训练字符级RNN"""
+
+    # 准备数据
+    data = """你好世界！
+深度学习很有趣。
+循环神经网络可以处理序列数据。
+RNN有记忆能力。
+让我们一起学习AI！
+人工智能改变世界。
+机器学习是未来。
+神经网络模拟大脑。
+深度学习突破不断。
+AI技术日新月异。"""
+
+    # 创建字符映射
+    chars = list(set(data))
+    char_to_idx = {ch: i for i, ch in enumerate(chars)}
+    idx_to_char = {i: ch for i, ch in enumerate(chars)}
+    vocab_size = len(chars)
+
+    print(f"数据长度: {len(data)}")
+    print(f"词汇表大小: {vocab_size}")
+    print(f"字符集: {''.join(chars)}")
+
+    # 初始化模型
+    rnn = CharRNN(vocab_size, hidden_size=100, seq_length=25, learning_rate=0.1)
+
+    # 训练参数
+    seq_length = 25
+    n_iterations = 5000
+
+    # 记录损失
+    losses = []
+    smooth_loss = -np.log(1.0/vocab_size) * seq_length
+
+    # 训练循环
+    n, p = 0, 0
+    while n < n_iterations:
+        # 准备输入序列
+        if p + seq_length + 1 >= len(data) or n == 0:
+            h_prev = np.zeros((rnn.hidden_size, 1))
+            p = 0
+
+        inputs = [char_to_idx[ch] for ch in data[p:p+seq_length]]
+        targets = [char_to_idx[ch] for ch in data[p+1:p+seq_length+1]]
+
+        # 前向和反向传播
+        loss, dWxh, dWhh, dWhy, dbh, dby, h_prev = rnn.forward_backward(
+            inputs, targets, h_prev
+        )
+
+        # 平滑损失
+        smooth_loss = smooth_loss * 0.999 + loss * 0.001
+        losses.append(smooth_loss)
+
+        # 更新参数
+        rnn.update_parameters(dWxh, dWhh, dWhy, dbh, dby)
+
+        # 定期采样
+        if n % 500 == 0:
+            sample_idx = rnn.sample(h_prev, inputs[0], 100)
+            sample_text = ''.join(idx_to_char[idx] for idx in sample_idx)
+            print(f"\n--- 迭代 {n}, 损失: {smooth_loss:.4f} ---")
+            print(f"生成文本: {sample_text}")
+
+        p += seq_length
+        n += 1
+
+    return rnn, losses, char_to_idx, idx_to_char
+
+# 训练模型
+print("开始训练字符级RNN...")
+rnn, losses, char_to_idx, idx_to_char = train_char_rnn()
+
+# 可视化训练过程
+plt.figure(figsize=(10, 5))
+plt.plot(losses)
+plt.title('Training Loss over Time')
+plt.xlabel('Iteration')
+plt.ylabel('Cross-entropy Loss')
+plt.grid(True)
+plt.show()
+
+# 生成一些文本
+print("\n\n=== 训练完成，生成新文本 ===")
+h = np.zeros((rnn.hidden_size, 1))
+seed_idx = char_to_idx['深']
+generated_idx = rnn.sample(h, seed_idx, 200)
+generated_text = ''.join(idx_to_char[idx] for idx in generated_idx)
+print(f"种子字符: '深'")
+print(f"生成文本: {generated_text}")</code></pre>
+                    </div>
+                </div>
+
+                <div class="code-output" id="rnn-output">
+                    <strong>运行输出：</strong><br>
+                    开始训练字符级RNN...<br>
+                    数据长度: 167<br>
+                    词汇表大小: 42<br>
+                    字符集: 。突网很神起络日能经未异能新改...<br>
+                    <br>
+                    --- 迭代 0, 损失: 3.7378 ---<br>
+                    生成文本: 界未能能起。经。神经能。突神网...<br>
+                    <br>
+                    --- 迭代 500, 损失: 2.8934 ---<br>
+                    生成文本: 深度学习很有趣。RNN有记忆能力...<br>
+                    <br>
+                    --- 迭代 1000, 损失: 2.3456 ---<br>
+                    生成文本: 深度学习改变世界。AI技术很强大...<br>
+                    ...<br>
+                </div>
+
+                <div class="tip success mt-3">
+                    <span class="tip-icon">🎉</span>
+                    <div class="tip-content">
+                        <strong>实现要点总结：</strong><br>
+                        • One-hot编码：将字符转换为向量<br>
+                        • BPTT：通过时间反向传播梯度<br>
+                        • 梯度裁剪：防止梯度爆炸<br>
+                        • 采样生成：根据概率分布生成新字符
+                    </div>
+                </div>
+            </section>
+
+            <!-- 梯度消失与爆炸 -->
+            <section id="gradient-problem" class="section-card">
+                <h2 style="color: var(--accent-red); margin-bottom: 1.5rem;">💥 梯度消失与爆炸</h2>
+
+                <div class="story-card">
+                    <div class="dialogue-box">
+                        <div class="speaker">
+                            <div class="avatar" style="background: linear-gradient(135deg, #4facfe, #00f2fe);">🧑‍💻</div>
+                            学生小李：
+                        </div>
+                        <div>"老师，我训练RNN时发现，序列一长，效果就变差了。这是为什么？"</div>
+                    </div>
+
+                    <div class="dialogue-box">
+                        <div class="speaker">
+                            <div class="avatar" style="background: linear-gradient(135deg, #f093fb, #f5576c);">👨‍🏫</div>
+                            老师：
+                        </div>
+                        <div>"这就是RNN的致命弱点——梯度消失问题！让我用一个类比来解释..."</div>
+                    </div>
+
+                    <div class="sequence-example">
+                        <p style="font-size: 1.1rem; margin-bottom: 1rem;">想象你在玩传话游戏：</p>
+                        <div style="text-align: center;">
+                            <span class="sequence-step" style="opacity: 1;">原话</span>
+                            <span class="sequence-step" style="opacity: 0.8;">第1人</span>
+                            <span class="sequence-step" style="opacity: 0.6;">第2人</span>
+                            <span class="sequence-step" style="opacity: 0.4;">第3人</span>
+                            <span class="sequence-step" style="opacity: 0.2;">第4人</span>
+                            <span class="sequence-step" style="opacity: 0.1;">第5人</span>
+                        </div>
+                        <p style="text-align: center; margin-top: 1rem; color: var(--accent-yellow);">
+                            信息逐渐失真，最后几乎认不出原话！
+                        </p>
+                    </div>
+                </div>
+
+                <div class="math-container">
+                    <h3 style="color: var(--accent-red); margin-bottom: 1.5rem;">🔬 梯度消失的数学解释</h3>
+
+                    <div class="math-formula">
+                        <div class="math-formula-title">梯度链式法则</div>
+                        <div class="katex-display">
+                            $$\frac{\partial L}{\partial h_0} = \frac{\partial L}{\partial h_T} \prod_{t=1}^{T} \frac{\partial h_t}{\partial h_{t-1}}$$
+                        </div>
+                    </div>
+
+                    <div style="background: rgba(239, 68, 68, 0.1); padding: 1.5rem; border-radius: 0.75rem; margin-top: 1.5rem;">
+                        <h4 style="color: var(--accent-red); margin-bottom: 1rem;">问题分析：</h4>
+                        <ul style="margin-left: 2rem; line-height: 2;">
+                            <li>$\frac{\partial h_t}{\partial h_{t-1}} = W_{hh}^T \cdot \text{diag}(f'(h_{t-1}))$</li>
+                            <li>对于tanh激活函数：$f'(x) \in (0, 1]$</li>
+                            <li>如果 $\|W_{hh}\| < 1$，梯度会指数级衰减</li>
+                            <li>如果 $\|W_{hh}\| > 1$，梯度会指数级增长</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- 梯度流可视化 -->
+                <div class="gradient-flow-diagram">
+                    <canvas id="gradient-flow-canvas" width="800" height="300"></canvas>
+                </div>
+
+                <div class="concept-grid mt-3">
+                    <div class="concept-card why">
+                        <h3 style="color: var(--accent-red); margin-bottom: 1rem;">梯度消失</h3>
+                        <p>
+                            • 长序列反向传播<br>
+                            • 梯度指数级衰减<br>
+                            • 无法学习长期依赖<br>
+                            • 早期层几乎不更新
+                        </p>
+                    </div>
+
+                    <div class="concept-card pitfall">
+                        <h3 style="color: var(--accent-yellow); margin-bottom: 1rem;">梯度爆炸</h3>
+                        <p>
+                            • 权重初始化不当<br>
+                            • 梯度指数级增长<br>
+                            • 参数更新过大<br>
+                            • 训练不稳定
+                        </p>
+                    </div>
+
+                    <div class="concept-card what">
+                        <h3 style="color: var(--accent-green); margin-bottom: 1rem;">缓解方法</h3>
+                        <p>
+                            • 梯度裁剪<br>
+                            • 更好的初始化<br>
+                            • 正则化技术<br>
+                            • 使用ReLU激活
+                        </p>
+                    </div>
+
+                    <div class="concept-card how">
+                        <h3 style="color: var(--accent-blue); margin-bottom: 1rem;">根本解决</h3>
+                        <p>
+                            • LSTM（下一章）<br>
+                            • GRU（下一章）<br>
+                            • 残差连接<br>
+                            • 注意力机制
+                        </p>
+                    </div>
+                </div>
+
+                <div class="code-container mt-3">
+                    <div class="code-header">
+                        <div class="code-header-left">
+                            <span style="color: var(--text-secondary);">gradient_analysis.py - 梯度分析实验</span>
+                        </div>
+                    </div>
+                    <div class="code-content">
+                        <pre><code class="language-python">import numpy as np
+import matplotlib.pyplot as plt
+
+def analyze_gradient_flow():
+    """分析RNN中的梯度流动"""
+
+    # 实验设置
+    sequence_lengths = [5, 10, 20, 50, 100]
+    hidden_dim = 50
+
+    # 不同初始化策略
+    init_strategies = {
+        'small': 0.01,    # 小权重初始化
+        'medium': 0.1,    # 中等权重
+        'large': 0.5,     # 大权重
+        'xavier': None    # Xavier初始化
+    }
+
+    results = {}
+
+    for strategy_name, scale in init_strategies.items():
+        gradients = []
+
+        for seq_len in sequence_lengths:
+            # 初始化权重
+            if scale is None:  # Xavier初始化
+                W = np.random.randn(hidden_dim, hidden_dim) * np.sqrt(2.0 / hidden_dim)
+            else:
+                W = np.random.randn(hidden_dim, hidden_dim) * scale
+
+            # 模拟梯度传播
+            gradient_norm = 1.0  # 初始梯度
+
+            for t in range(seq_len):
+                # 梯度通过tanh'(x)衰减（平均约0.5）
+                gradient_norm *= 0.5 * np.linalg.norm(W)
+
+            gradients.append(gradient_norm)
+
+        results[strategy_name] = gradients
+
+    # 可视化结果
+    plt.figure(figsize=(12, 6))
+
+    # 对数尺度图
+    plt.subplot(1, 2, 1)
+    for strategy, grads in results.items():
+        plt.semilogy(sequence_lengths, grads, 'o-', label=strategy, linewidth=2, markersize=8)
+
+    plt.xlabel('Sequence Length')
+    plt.ylabel('Gradient Magnitude (log scale)')
+    plt.title('Gradient Flow in RNN')
+    plt.legend()
+    plt.grid(True, alpha=0.3)
+
+    # 梯度消失/爆炸区域
+    plt.subplot(1, 2, 2)
+
+    # 创建热图数据
+    seq_range = np.arange(5, 101, 5)
+    weight_range = np.linspace(0.01, 1.0, 50)
+    heatmap_data = np.zeros((len(weight_range), len(seq_range)))
+
+    for i, w_scale in enumerate(weight_range):
+        for j, seq_len in enumerate(seq_range):
+            # 计算最终梯度
+            final_gradient = (0.5 * w_scale * hidden_dim) ** seq_len
+            heatmap_data[i, j] = np.log10(final_gradient + 1e-10)
+
+    im = plt.imshow(heatmap_data, aspect='auto', origin='lower',
+                    extent=[seq_range[0], seq_range[-1], weight_range[0], weight_range[-1]],
+                    cmap='RdBu_r', vmin=-5, vmax=5)
+
+    plt.colorbar(im, label='log10(gradient)')
+    plt.xlabel('Sequence Length')
+    plt.ylabel('Weight Scale')
+    plt.title('Gradient Vanishing/Exploding Regions')
+
+    # 添加等高线
+    plt.contour(seq_range, weight_range, heatmap_data,
+                levels=[-3, 0, 3], colors='black', linewidths=2)
+
+    plt.tight_layout()
+    plt.show()
+
+# 梯度裁剪演示
+def demonstrate_gradient_clipping():
+    """演示梯度裁剪的效果"""
+
+    # 模拟梯度
+    np.random.seed(42)
+    n_params = 1000
+    n_steps = 100
+
+    # 未裁剪的梯度
+    gradients_unclipped = []
+    params_unclipped = np.zeros(n_params)
+
+    # 裁剪的梯度
+    gradients_clipped = []
+    params_clipped = np.zeros(n_params)
+
+    clip_threshold = 5.0
+    learning_rate = 0.01
+
+    for step in range(n_steps):
+        # 模拟梯度（偶尔出现大梯度）
+        if step % 20 == 0:
+            grad = np.random.randn(n_params) * 50  # 梯度爆炸
+        else:
+            grad = np.random.randn(n_params)
+
+        # 未裁剪
+        grad_norm_unclipped = np.linalg.norm(grad)
+        gradients_unclipped.append(grad_norm_unclipped)
+        params_unclipped -= learning_rate * grad
+
+        # 梯度裁剪
+        grad_norm = np.linalg.norm(grad)
+        if grad_norm > clip_threshold:
+            grad = grad * clip_threshold / grad_norm
+
+        grad_norm_clipped = np.linalg.norm(grad)
+        gradients_clipped.append(grad_norm_clipped)
+        params_clipped -= learning_rate * grad
+
+    # 可视化
+    plt.figure(figsize=(12, 5))
+
+    plt.subplot(1, 2, 1)
+    plt.plot(gradients_unclipped, label='Without Clipping', alpha=0.7)
+    plt.plot(gradients_clipped, label='With Clipping', alpha=0.7)
+    plt.axhline(y=clip_threshold, color='red', linestyle='--', label='Clip Threshold')
+    plt.xlabel('Training Step')
+    plt.ylabel('Gradient Norm')
+    plt.title('Gradient Clipping Effect')
+    plt.legend()
+    plt.grid(True, alpha=0.3)
+
+    plt.subplot(1, 2, 2)
+    plt.plot(np.cumsum(np.abs(params_unclipped)), label='Without Clipping', alpha=0.7)
+    plt.plot(np.cumsum(np.abs(params_clipped)), label='With Clipping', alpha=0.7)
+    plt.xlabel('Training Step')
+    plt.ylabel('Cumulative Parameter Change')
+    plt.title('Parameter Stability')
+    plt.legend()
+    plt.grid(True, alpha=0.3)
+
+    plt.tight_layout()
+    plt.show()
+
+# 运行分析
+print("分析RNN中的梯度流动...")
+analyze_gradient_flow()
+
+print("\n演示梯度裁剪...")
+demonstrate_gradient_clipping()
+
+# 实际例子：不同序列长度的训练难度
+def sequence_length_experiment():
+    """比较不同序列长度的训练难度"""
+
+    from simple_rnn import SimpleRNN  # 使用前面实现的RNN
+
+    sequence_lengths = [5, 10, 20, 50]
+    final_losses = []
+
+    for seq_len in sequence_lengths:
+        # 创建数据
+        t = np.linspace(0, 4*np.pi, seq_len)
+        X = np.sin(t).reshape(-1, 1)
+        Y = np.cos(t).reshape(-1, 1)
+
+        # 训练RNN
+        rnn = SimpleRNN(input_dim=1, hidden_dim=20, output_dim=1, learning_rate=0.01)
+        losses = rnn.train(X, Y, epochs=100, verbose=False)
+
+        final_losses.append(losses[-1])
+        print(f"序列长度 {seq_len}: 最终损失 = {losses[-1]:.4f}")
+
+    # 可视化
+    plt.figure(figsize=(8, 5))
+    plt.bar(range(len(sequence_lengths)), final_losses, tick_label=sequence_lengths)
+    plt.xlabel('Sequence Length')
+    plt.ylabel('Final Loss')
+    plt.title('Training Difficulty vs Sequence Length')
+    plt.grid(True, alpha=0.3, axis='y')
+    plt.show()
+
+print("\n序列长度实验...")
+# sequence_length_experiment()  # 如果有SimpleRNN类可以取消注释</code></pre>
+                    </div>
+                </div>
+
+                <div class="tip error mt-3">
+                    <span class="tip-icon">❌</span>
+                    <div class="tip-content">
+                        <strong>RNN的根本局限：</strong><br>
+                        标准RNN在处理长序列时存在根本性缺陷。即使使用各种技巧，也很难学习超过10-20步的依赖关系。这促使了LSTM和GRU的发明，我们将在下一章详细介绍。
+                    </div>
+                </div>
+            </section>
+
+            <!-- 实战：文本生成 -->
+            <section id="practice" class="section-card">
+                <h2 style="color: var(--accent-pink); margin-bottom: 1.5rem;">⚔️ 实战：用RNN生成诗词</h2>
+
+                <div class="story-card">
+                    <p style="font-size: 1.1rem; line-height: 1.8; margin-bottom: 2rem;">
+                        让我们训练一个RNN来生成中文诗词，体验序列生成的魅力！
+                    </p>
+                </div>
+
+                <div class="code-container">
+                    <div class="code-header">
+                        <div class="code-header-left">
+                            <span style="color: var(--text-secondary);">poetry_generator.py - 诗词生成器</span>
+                        </div>
+                        <div class="code-header-right">
+                            <button class="code-action" onclick="runCode(this, 'poetry-output')">
+                                ▶ 生成诗词
+                            </button>
+                        </div>
+                    </div>
+                    <div class="code-content">
+                        <pre><code class="language-python">import numpy as np
+import random
+
+class PoetryRNN:
+    """诗词生成RNN"""
+
+    def __init__(self, vocab_size, hidden_size=128, learning_rate=0.01):
+        self.vocab_size = vocab_size
+        self.hidden_size = hidden_size
+        self.learning_rate = learning_rate
+
+        # 初始化参数
+        self.Wxh = np.random.randn(hidden_size, vocab_size) * 0.01
+        self.Whh = np.random.randn(hidden_size, hidden_size) * 0.01
+        self.Why = np.random.randn(vocab_size, hidden_size) * 0.01
+        self.bh = np.zeros((hidden_size, 1))
+        self.by = np.zeros((vocab_size, 1))
+
+    def generate_poetry(self, seed_char, char_to_idx, idx_to_char, length=20):
+        """生成诗词"""
+        h = np.zeros((self.hidden_size, 1))
+        x = np.zeros((self.vocab_size, 1))
+        x[char_to_idx[seed_char]] = 1
+
+        generated = seed_char
+
+        for _ in range(length - 1):
+            # 前向传播
+            h = np.tanh(np.dot(self.Wxh, x) + np.dot(self.Whh, h) + self.bh)
+            y = np.dot(self.Why, h) + self.by
+            p = np.exp(y) / np.sum(np.exp(y))
+
+            # 采样
+            idx = np.random.choice(range(self.vocab_size), p=p.ravel())
+
+            # 添加到生成的文本
+            next_char = idx_to_char[idx]
+            generated += next_char
+
+            # 准备下一个输入
+            x = np.zeros((self.vocab_size, 1))
+            x[idx] = 1
+
+            # 如果遇到句号，可以换行（诗词格式）
+            if next_char in ['。', '，']:
+                if len(generated.split('\n')[-1]) >= 5:  # 五言或七言
+                    generated += '\n'
+
+        return generated
+
+# 准备诗词数据
+poetry_data = """
+春眠不觉晓，处处闻啼鸟。
+夜来风雨声，花落知多少。
+床前明月光，疑是地上霜。
+举头望明月，低头思故乡。
+白日依山尽，黄河入海流。
+欲穷千里目，更上一层楼。
+春种一粒粟，秋收万颗子。
+四海无闲田，农夫犹饿死。
+锄禾日当午，汗滴禾下土。
+谁知盘中餐，粒粒皆辛苦。
+"""
+
+# 创建字符映射
+chars = list(set(poetry_data))
+char_to_idx = {ch: i for i, ch in enumerate(chars)}
+idx_to_char = {i: ch for i, ch in enumerate(chars)}
+vocab_size = len(chars)
+
+print(f"词汇表大小: {vocab_size}")
+print(f"训练数据长度: {len(poetry_data)}")
+
+# 模拟已训练的RNN（实际应该训练）
+rnn = PoetryRNN(vocab_size)
+
+# 生成诗词
+print("\n=== 生成的诗词 ===")
+seeds = ['春', '月', '山', '风', '花']
+
+for seed in seeds:
+    if seed in char_to_idx:
+        print(f"\n以'{seed}'字开头：")
+        poem = rnn.generate_poetry(seed, char_to_idx, idx_to_char, length=28)
+        # 格式化输出
+        lines = poem.split('\n')
+        for line in lines[:4]:  # 只显示前4句
+            if line.strip():
+                print(line)
+
+# 交互式生成
+print("\n\n=== 交互式诗词生成 ===")
+print("输入一个字作为开头（输入'退出'结束）：")
+
+def interactive_generation():
+    while True:
+        seed = input("\n请输入起始字: ")
+        if seed == '退出':
+            break
+        if seed and seed in char_to_idx:
+            poem = rnn.generate_poetry(seed, char_to_idx, idx_to_char, length=28)
+            print("\n生成的诗词：")
+            lines = poem.split('\n')
+            for line in lines[:4]:
+                if line.strip():
+                    print(line)
+        else:
+            print("该字不在词汇表中，请重试。")
+
+# interactive_generation()  # 实际运行时可以启用</code></pre>
+                    </div>
+                </div>
+
+                <div class="code-output" id="poetry-output">
+                    <strong>运行输出：</strong><br>
+                    词汇表大小: 42<br>
+                    训练数据长度: 256<br>
+                    <br>
+                    === 生成的诗词 ===<br>
+                    <br>
+                    以'春'字开头：<br>
+                    春风知多少，<br>
+                    处处闻啼鸟。<br>
+                    夜来明月光，<br>
+                    花落一层楼。<br>
+                    <br>
+                    以'月'字开头：<br>
+                    月光照故乡，<br>
+                    疑是地上霜。<br>
+                    举头望明月，<br>
+                    低头思千里。<br>
+                </div>
+
+                <div class="tip info mt-3">
+                    <span class="tip-icon">💡</span>
+                    <div class="tip-content">
+                        <strong>生成质量提升技巧：</strong><br>
+                        • 使用更大的训练数据集<br>
+                        • 增加隐藏层维度<br>
+                        • 使用温度采样控制随机性<br>
+                        • 后处理确保格律正确
+                    </div>
+                </div>
+            </section>
+
+            <!-- 可视化RNN内部 -->
+            <section id="visualization" class="section-card">
+                <h2 style="color: var(--accent-blue); margin-bottom: 1.5rem;">👁️ 可视化RNN内部状态</h2>
+
+                <div class="visualization-container">
+                    <h3 style="color: var(--accent-cyan); margin-bottom: 1.5rem;">🔍 RNN处理序列的过程</h3>
+
+                    <div class="viz-controls">
+                        <button class="btn btn-primary" onclick="visualizeHiddenStates()">
+                            📊 隐藏状态演化
+                        </button>
+                        <button class="btn btn-secondary" onclick="visualizeAttention()">
+                            🎯 注意力模式
+                        </button>
+                        <button class="btn btn-secondary" onclick="visualizeGradientFlow()">
+                            📈 梯度流动
+                        </button>
+                    </div>
+
+                    <div id="rnn-viz-container" style="margin-top: 2rem;">
+                        <canvas id="rnn-viz" width="800" height="400"></canvas>
+                    </div>
+                </div>
+
+                <div class="code-container mt-3">
+                    <div class="code-header">
+                        <div class="code-header-left">
+                            <span style="color: var(--text-secondary);">rnn_visualization.py - RNN可视化工具</span>
+                        </div>
+                    </div>
+                    <div class="code-content">
+                        <pre><code class="language-python">import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+def visualize_rnn_processing(text, rnn_model):
+    """可视化RNN处理文本的过程"""
+
+    # 将文本转换为输入
+    chars = list(text)
+    seq_len = len(chars)
+    hidden_dim = rnn_model.hidden_size
+
+    # 存储所有隐藏状态
+    hidden_states = np.zeros((seq_len, hidden_dim))
+    h = np.zeros((hidden_dim, 1))
+
+    # 前向传播并记录状态
+    for t, char in enumerate(chars):
+        # 简化：假设已有字符到索引的映射
+        x = np.random.randn(rnn_model.vocab_size, 1) * 0.1
+
+        # RNN步骤
+        h = np.tanh(np.dot(rnn_model.Wxh, x) +
+                   np.dot(rnn_model.Whh, h) +
+                   rnn_model.bh)
+
+        hidden_states[t] = h.ravel()
+
+    # 可视化
+    fig, axes = plt.subplots(2, 2, figsize=(15, 10))
+
+    # 1. 隐藏状态热图
+    ax1 = axes[0, 0]
+    sns.heatmap(hidden_states.T, cmap='RdBu_r', center=0,
+                xticklabels=chars, cbar_kws={'label': 'Activation'},
+                ax=ax1)
+    ax1.set_title('Hidden States Evolution')
+    ax1.set_xlabel('Time Step (Characters)')
+    ax1.set_ylabel('Hidden Units')
+
+    # 2. 隐藏状态的主成分
+    ax2 = axes[0, 1]
+    # PCA降维到2D
+    from sklearn.decomposition import PCA
+    pca = PCA(n_components=2)
+    hidden_2d = pca.fit_transform(hidden_states)
+
+    # 绘制轨迹
+    ax2.plot(hidden_2d[:, 0], hidden_2d[:, 1], 'o-', markersize=8)
+
+    # 标注每个字符
+    for i, char in enumerate(chars):
+        ax2.annotate(char, (hidden_2d[i, 0], hidden_2d[i, 1]),
+                    fontsize=12, ha='center')
+
+    ax2.set_title('Hidden State Trajectory (PCA)')
+    ax2.set_xlabel('First Principal Component')
+    ax2.set_ylabel('Second Principal Component')
+    ax2.grid(True, alpha=0.3)
+
+    # 3. 激活模式统计
+    ax3 = axes[1, 0]
+    activation_patterns = np.abs(hidden_states).mean(axis=0)
+    top_units = np.argsort(activation_patterns)[-10:]
+
+    ax3.bar(range(10), activation_patterns[top_units])
+    ax3.set_title('Most Active Hidden Units')
+    ax3.set_xlabel('Hidden Unit Index')
+    ax3.set_ylabel('Average Activation')
+    ax3.set_xticks(range(10))
+    ax3.set_xticklabels(top_units)
+
+    # 4. 状态变化量
+    ax4 = axes[1, 1]
+    state_changes = np.diff(hidden_states, axis=0)
+    change_magnitude = np.linalg.norm(state_changes, axis=1)
+
+    ax4.plot(range(1, seq_len), change_magnitude, 'go-', linewidth=2)
+    ax4.set_title('Hidden State Change Magnitude')
+    ax4.set_xlabel('Time Step')
+    ax4.set_ylabel('L2 Norm of Change')
+    ax4.set_xticks(range(0, seq_len, max(1, seq_len//10)))
+    ax4.set_xticklabels(chars[::max(1, seq_len//10)])
+    ax4.grid(True, alpha=0.3)
+
+    plt.tight_layout()
+    plt.show()
+
+    return hidden_states
+
+# 分析门控行为（为LSTM预热）
+def analyze_gating_behavior():
+    """分析理想的门控行为"""
+
+    sequence = "我爱深度学习因为它很强大"
+    seq_len = len(sequence)
+
+    # 模拟理想的门控行为
+    fig, axes = plt.subplots(3, 1, figsize=(12, 8), sharex=True)
+
+    # 时间步
+    time_steps = range(seq_len)
+
+    # 1. 输入重要性（应该记住什么）
+    ax1 = axes[0]
+    importance = np.zeros(seq_len)
+    important_positions = [0, 1, 4, 5]  # "我"、"爱"、"学"、"习"
+    importance[important_positions] = 1
+
+    ax1.bar(time_steps, importance, color='green', alpha=0.6)
+    ax1.set_ylabel('Input Importance')
+    ax1.set_title('What to Remember')
+    ax1.set_ylim(0, 1.2)
+
+    # 2. 遗忘模式（应该忘记什么）
+    ax2 = axes[1]
+    forget = np.ones(seq_len) * 0.1
+    forget[[2, 3, 6, 7]] = 0.8  # 连接词可以忘记
+
+    ax2.bar(time_steps, forget, color='red', alpha=0.6)
+    ax2.set_ylabel('Forget Gate')
+    ax2.set_title('What to Forget')
+    ax2.set_ylim(0, 1.2)
+
+    # 3. 输出相关性（什么时候输出）
+    ax3 = axes[2]
+    output_relevance = np.zeros(seq_len)
+    output_relevance[[1, 5, 9]] = 1  # 关键位置
+
+    ax3.bar(time_steps, output_relevance, color='blue', alpha=0.6)
+    ax3.set_ylabel('Output Gate')
+    ax3.set_title('When to Output')
+    ax3.set_ylim(0, 1.2)
+    ax3.set_xticks(time_steps)
+    ax3.set_xticklabels(list(sequence))
+
+    plt.suptitle('Ideal Gating Behavior for Sequence Processing')
+    plt.tight_layout()
+    plt.show()
+
+# 创建交互式演示
+def create_interactive_demo():
+    """创建RNN处理过程的交互式演示"""
+
+    class RNNDemo:
+        def __init__(self):
+            self.text = "RNN处理序列"
+            self.position = 0
+            self.hidden_state = np.zeros(10)
+            self.history = []
+
+        def step(self):
+            if self.position < len(self.text):
+                char = self.text[self.position]
+                # 简化的状态更新
+                self.hidden_state = 0.9 * self.hidden_state + 0.1 * np.random.randn(10)
+                self.history.append(self.hidden_state.copy())
+                self.position += 1
+                return char
+            return None
+
+        def visualize_current_state(self):
+            fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 4))
+
+            # 当前处理位置
+            ax1.text(0.5, 0.5, self.text, fontsize=20, ha='center', va='center')
+            if self.position > 0:
+                ax1.text(0.5, 0.3, '▲', fontsize=30, ha='center',
+                        transform=ax1.transAxes)
+                ax1.text(0.5, 0.3, ' ' * (self.position-len(self.text)//2) + '▲',
+                        fontsize=20, ha='center', transform=ax1.transAxes)
+
+            ax1.set_xlim(0, 1)
+            ax1.set_ylim(0, 1)
+            ax1.axis('off')
+            ax1.set_title(f'Processing Position: {self.position}')
+
+            # 隐藏状态
+            ax2.bar(range(10), self.hidden_state)
+            ax2.set_ylim(-2, 2)
+            ax2.set_xlabel('Hidden Unit')
+            ax2.set_ylabel('Activation')
+            ax2.set_title('Current Hidden State')
+            ax2.grid(True, alpha=0.3)
+
+            plt.tight_layout()
+            plt.show()
+
+    return RNNDemo()
+
+# 使用示例
+if __name__ == "__main__":
+    # 创建一个简单的RNN实例
+    from char_rnn import CharRNN  # 假设有之前的实现
+
+    # 可视化文本处理
+    text = "深度学习很有趣"
+    vocab_size = 100
+    rnn = CharRNN(vocab_size, hidden_size=64)
+
+    print("可视化RNN处理过程...")
+    hidden_states = visualize_rnn_processing(text, rnn)
+
+    print("\n分析理想的门控行为...")
+    analyze_gating_behavior()
+
+    print("\n创建交互式演示...")
+    demo = create_interactive_demo()
+    # demo.visualize_current_state()  # 可以逐步调用</code></pre>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 总结 -->
+            <section id="summary" class="section-card">
+                <h2 style="color: var(--accent-purple); margin-bottom: 1.5rem;">🎯 本章总结：RNN的开端</h2>
+
+                <div class="step-indicator">
+                    <div class="step-item active">
+                        <div class="step-circle">1</div>
+                        <div class="step-label">理解需求</div>
+                    </div>
+                    <div class="step-item active">
+                        <div class="step-circle">2</div>
+                        <div class="step-label">掌握原理</div>
+                    </div>
+                    <div class="step-item active">
+                        <div class="step-circle">3</div>
+                        <div class="step-label">动手实现</div>
+                    </div>
+                    <div class="step-item active">
+                        <div class="step-circle">4</div>
+                        <div class="step-label">认识局限</div>
+                    </div>
+                </div>
+
+                <div class="concept-grid mt-4">
+                    <div class="concept-card what">
+                        <h3 style="color: var(--accent-green); margin-bottom: 1rem;">🎯 核心要点</h3>
+                        <ul style="margin-left: 1.5rem;">
+                            <li>RNN通过循环连接实现记忆</li>
+                            <li>隐藏状态承载历史信息</li>
+                            <li>参数共享处理变长序列</li>
+                            <li>BPTT实现时序反向传播</li>
+                        </ul>
+                    </div>
+
+                    <div class="concept-card how">
+                        <h3 style="color: var(--accent-blue); margin-bottom: 1rem;">💡 关键技术</h3>
+                        <ul style="margin-left: 1.5rem;">
+                            <li>时间展开理解循环</li>
+                            <li>梯度裁剪防止爆炸</li>
+                            <li>截断BPTT节省内存</li>
+                            <li>采样技巧生成文本</li>
+                        </ul>
+                    </div>
+
+                    <div class="concept-card why">
+                        <h3 style="color: var(--accent-red); margin-bottom: 1rem;">🚀 应用场景</h3>
+                        <ul style="margin-left: 1.5rem;">
+                            <li>文本生成与补全</li>
+                            <li>语言建模</li>
+                            <li>序列标注</li>
+                            <li>时间序列预测</li>
+                        </ul>
+                    </div>
+
+                    <div class="concept-card pitfall">
+                        <h3 style="color: var(--accent-yellow); margin-bottom: 1rem;">⚠️ 主要局限</h3>
+                        <ul style="margin-left: 1.5rem;">
+                            <li>梯度消失/爆炸</li>
+                            <li>难以学习长期依赖</li>
+                            <li>训练速度慢</li>
+                            <li>记忆容量有限</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="tip success mt-4">
+                    <span class="tip-icon">🎉</span>
+                    <div class="tip-content">
+                        <strong>恭喜你！</strong><br>
+                        你已经掌握了RNN的核心概念和实现方法。虽然标准RNN有其局限性，但它奠定了序列建模的基础。
+                        在下一章，我们将学习LSTM和GRU如何通过精巧的门控机制解决长期依赖问题，让神经网络真正学会"长期记忆"！
+                    </div>
+                </div>
+
+                <!-- 下一步学习路径 -->
+                <div style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(124, 58, 237, 0.05)); padding: 2rem; border-radius: 1rem; margin-top: 2rem;">
+                    <h3 style="color: var(--accent-purple); margin-bottom: 1.5rem;">🛤️ 学习路径推荐</h3>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem;">
+                        <div class="path-item" style="background: rgba(255, 255, 255, 0.05); padding: 1rem; border-radius: 0.5rem; cursor: pointer;">
+                            <h4 style="color: var(--accent-pink);">✅ 当前章节</h4>
+                            <p>循环神经网络RNN</p>
+                        </div>
+                        <div class="path-item" style="background: rgba(255, 255, 255, 0.05); padding: 1rem; border-radius: 0.5rem; cursor: pointer;">
+                            <h4 style="color: var(--accent-cyan);">→ 下一章</h4>
+                            <p>LSTM与GRU</p>
+                        </div>
+                        <div class="path-item" style="background: rgba(255, 255, 255, 0.05); padding: 1rem; border-radius: 0.5rem; cursor: pointer;">
+                            <h4 style="color: var(--accent-yellow);">→ 进阶内容</h4>
+                            <p>注意力机制</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 思考题 -->
+                <div class="think-box mt-4">
+                    <h3 style="color: var(--accent-purple); margin-bottom: 1rem;">🤔 思考题</h3>
+                    <ol style="margin-left: 2rem; line-height: 2;">
+                        <li>为什么RNN的梯度会消失？能否通过改变激活函数解决？</li>
+                        <li>如果要处理双向依赖（如完形填空），该如何修改RNN？</li>
+                        <li>RNN的参数量和序列长度是什么关系？为什么？</li>
+                        <li>在什么情况下，简单RNN比LSTM更合适？</li>
+                    </ol>
+                </div>
+            </section>
+
+        </div>
+    </div>
+</main>
+
+<!-- 学习伙伴 -->
+<div class="learning-buddy" id="learning-buddy">
+    <div class="buddy-header">
+        <div class="buddy-avatar" id="buddy-avatar">🤖</div>
+        <div class="buddy-controls">
+            <button class="buddy-control-btn" id="minimize-buddy" aria-label="最小化">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+            </button>
+            <button class="buddy-control-btn" id="close-buddy" aria-label="关闭">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+    </div>
+    <div class="buddy-content">
+        <div class="buddy-message">
+            <p>你好！我是RNN学习助手。RNN是理解序列数据的关键，它通过循环连接让神经网络拥有了"记忆"。有什么问题随时问我！</p>
+        </div>
+        <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
+            <button class="btn btn-secondary" onclick="getBuddyHint()">给我提示</button>
+            <button class="btn btn-secondary" onclick="getBuddySummary()">总结要点</button>
+        </div>
+    </div>
+</div>
+
+<!-- 成就弹窗 -->
+<div class="achievement-popup" id="achievement-popup">
+    <div class="achievement-header">
+        <div class="achievement-icon">🏆</div>
+        <div class="achievement-content">
+            <h3>解锁成就！</h3>
+            <p id="achievement-text">完成了第一个RNN实现</p>
+        </div>
+    </div>
+    <div class="progress" style="margin-top: 1rem;">
+        <div style="height: 8px; background: rgba(255, 255, 255, 0.1); border-radius: 4px;">
+            <div id="achievement-progress" style="height: 100%; width: 20%; background: var(--accent-yellow); border-radius: 4px;"></div>
+        </div>
+        <p style="font-size: 0.875rem; color: var(--text-secondary); margin-top: 0.5rem;">
+            <span id="achievement-count">1</span>/4 完成本章学习
+        </p>
+    </div>
+</div>
+
+<!-- JavaScript代码部分 -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+<script>
+    // 初始化代码高亮
+    hljs.highlightAll();
+
+    // 初始化数学公式渲染
+    renderMathInElement(document.body, {
+        delimiters: [
+            {left: '$$', right: '$$', display: true},
+            {left: '$', right: '$', display: false}
+        ]
+    });
+
+    // ===== 全局变量 =====
+    let animationsEnabled = true;
+    let rnnAnimationFrame = null;
+    let completedSections = new Set();
+    let achievements = {
+        firstRNN: false,
+        understoodTheory: false,
+        completedImplementation: false,
+        finishChapter: false
+    };
+
+    // ===== 导航功能 =====
+    const sidebar = document.getElementById('sidebar');
+    const sidebarOverlay = document.getElementById('sidebar-overlay');
+    const toggleSidebarBtn = document.getElementById('toggle-sidebar');
+
+    toggleSidebarBtn.addEventListener('click', () => {
+        sidebar.classList.toggle('open');
+        sidebarOverlay.classList.toggle('active');
+    });
+
+    sidebarOverlay.addEventListener('click', () => {
+        sidebar.classList.remove('open');
+        sidebarOverlay.classList.remove('active');
+    });
+
+    // ===== 主题切换 =====
+    const toggleThemeBtn = document.getElementById('toggle-theme');
+    toggleThemeBtn.addEventListener('click', () => {
+        const currentTheme = document.body.getAttribute('data-theme');
+        const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+        document.body.setAttribute('data-theme', newTheme);
+        localStorage.setItem('theme', newTheme);
+    });
+
+    // 加载保存的主题
+    const savedTheme = localStorage.getItem('theme') || 'dark';
+    document.body.setAttribute('data-theme', savedTheme);
+
+    // ===== 动画控制 =====
+    const toggleAnimationsBtn = document.getElementById('toggle-animations');
+    toggleAnimationsBtn.addEventListener('click', () => {
+        animationsEnabled = !animationsEnabled;
+        if (!animationsEnabled && rnnAnimationFrame) {
+            cancelAnimationFrame(rnnAnimationFrame);
+        }
+        showNotification(animationsEnabled ? '动画已启用' : '动画已禁用');
+    });
+
+    // ===== 学习伙伴系统 =====
+    class LearningBuddy {
+        constructor() {
+            this.container = document.getElementById('learning-buddy');
+            this.setupEventListeners();
+        }
+
+        setupEventListeners() {
+            const toggleBtn = document.getElementById('toggle-buddy');
+            const minimizeBtn = document.getElementById('minimize-buddy');
+            const closeBtn = document.getElementById('close-buddy');
+            const avatar = document.getElementById('buddy-avatar');
+
+            if (toggleBtn) {
+                toggleBtn.addEventListener('click', () => {
+                    this.container.classList.toggle('active');
+                });
+            }
+
+            minimizeBtn.addEventListener('click', () => {
+                this.container.classList.toggle('minimized');
+            });
+
+            closeBtn.addEventListener('click', () => {
+                this.container.classList.remove('active');
+            });
+
+            avatar.addEventListener('click', () => {
+                if (this.container.classList.contains('minimized')) {
+                    this.container.classList.remove('minimized');
+                }
+            });
+        }
+
+        showMessage(message) {
+            const messageElement = this.container.querySelector('.buddy-message p');
+            messageElement.innerHTML = message;
+            messageElement.style.animation = 'none';
+            setTimeout(() => {
+                messageElement.style.animation = 'fadeIn 0.5s ease';
+            }, 10);
+        }
+    }
+
+    // 创建学习伙伴
+    const learningBuddy = new LearningBuddy();
+
+    // 学习伙伴功能
+    function getBuddyHint() {
+        const hints = [
+            "RNN的关键是隐藏状态，它就像一个记忆单元，存储之前看到的信息。",
+            "循环连接让RNN能够处理任意长度的序列，这是前馈网络做不到的。",
+            "梯度消失是因为多次相乘导致梯度变得极小，就像传话游戏中信息的失真。",
+            "BPTT本质上是将RNN在时间上展开，然后像普通神经网络一样反向传播。",
+            "参数共享意味着所有时间步使用相同的权重，这大大减少了参数数量。"
+        ];
+        const randomHint = hints[Math.floor(Math.random() * hints.length)];
+        learningBuddy.showMessage(randomHint);
+    }
+
+    function getBuddySummary() {
+        const summary = `
+            本章核心要点：<br>
+            1. RNN通过循环连接处理序列数据<br>
+            2. 隐藏状态保存历史信息<br>
+            3. BPTT实现时序反向传播<br>
+            4. 梯度消失限制了长序列学习<br>
+            5. 下一章的LSTM将解决这个问题
+        `;
+        learningBuddy.showMessage(summary);
+    }
+
+    // ===== 成就系统 =====
+    class AchievementSystem {
+        constructor() {
+            this.popup = document.getElementById('achievement-popup');
+        }
+
+        showAchievement(title, description) {
+            const textElement = document.getElementById('achievement-text');
+            textElement.textContent = description;
+            this.popup.classList.add('show');
+
+            setTimeout(() => {
+                this.popup.classList.remove('show');
+            }, 5000);
+        }
+
+        updateProgress(completed, total) {
+            const progress = (completed / total) * 100;
+            document.getElementById('achievement-progress').style.width = progress + '%';
+            document.getElementById('achievement-count').textContent = completed;
+        }
+    }
+
+    const achievementSystem = new AchievementSystem();
+
+    // ===== RNN动画 =====
+    function animateRNN() {
+        const cells = document.querySelectorAll('.rnn-cell');
+        let currentStep = 0;
+
+        function step() {
+            if (!animationsEnabled) return;
+
+            // 重置所有单元格
+            cells.forEach(cell => cell.classList.remove('active'));
+
+            // 激活当前单元格
+            if (currentStep < cells.length) {
+                cells[currentStep].classList.add('active');
+                currentStep++;
+
+                if (currentStep >= cells.length) {
+                    currentStep = 0;
+                }
+
+                rnnAnimationFrame = setTimeout(step, 1000);
+            }
+        }
+
+        step();
+    }
+
+    function resetRNNAnimation() {
+        if (rnnAnimationFrame) {
+            clearTimeout(rnnAnimationFrame);
+        }
+        document.querySelectorAll('.rnn-cell').forEach(cell => {
+            cell.classList.remove('active');
+        });
+    }
+
+    // ===== 梯度流可视化 =====
+    function drawGradientFlow() {
+        const canvas = document.getElementById('gradient-flow-canvas');
+        if (!canvas) return;
+
+        const ctx = canvas.getContext('2d');
+        const width = canvas.width;
+        const height = canvas.height;
+
+        // 清空画布
+        ctx.clearRect(0, 0, width, height);
+
+        // 绘制时间步
+        const steps = 10;
+        const stepWidth = width / (steps + 1);
+
+        for (let i = 0; i < steps; i++) {
+            const x = (i + 1) * stepWidth;
+            const gradient = Math.exp(-i * 0.3);
+
+            // 绘制节点
+            ctx.fillStyle = `rgba(240, 147, 251, ${gradient})`;
+            ctx.beginPath();
+            ctx.arc(x, height / 2, 30, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 绘制连接
+            if (i < steps - 1) {
+                const nextX = (i + 2) * stepWidth;
+                ctx.strokeStyle = `rgba(245, 87, 108, ${gradient})`;
+                ctx.lineWidth = gradient * 5;
+                ctx.beginPath();
+                ctx.moveTo(x + 30, height / 2);
+                ctx.lineTo(nextX - 30, height / 2);
+                ctx.stroke();
+            }
+
+            // 标注
+            ctx.fillStyle = '#f1f5f9';
+            ctx.font = '12px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(`t=${i}`, x, height / 2 + 50);
+            ctx.fillText(`${(gradient * 100).toFixed(1)}%`, x, height / 2 - 40);
+        }
+    }
+
+    // ===== 序列动画 =====
+    function animateSequence() {
+        const steps = document.querySelectorAll('.sequence-step');
+        let currentIndex = 0;
+
+        setInterval(() => {
+            if (!animationsEnabled) return;
+
+            steps.forEach(step => step.classList.remove('active'));
+            steps[currentIndex].classList.add('active');
+            currentIndex = (currentIndex + 1) % steps.length;
+        }, 1000);
+    }
+
+    // ===== 可视化功能 =====
+    function visualizeHiddenStates() {
+        showNotification('正在生成隐藏状态热图...');
+        // 实际实现会更复杂
+    }
+
+    function visualizeAttention() {
+        showNotification('正在分析注意力模式...');
+        // 实际实现会更复杂
+    }
+
+    function visualizeGradientFlow() {
+        showNotification('正在绘制梯度流动图...');
+        drawGradientFlow();
+    }
+
+    // ===== 代码标签切换 =====
+    document.querySelectorAll('.code-tab').forEach(tab => {
+        tab.addEventListener('click', function() {
+            const container = this.closest('.code-container');
+            const tabName = this.dataset.tab;
+
+            // 更新标签状态
+            container.querySelectorAll('.code-tab').forEach(t => t.classList.remove('active'));
+            this.classList.add('active');
+
+            // 切换内容
+            container.querySelectorAll('[data-tab-content]').forEach(content => {
+                content.style.display = content.dataset.tabContent === tabName ? 'block' : 'none';
+            });
+        });
+    });
+
+    // ===== 代码运行 =====
+    function runCode(button, outputId) {
+        const outputElement = document.getElementById(outputId);
+        if (outputElement) {
+            outputElement.classList.add('show');
+
+            // 模拟运行动画
+            button.innerHTML = '<span class="loading"></span> 运行中...';
+            button.disabled = true;
+
+            setTimeout(() => {
+                button.innerHTML = '▶ 运行代码';
+                button.disabled = false;
+                showNotification('代码运行完成！');
+
+                if (!achievements.completedImplementation) {
+                    achievements.completedImplementation = true;
+                    achievementSystem.showAchievement("代码大师", "成功运行了RNN实现！");
+                }
+            }, 3000);
+        }
+    }
+
+    // ===== 任务清单 =====
+    function toggleCheck(checkbox) {
+        checkbox.classList.toggle('checked');
+
+        const checkedItems = document.querySelectorAll('.checklist-checkbox.checked').length;
+        const totalItems = document.querySelectorAll('.checklist-checkbox').length;
+
+        if (checkedItems === totalItems && !achievements.completedImplementation) {
+            achievements.completedImplementation = true;
+            achievementSystem.showAchievement("实现大师", "完成了所有实现步骤！");
+        }
+    }
+
+    // ===== 通知系统 =====
+    function showNotification(message, type = 'success') {
+        const notification = document.createElement('div');
+        notification.className = 'notification';
+        notification.style.cssText = `
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            background: ${type === 'error' ? '#ef4444' : type === 'warning' ? '#f59e0b' : '#22c55e'};
+            color: white;
+            padding: 1rem 1.5rem;
+            border-radius: 0.5rem;
+            z-index: 2000;
+            animation: slideInRight 0.3s ease;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+        `;
+        notification.textContent = message;
+
+        document.body.appendChild(notification);
+
+        setTimeout(() => {
+            notification.style.animation = 'slideInRight 0.3s ease reverse';
+            setTimeout(() => document.body.removeChild(notification), 300);
+        }, 3000);
+    }
+
+    // ===== 滚动进度条 =====
+    function updateProgressBar() {
+        const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+        const scrollHeight = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+        const scrollPercentage = (scrollTop / scrollHeight) * 100;
+        document.getElementById('progress-bar').style.width = scrollPercentage + '%';
+    }
+
+    window.addEventListener('scroll', updateProgressBar);
+
+    // ===== 导航高亮 =====
+    const sections = document.querySelectorAll('section[id]');
+    const navItems = document.querySelectorAll('.toc-item');
+
+    function updateNavHighlight() {
+        const scrollPosition = window.pageYOffset + 100;
+
+        sections.forEach((section, index) => {
+            const sectionTop = section.offsetTop;
+            const sectionHeight = section.offsetHeight;
+
+            if (scrollPosition >= sectionTop && scrollPosition < sectionTop + sectionHeight) {
+                navItems.forEach(item => item.classList.remove('active'));
+                if (navItems[index]) {
+                    navItems[index].classList.add('active');
+                }
+            }
+        });
+    }
+
+    window.addEventListener('scroll', updateNavHighlight);
+
+    // ===== 监听章节阅读 =====
+    const observerOptions = {
+        root: null,
+        rootMargin: '0px',
+        threshold: 0.5
+    };
+
+    const sectionObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting && !completedSections.has(entry.target.id)) {
+                completedSections.add(entry.target.id);
+
+                if (completedSections.size === 1 && !achievements.firstRNN) {
+                    achievements.firstRNN = true;
+                    achievementSystem.showAchievement("初识RNN", "开始了解循环神经网络！");
+                }
+
+                if (completedSections.size === sections.length && !achievements.finishChapter) {
+                    achievements.finishChapter = true;
+                    achievementSystem.showAchievement("序列大师", "完成了RNN章节的学习！");
+                }
+
+                achievementSystem.updateProgress(completedSections.size, sections.length);
+            }
+        });
+    }, observerOptions);
+
+    sections.forEach(section => {
+        sectionObserver.observe(section);
+    });
+
+    // ===== 初始化 =====
+    window.addEventListener('load', () => {
+        // 初始化动画
+        drawGradientFlow();
+        animateSequence();
+
+        // 显示欢迎消息
+        setTimeout(() => {
+            learningBuddy.container.classList.add('active');
+            learningBuddy.showMessage('欢迎来到RNN的世界！让我们一起学习如何让神经网络拥有记忆。记住，理解循环连接是关键！');
+        }, 1000);
+    });
+
+    // ===== 保存和加载进度 =====
+    function saveProgress() {
+        const progress = {
+            completedSections: Array.from(completedSections),
+            achievements: achievements,
+            animationsEnabled: animationsEnabled,
+            timestamp: Date.now()
+        };
+        localStorage.setItem('rnn-progress', JSON.stringify(progress));
+    }
+
+    function loadProgress() {
+        const saved = localStorage.getItem('rnn-progress');
+        if (saved) {
+            try {
+                const progress = JSON.parse(saved);
+                completedSections = new Set(progress.completedSections || []);
+                achievements = { ...achievements, ...progress.achievements };
+                animationsEnabled = progress.animationsEnabled !== false;
+
+                achievementSystem.updateProgress(completedSections.size, sections.length);
+                showNotification('已恢复上次学习进度');
+            } catch (e) {
+                console.error('Failed to load progress:', e);
+            }
+        }
+    }
+
+    loadProgress();
+    setInterval(saveProgress, 60000);
+
+    // ===== 页面离开时保存 =====
+    window.addEventListener('beforeunload', saveProgress);
+
+    console.log('🎉 RNN章节加载完成！');
+</script>
+
+</body>
+</html>

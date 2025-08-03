@@ -1,0 +1,510 @@
+/* 
+ * 张三AI学习平台 - 统一设计系统
+ * 酷炫但不过分华丽的现代风格
+ */
+
+/* ================== 设计令牌系统 ================== */
+:root {
+    /* 主色彩系统 */
+    --primary: #667eea;
+    --primary-light: #8b5cf6;
+    --secondary: #06b6d4;
+    --accent: #22c55e;
+    --warning: #fbbf24;
+    --danger: #ef4444;
+    
+    /* 背景色系 */
+    --bg-main: #0f172a;
+    --bg-surface: #1e293b;
+    --bg-card: rgba(255, 255, 255, 0.08);
+    --bg-overlay: rgba(15, 23, 42, 0.9);
+    
+    /* 文字色系 */
+    --text-primary: #e2e8f0;
+    --text-secondary: #cbd5e1;
+    --text-muted: #94a3b8;
+    
+    /* 边框和分割线 */
+    --border-color: rgba(255, 255, 255, 0.12);
+    --border-accent: rgba(102, 126, 234, 0.3);
+    
+    /* 间距系统 */
+    --space-xs: 0.5rem;   /* 8px */
+    --space-sm: 1rem;     /* 16px */
+    --space-md: 1.5rem;   /* 24px */
+    --space-lg: 2rem;     /* 32px */
+    --space-xl: 3rem;     /* 48px */
+    --space-2xl: 4rem;    /* 64px */
+    
+    /* 字体系统 */
+    --text-xs: 0.75rem;   /* 12px */
+    --text-sm: 0.875rem;  /* 14px */
+    --text-base: 1rem;    /* 16px */
+    --text-lg: 1.125rem;  /* 18px */
+    --text-xl: 1.25rem;   /* 20px */
+    --text-2xl: 1.5rem;   /* 24px */
+    --text-3xl: 1.875rem; /* 30px */
+    --text-4xl: 2.25rem;  /* 36px */
+    
+    /* 圆角系统 */
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+    --radius-xl: 20px;
+    --radius-2xl: 24px;
+    --radius-full: 9999px;
+    
+    /* 阴影系统 */
+    --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.1);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.15);
+    --shadow-lg: 0 8px 25px rgba(0, 0, 0, 0.25);
+    --shadow-xl: 0 12px 35px rgba(0, 0, 0, 0.35);
+    
+    /* 渐变系统 */
+    --gradient-primary: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+    --gradient-secondary: linear-gradient(135deg, var(--secondary) 0%, #0891b2 100%);
+    --gradient-accent: linear-gradient(135deg, var(--accent) 0%, #16a34a 100%);
+    --gradient-warm: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    
+    /* 动画时长 */
+    --duration-fast: 0.15s;
+    --duration-normal: 0.3s;
+    --duration-slow: 0.5s;
+    
+    /* Z-index 层级 */
+    --z-nav: 100;
+    --z-modal: 1000;
+    --z-tooltip: 2000;
+}
+
+/* ================== 基础重置和通用样式 ================== */
+*, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    background: var(--bg-main);
+    color: var(--text-primary);
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+}
+
+/* 标题层级 */
+h1, h2, h3, h4, h5, h6 {
+    line-height: 1.3;
+    font-weight: 700;
+    margin-bottom: var(--space-md);
+}
+
+h1 { font-size: clamp(var(--text-2xl), 4vw, var(--text-4xl)); }
+h2 { font-size: clamp(var(--text-xl), 3vw, var(--text-3xl)); }
+h3 { font-size: clamp(var(--text-lg), 2.5vw, var(--text-2xl)); }
+h4 { font-size: var(--text-xl); }
+h5 { font-size: var(--text-lg); }
+h6 { font-size: var(--text-base); }
+
+p {
+    margin-bottom: var(--space-sm);
+    color: var(--text-secondary);
+}
+
+img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+}
+
+a {
+    color: inherit;
+    text-decoration: none;
+    transition: all var(--duration-normal) ease;
+}
+
+/* ================== 布局组件 ================== */
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 var(--space-lg);
+}
+
+.section {
+    background: var(--bg-card);
+    border-radius: var(--radius-2xl);
+    padding: var(--space-xl);
+    margin-bottom: var(--space-xl);
+    border: 2px solid var(--border-color);
+    position: relative;
+    overflow: hidden;
+}
+
+/* 网格系统 */
+.grid-1 { display: grid; grid-template-columns: 1fr; gap: var(--space-lg); }
+.grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: var(--space-lg); }
+.grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: var(--space-md); }
+.grid-4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-md); }
+
+/* Flex 工具类 */
+.flex { display: flex; }
+.flex-col { flex-direction: column; }
+.flex-center { align-items: center; justify-content: center; }
+.flex-between { justify-content: space-between; }
+.flex-wrap { flex-wrap: wrap; }
+.gap-sm { gap: var(--space-sm); }
+.gap-md { gap: var(--space-md); }
+.gap-lg { gap: var(--space-lg); }
+
+/* ================== 专栏主题色彩 ================== */
+.theme-ml {
+    --theme-color: #667eea;
+    --theme-light: #8b5cf6;
+    --theme-bg: rgba(102, 126, 234, 0.15);
+}
+
+.theme-dl {
+    --theme-color: #ef4444;
+    --theme-light: #f87171;
+    --theme-bg: rgba(239, 68, 68, 0.15);
+}
+
+.theme-transformer {
+    --theme-color: #06b6d4;
+    --theme-light: #0891b2;
+    --theme-bg: rgba(6, 182, 212, 0.15);
+}
+
+.theme-nlp {
+    --theme-color: #22c55e;
+    --theme-light: #16a34a;
+    --theme-bg: rgba(34, 197, 94, 0.15);
+}
+
+/* ================== 卡片组件 ================== */
+.card {
+    background: var(--bg-card);
+    border-radius: var(--radius-lg);
+    padding: var(--space-lg);
+    border: 1px solid var(--border-color);
+    transition: all var(--duration-normal) ease;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+}
+
+.card-story {
+    background: linear-gradient(135deg, var(--bg-surface) 0%, rgba(30, 41, 59, 0.8) 100%);
+    border: 2px solid var(--theme-color, var(--border-accent));
+}
+
+.card-math {
+    background: linear-gradient(135deg, rgba(6, 182, 212, 0.1), rgba(14, 165, 233, 0.05));
+    border-left: 4px solid var(--secondary);
+}
+
+.card-highlight {
+    background: var(--theme-bg);
+    border: 2px solid var(--theme-color);
+}
+
+/* ================== 徽章组件 ================== */
+.badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-xs);
+    padding: var(--space-xs) var(--space-md);
+    border-radius: var(--radius-full);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    line-height: 1.2;
+}
+
+.badge-primary { background: rgba(102, 126, 234, 0.2); color: var(--primary); }
+.badge-secondary { background: rgba(6, 182, 212, 0.2); color: var(--secondary); }
+.badge-accent { background: rgba(34, 197, 94, 0.2); color: var(--accent); }
+.badge-warning { background: rgba(251, 191, 36, 0.2); color: var(--warning); }
+.badge-danger { background: rgba(239, 68, 68, 0.2); color: var(--danger); }
+
+/* ================== 按钮组件 ================== */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-xs);
+    padding: var(--space-md) var(--space-lg);
+    border: none;
+    border-radius: var(--radius-full);
+    font-size: var(--text-base);
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all var(--duration-normal) ease;
+    white-space: nowrap;
+}
+
+.btn-primary {
+    background: var(--gradient-primary);
+    color: white;
+    box-shadow: var(--shadow-md);
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: var(--shadow-lg);
+}
+
+.btn-secondary {
+    background: var(--gradient-secondary);
+    color: white;
+    box-shadow: var(--shadow-md);
+}
+
+.btn-outline {
+    background: transparent;
+    border: 2px solid var(--theme-color, var(--primary));
+    color: var(--theme-color, var(--primary));
+}
+
+/* ================== 数学公式容器 ================== */
+.math-container {
+    background: linear-gradient(135deg, rgba(6, 182, 212, 0.1), rgba(14, 165, 233, 0.05));
+    border-radius: var(--radius-lg);
+    padding: var(--space-lg);
+    margin: var(--space-lg) 0;
+    border: 1px solid rgba(6, 182, 212, 0.3);
+    position: relative;
+    overflow: hidden;
+}
+
+.math-container::before {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    background: linear-gradient(45deg, var(--secondary), var(--primary-light), var(--secondary));
+    background-size: 400% 400%;
+    border-radius: var(--radius-lg);
+    opacity: 0.3;
+    z-index: -1;
+    animation: gradient-border 4s ease-in-out infinite;
+}
+
+.formula {
+    background: rgba(6, 182, 212, 0.1);
+    border-left: 4px solid var(--secondary);
+    padding: var(--space-lg);
+    margin: var(--space-md) 0;
+    border-radius: 0 var(--radius-md) var(--radius-md) 0;
+    font-family: 'Times New Roman', serif;
+    text-align: center;
+    position: relative;
+}
+
+/* ================== 矩阵可视化 ================== */
+.matrix-container {
+    font-family: 'Courier New', monospace;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: var(--space-lg) 0;
+}
+
+.matrix {
+    border: 2px solid var(--secondary);
+    border-radius: var(--radius-sm);
+    padding: var(--space-md);
+    background: rgba(6, 182, 212, 0.1);
+}
+
+.matrix-row {
+    display: flex;
+    gap: var(--space-sm);
+    margin-bottom: var(--space-xs);
+}
+
+.matrix-row:last-child { margin-bottom: 0; }
+
+.matrix-cell {
+    width: 60px;
+    text-align: center;
+    padding: var(--space-xs);
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: var(--radius-sm);
+    font-weight: 600;
+    transition: all var(--duration-normal) ease;
+}
+
+.matrix-cell-highlight {
+    background: rgba(34, 197, 94, 0.3);
+    color: var(--accent);
+    animation: pulse 2s infinite;
+}
+
+/* ================== 章节导航 ================== */
+.chapter-nav {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    background: var(--bg-overlay);
+    backdrop-filter: blur(8px);
+    padding: var(--space-sm) var(--space-md);
+    display: flex;
+    gap: var(--space-md);
+    z-index: var(--z-nav);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.chapter-nav a {
+    color: var(--text-secondary);
+    font-size: var(--text-sm);
+    padding: var(--space-xs) var(--space-sm);
+    border-radius: var(--radius-md);
+    transition: all var(--duration-normal) ease;
+}
+
+.chapter-nav a:hover {
+    background: var(--bg-card);
+    color: var(--text-primary);
+}
+
+/* ================== 章节跳转 ================== */
+.chapter-transition {
+    text-align: center;
+    padding: var(--space-2xl) var(--space-lg);
+    background: var(--theme-bg);
+    border-radius: var(--radius-2xl);
+    margin: var(--space-xl) 0;
+    border: 2px solid var(--theme-color);
+}
+
+.chapter-transition h3 {
+    color: var(--theme-color);
+    margin-bottom: var(--space-lg);
+}
+
+.chapter-transition p {
+    color: var(--text-secondary);
+    margin-bottom: var(--space-lg);
+    font-size: var(--text-lg);
+}
+
+/* ================== 故事场景 ================== */
+.story-scene {
+    background: linear-gradient(135deg, var(--bg-surface) 0%, rgba(30, 41, 59, 0.8) 100%);
+    border-radius: var(--radius-xl);
+    padding: var(--space-xl);
+    margin: var(--space-xl) 0;
+    border: 2px solid var(--theme-color);
+    position: relative;
+    overflow: hidden;
+}
+
+.character {
+    text-align: center;
+    transition: all var(--duration-normal) ease;
+}
+
+.character:hover {
+    transform: scale(1.05);
+}
+
+.character-avatar {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--text-2xl);
+    margin: 0 auto var(--space-sm);
+    box-shadow: var(--shadow-md);
+    transition: all var(--duration-normal) ease;
+}
+
+.character-name {
+    font-weight: 700;
+    margin-bottom: var(--space-xs);
+}
+
+.character-dialogue {
+    font-size: var(--text-sm);
+    color: var(--text-muted);
+}
+
+/* ================== 动画效果 ================== */
+@keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.7; transform: scale(1.05); }
+}
+
+@keyframes bounce {
+    0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+    40% { transform: translateY(-10px); }
+    60% { transform: translateY(-5px); }
+}
+
+@keyframes gradient-border {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+}
+
+@keyframes fade-in {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+    animation: fade-in 0.6s ease-out;
+}
+
+.animate-pulse { animation: pulse 2s infinite; }
+.animate-bounce { animation: bounce 2s infinite; }
+
+/* ================== 响应式设计 ================== */
+@media (max-width: 768px) {
+    .container {
+        padding: 0 var(--space-md);
+    }
+    
+    .section {
+        padding: var(--space-lg);
+        margin-bottom: var(--space-lg);
+    }
+    
+    .grid-2, .grid-3, .grid-4 {
+        grid-template-columns: 1fr;
+    }
+    
+    .matrix-cell {
+        width: 45px;
+        font-size: var(--text-xs);
+    }
+    
+    .chapter-nav {
+        padding: var(--space-xs) var(--space-sm);
+        gap: var(--space-sm);
+    }
+}
+
+/* ================== 减少动画首选项 ================== */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* ================== 打印样式 ================== */
+@media print {
+    .chapter-nav { display: none; }
+    .animate-pulse, .animate-bounce { animation: none; }
+    * { background: white !important; color: black !important; }
+}

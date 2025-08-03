@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>百看(Baikan)业务流程详解</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+            padding: 40px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #764ba2;
+            font-size: 3em;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            font-size: 1.2em;
+            margin-bottom: 40px;
+        }
+
+        .flow-section {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .flow-section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 5px;
+            height: 100%;
+            background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .section-title {
+            color: #764ba2;
+            font-size: 2em;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+        }
+
+        .section-number {
+            background: #764ba2;
+            color: white;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 15px;
+            font-weight: bold;
+            font-size: 1.5em;
+        }
+
+        .example-box {
+            background: #fff;
+            border: 2px dashed #667eea;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            font-family: 'Courier New', monospace;
+            position: relative;
+        }
+
+        .example-label {
+            position: absolute;
+            top: -12px;
+            left: 20px;
+            background: #fff;
+            padding: 0 10px;
+            color: #667eea;
+            font-weight: bold;
+        }
+
+        .code-block {
+            background: #2d3748;
+            color: #e2e8f0;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+            overflow-x: auto;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .highlight {
+            background: linear-gradient(120deg, #84fab0 0%, #8fd3f4 100%);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+
+        .function-desc {
+            background: #f8f9fa;
+            border-left: 4px solid #764ba2;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 0 8px 8px 0;
+        }
+
+        .flow-diagram {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            margin: 30px 0;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 10px;
+        }
+
+        .flow-step {
+            text-align: center;
+            flex: 1;
+            position: relative;
+        }
+
+        .flow-step:not(:last-child)::after {
+            content: '→';
+            position: absolute;
+            right: -30px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 2em;
+            color: #764ba2;
+        }
+
+        .flow-icon {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 10px;
+            color: white;
+            font-size: 2em;
+        }
+
+        .branch-container {
+            background: #fef3c7;
+            border: 2px solid #f59e0b;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+
+        .branch-title {
+            color: #f59e0b;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .detail-list {
+            list-style: none;
+            padding-left: 20px;
+        }
+
+        .detail-list li {
+            position: relative;
+            padding-left: 25px;
+            margin-bottom: 10px;
+        }
+
+        .detail-list li::before {
+            content: '▸';
+            position: absolute;
+            left: 0;
+            color: #764ba2;
+            font-size: 1.2em;
+        }
+
+        .cache-flow {
+            background: #e0f2fe;
+            border: 2px solid #0284c7;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .error-handling {
+            background: #fee2e2;
+            border: 2px solid #dc2626;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .summary-box {
+            background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+            border-radius: 15px;
+            padding: 30px;
+            margin-top: 40px;
+            text-align: center;
+        }
+
+        .metric-box {
+            display: inline-block;
+            background: white;
+            border-radius: 10px;
+            padding: 15px 25px;
+            margin: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .metric-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #764ba2;
+        }
+
+        .metric-label {
+            color: #666;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>🚀 百看(Baikan)业务流程详解</h1>
+    <p class="subtitle">深度解析文本处理与模型推理完整链路</p>
+
+    <div class="flow-diagram">
+        <div class="flow-step">
+            <div class="flow-icon">📥</div>
+            <div>请求接收</div>
+        </div>
+        <div class="flow-step">
+            <div class="flow-icon">⚙️</div>
+            <div>YACL配置</div>
+        </div>
+        <div class="flow-step">
+            <div class="flow-icon">✂️</div>
+            <div>分词处理</div>
+        </div>
+        <div class="flow-step">
+            <div class="flow-icon">🧠</div>
+            <div>模型推理</div>
+        </div>
+        <div class="flow-step">
+            <div class="flow-icon">📤</div>
+            <div>结果返回</div>
+        </div>
+    </div>
+
+    <!-- 示例数据 -->
+    <div class="flow-section">
+        <h2 class="section-title">
+            <span class="section-number">📋</span>
+            示例请求数据
+        </h2>
+        <div class="example-box">
+            <span class="example-label">RequestInnerData 示例</span>
+            <pre>{
+    "search_id": 0x123456789ABCDEF0,
+    "cmd": "baikan_qv_search",
+    "query_schema": ["query"],
+    "pair_schema": ["landing_page"],
+    "style_schema": ["document_0", "document_1"],
+    "query_item": {
+        "values": ["如何学习机器学习"]
+    },
+    "pair_items": [{
+        "values": ["机器学习入门指南"]
+    }],
+    "style_items": [{
+        "values": [
+            {"values": ["监督学习是机器学习的重要分支..."]},
+            {"values": ["深度学习在近年来取得突破性进展..."]}
+        ]
+    }]
+}</pre>
+        </div>
+    </div>
+
+    <!-- 第一步：YaclOp -->
+    <div class="flow-section">
+        <h2 class="section-title">
+            <span class="section-number">1</span>
+            YaclOp - 实验配置与请求预处理
+        </h2>
+
+        <div class="function-desc">
+            <strong>主要功能：</strong>管理实验配置(YACL)，处理请求头中的实验参数，构建schema映射
+        </div>
+
+        <h3>1.1 inference() 主流程</h3>
+        <div class="code-block">
+            int YaclOp::inference() {
+            // 1. 获取YACL上下文和恢复配置
+            YaclResource* yacl_resource = get_resource(conf->resource_name);
+            yacl_resource->get_yacl_manager().context_recover(*yacl_context);
+
+            // 2. 处理请求头中的实验参数
+            if (req->has_itp_request_header()) {
+            // 合并overlapping实验参数
+            copy_ovlexp(brpc_ovlexp, _yacl_ovlexp);
+            yacl_resource->get_yacl_manager().context_merge_overlap(
+            *yacl_context, &_yacl_ovlexp);
+            }
+
+            // 3. 预处理实例数据
+            _preprocess_ins(req, yacl_output);
+
+            // 4. 获取模型信息
+            _get_model_info();
+
+            // 5. 生成业务ID
+            _generate_bizid_value(yacl_output);
+            }</div>
+
+        <h3>1.2 数据打平 - _preprocess_ins()</h3>
+        <div class="function-desc">
+            <strong>核心逻辑：</strong>将三层嵌套结构(query/pair/style)打平成实例列表
+        </div>
+
+        <div class="example-box">
+            <span class="example-label">打平过程示例</span>
+            <pre>输入结构：
+- Query级: ["如何学习机器学习"]
+- Pair级: ["机器学习入门指南"]
+- Style级: [["监督学习..."], ["深度学习..."]]
+
+打平后的实例：
+- ins_0: {query + pair + style[0]}
+- ins_1: {query + pair + style[1]}
+
+schema_map构建：
+{
+    "query": (QueryLevel, 0),
+    "landing_page": (PairLevel, 0),
+    "document_0": (StyleLevel, 0),
+    "document_1": (StyleLevel, 1)
+}</pre>
+        </div>
+
+        <div class="branch-container">
+            <div class="branch-title">🔀 分支处理逻辑</div>
+            <ul class="detail-list">
+                <li><strong>if (req->pair_items_size() != 0)</strong> - 存在pair数据时，遍历pair和style构建实例</li>
+                <li><strong>if (req->style_schema_size() != 0)</strong> - 存在style时，创建pair×style个实例</li>
+                <li><strong>else</strong> - 只有query级数据，创建单个实例</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- 第二步：BaikanTokenizerOp -->
+    <div class="flow-section">
+        <h2 class="section-title">
+            <span class="section-number">2</span>
+            BaikanTokenizerOp - 分词与向量化
+        </h2>
+
+        <div class="function-desc">
+            <strong>主要功能：</strong>文本分词、缓存管理、构建输入ID序列
+        </div>
+
+        <h3>2.1 主流程</h3>
+        <div class="flow-diagram">
+            <div class="flow-step">
+                <div class="flow-icon">📝</div>
+                <div>获取文本</div>
+            </div>
+            <div class="flow-step">
+                <div class="flow-icon">💾</div>
+                <div>检查缓存</div>
+            </div>
+            <div class="flow-step">
+                <div class="flow-icon">✂️</div>
+                <div>分词处理</div>
+            </div>
+            <div class="flow-step">
+                <div class="flow-icon">🔢</div>
+                <div>构建IDs</div>
+            </div>
+        </div>
+
+        <h3>2.2 缓存机制</h3>
+        <div class="cache-flow">
+            <h4>🗄️ Redis缓存流程</h4>
+            <div class="code-block">
+                // 1. 生成缓存键
+                generate_cache_base_key(os) {
+                os << yacl_out->yacl_message->exp_id();  // 实验ID
+                os << model_name << model_version;        // 模型信息
+                os << vocab_dict_name;                    // 词典信息
+                os << max_seq_len;                        // 最大序列长度
+                }
+
+                // 2. 批量查询Redis
+                redis_client->mget(redis_key_vec, redis_response);
+
+                // 3. 解析缓存结果
+                if (redis_reply.is_string()) {
+                cache::ErnieCache cache;
+                cache.ParseFromString(redis_reply.data());
+                }</div>
+
+            <div class="metric-box">
+                <div class="metric-value">cache_hit_rate</div>
+                <div class="metric-label">缓存命中率监控</div>
+            </div>
+        </div>
+
+        <h3>2.3 分词处理 - tokenize()</h3>
+        <div class="function-desc">
+            对未命中缓存的数据进行分词处理，支持多种分词方式
+        </div>
+
+        <div class="branch-container">
+            <div class="branch-title">🔀 分词类型分支</div>
+            <ul class="detail-list">
+                <li><strong>ERNIE_CHARACTER_TOKENIZE</strong> - 字符级分词(支持大小写转换)</li>
+                <li><strong>ERNIE_CHARACTER_TOKENIZE_V2</strong> - 改进版字符分词</li>
+                <li><strong>CHARACTER_TOKENIZE</strong> - 基础字符分词</li>
+                <li><strong>ERNIE_SENTENCEPIECE_TOKENIZE</strong> - SentencePiece分词</li>
+            </ul>
+        </div>
+
+        <h3>2.4 百看特定ID构建 - baikan_qv_construct_ids()</h3>
+        <div class="example-box">
+            <span class="example-label">QV模式ID构建示例</span>
+            <pre>输入：
+- query: ["如何", "学习", "机器", "学习"] (4 tokens)
+- doc_0: ["监督", "学习", "是", "..."] (20 tokens)
+- doc_1: ["深度", "学习", "在", "..."] (30 tokens)
+
+处理步骤：
+1. 计算总长度: 4 + 1(SEP) + 20 + 1(SEP) + 30 + 1(SEP) = 57
+2. 截断处理: qv_truncate_seq_trio() - 优先截断最长序列
+3. 构建attention_mask_lens: [5, 21, 31]
+4. 组装input_ids: query_ids + [SEP] + doc0_ids + [SEP] + doc1_ids + [SEP]
+5. 记录token_pos_ids: [25, 56] (两个SEP的位置)</pre>
+        </div>
+
+        <div class="function-desc">
+            <strong>截断策略：</strong>优先保留短序列，按query > doc_1 > doc_0的优先级截断
+        </div>
+    </div>
+
+    <!-- 第三步：GeneralFluidPredictOp -->
+    <div class="flow-section">
+        <h2 class="section-title">
+            <span class="section-number">3</span>
+            GeneralFluidPredictOp - 模型推理
+        </h2>
+
+        <div class="function-desc">
+            <strong>主要功能：</strong>构建推理请求、执行模型推理、处理推理结果
+        </div>
+
+        <h3>3.1 推理主流程</h3>
+        <div class="code-block">
+            int GeneralFluidPredictOp::inference() {
+            // 1. 检查是否全部命中缓存
+            if (all_cache()) {
+            return 0;  // 直接返回
+            }
+
+            // 2. 构建请求包
+            get_req_packs(tokenizer_out, req_packs);
+
+            // 3. 执行推理
+            infer_func(req_packs, res_packs, res->model_version);
+
+            // 4. 获取推理结果
+            get_infer_result(res, res_packs, ins_num);
+            }</div>
+
+        <h3>3.2 推理执行 - infer_func()</h3>
+        <div class="function-desc">
+            <strong>核心步骤：</strong>
+        </div>
+        <ul class="detail-list">
+            <li>构建输入张量 (build_input_tensor_vector)</li>
+            <li>准备输出缓冲区</li>
+            <li>调用InferManager执行推理</li>
+            <li>解析推理结果</li>
+        </ul>
+
+        <div class="branch-container">
+            <div class="branch-title">🔀 模型类型分支</div>
+            <ul class="detail-list">
+                <li><strong>if (_conf.is_sort_model)</strong> - 排序模型，输出scores</li>
+                <li><strong>if (FLAGS_enable_rel_model_tokenize)</strong> - 相关性模型</li>
+                <li><strong>if (FLAGS_enable_gen_flush)</strong> - 生成模型with flush</li>
+                <li><strong>else</strong> - 标准生成模型</li>
+            </ul>
+        </div>
+
+        <h3>3.3 结果处理 - get_infer_result()</h3>
+        <div class="example-box">
+            <span class="example-label">推理结果解析</span>
+            <pre>排序模型输出：
+- ins_0: scores=[0.92, 0.85, 0.73, 0.61, 0.45]
+- ins_1: scores=[0.88, 0.76, 0.69, 0.52, 0.38]
+
+生成模型输出：
+- ins_0: {
+    generated_str: "机器学习是人工智能的重要分支...",
+    decoder_scores: 0.87,
+    context_feature: [0.1, 0.2, ...]
+  }</pre>
+        </div>
+
+        <div class="error-handling">
+            <h4>❌ 错误处理</h4>
+            <ul class="detail-list">
+                <li>res_pack.flag() == 1 - 未处理错误 (CALCQ_ERROR)</li>
+                <li>res_pack.flag() == -1 - 分词错误 (TOKENIZE_ERROR)</li>
+                <li>res_pack.flag() == -2 - 计算错误 (CALCQ_ERROR)</li>
+                <li>超时处理 - 返回超时错误码 (4002/4003)</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- 性能监控 -->
+    <div class="flow-section">
+        <h2 class="section-title">
+            <span class="section-number">4</span>
+            性能监控与优化
+        </h2>
+
+        <div class="metric-box">
+            <div class="metric-value">tokenize_latency</div>
+            <div class="metric-label">分词耗时</div>
+        </div>
+
+        <div class="metric-box">
+            <div class="metric-value">infer_cost</div>
+            <div class="metric-label">推理耗时</div>
+        </div>
+
+        <div class="metric-box">
+            <div class="metric-value">batch_size</div>
+            <div class="metric-label">批次大小</div>
+        </div>
+
+        <div class="metric-box">
+            <div class="metric-value">cache_hit_rate</div>
+            <div class="metric-label">缓存命中率</div>
+        </div>
+
+        <h3>优化策略</h3>
+        <ul class="detail-list">
+            <li><strong>批处理优化：</strong>将多个请求合并为批次，提高GPU利用率</li>
+            <li><strong>缓存策略：</strong>使用Redis缓存热点数据，减少重复计算</li>
+            <li><strong>动态截断：</strong>根据模型能力动态调整序列长度</li>
+            <li><strong>异步处理：</strong>使用线程池异步执行推理任务</li>
+        </ul>
+    </div>
+
+    <!-- 总结 -->
+    <div class="summary-box">
+        <h2>🎯 核心要点总结</h2>
+        <p style="margin: 20px 0;">
+            百看业务通过<span class="highlight">YACL配置管理</span>、<span class="highlight">智能分词缓存</span>、
+            <span class="highlight">高效模型推理</span>三大核心组件，实现了文本的快速处理和语义理解。
+        </p>
+        <p>
+            系统支持多种分词模式、灵活的缓存策略、以及针对不同场景的优化方案，
+            能够在保证准确性的同时实现高性能的文本处理服务。
+        </p>
+    </div>
+</div>
+</body>
+</html>

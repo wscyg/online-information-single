@@ -1,0 +1,2823 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>第12章：Transformer优化 - 让模型飞起来</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
+            color: #e2e8f0;
+            margin: 0;
+            padding: 0;
+            line-height: 1.6;
+        }
+
+        /* 动画效果 */
+        @keyframes gradient-shift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% {
+                box-shadow: 0 0 20px rgba(251, 191, 36, 0.5);
+            }
+            50% {
+                box-shadow: 0 0 40px rgba(251, 191, 36, 0.8);
+            }
+        }
+
+        @keyframes slide-in {
+            0% {
+                opacity: 0;
+                transform: translateX(-30px);
+            }
+            100% {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        /* 容器样式 */
+        .chapter-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        /* 章节头部 */
+        .chapter-header {
+            background: linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(245, 158, 11, 0.1));
+            border-radius: 24px;
+            padding: 3rem;
+            margin-bottom: 3rem;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid rgba(251, 191, 36, 0.3);
+            text-align: center;
+        }
+
+        .chapter-header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(251, 191, 36, 0.1) 0%, transparent 70%);
+            animation: pulse-glow 4s ease-in-out infinite;
+        }
+
+        .chapter-header h1 {
+            font-size: 2.8rem;
+            margin-bottom: 1.5rem;
+            background: linear-gradient(45deg, #fbbf24, #f59e0b, #f97316);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            position: relative;
+            z-index: 2;
+        }
+
+        .chapter-header p {
+            font-size: 1.3rem;
+            color: #cbd5e1;
+            margin-bottom: 2rem;
+            position: relative;
+            z-index: 2;
+        }
+
+        .meta-tags {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            flex-wrap: wrap;
+            position: relative;
+            z-index: 2;
+        }
+
+        .meta-tag {
+            background: rgba(251, 191, 36, 0.2);
+            color: #fbbf24;
+            padding: 0.8rem 1.5rem;
+            border-radius: 25px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            border: 1px solid rgba(251, 191, 36, 0.4);
+        }
+
+        /* 主要区块样式 */
+        .optimization-section {
+            background: linear-gradient(135deg, rgba(15, 23, 42, 0.8), rgba(30, 41, 59, 0.6));
+            border-radius: 20px;
+            padding: 2.5rem;
+            margin: 3rem 0;
+            border: 2px solid rgba(251, 191, 36, 0.2);
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 16px 64px rgba(0, 0, 0, 0.3);
+        }
+
+        /* 性能对比卡片 */
+        .performance-card {
+            background: rgba(15, 23, 42, 0.9);
+            border: 1px solid rgba(251, 191, 36, 0.3);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            transition: all 0.3s ease;
+        }
+
+        .performance-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(251, 191, 36, 0.2);
+        }
+
+        .performance-metric {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 1rem 0;
+        }
+
+        .metric-bar {
+            flex: 1;
+            height: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            margin: 0 1rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .metric-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #fbbf24, #f59e0b);
+            border-radius: 10px;
+            transition: width 1s ease-out;
+        }
+
+        /* 代码实现样式 */
+        .code-implementation {
+            background: rgba(15, 23, 42, 0.95);
+            border: 1px solid rgba(251, 191, 36, 0.3);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            font-family: 'JetBrains Mono', monospace;
+            overflow-x: auto;
+            position: relative;
+        }
+
+        .code-implementation pre {
+            margin: 0;
+            color: #e2e8f0;
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+
+        .code-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .code-title {
+            color: #fbbf24;
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+
+        .code-filename {
+            color: #64748b;
+            font-size: 0.9rem;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 0.3rem 0.8rem;
+            border-radius: 6px;
+        }
+
+        /* 代码高亮 */
+        .code-keyword {
+            color: #9333ea;
+            font-weight: bold;
+        }
+
+        .code-function {
+            color: #3b82f6;
+            font-weight: bold;
+        }
+
+        .code-string {
+            color: #fbbf24;
+        }
+
+        .code-comment {
+            color: #64748b;
+            font-style: italic;
+        }
+
+        .code-number {
+            color: #22c55e;
+        }
+
+        .code-class {
+            color: #06b6d4;
+            font-weight: bold;
+        }
+
+        /* 优化技术卡片 */
+        .optimization-card {
+            background: rgba(251, 191, 36, 0.1);
+            border: 1px solid rgba(251, 191, 36, 0.3);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .optimization-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: linear-gradient(90deg, #fbbf24, #f59e0b);
+        }
+
+        /* 步骤样式 */
+        .optimization-step {
+            background: rgba(15, 23, 42, 0.9);
+            border: 1px solid rgba(251, 191, 36, 0.3);
+            border-radius: 12px;
+            padding: 2rem;
+            margin: 1.5rem 0;
+            position: relative;
+        }
+
+        .step-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .step-number {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(45deg, #fbbf24, #f59e0b);
+            color: #0f172a;
+            border-radius: 50%;
+            font-weight: bold;
+            margin-right: 1rem;
+            font-size: 1.2rem;
+        }
+
+        .step-title {
+            color: #fbbf24;
+            font-weight: bold;
+            font-size: 1.3rem;
+        }
+
+        /* 比较表格 */
+        .comparison-table {
+            background: rgba(15, 23, 42, 0.9);
+            border-radius: 12px;
+            overflow: hidden;
+            margin: 2rem 0;
+        }
+
+        .comparison-table table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .comparison-table th {
+            background: rgba(251, 191, 36, 0.2);
+            color: #fbbf24;
+            padding: 1rem;
+            text-align: left;
+            font-weight: bold;
+        }
+
+        .comparison-table td {
+            padding: 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            color: #cbd5e1;
+        }
+
+        .comparison-table tr:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        /* 知识点卡片 */
+        .insight-card {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(79, 70, 229, 0.05));
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+        }
+
+        .insight-card h4 {
+            color: #3b82f6;
+            margin-bottom: 0.8rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        /* 警告卡片 */
+        .warning-card {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+        }
+
+        .warning-card h4 {
+            color: #ef4444;
+            margin-bottom: 0.8rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        /* 成功卡片 */
+        .success-card {
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+        }
+
+        .success-card h4 {
+            color: #22c55e;
+            margin-bottom: 0.8rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .chapter-container {
+                padding: 1rem;
+            }
+
+            .chapter-header h1 {
+                font-size: 2rem;
+            }
+
+            .optimization-section {
+                padding: 1.5rem;
+            }
+
+            .code-implementation {
+                padding: 1rem;
+                font-size: 0.8rem;
+            }
+
+            .comparison-table {
+                overflow-x: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="chapter-container">
+    <!-- 章节头部 -->
+    <div class="chapter-header">
+        <h1>第12章：Transformer优化</h1>
+        <p>让模型飞起来：从训练到推理的全方位优化</p>
+        <div class="meta-tags">
+            <span class="meta-tag">
+                ⚡ <span>性能优化</span>
+            </span>
+            <span class="meta-tag">
+                ⏱️ <span>120分钟</span>
+            </span>
+            <span class="meta-tag">
+                🚀 <span>进阶技术</span>
+            </span>
+            <span class="meta-tag">
+                💡 <span>实战技巧</span>
+            </span>
+        </div>
+    </div>
+
+    <!-- 🌟 开篇：为什么需要优化 -->
+    <div class="optimization-section" style="border-color: #fbbf24;">
+        <div style="text-align: center; margin-bottom: 3rem;">
+            <div style="display: inline-flex; align-items: center; gap: 1rem; background: linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(245, 158, 11, 0.1)); padding: 1.5rem 3rem; border-radius: 30px; border: 1px solid rgba(251, 191, 36, 0.4);">
+                <span style="font-size: 2rem;">🌟</span>
+                <h2 style="color: #fbbf24; margin: 0; font-size: 1.8rem; font-weight: bold;">一个令人震惊的事实</h2>
+            </div>
+        </div>
+
+        <!-- 引言故事 -->
+        <div style="background: rgba(15, 23, 42, 0.9); padding: 2rem; border-radius: 12px; margin-bottom: 2rem;">
+            <div style="color: #fbbf24; font-weight: bold; margin-bottom: 1.5rem; text-align: center;">📖 从GPT-3到ChatGPT的优化之路</div>
+
+            <div style="background: rgba(255, 255, 255, 0.05); padding: 2rem; border-radius: 8px;">
+                <div style="color: #cbd5e1; font-size: 1rem; line-height: 1.8;">
+                    2020年，GPT-3震撼发布，1750亿参数让人惊叹。<br>
+                    但你知道吗？如果没有优化技术：<br><br>
+
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin: 1.5rem 0;">
+                        <div style="background: rgba(239, 68, 68, 0.1); padding: 1rem; border-radius: 8px; border-left: 4px solid #ef4444;">
+                            <strong style="color: #ef4444;">训练成本</strong><br>
+                            需要3000万美元（而非450万）
+                        </div>
+                        <div style="background: rgba(251, 191, 36, 0.1); padding: 1rem; border-radius: 8px; border-left: 4px solid #fbbf24;">
+                            <strong style="color: #fbbf24;">推理延迟</strong><br>
+                            生成一个词需要10秒（而非0.1秒）
+                        </div>
+                        <div style="background: rgba(139, 92, 246, 0.1); padding: 1rem; border-radius: 8px; border-left: 4px solid #8b5cf6;">
+                            <strong style="color: #8b5cf6;">内存占用</strong><br>
+                            需要700GB显存（而非多卡40GB）
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 1.5rem; padding: 1rem; background: rgba(34, 197, 94, 0.1); border-radius: 8px;">
+                        <strong style="color: #22c55e;">优化的魔力：</strong><br>
+                        正是各种优化技术，让Transformer从实验室走向了数十亿用户！
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 优化领域概览 -->
+        <div style="background: rgba(15, 23, 42, 0.9); padding: 2rem; border-radius: 12px;">
+            <div style="color: #3b82f6; font-weight: bold; margin-bottom: 1.5rem; text-align: center;">🎯 Transformer优化的四大战场</div>
+
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem;">
+                <div class="optimization-card">
+                    <h3 style="color: #fbbf24; margin-bottom: 1rem;">⚡ 训练优化</h3>
+                    <div style="color: #cbd5e1;">
+                        • 学习率调度：找到最佳学习轨迹<br>
+                        • 混合精度：FP16/BF16加速<br>
+                        • 梯度累积：突破显存限制<br>
+                        • 优化器改进：Adam → AdamW → LAMB
+                    </div>
+                </div>
+
+                <div class="optimization-card">
+                    <h3 style="color: #22c55e; margin-bottom: 1rem;">🚀 推理优化</h3>
+                    <div style="color: #cbd5e1;">
+                        • KV Cache：避免重复计算<br>
+                        • 量化技术：INT8/INT4压缩<br>
+                        • 模型剪枝：移除冗余参数<br>
+                        • 知识蒸馏：小模型大智慧
+                    </div>
+                </div>
+
+                <div class="optimization-card">
+                    <h3 style="color: #3b82f6; margin-bottom: 1rem;">🏗️ 架构优化</h3>
+                    <div style="color: #cbd5e1;">
+                        • Flash Attention：内存高效注意力<br>
+                        • Sparse Attention：降低复杂度<br>
+                        • Multi-Query Attention：共享KV<br>
+                        • RoPE：更好的位置编码
+                    </div>
+                </div>
+
+                <div class="optimization-card">
+                    <h3 style="color: #8b5cf6; margin-bottom: 1rem;">💻 工程优化</h3>
+                    <div style="color: #cbd5e1;">
+                        • 算子融合：减少内存访问<br>
+                        • 张量并行：多GPU协同<br>
+                        • 流水线并行：层间并行<br>
+                        • ZeRO优化：分布式训练
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ⚡ Part 1: 训练优化 -->
+    <div class="optimization-section" style="border-color: #ef4444;">
+        <div style="text-align: center; margin-bottom: 3rem;">
+            <div style="display: inline-flex; align-items: center; gap: 1rem; background: linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(220, 38, 38, 0.1)); padding: 1.5rem 3rem; border-radius: 30px; border: 1px solid rgba(239, 68, 68, 0.4);">
+                <span style="font-size: 2rem;">⚡</span>
+                <h2 style="color: #ef4444; margin: 0; font-size: 1.8rem; font-weight: bold;">Part 1: 训练优化</h2>
+            </div>
+        </div>
+
+        <!-- 1.1 学习率调度 -->
+        <div class="optimization-step">
+            <div class="step-header">
+                <div class="step-number">1</div>
+                <div class="step-title">学习率调度：训练的节奏大师</div>
+            </div>
+
+            <div class="insight-card">
+                <h4><span>💡</span> 为什么学习率调度如此重要？</h4>
+                <div style="color: #cbd5e1;">
+                    想象你在黑暗中寻找宝藏：<br>
+                    • 开始时步子要大（快速探索）<br>
+                    • 接近目标时步子要小（精确定位）<br>
+                    • Transformer的训练就是这样一个过程！
+                </div>
+            </div>
+
+            <div class="code-implementation">
+                <div class="code-header">
+                    <div class="code-title">实现Transformer的学习率调度器</div>
+                    <div class="code-filename">optimizers/lr_scheduler.py</div>
+                </div>
+                <pre><code><span class="code-keyword">import</span> math
+<span class="code-keyword">import</span> torch
+<span class="code-keyword">from</span> torch.optim.lr_scheduler <span class="code-keyword">import</span> _LRScheduler
+
+<span class="code-keyword">class</span> <span class="code-class">TransformerLRScheduler</span>(_LRScheduler):
+    <span class="code-string">"""Transformer的学习率调度器
+
+    实现论文中的"warmup + inverse square root decay"策略
+    """</span>
+
+    <span class="code-keyword">def</span> <span class="code-function">__init__</span>(self,
+                 optimizer: torch.optim.Optimizer,
+                 d_model: int,
+                 warmup_steps: int = <span class="code-number">4000</span>,
+                 last_epoch: int = -<span class="code-number">1</span>):
+        self.d_model = d_model
+        self.warmup_steps = warmup_steps
+        super().__init__(optimizer, last_epoch)
+
+    <span class="code-keyword">def</span> <span class="code-function">get_lr</span>(self):
+        <span class="code-string">"""计算当前步的学习率"""</span>
+        step = max(<span class="code-number">1</span>, self.last_epoch)
+
+        <span class="code-comment"># 魔法公式：lr = d_model^(-0.5) * min(step^(-0.5), step * warmup^(-1.5))</span>
+        scale = self.d_model ** (-<span class="code-number">0.5</span>)
+
+        <span class="code-keyword">if</span> step < self.warmup_steps:
+            <span class="code-comment"># Warmup阶段：线性增长</span>
+            lr_scale = scale * step * (self.warmup_steps ** (-<span class="code-number">1.5</span>))
+        <span class="code-keyword">else</span>:
+            <span class="code-comment"># Decay阶段：平方根倒数衰减</span>
+            lr_scale = scale * (step ** (-<span class="code-number">0.5</span>))
+
+        <span class="code-keyword">return</span> [base_lr * lr_scale <span class="code-keyword">for</span> base_lr <span class="code-keyword">in</span> self.base_lrs]
+
+<span class="code-comment"># 可视化学习率变化</span>
+<span class="code-keyword">def</span> <span class="code-function">visualize_lr_schedule</span>(d_model=<span class="code-number">512</span>, warmup_steps=<span class="code-number">4000</span>, total_steps=<span class="code-number">50000</span>):
+    <span class="code-string">"""可视化学习率调度"""</span>
+    <span class="code-keyword">import</span> matplotlib.pyplot <span class="code-keyword">as</span> plt
+
+    steps = list(range(<span class="code-number">1</span>, total_steps))
+    lrs = []
+
+    <span class="code-keyword">for</span> step <span class="code-keyword">in</span> steps:
+        scale = d_model ** (-<span class="code-number">0.5</span>)
+        <span class="code-keyword">if</span> step < warmup_steps:
+            lr = scale * step * (warmup_steps ** (-<span class="code-number">1.5</span>))
+        <span class="code-keyword">else</span>:
+            lr = scale * (step ** (-<span class="code-number">0.5</span>))
+        lrs.append(lr)
+
+    plt.figure(figsize=(<span class="code-number">10</span>, <span class="code-number">6</span>))
+    plt.plot(steps, lrs, <span class="code-string">'b-'</span>, linewidth=<span class="code-number">2</span>)
+    plt.axvline(x=warmup_steps, color=<span class="code-string">'r'</span>, linestyle=<span class="code-string">'--'</span>,
+                label=<span class="code-string">f'Warmup ends (step {warmup_steps})'</span>)
+    plt.xlabel(<span class="code-string">'Training Steps'</span>)
+    plt.ylabel(<span class="code-string">'Learning Rate'</span>)
+    plt.title(<span class="code-string">'Transformer Learning Rate Schedule'</span>)
+    plt.legend()
+    plt.grid(True, alpha=<span class="code-number">0.3</span>)
+    plt.show()
+
+<span class="code-comment"># 高级版本：余弦退火 + 重启</span>
+<span class="code-keyword">class</span> <span class="code-class">CosineAnnealingWarmupRestarts</span>(_LRScheduler):
+    <span class="code-string">"""带warmup和重启的余弦退火调度器
+
+    现代大模型训练的流行选择
+    """</span>
+
+    <span class="code-keyword">def</span> <span class="code-function">__init__</span>(self,
+                 optimizer: torch.optim.Optimizer,
+                 first_cycle_steps: int,
+                 cycle_mult: float = <span class="code-number">1.0</span>,
+                 max_lr: float = <span class="code-number">0.1</span>,
+                 min_lr: float = <span class="code-number">0.001</span>,
+                 warmup_steps: int = <span class="code-number">0</span>,
+                 gamma: float = <span class="code-number">1.0</span>,
+                 last_epoch: int = -<span class="code-number">1</span>):
+
+        self.first_cycle_steps = first_cycle_steps
+        self.cycle_mult = cycle_mult
+        self.max_lr = max_lr
+        self.min_lr = min_lr
+        self.warmup_steps = warmup_steps
+        self.gamma = gamma
+
+        self.cur_cycle_steps = first_cycle_steps
+        self.cycle = <span class="code-number">0</span>
+        self.step_in_cycle = last_epoch
+
+        super().__init__(optimizer, last_epoch)
+
+        <span class="code-comment"># 初始化学习率</span>
+        self.init_lr()
+
+    <span class="code-keyword">def</span> <span class="code-function">init_lr</span>(self):
+        self.base_lrs = []
+        <span class="code-keyword">for</span> param_group <span class="code-keyword">in</span> self.optimizer.param_groups:
+            param_group[<span class="code-string">'lr'</span>] = self.min_lr
+            self.base_lrs.append(self.min_lr)
+
+    <span class="code-keyword">def</span> <span class="code-function">get_lr</span>(self):
+        <span class="code-keyword">if</span> self.step_in_cycle == -<span class="code-number">1</span>:
+            <span class="code-keyword">return</span> self.base_lrs
+
+        <span class="code-keyword">if</span> self.step_in_cycle < self.warmup_steps:
+            <span class="code-comment"># Warmup阶段</span>
+            lr_scale = self.step_in_cycle / self.warmup_steps
+            lr = self.min_lr + (self.max_lr - self.min_lr) * lr_scale
+        <span class="code-keyword">else</span>:
+            <span class="code-comment"># 余弦退火阶段</span>
+            progress = (self.step_in_cycle - self.warmup_steps) / \
+                      (self.cur_cycle_steps - self.warmup_steps)
+            lr = self.min_lr + (self.max_lr - self.min_lr) * \
+                 <span class="code-number">0.5</span> * (<span class="code-number">1.0</span> + math.cos(math.pi * progress))
+
+        <span class="code-keyword">return</span> [lr <span class="code-keyword">for</span> _ <span class="code-keyword">in</span> self.base_lrs]</code></pre>
+            </div>
+
+            <div class="performance-card">
+                <h4 style="color: #22c55e; margin-bottom: 1rem;">📊 不同学习率策略的效果对比</h4>
+                <div class="performance-metric">
+                    <span style="color: #cbd5e1; min-width: 150px;">固定学习率</span>
+                    <div class="metric-bar">
+                        <div class="metric-fill" style="width: 60%;"></div>
+                    </div>
+                    <span style="color: #fbbf24; min-width: 80px;">60% 准确率</span>
+                </div>
+                <div class="performance-metric">
+                    <span style="color: #cbd5e1; min-width: 150px;">原始Transformer</span>
+                    <div class="metric-bar">
+                        <div class="metric-fill" style="width: 85%;"></div>
+                    </div>
+                    <span style="color: #fbbf24; min-width: 80px;">85% 准确率</span>
+                </div>
+                <div class="performance-metric">
+                    <span style="color: #cbd5e1; min-width: 150px;">余弦退火+重启</span>
+                    <div class="metric-bar">
+                        <div class="metric-fill" style="width: 92%;"></div>
+                    </div>
+                    <span style="color: #fbbf24; min-width: 80px;">92% 准确率</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 1.2 混合精度训练 -->
+        <div class="optimization-step">
+            <div class="step-header">
+                <div class="step-number">2</div>
+                <div class="step-title">混合精度训练：速度与精度的完美平衡</div>
+            </div>
+
+            <div class="warning-card">
+                <h4><span>⚠️</span> 传统困境</h4>
+                <div style="color: #cbd5e1;">
+                    • FP32：精度高但速度慢、显存占用大<br>
+                    • FP16：速度快但容易数值溢出、梯度消失<br>
+                    • 解决方案：混合精度训练！
+                </div>
+            </div>
+
+            <div class="code-implementation">
+                <div class="code-header">
+                    <div class="code-title">实现自动混合精度训练</div>
+                    <div class="code-filename">training/mixed_precision.py</div>
+                </div>
+                <pre><code><span class="code-keyword">import</span> torch
+<span class="code-keyword">from</span> torch.cuda.amp <span class="code-keyword">import</span> autocast, GradScaler
+<span class="code-keyword">from</span> typing <span class="code-keyword">import</span> Dict, Optional
+
+<span class="code-keyword">class</span> <span class="code-class">MixedPrecisionTrainer</span>:
+    <span class="code-string">"""混合精度训练器
+
+    自动处理FP16/FP32转换，防止梯度消失/爆炸
+    """</span>
+
+    <span class="code-keyword">def</span> <span class="code-function">__init__</span>(self,
+                 model: torch.nn.Module,
+                 optimizer: torch.optim.Optimizer,
+                 loss_scale: str = <span class="code-string">'dynamic'</span>,
+                 init_scale: float = <span class="code-number">2.**16</span>,
+                 growth_factor: float = <span class="code-number">2.0</span>,
+                 backoff_factor: float = <span class="code-number">0.5</span>,
+                 growth_interval: int = <span class="code-number">2000</span>,
+                 enabled: bool = True):
+
+        self.model = model
+        self.optimizer = optimizer
+        self.enabled = enabled <span class="code-keyword">and</span> torch.cuda.is_available()
+
+        <span class="code-comment"># 初始化梯度缩放器</span>
+        <span class="code-keyword">if</span> self.enabled:
+            self.scaler = GradScaler(
+                init_scale=init_scale,
+                growth_factor=growth_factor,
+                backoff_factor=backoff_factor,
+                growth_interval=growth_interval,
+                enabled=True
+            )
+        <span class="code-keyword">else</span>:
+            self.scaler = None
+
+        <span class="code-comment"># 统计信息</span>
+        self.stats = {
+            <span class="code-string">'scale_updates'</span>: <span class="code-number">0</span>,
+            <span class="code-string">'overflow_count'</span>: <span class="code-number">0</span>,
+            <span class="code-string">'successful_steps'</span>: <span class="code-number">0</span>
+        }
+
+    <span class="code-keyword">def</span> <span class="code-function">train_step</span>(self,
+                    inputs: Dict[str, torch.Tensor],
+                    targets: torch.Tensor,
+                    loss_fn: torch.nn.Module) -> Dict[str, float]:
+        <span class="code-string">"""执行一个训练步骤"""</span>
+
+        self.optimizer.zero_grad()
+
+        <span class="code-keyword">if</span> self.enabled:
+            <span class="code-comment"># 使用自动混合精度</span>
+            <span class="code-keyword">with</span> autocast():
+                <span class="code-comment"># 前向传播（FP16）</span>
+                outputs = self.model(**inputs)
+                loss = loss_fn(outputs, targets)
+
+            <span class="code-comment"># 反向传播（缩放梯度）</span>
+            self.scaler.scale(loss).backward()
+
+            <span class="code-comment"># 梯度裁剪（在FP32空间）</span>
+            self.scaler.unscale_(self.optimizer)
+            torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=<span class="code-number">1.0</span>)
+
+            <span class="code-comment"># 优化器步骤</span>
+            self.scaler.step(self.optimizer)
+
+            <span class="code-comment"># 更新缩放因子</span>
+            scale_before = self.scaler.get_scale()
+            self.scaler.update()
+            scale_after = self.scaler.get_scale()
+
+            <span class="code-comment"># 更新统计信息</span>
+            <span class="code-keyword">if</span> scale_before > scale_after:
+                self.stats[<span class="code-string">'overflow_count'</span>] += <span class="code-number">1</span>
+            <span class="code-keyword">else</span>:
+                self.stats[<span class="code-string">'successful_steps'</span>] += <span class="code-number">1</span>
+
+            <span class="code-keyword">if</span> scale_before != scale_after:
+                self.stats[<span class="code-string">'scale_updates'</span>] += <span class="code-number">1</span>
+
+        <span class="code-keyword">else</span>:
+            <span class="code-comment"># 标准FP32训练</span>
+            outputs = self.model(**inputs)
+            loss = loss_fn(outputs, targets)
+            loss.backward()
+            torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=<span class="code-number">1.0</span>)
+            self.optimizer.step()
+
+        <span class="code-keyword">return</span> {
+            <span class="code-string">'loss'</span>: loss.item(),
+            <span class="code-string">'scale'</span>: self.scaler.get_scale() <span class="code-keyword">if</span> self.enabled <span class="code-keyword">else</span> <span class="code-number">1.0</span>,
+            <span class="code-string">'overflow_rate'</span>: self.stats[<span class="code-string">'overflow_count'</span>] /
+                              max(<span class="code-number">1</span>, self.stats[<span class="code-string">'overflow_count'</span>] +
+                                  self.stats[<span class="code-string">'successful_steps'</span>])
+        }
+
+<span class="code-comment"># BF16训练（更稳定的替代方案）</span>
+<span class="code-keyword">class</span> <span class="code-class">BFloat16Trainer</span>:
+    <span class="code-string">"""BFloat16训练器
+
+    Google的Brain Float16格式，更大的指数范围，更少的溢出问题
+    """</span>
+
+    <span class="code-keyword">def</span> <span class="code-function">__init__</span>(self, model: torch.nn.Module, optimizer: torch.optim.Optimizer):
+        self.model = model
+        self.optimizer = optimizer
+
+        <span class="code-comment"># 检查硬件支持</span>
+        <span class="code-keyword">if</span> torch.cuda.is_available() <span class="code-keyword">and</span> torch.cuda.is_bf16_supported():
+            self.enabled = True
+            <span class="code-comment"># 转换模型到BF16</span>
+            self.model = self.model.to(torch.bfloat16)
+        <span class="code-keyword">else</span>:
+            self.enabled = False
+            print(<span class="code-string">"BFloat16 not supported on this hardware"</span>)
+
+    <span class="code-keyword">def</span> <span class="code-function">train_step</span>(self, inputs, targets, loss_fn):
+        <span class="code-string">"""BF16训练步骤（无需梯度缩放）"""</span>
+
+        self.optimizer.zero_grad()
+
+        <span class="code-keyword">if</span> self.enabled:
+            <span class="code-comment"># 确保输入是BF16</span>
+            inputs = {k: v.to(torch.bfloat16) <span class="code-keyword">for</span> k, v <span class="code-keyword">in</span> inputs.items()}
+            targets = targets.to(torch.bfloat16)
+
+        <span class="code-comment"># 前向和反向传播</span>
+        outputs = self.model(**inputs)
+        loss = loss_fn(outputs, targets)
+        loss.backward()
+
+        <span class="code-comment"># 梯度裁剪和优化</span>
+        torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=<span class="code-number">1.0</span>)
+        self.optimizer.step()
+
+        <span class="code-keyword">return</span> {<span class="code-string">'loss'</span>: loss.item()}</code></pre>
+            </div>
+
+            <div class="success-card">
+                <h4><span>✅</span> 混合精度训练的收益</h4>
+                <div style="color: #cbd5e1;">
+                    • <strong>速度提升：</strong>2-3倍训练加速（Tensor Core加持）<br>
+                    • <strong>显存节省：</strong>减少50%显存占用<br>
+                    • <strong>精度保持：</strong>与FP32几乎相同的模型质量<br>
+                    • <strong>更大批次：</strong>可以使用更大的batch size
+                </div>
+            </div>
+        </div>
+
+        <!-- 1.3 梯度累积 -->
+        <div class="optimization-step">
+            <div class="step-header">
+                <div class="step-number">3</div>
+                <div class="step-title">梯度累积：突破显存限制</div>
+            </div>
+
+            <div class="insight-card">
+                <h4><span>💡</span> 梯度累积的妙处</h4>
+                <div style="color: #cbd5e1;">
+                    当你想用batch_size=128训练，但显存只够batch_size=16时：<br>
+                    • 累积8个小批次的梯度<br>
+                    • 等效于一个大批次的效果<br>
+                    • 突破硬件限制！
+                </div>
+            </div>
+
+            <div class="code-implementation">
+                <div class="code-header">
+                    <div class="code-title">实现梯度累积训练</div>
+                    <div class="code-filename">training/gradient_accumulation.py</div>
+                </div>
+                <pre><code><span class="code-keyword">class</span> <span class="code-class">GradientAccumulationTrainer</span>:
+    <span class="code-string">"""梯度累积训练器
+
+    模拟大batch训练，适合显存受限的场景
+    """</span>
+
+    <span class="code-keyword">def</span> <span class="code-function">__init__</span>(self,
+                 model: torch.nn.Module,
+                 optimizer: torch.optim.Optimizer,
+                 accumulation_steps: int = <span class="code-number">4</span>,
+                 mixed_precision: bool = True,
+                 max_grad_norm: float = <span class="code-number">1.0</span>):
+
+        self.model = model
+        self.optimizer = optimizer
+        self.accumulation_steps = accumulation_steps
+        self.max_grad_norm = max_grad_norm
+
+        <span class="code-comment"># 混合精度支持</span>
+        self.mixed_precision = mixed_precision <span class="code-keyword">and</span> torch.cuda.is_available()
+        <span class="code-keyword">if</span> self.mixed_precision:
+            self.scaler = GradScaler()
+
+        <span class="code-comment"># 内部计数器</span>
+        self.step_count = <span class="code-number">0</span>
+        self.accumulated_loss = <span class="code-number">0.0</span>
+
+    <span class="code-keyword">def</span> <span class="code-function">train_step</span>(self, batch_data, batch_targets, loss_fn):
+        <span class="code-string">"""执行一个梯度累积步骤"""</span>
+
+        <span class="code-comment"># 缩放损失（平均到accumulation_steps）</span>
+        <span class="code-keyword">if</span> self.mixed_precision:
+            <span class="code-keyword">with</span> autocast():
+                outputs = self.model(batch_data)
+                loss = loss_fn(outputs, batch_targets)
+                loss = loss / self.accumulation_steps
+
+            <span class="code-comment"># 缩放反向传播</span>
+            self.scaler.scale(loss).backward()
+        <span class="code-keyword">else</span>:
+            outputs = self.model(batch_data)
+            loss = loss_fn(outputs, batch_targets)
+            loss = loss / self.accumulation_steps
+            loss.backward()
+
+        self.accumulated_loss += loss.item()
+        self.step_count += <span class="code-number">1</span>
+
+        <span class="code-comment"># 是否到了更新参数的时候</span>
+        <span class="code-keyword">if</span> self.step_count % self.accumulation_steps == <span class="code-number">0</span>:
+            <span class="code-keyword">if</span> self.mixed_precision:
+                <span class="code-comment"># 反缩放梯度</span>
+                self.scaler.unscale_(self.optimizer)
+
+                <span class="code-comment"># 梯度裁剪</span>
+                torch.nn.utils.clip_grad_norm_(
+                    self.model.parameters(),
+                    self.max_grad_norm
+                )
+
+                <span class="code-comment"># 优化器步骤</span>
+                self.scaler.step(self.optimizer)
+                self.scaler.update()
+            <span class="code-keyword">else</span>:
+                <span class="code-comment"># 梯度裁剪</span>
+                torch.nn.utils.clip_grad_norm_(
+                    self.model.parameters(),
+                    self.max_grad_norm
+                )
+
+                <span class="code-comment"># 优化器步骤</span>
+                self.optimizer.step()
+
+            <span class="code-comment"># 清零梯度</span>
+            self.optimizer.zero_grad()
+
+            <span class="code-comment"># 返回累积的损失</span>
+            avg_loss = self.accumulated_loss
+            self.accumulated_loss = <span class="code-number">0.0</span>
+
+            <span class="code-keyword">return</span> {
+                <span class="code-string">'loss'</span>: avg_loss * self.accumulation_steps,
+                <span class="code-string">'updated'</span>: True
+            }
+
+        <span class="code-keyword">return</span> {
+            <span class="code-string">'loss'</span>: loss.item() * self.accumulation_steps,
+            <span class="code-string">'updated'</span>: False
+        }
+
+<span class="code-comment"># 高级：动态梯度累积（根据显存使用情况调整）</span>
+<span class="code-keyword">class</span> <span class="code-class">DynamicGradientAccumulation</span>:
+    <span class="code-string">"""动态调整累积步数，最大化GPU利用率"""</span>
+
+    <span class="code-keyword">def</span> <span class="code-function">__init__</span>(self,
+                 model: torch.nn.Module,
+                 optimizer: torch.optim.Optimizer,
+                 target_batch_size: int = <span class="code-number">128</span>,
+                 min_accumulation: int = <span class="code-number">1</span>,
+                 max_accumulation: int = <span class="code-number">32</span>):
+
+        self.model = model
+        self.optimizer = optimizer
+        self.target_batch_size = target_batch_size
+        self.min_accumulation = min_accumulation
+        self.max_accumulation = max_accumulation
+
+        <span class="code-comment"># 自动探测最佳累积步数</span>
+        self.accumulation_steps = self._find_optimal_accumulation()
+
+    <span class="code-keyword">def</span> <span class="code-function">_find_optimal_accumulation</span>(self):
+        <span class="code-string">"""通过二分查找找到最大可用的批次大小"""</span>
+
+        <span class="code-keyword">if</span> <span class="code-keyword">not</span> torch.cuda.is_available():
+            <span class="code-keyword">return</span> self.min_accumulation
+
+        <span class="code-comment"># 创建dummy输入</span>
+        dummy_batch_size = <span class="code-number">1</span>
+        dummy_input = torch.randn(
+            dummy_batch_size, <span class="code-number">512</span>, <span class="code-number">512</span>
+        ).cuda()
+
+        low, high = self.min_accumulation, self.max_accumulation
+        best_accumulation = self.min_accumulation
+
+        <span class="code-keyword">while</span> low <= high:
+            mid = (low + high) // <span class="code-number">2</span>
+            effective_batch = self.target_batch_size // mid
+
+            <span class="code-keyword">try</span>:
+                <span class="code-comment"># 清理缓存</span>
+                torch.cuda.empty_cache()
+                torch.cuda.synchronize()
+
+                <span class="code-comment"># 尝试前向传播</span>
+                test_input = dummy_input.repeat(effective_batch, <span class="code-number">1</span>, <span class="code-number">1</span>)
+                <span class="code-keyword">with</span> torch.no_grad():
+                    _ = self.model(test_input)
+
+                <span class="code-comment"># 成功，尝试更小的累积步数（更大的批次）</span>
+                best_accumulation = mid
+                high = mid - <span class="code-number">1</span>
+
+            <span class="code-keyword">except</span> RuntimeError <span class="code-keyword">as</span> e:
+                <span class="code-keyword">if</span> <span class="code-string">"out of memory"</span> <span class="code-keyword">in</span> str(e):
+                    <span class="code-comment"># OOM，需要更多累积步数（更小的批次）</span>
+                    low = mid + <span class="code-number">1</span>
+                <span class="code-keyword">else</span>:
+                    <span class="code-keyword">raise</span> e
+
+        print(<span class="code-string">f"Optimal accumulation steps: {best_accumulation}"</span>)
+        print(<span class="code-string">f"Effective batch size per step: {self.target_batch_size // best_accumulation}"</span>)
+
+        <span class="code-keyword">return</span> best_accumulation</code></pre>
+            </div>
+        </div>
+
+        <!-- 1.4 优化器改进 -->
+        <div class="optimization-step">
+            <div class="step-header">
+                <div class="step-number">4</div>
+                <div class="step-title">优化器演进：从Adam到LAMB</div>
+            </div>
+
+            <div class="code-implementation">
+                <div class="code-header">
+                    <div class="code-title">实现高级优化器</div>
+                    <div class="code-filename">optimizers/advanced_optimizers.py</div>
+                </div>
+                <pre><code><span class="code-keyword">import</span> torch
+<span class="code-keyword">from</span> torch.optim <span class="code-keyword">import</span> Optimizer
+<span class="code-keyword">import</span> math
+
+<span class="code-keyword">class</span> <span class="code-class">AdamW</span>(Optimizer):
+    <span class="code-string">"""AdamW优化器：解耦权重衰减
+
+    相比Adam的改进：权重衰减直接应用于参数，而非梯度
+    """</span>
+
+    <span class="code-keyword">def</span> <span class="code-function">__init__</span>(self, params, lr=<span class="code-number">1e-3</span>, betas=(<span class="code-number">0.9</span>, <span class="code-number">0.999</span>),
+                 eps=<span class="code-number">1e-8</span>, weight_decay=<span class="code-number">0.01</span>):
+        defaults = dict(lr=lr, betas=betas, eps=eps, weight_decay=weight_decay)
+        super().__init__(params, defaults)
+
+    <span class="code-keyword">def</span> <span class="code-function">step</span>(self, closure=None):
+        loss = None
+        <span class="code-keyword">if</span> closure <span class="code-keyword">is not None</span>:
+            loss = closure()
+
+        <span class="code-keyword">for</span> group <span class="code-keyword">in</span> self.param_groups:
+            <span class="code-keyword">for</span> p <span class="code-keyword">in</span> group[<span class="code-string">'params'</span>]:
+                <span class="code-keyword">if</span> p.grad <span class="code-keyword">is None</span>:
+                    <span class="code-keyword">continue</span>
+
+                grad = p.grad.data
+                <span class="code-keyword">if</span> grad.is_sparse:
+                    <span class="code-keyword">raise</span> RuntimeError(<span class="code-string">'AdamW不支持稀疏梯度'</span>)
+
+                state = self.state[p]
+
+                <span class="code-comment"># 状态初始化</span>
+                <span class="code-keyword">if</span> len(state) == <span class="code-number">0</span>:
+                    state[<span class="code-string">'step'</span>] = <span class="code-number">0</span>
+                    state[<span class="code-string">'exp_avg'</span>] = torch.zeros_like(p.data)
+                    state[<span class="code-string">'exp_avg_sq'</span>] = torch.zeros_like(p.data)
+
+                exp_avg, exp_avg_sq = state[<span class="code-string">'exp_avg'</span>], state[<span class="code-string">'exp_avg_sq'</span>]
+                beta1, beta2 = group[<span class="code-string">'betas'</span>]
+
+                state[<span class="code-string">'step'</span>] += <span class="code-number">1</span>
+
+                <span class="code-comment"># 指数移动平均</span>
+                exp_avg.mul_(beta1).add_(grad, alpha=<span class="code-number">1</span> - beta1)
+                exp_avg_sq.mul_(beta2).addcmul_(grad, grad, value=<span class="code-number">1</span> - beta2)
+
+                <span class="code-comment"># 偏差校正</span>
+                bias_correction1 = <span class="code-number">1</span> - beta1 ** state[<span class="code-string">'step'</span>]
+                bias_correction2 = <span class="code-number">1</span> - beta2 ** state[<span class="code-string">'step'</span>]
+
+                <span class="code-comment"># 计算自适应学习率</span>
+                denom = exp_avg_sq.sqrt().add_(group[<span class="code-string">'eps'</span>])
+                step_size = group[<span class="code-string">'lr'</span>] * math.sqrt(bias_correction2) / bias_correction1
+
+                <span class="code-comment"># 参数更新</span>
+                p.data.addcdiv_(exp_avg, denom, value=-step_size)
+
+                <span class="code-comment"># 解耦权重衰减（关键区别）</span>
+                <span class="code-keyword">if</span> group[<span class="code-string">'weight_decay'</span>] != <span class="code-number">0</span>:
+                    p.data.add_(p.data, alpha=-group[<span class="code-string">'lr'</span>] * group[<span class="code-string">'weight_decay'</span>])
+
+        <span class="code-keyword">return</span> loss
+
+<span class="code-keyword">class</span> <span class="code-class">LAMB</span>(Optimizer):
+    <span class="code-string">"""Layer-wise Adaptive Moments optimizer for Batch training
+
+    大批量训练的救星，自适应调整每层的学习率
+    """</span>
+
+    <span class="code-keyword">def</span> <span class="code-function">__init__</span>(self, params, lr=<span class="code-number">1e-3</span>, betas=(<span class="code-number">0.9</span>, <span class="code-number">0.999</span>),
+                 eps=<span class="code-number">1e-6</span>, weight_decay=<span class="code-number">0.01</span>, bias_correction=True):
+        defaults = dict(lr=lr, betas=betas, eps=eps, weight_decay=weight_decay,
+                       bias_correction=bias_correction)
+        super().__init__(params, defaults)
+
+    <span class="code-keyword">def</span> <span class="code-function">step</span>(self, closure=None):
+        loss = None
+        <span class="code-keyword">if</span> closure <span class="code-keyword">is not None</span>:
+            loss = closure()
+
+        <span class="code-keyword">for</span> group <span class="code-keyword">in</span> self.param_groups:
+            <span class="code-keyword">for</span> p <span class="code-keyword">in</span> group[<span class="code-string">'params'</span>]:
+                <span class="code-keyword">if</span> p.grad <span class="code-keyword">is None</span>:
+                    <span class="code-keyword">continue</span>
+
+                grad = p.grad.data
+                <span class="code-keyword">if</span> grad.is_sparse:
+                    <span class="code-keyword">raise</span> RuntimeError(<span class="code-string">'LAMB不支持稀疏梯度'</span>)
+
+                state = self.state[p]
+
+                <span class="code-comment"># 状态初始化</span>
+                <span class="code-keyword">if</span> len(state) == <span class="code-number">0</span>:
+                    state[<span class="code-string">'step'</span>] = <span class="code-number">0</span>
+                    state[<span class="code-string">'exp_avg'</span>] = torch.zeros_like(p.data)
+                    state[<span class="code-string">'exp_avg_sq'</span>] = torch.zeros_like(p.data)
+
+                exp_avg, exp_avg_sq = state[<span class="code-string">'exp_avg'</span>], state[<span class="code-string">'exp_avg_sq'</span>]
+                beta1, beta2 = group[<span class="code-string">'betas'</span>]
+
+                state[<span class="code-string">'step'</span>] += <span class="code-number">1</span>
+
+                <span class="code-comment"># 指数移动平均</span>
+                exp_avg.mul_(beta1).add_(grad, alpha=<span class="code-number">1</span> - beta1)
+                exp_avg_sq.mul_(beta2).addcmul_(grad, grad, value=<span class="code-number">1</span> - beta2)
+
+                <span class="code-comment"># 计算自适应项</span>
+                <span class="code-keyword">if</span> group[<span class="code-string">'bias_correction'</span>]:
+                    bias_correction1 = <span class="code-number">1</span> - beta1 ** state[<span class="code-string">'step'</span>]
+                    bias_correction2 = <span class="code-number">1</span> - beta2 ** state[<span class="code-string">'step'</span>]
+                    exp_avg_hat = exp_avg / bias_correction1
+                    exp_avg_sq_hat = exp_avg_sq / bias_correction2
+                <span class="code-keyword">else</span>:
+                    exp_avg_hat = exp_avg
+                    exp_avg_sq_hat = exp_avg_sq
+
+                <span class="code-comment"># Adam更新项</span>
+                update = exp_avg_hat / (exp_avg_sq_hat.sqrt() + group[<span class="code-string">'eps'</span>])
+
+                <span class="code-comment"># L2正则化</span>
+                <span class="code-keyword">if</span> group[<span class="code-string">'weight_decay'</span>] != <span class="code-number">0</span>:
+                    update.add_(p.data, alpha=group[<span class="code-string">'weight_decay'</span>])
+
+                <span class="code-comment"># LAMB的关键：层自适应学习率</span>
+                <span class="code-comment"># 计算参数和更新的L2范数</span>
+                p_norm = p.data.norm(<span class="code-number">2</span>)
+                update_norm = update.norm(<span class="code-number">2</span>)
+
+                <span class="code-comment"># 计算自适应学习率</span>
+                <span class="code-keyword">if</span> p_norm > <span class="code-number">0</span> <span class="code-keyword">and</span> update_norm > <span class="code-number">0</span>:
+                    trust_ratio = p_norm / update_norm
+                <span class="code-keyword">else</span>:
+                    trust_ratio = <span class="code-number">1.0</span>
+
+                <span class="code-comment"># 应用更新</span>
+                p.data.add_(update, alpha=-group[<span class="code-string">'lr'</span>] * trust_ratio)
+
+        <span class="code-keyword">return</span> loss</code></pre>
+            </div>
+
+            <div class="comparison-table">
+                <h4 style="color: #fbbf24; margin-bottom: 1rem; padding: 1rem;">📊 优化器对比</h4>
+                <table>
+                    <thead>
+                    <tr>
+                        <th>优化器</th>
+                        <th>特点</th>
+                        <th>适用场景</th>
+                        <th>收敛速度</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td><strong>SGD</strong></td>
+                        <td>简单、稳定</td>
+                        <td>凸优化问题</td>
+                        <td>⭐⭐</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Adam</strong></td>
+                        <td>自适应学习率</td>
+                        <td>大多数深度学习</td>
+                        <td>⭐⭐⭐⭐</td>
+                    </tr>
+                    <tr>
+                        <td><strong>AdamW</strong></td>
+                        <td>解耦权重衰减</td>
+                        <td>Transformer训练</td>
+                        <td>⭐⭐⭐⭐⭐</td>
+                    </tr>
+                    <tr>
+                        <td><strong>LAMB</strong></td>
+                        <td>层自适应</td>
+                        <td>大批量训练</td>
+                        <td>⭐⭐⭐⭐⭐</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- 🚀 Part 2: 推理优化 -->
+    <div class="optimization-section" style="border-color: #22c55e;">
+        <div style="text-align: center; margin-bottom: 3rem;">
+            <div style="display: inline-flex; align-items: center; gap: 1rem; background: linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(16, 185, 129, 0.1)); padding: 1.5rem 3rem; border-radius: 30px; border: 1px solid rgba(34, 197, 94, 0.4);">
+                <span style="font-size: 2rem;">🚀</span>
+                <h2 style="color: #22c55e; margin: 0; font-size: 1.8rem; font-weight: bold;">Part 2: 推理优化</h2>
+            </div>
+        </div>
+
+        <!-- 2.1 KV Cache -->
+        <div class="optimization-step">
+            <div class="step-header">
+                <div class="step-number">5</div>
+                <div class="step-title">KV Cache：避免重复计算</div>
+            </div>
+
+            <div class="insight-card">
+                <h4><span>💡</span> KV Cache的原理</h4>
+                <div style="color: #cbd5e1;">
+                    在自回归生成时，每生成一个新词都要重新计算所有之前词的注意力。<br>
+                    KV Cache缓存了之前的Key和Value，只需计算新词的部分！<br>
+                    <strong>效果：</strong>推理速度提升10倍以上！
+                </div>
+            </div>
+
+            <div class="code-implementation">
+                <div class="code-header">
+                    <div class="code-title">实现KV Cache优化</div>
+                    <div class="code-filename">inference/kv_cache.py</div>
+                </div>
+                <pre><code><span class="code-keyword">import</span> torch
+<span class="code-keyword">import</span> torch.nn <span class="code-keyword">as</span> nn
+<span class="code-keyword">from</span> typing <span class="code-keyword">import</span> Optional, Tuple, Dict
+
+<span class="code-keyword">class</span> <span class="code-class">KVCache</span>:
+    <span class="code-string">"""Key-Value缓存管理器"""</span>
+
+    <span class="code-keyword">def</span> <span class="code-function">__init__</span>(self,
+                 n_layers: int,
+                 max_batch_size: int,
+                 max_seq_length: int,
+                 n_heads: int,
+                 head_dim: int,
+                 device: torch.device = torch.device(<span class="code-string">'cuda'</span>)):
+
+        self.n_layers = n_layers
+        self.max_batch_size = max_batch_size
+        self.max_seq_length = max_seq_length
+        self.n_heads = n_heads
+        self.head_dim = head_dim
+        self.device = device
+
+        <span class="code-comment"># 预分配缓存空间</span>
+        self.k_cache = torch.zeros(
+            n_layers, max_batch_size, max_seq_length,
+            n_heads, head_dim, device=device
+        )
+        self.v_cache = torch.zeros(
+            n_layers, max_batch_size, max_seq_length,
+            n_heads, head_dim, device=device
+        )
+
+        <span class="code-comment"># 记录每个样本的有效长度</span>
+        self.seq_lengths = torch.zeros(max_batch_size, dtype=torch.long, device=device)
+
+    <span class="code-keyword">def</span> <span class="code-function">update</span>(self,
+                layer_idx: int,
+                batch_idx: torch.Tensor,
+                k: torch.Tensor,
+                v: torch.Tensor,
+                seq_pos: int):
+        <span class="code-string">"""更新缓存"""</span>
+        <span class="code-comment"># k, v: [batch_size, n_heads, seq_len, head_dim]</span>
+        batch_size, _, seq_len, _ = k.shape
+
+        <span class="code-comment"># 更新对应位置的缓存</span>
+        self.k_cache[layer_idx, batch_idx, seq_pos:seq_pos+seq_len] = k.transpose(<span class="code-number">1</span>, <span class="code-number">2</span>)
+        self.v_cache[layer_idx, batch_idx, seq_pos:seq_pos+seq_len] = v.transpose(<span class="code-number">1</span>, <span class="code-number">2</span>)
+
+        <span class="code-comment"># 更新序列长度</span>
+        self.seq_lengths[batch_idx] = seq_pos + seq_len
+
+    <span class="code-keyword">def</span> <span class="code-function">get</span>(self,
+            layer_idx: int,
+            batch_idx: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+        <span class="code-string">"""获取缓存的KV"""</span>
+        <span class="code-comment"># 获取有效长度</span>
+        max_len = self.seq_lengths[batch_idx].max().item()
+
+        <span class="code-comment"># 返回有效部分</span>
+        k = self.k_cache[layer_idx, batch_idx, :max_len].transpose(<span class="code-number">1</span>, <span class="code-number">2</span>)
+        v = self.v_cache[layer_idx, batch_idx, :max_len].transpose(<span class="code-number">1</span>, <span class="code-number">2</span>)
+
+        <span class="code-keyword">return</span> k, v
+
+    <span class="code-keyword">def</span> <span class="code-function">clear</span>(self, batch_idx: Optional[torch.Tensor] = None):
+        <span class="code-string">"""清空缓存"""</span>
+        <span class="code-keyword">if</span> batch_idx <span class="code-keyword">is None</span>:
+            self.k_cache.zero_()
+            self.v_cache.zero_()
+            self.seq_lengths.zero_()
+        <span class="code-keyword">else</span>:
+            self.k_cache[:, batch_idx].zero_()
+            self.v_cache[:, batch_idx].zero_()
+            self.seq_lengths[batch_idx] = <span class="code-number">0</span>
+
+<span class="code-keyword">class</span> <span class="code-class">CachedMultiHeadAttention</span>(nn.Module):
+    <span class="code-string">"""支持KV Cache的多头注意力"""</span>
+
+    <span class="code-keyword">def</span> <span class="code-function">__init__</span>(self, d_model: int, n_heads: int, dropout: float = <span class="code-number">0.1</span>):
+        super().__init__()
+        self.d_model = d_model
+        self.n_heads = n_heads
+        self.head_dim = d_model // n_heads
+
+        self.W_q = nn.Linear(d_model, d_model)
+        self.W_k = nn.Linear(d_model, d_model)
+        self.W_v = nn.Linear(d_model, d_model)
+        self.W_o = nn.Linear(d_model, d_model)
+
+        self.dropout = nn.Dropout(dropout)
+        self.scale = self.head_dim ** -<span class="code-number">0.5</span>
+
+    <span class="code-keyword">def</span> <span class="code-function">forward</span>(self,
+                x: torch.Tensor,
+                kv_cache: Optional[KVCache] = None,
+                layer_idx: int = <span class="code-number">0</span>,
+                use_cache: bool = False) -> Tuple[torch.Tensor, Optional[KVCache]]:
+        <span class="code-string">"""
+        前向传播，支持KV缓存
+
+        Args:
+            x: [batch_size, seq_len, d_model]
+            kv_cache: KV缓存对象
+            layer_idx: 当前层索引
+            use_cache: 是否使用缓存
+        """</span>
+        batch_size, seq_len, _ = x.shape
+
+        <span class="code-comment"># 计算Q</span>
+        Q = self.W_q(x).view(batch_size, seq_len, self.n_heads, self.head_dim)
+        Q = Q.transpose(<span class="code-number">1</span>, <span class="code-number">2</span>)  <span class="code-comment"># [batch, n_heads, seq_len, head_dim]</span>
+
+        <span class="code-keyword">if</span> use_cache <span class="code-keyword">and</span> kv_cache <span class="code-keyword">is not None</span>:
+            <span class="code-comment"># 推理模式：使用缓存</span>
+            <span class="code-keyword">if</span> seq_len == <span class="code-number">1</span>:  <span class="code-comment"># 生成新token</span>
+                <span class="code-comment"># 只计算当前位置的KV</span>
+                K = self.W_k(x).view(batch_size, <span class="code-number">1</span>, self.n_heads, self.head_dim)
+                V = self.W_v(x).view(batch_size, <span class="code-number">1</span>, self.n_heads, self.head_dim)
+                K = K.transpose(<span class="code-number">1</span>, <span class="code-number">2</span>)
+                V = V.transpose(<span class="code-number">1</span>, <span class="code-number">2</span>)
+
+                <span class="code-comment"># 获取当前位置</span>
+                batch_idx = torch.arange(batch_size, device=x.device)
+                seq_pos = kv_cache.seq_lengths[batch_idx][<span class="code-number">0</span>].item()
+
+                <span class="code-comment"># 更新缓存</span>
+                kv_cache.update(layer_idx, batch_idx, K, V, seq_pos)
+
+                <span class="code-comment"># 获取完整的KV（包括历史）</span>
+                K_full, V_full = kv_cache.get(layer_idx, batch_idx)
+
+                <span class="code-comment"># 注意力计算</span>
+                scores = torch.matmul(Q, K_full.transpose(-<span class="code-number">2</span>, -<span class="code-number">1</span>)) * self.scale
+                attn_weights = torch.softmax(scores, dim=-<span class="code-number">1</span>)
+                attn_output = torch.matmul(attn_weights, V_full)
+
+            <span class="code-keyword">else</span>:  <span class="code-comment"># 初始化（第一次前向）</span>
+                K = self.W_k(x).view(batch_size, seq_len, self.n_heads, self.head_dim)
+                V = self.W_v(x).view(batch_size, seq_len, self.n_heads, self.head_dim)
+                K = K.transpose(<span class="code-number">1</span>, <span class="code-number">2</span>)
+                V = V.transpose(<span class="code-number">1</span>, <span class="code-number">2</span>)
+
+                <span class="code-comment"># 存入缓存</span>
+                batch_idx = torch.arange(batch_size, device=x.device)
+                kv_cache.update(layer_idx, batch_idx, K, V, <span class="code-number">0</span>)
+
+                <span class="code-comment"># 正常注意力计算</span>
+                scores = torch.matmul(Q, K.transpose(-<span class="code-number">2</span>, -<span class="code-number">1</span>)) * self.scale
+                attn_weights = torch.softmax(scores, dim=-<span class="code-number">1</span>)
+                attn_output = torch.matmul(attn_weights, V)
+
+        <span class="code-keyword">else</span>:
+            <span class="code-comment"># 训练模式：不使用缓存</span>
+            K = self.W_k(x).view(batch_size, seq_len, self.n_heads, self.head_dim)
+            V = self.W_v(x).view(batch_size, seq_len, self.n_heads, self.head_dim)
+            K = K.transpose(<span class="code-number">1</span>, <span class="code-number">2</span>)
+            V = V.transpose(<span class="code-number">1</span>, <span class="code-number">2</span>)
+
+            scores = torch.matmul(Q, K.transpose(-<span class="code-number">2</span>, -<span class="code-number">1</span>)) * self.scale
+            attn_weights = torch.softmax(scores, dim=-<span class="code-number">1</span>)
+            attn_weights = self.dropout(attn_weights)
+            attn_output = torch.matmul(attn_weights, V)
+
+        <span class="code-comment"># 重塑并输出投影</span>
+        attn_output = attn_output.transpose(<span class="code-number">1</span>, <span class="code-number">2</span>).contiguous()
+        attn_output = attn_output.view(batch_size, seq_len, self.d_model)
+        output = self.W_o(attn_output)
+
+        <span class="code-keyword">return</span> output, kv_cache
+
+<span class="code-comment"># 推理示例</span>
+<span class="code-keyword">def</span> <span class="code-function">cached_inference</span>(model, input_ids, max_length=<span class="code-number">100</span>):
+    <span class="code-string">"""使用KV Cache的推理"""</span>
+    device = input_ids.device
+    batch_size = input_ids.shape[<span class="code-number">0</span>]
+
+    <span class="code-comment"># 初始化KV Cache</span>
+    kv_cache = KVCache(
+        n_layers=model.n_layers,
+        max_batch_size=batch_size,
+        max_seq_length=max_length,
+        n_heads=model.n_heads,
+        head_dim=model.head_dim,
+        device=device
+    )
+
+    <span class="code-comment"># 处理输入序列</span>
+    outputs = model(input_ids, kv_cache=kv_cache, use_cache=True)
+
+    <span class="code-comment"># 生成循环</span>
+    generated = input_ids
+    <span class="code-keyword">for</span> _ <span class="code-keyword">in</span> range(max_length - input_ids.shape[<span class="code-number">1</span>]):
+        <span class="code-comment"># 只处理最后一个token</span>
+        last_token = generated[:, -<span class="code-number">1</span>:]
+        outputs = model(last_token, kv_cache=kv_cache, use_cache=True)
+
+        <span class="code-comment"># 获取下一个token</span>
+        next_token = outputs.argmax(dim=-<span class="code-number">1</span>)
+        generated = torch.cat([generated, next_token], dim=<span class="code-number">1</span>)
+
+        <span class="code-comment"># 检查是否结束</span>
+        <span class="code-keyword">if</span> (next_token == model.eos_token_id).all():
+            <span class="code-keyword">break</span>
+
+    <span class="code-keyword">return</span> generated</code></pre>
+            </div>
+
+            <div class="performance-card">
+                <h4 style="color: #22c55e; margin-bottom: 1rem;">📊 KV Cache性能提升</h4>
+                <div class="performance-metric">
+                    <span style="color: #cbd5e1; min-width: 150px;">无缓存</span>
+                    <div class="metric-bar">
+                        <div class="metric-fill" style="width: 100%; background: #ef4444;"></div>
+                    </div>
+                    <span style="color: #ef4444; min-width: 80px;">100ms/token</span>
+                </div>
+                <div class="performance-metric">
+                    <span style="color: #cbd5e1; min-width: 150px;">使用KV Cache</span>
+                    <div class="metric-bar">
+                        <div class="metric-fill" style="width: 10%;"></div>
+                    </div>
+                    <span style="color: #22c55e; min-width: 80px;">10ms/token</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2.2 量化技术 -->
+        <div class="optimization-step">
+            <div class="step-header">
+                <div class="step-number">6</div>
+                <div class="step-title">量化技术：模型压缩的艺术</div>
+            </div>
+
+            <div class="code-implementation">
+                <div class="code-header">
+                    <div class="code-title">实现INT8量化</div>
+                    <div class="code-filename">quantization/int8_quantization.py</div>
+                </div>
+                <pre><code><span class="code-keyword">import</span> torch
+<span class="code-keyword">import</span> torch.nn <span class="code-keyword">as</span> nn
+<span class="code-keyword">from</span> typing <span class="code-keyword">import</span> Tuple
+
+<span class="code-keyword">class</span> <span class="code-class">INT8Quantizer</span>:
+    <span class="code-string">"""INT8量化器
+
+    将FP32/FP16权重量化为INT8，减少内存占用和加速推理
+    """</span>
+
+    @staticmethod
+    <span class="code-keyword">def</span> <span class="code-function">quantize</span>(tensor: torch.Tensor,
+                  symmetric: bool = True) -> Tuple[torch.Tensor, float, int]:
+        <span class="code-string">"""量化张量到INT8
+
+        Returns:
+            quantized_tensor: INT8张量
+            scale: 缩放因子
+            zero_point: 零点（非对称量化时使用）
+        """</span>
+        <span class="code-keyword">if</span> symmetric:
+            <span class="code-comment"># 对称量化：[-127, 127]</span>
+            max_val = tensor.abs().max()
+            scale = max_val / <span class="code-number">127.0</span>
+            zero_point = <span class="code-number">0</span>
+
+            <span class="code-comment"># 量化</span>
+            quantized = torch.round(tensor / scale)
+            quantized = torch.clamp(quantized, -<span class="code-number">127</span>, <span class="code-number">127</span>).to(torch.int8)
+        <span class="code-keyword">else</span>:
+            <span class="code-comment"># 非对称量化：[0, 255]</span>
+            min_val = tensor.min()
+            max_val = tensor.max()
+            scale = (max_val - min_val) / <span class="code-number">255.0</span>
+            zero_point = int(-min_val / scale)
+
+            <span class="code-comment"># 量化</span>
+            quantized = torch.round((tensor - min_val) / scale)
+            quantized = torch.clamp(quantized, <span class="code-number">0</span>, <span class="code-number">255</span>).to(torch.uint8)
+
+        <span class="code-keyword">return</span> quantized, scale, zero_point
+
+    @staticmethod
+    <span class="code-keyword">def</span> <span class="code-function">dequantize</span>(quantized: torch.Tensor,
+                    scale: float,
+                    zero_point: int = <span class="code-number">0</span>) -> torch.Tensor:
+        <span class="code-string">"""反量化INT8到浮点数"""</span>
+        <span class="code-keyword">return</span> scale * (quantized.float() - zero_point)
+
+<span class="code-keyword">class</span> <span class="code-class">QuantizedLinear</span>(nn.Module):
+    <span class="code-string">"""量化的线性层"""</span>
+
+    <span class="code-keyword">def</span> <span class="code-function">__init__</span>(self,
+                 in_features: int,
+                 out_features: int,
+                 bias: bool = True,
+                 quantize_weight: bool = True,
+                 quantize_activation: bool = False):
+        super().__init__()
+
+        self.in_features = in_features
+        self.out_features = out_features
+        self.quantize_weight = quantize_weight
+        self.quantize_activation = quantize_activation
+
+        <span class="code-comment"># 初始化权重（先用FP32）</span>
+        self.weight = nn.Parameter(torch.randn(out_features, in_features))
+        <span class="code-keyword">if</span> bias:
+            self.bias = nn.Parameter(torch.zeros(out_features))
+        <span class="code-keyword">else</span>:
+            self.register_parameter(<span class="code-string">'bias'</span>, None)
+
+        <span class="code-comment"># 量化参数</span>
+        self.register_buffer(<span class="code-string">'weight_scale'</span>, torch.tensor(<span class="code-number">1.0</span>))
+        self.register_buffer(<span class="code-string">'weight_zero_point'</span>, torch.tensor(<span class="code-number">0</span>))
+        self.register_buffer(<span class="code-string">'quantized_weight'</span>, None)
+
+    <span class="code-keyword">def</span> <span class="code-function">quantize_weights</span>(self):
+        <span class="code-string">"""量化权重"""</span>
+        <span class="code-keyword">if</span> self.quantize_weight:
+            quantized, scale, zero_point = INT8Quantizer.quantize(
+                self.weight.data, symmetric=True
+            )
+            self.quantized_weight = quantized
+            self.weight_scale = torch.tensor(scale)
+            self.weight_zero_point = torch.tensor(zero_point)
+
+            <span class="code-comment"># 释放原始权重内存</span>
+            self.weight = None
+
+    <span class="code-keyword">def</span> <span class="code-function">forward</span>(self, x: torch.Tensor) -> torch.Tensor:
+        <span class="code-keyword">if</span> self.quantized_weight <span class="code-keyword">is not None</span>:
+            <span class="code-comment"># 使用量化权重</span>
+            weight = INT8Quantizer.dequantize(
+                self.quantized_weight,
+                self.weight_scale,
+                self.weight_zero_point
+            )
+        <span class="code-keyword">else</span>:
+            weight = self.weight
+
+        <span class="code-keyword">if</span> self.quantize_activation <span class="code-keyword">and</span> <span class="code-keyword">not</span> self.training:
+            <span class="code-comment"># 量化激活值（推理时）</span>
+            x_q, x_scale, x_zp = INT8Quantizer.quantize(x, symmetric=True)
+            x = INT8Quantizer.dequantize(x_q, x_scale, x_zp)
+
+        <span class="code-keyword">return</span> F.linear(x, weight, self.bias)
+
+<span class="code-comment"># 动态量化（PyTorch原生支持）</span>
+<span class="code-keyword">def</span> <span class="code-function">dynamic_quantize_model</span>(model: nn.Module) -> nn.Module:
+    <span class="code-string">"""对模型进行动态量化"""</span>
+    quantized_model = torch.quantization.quantize_dynamic(
+        model,
+        {nn.Linear, nn.LSTM, nn.GRU},  <span class="code-comment"># 要量化的层类型</span>
+        dtype=torch.qint8
+    )
+    <span class="code-keyword">return</span> quantized_model
+
+<span class="code-comment"># GPTQ风格的量化（更高级）</span>
+<span class="code-keyword">class</span> <span class="code-class">GPTQQuantizer</span>:
+    <span class="code-string">"""基于Hessian的层级量化"""</span>
+
+    <span class="code-keyword">def</span> <span class="code-function">__init__</span>(self, bits: int = <span class="code-number">4</span>, group_size: int = <span class="code-number">128</span>):
+        self.bits = bits
+        self.group_size = group_size
+        self.maxq = <span class="code-number">2</span> ** bits - <span class="code-number">1</span>
+
+    <span class="code-keyword">def</span> <span class="code-function">quantize_layer</span>(self,
+                        layer: nn.Linear,
+                        inp: torch.Tensor,
+                        quantize_output: bool = True) -> nn.Module:
+        <span class="code-string">"""量化单个层"""</span>
+        <span class="code-comment"># 收集输入统计</span>
+        <span class="code-keyword">with</span> torch.no_grad():
+            out = layer(inp)
+
+            <span class="code-comment"># 计算Hessian近似</span>
+            H = inp.t() @ inp
+            H = H.float()
+
+            <span class="code-comment"># 添加正则化</span>
+            dead = torch.diag(H) == <span class="code-number">0</span>
+            H[dead, dead] = <span class="code-number">1</span>
+
+            <span class="code-comment"># Cholesky分解</span>
+            <span class="code-keyword">try</span>:
+                L = torch.linalg.cholesky(H)
+            <span class="code-keyword">except</span>:
+                <span class="code-comment"># 如果失败，添加更多正则化</span>
+                H += <span class="code-number">1e-6</span> * torch.eye(H.shape[<span class="code-number">0</span>], device=H.device)
+                L = torch.linalg.cholesky(H)
+
+            <span class="code-comment"># 逐列量化权重</span>
+            W = layer.weight.data.clone()
+            Q = torch.zeros_like(W)
+
+            <span class="code-keyword">for</span> i <span class="code-keyword">in</span> range(W.shape[<span class="code-number">1</span>]):
+                w = W[:, i]
+                d = H[i, i]
+
+                <span class="code-keyword">if</span> self.group_size > <span class="code-number">0</span> <span class="code-keyword">and</span> i % self.group_size == <span class="code-number">0</span>:
+                    <span class="code-comment"># 计算组的量化参数</span>
+                    <span class="code-keyword">if</span> i + self.group_size <= W.shape[<span class="code-number">1</span>]:
+                        group = W[:, i:i+self.group_size]
+                    <span class="code-keyword">else</span>:
+                        group = W[:, i:]
+
+                    scale = group.abs().max() / self.maxq
+
+                <span class="code-comment"># 量化</span>
+                q = torch.round(w / scale).clamp(-self.maxq, self.maxq)
+                Q[:, i] = q
+
+                <span class="code-comment"># 更新剩余列以补偿量化误差</span>
+                <span class="code-keyword">if</span> i < W.shape[<span class="code-number">1</span>] - <span class="code-number">1</span>:
+                    err = (w - q * scale) / d
+                    W[:, i+<span class="code-number">1</span>:] -= err.unsqueeze(<span class="code-number">1</span>) @ H[i, i+<span class="code-number">1</span>:].unsqueeze(<span class="code-number">0</span>)
+
+        <span class="code-comment"># 创建量化层</span>
+        <span class="code-keyword">return</span> self._create_quantized_layer(Q, scale, layer.bias)</code></pre>
+            </div>
+
+            <div class="success-card">
+                <h4><span>✅</span> 量化带来的收益</h4>
+                <div style="color: #cbd5e1;">
+                    • <strong>内存减少：</strong>4倍（INT8）到8倍（INT4）<br>
+                    • <strong>推理加速：</strong>2-4倍（取决于硬件）<br>
+                    • <strong>精度损失：</strong>< 1%（合理的量化策略）<br>
+                    • <strong>部署友好：</strong>可在边缘设备运行大模型
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 🏗️ Part 3: 架构优化 -->
+    <div class="optimization-section" style="border-color: #3b82f6;">
+        <div style="text-align: center; margin-bottom: 3rem;">
+            <div style="display: inline-flex; align-items: center; gap: 1rem; background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(79, 70, 229, 0.1)); padding: 1.5rem 3rem; border-radius: 30px; border: 1px solid rgba(59, 130, 246, 0.4);">
+                <span style="font-size: 2rem;">🏗️</span>
+                <h2 style="color: #3b82f6; margin: 0; font-size: 1.8rem; font-weight: bold;">Part 3: 架构优化</h2>
+            </div>
+        </div>
+
+        <!-- 3.1 Flash Attention -->
+        <div class="optimization-step">
+            <div class="step-header">
+                <div class="step-number">7</div>
+                <div class="step-title">Flash Attention：内存高效的注意力</div>
+            </div>
+
+            <div class="insight-card">
+                <h4><span>💡</span> Flash Attention的核心思想</h4>
+                <div style="color: #cbd5e1;">
+                    标准注意力需要存储巨大的注意力矩阵（N×N）。<br>
+                    Flash Attention通过分块计算和重计算，将内存复杂度从O(N²)降到O(N)！<br>
+                    <strong>关键：</strong>融合CUDA kernel，减少HBM访问
+                </div>
+            </div>
+
+            <div class="code-implementation">
+                <div class="code-header">
+                    <div class="code-title">Flash Attention的Python实现（概念演示）</div>
+                    <div class="code-filename">attention/flash_attention.py</div>
+                </div>
+                <pre><code><span class="code-keyword">import</span> torch
+<span class="code-keyword">import</span> torch.nn.functional <span class="code-keyword">as</span> F
+<span class="code-keyword">import</span> math
+<span class="code-keyword">from</span> typing <span class="code-keyword">import</span> Optional
+
+<span class="code-keyword">def</span> <span class="code-function">flash_attention_forward</span>(
+    Q: torch.Tensor,  <span class="code-comment"># [batch, heads, seq_len, head_dim]</span>
+    K: torch.Tensor,
+    V: torch.Tensor,
+    block_size: int = <span class="code-number">64</span>,
+    causal: bool = False
+) -> torch.Tensor:
+    <span class="code-string">"""Flash Attention前向传播（简化版）
+
+    实际实现需要CUDA kernel，这里展示算法思想
+    """</span>
+    batch_size, n_heads, seq_len, head_dim = Q.shape
+    scale = <span class="code-number">1.0</span> / math.sqrt(head_dim)
+
+    <span class="code-comment"># 输出初始化</span>
+    O = torch.zeros_like(Q)
+    L = torch.zeros(batch_size, n_heads, seq_len, device=Q.device)
+
+    <span class="code-comment"># 分块处理</span>
+    n_blocks = (seq_len + block_size - <span class="code-number">1</span>) // block_size
+
+    <span class="code-keyword">for</span> i <span class="code-keyword">in</span> range(n_blocks):
+        <span class="code-comment"># 当前Q块的范围</span>
+        q_start = i * block_size
+        q_end = min((i + <span class="code-number">1</span>) * block_size, seq_len)
+        Q_block = Q[:, :, q_start:q_end, :]
+
+        <span class="code-comment"># 初始化块输出</span>
+        O_block = torch.zeros_like(Q_block)
+        L_block = torch.zeros(batch_size, n_heads, q_end - q_start, device=Q.device)
+
+        <span class="code-keyword">for</span> j <span class="code-keyword">in</span> range(n_blocks):
+            <span class="code-comment"># 当前KV块的范围</span>
+            kv_start = j * block_size
+            kv_end = min((j + <span class="code-number">1</span>) * block_size, seq_len)
+
+            <span class="code-comment"># 因果掩码检查</span>
+            <span class="code-keyword">if</span> causal <span class="code-keyword">and</span> kv_start >= q_end:
+                <span class="code-keyword">break</span>
+
+            K_block = K[:, :, kv_start:kv_end, :]
+            V_block = V[:, :, kv_start:kv_end, :]
+
+            <span class="code-comment"># 计算注意力分数</span>
+            S_block = torch.matmul(Q_block, K_block.transpose(-<span class="code-number">2</span>, -<span class="code-number">1</span>)) * scale
+
+            <span class="code-comment"># 应用因果掩码</span>
+            <span class="code-keyword">if</span> causal:
+                mask = torch.triu(
+                    torch.ones(q_end - q_start, kv_end - kv_start, device=Q.device),
+                    diagonal=kv_start - q_start + <span class="code-number">1</span>
+                )
+                S_block.masked_fill_(mask.unsqueeze(<span class="code-number">0</span>).unsqueeze(<span class="code-number">0</span>) == <span class="code-number">1</span>, float(<span class="code-string">'-inf'</span>))
+
+            <span class="code-comment"># 计算局部softmax（数值稳定）</span>
+            m_block = S_block.max(dim=-<span class="code-number">1</span>, keepdim=True).values
+            P_block = torch.exp(S_block - m_block)
+            l_block = P_block.sum(dim=-<span class="code-number">1</span>, keepdim=True)
+
+            <span class="code-comment"># 更新全局统计量（在线算法）</span>
+            m_new = torch.maximum(L_block.unsqueeze(-<span class="code-number">1</span>), m_block)
+            l1 = torch.exp(L_block.unsqueeze(-<span class="code-number">1</span>) - m_new) * L_block.unsqueeze(-<span class="code-number">1</span>)
+            l2 = torch.exp(m_block - m_new) * l_block
+            L_block_new = l1 + l2
+
+            <span class="code-comment"># 更新输出</span>
+            O_block = (l1 * O_block + torch.exp(m_block - m_new) * torch.matmul(P_block, V_block)) / L_block_new
+            L_block = L_block_new.squeeze(-<span class="code-number">1</span>)
+
+        <span class="code-comment"># 写回全局输出</span>
+        O[:, :, q_start:q_end, :] = O_block
+        L[:, :, q_start:q_end] = L_block
+
+    <span class="code-keyword">return</span> O
+
+<span class="code-comment"># 实际使用：调用优化的CUDA实现</span>
+<span class="code-keyword">try</span>:
+    <span class="code-keyword">from</span> flash_attn <span class="code-keyword">import</span> flash_attn_func
+
+    <span class="code-keyword">class</span> <span class="code-class">FlashAttention</span>(nn.Module):
+        <span class="code-string">"""使用Flash Attention的注意力层"""</span>
+
+        <span class="code-keyword">def</span> <span class="code-function">__init__</span>(self, d_model: int, n_heads: int, dropout: float = <span class="code-number">0.0</span>):
+            super().__init__()
+            self.d_model = d_model
+            self.n_heads = n_heads
+            self.head_dim = d_model // n_heads
+            self.dropout = dropout
+
+            self.W_q = nn.Linear(d_model, d_model)
+            self.W_k = nn.Linear(d_model, d_model)
+            self.W_v = nn.Linear(d_model, d_model)
+            self.W_o = nn.Linear(d_model, d_model)
+
+        <span class="code-keyword">def</span> <span class="code-function">forward</span>(self, x: torch.Tensor, mask: Optional[torch.Tensor] = None):
+            batch_size, seq_len, _ = x.shape
+
+            <span class="code-comment"># QKV投影</span>
+            Q = self.W_q(x).view(batch_size, seq_len, self.n_heads, self.head_dim)
+            K = self.W_k(x).view(batch_size, seq_len, self.n_heads, self.head_dim)
+            V = self.W_v(x).view(batch_size, seq_len, self.n_heads, self.head_dim)
+
+            <span class="code-comment"># 使用Flash Attention</span>
+            attn_output = flash_attn_func(
+                Q, K, V,
+                dropout_p=self.dropout <span class="code-keyword">if</span> self.training <span class="code-keyword">else</span> <span class="code-number">0.0</span>,
+                causal=mask <span class="code-keyword">is not None</span>
+            )
+
+            <span class="code-comment"># 输出投影</span>
+            attn_output = attn_output.view(batch_size, seq_len, self.d_model)
+            output = self.W_o(attn_output)
+
+            <span class="code-keyword">return</span> output
+
+<span class="code-keyword">except</span> ImportError:
+    print(<span class="code-string">"Flash Attention not available, using standard attention"</span>)</code></pre>
+            </div>
+        </div>
+
+        <!-- 3.2 Multi-Query Attention -->
+        <div class="optimization-step">
+            <div class="step-header">
+                <div class="step-number">8</div>
+                <div class="step-title">Multi-Query Attention：共享KV的智慧</div>
+            </div>
+
+            <div class="code-implementation">
+                <div class="code-header">
+                    <div class="code-title">实现Multi-Query和Grouped-Query Attention</div>
+                    <div class="code-filename">attention/multi_query_attention.py</div>
+                </div>
+                <pre><code><span class="code-keyword">class</span> <span class="code-class">MultiQueryAttention</span>(nn.Module):
+    <span class="code-string">"""Multi-Query Attention (MQA)
+
+    所有注意力头共享同一组Key和Value，大幅减少KV Cache
+    """</span>
+
+    <span class="code-keyword">def</span> <span class="code-function">__init__</span>(self, d_model: int, n_heads: int):
+        super().__init__()
+        self.d_model = d_model
+        self.n_heads = n_heads
+        self.head_dim = d_model // n_heads
+
+        <span class="code-comment"># Q有n_heads组，但K和V只有1组</span>
+        self.W_q = nn.Linear(d_model, d_model)
+        self.W_k = nn.Linear(d_model, self.head_dim)  <span class="code-comment"># 注意：只输出head_dim</span>
+        self.W_v = nn.Linear(d_model, self.head_dim)
+        self.W_o = nn.Linear(d_model, d_model)
+
+    <span class="code-keyword">def</span> <span class="code-function">forward</span>(self, x: torch.Tensor) -> torch.Tensor:
+        batch_size, seq_len, _ = x.shape
+
+        <span class="code-comment"># 计算Q（多头）</span>
+        Q = self.W_q(x).view(batch_size, seq_len, self.n_heads, self.head_dim)
+        Q = Q.transpose(<span class="code-number">1</span>, <span class="code-number">2</span>)  <span class="code-comment"># [batch, n_heads, seq_len, head_dim]</span>
+
+        <span class="code-comment"># 计算K和V（单头）</span>
+        K = self.W_k(x)  <span class="code-comment"># [batch, seq_len, head_dim]</span>
+        V = self.W_v(x)
+
+        <span class="code-comment"># 扩展K和V到所有头</span>
+        K = K.unsqueeze(<span class="code-number">1</span>).expand(-<span class="code-number">1</span>, self.n_heads, -<span class="code-number">1</span>, -<span class="code-number">1</span>)
+        V = V.unsqueeze(<span class="code-number">1</span>).expand(-<span class="code-number">1</span>, self.n_heads, -<span class="code-number">1</span>, -<span class="code-number">1</span>)
+
+        <span class="code-comment"># 标准注意力计算</span>
+        scores = torch.matmul(Q, K.transpose(-<span class="code-number">2</span>, -<span class="code-number">1</span>)) / math.sqrt(self.head_dim)
+        attn_weights = F.softmax(scores, dim=-<span class="code-number">1</span>)
+        attn_output = torch.matmul(attn_weights, V)
+
+        <span class="code-comment"># 重塑和输出</span>
+        attn_output = attn_output.transpose(<span class="code-number">1</span>, <span class="code-number">2</span>).contiguous()
+        attn_output = attn_output.view(batch_size, seq_len, self.d_model)
+
+        <span class="code-keyword">return</span> self.W_o(attn_output)
+
+
+<span class="code-keyword">class</span> <span class="code-class">GroupedQueryAttention</span>(nn.Module):
+    <span class="code-string">"""Grouped-Query Attention (GQA)
+
+    MHA和MQA的折中：将注意力头分组，组内共享KV
+    """</span>
+
+    <span class="code-keyword">def</span> <span class="code-function">__init__</span>(self, d_model: int, n_heads: int, n_kv_heads: int):
+        super().__init__()
+        assert n_heads % n_kv_heads == <span class="code-number">0</span>
+
+        self.d_model = d_model
+        self.n_heads = n_heads
+        self.n_kv_heads = n_kv_heads
+        self.n_groups = n_heads // n_kv_heads
+        self.head_dim = d_model // n_heads
+
+        self.W_q = nn.Linear(d_model, d_model)
+        self.W_k = nn.Linear(d_model, n_kv_heads * self.head_dim)
+        self.W_v = nn.Linear(d_model, n_kv_heads * self.head_dim)
+        self.W_o = nn.Linear(d_model, d_model)
+
+    <span class="code-keyword">def</span> <span class="code-function">forward</span>(self, x: torch.Tensor) -> torch.Tensor:
+        batch_size, seq_len, _ = x.shape
+
+        <span class="code-comment"># 计算Q</span>
+        Q = self.W_q(x).view(batch_size, seq_len, self.n_heads, self.head_dim)
+        Q = Q.transpose(<span class="code-number">1</span>, <span class="code-number">2</span>)
+
+        <span class="code-comment"># 计算K和V（n_kv_heads组）</span>
+        K = self.W_k(x).view(batch_size, seq_len, self.n_kv_heads, self.head_dim)
+        V = self.W_v(x).view(batch_size, seq_len, self.n_kv_heads, self.head_dim)
+        K = K.transpose(<span class="code-number">1</span>, <span class="code-number">2</span>)
+        V = V.transpose(<span class="code-number">1</span>, <span class="code-number">2</span>)
+
+        <span class="code-comment"># 重复K和V以匹配Q的头数</span>
+        K = K.repeat_interleave(self.n_groups, dim=<span class="code-number">1</span>)
+        V = V.repeat_interleave(self.n_groups, dim=<span class="code-number">1</span>)
+
+        <span class="code-comment"># 注意力计算</span>
+        scores = torch.matmul(Q, K.transpose(-<span class="code-number">2</span>, -<span class="code-number">1</span>)) / math.sqrt(self.head_dim)
+        attn_weights = F.softmax(scores, dim=-<span class="code-number">1</span>)
+        attn_output = torch.matmul(attn_weights, V)
+
+        <span class="code-comment"># 输出</span>
+        attn_output = attn_output.transpose(<span class="code-number">1</span>, <span class="code-number">2</span>).contiguous()
+        attn_output = attn_output.view(batch_size, seq_len, self.d_model)
+
+        <span class="code-keyword">return</span> self.W_o(attn_output)</code></pre>
+            </div>
+
+            <div class="comparison-table">
+                <h4 style="color: #3b82f6; margin-bottom: 1rem; padding: 1rem;">📊 注意力变体对比</h4>
+                <table>
+                    <thead>
+                    <tr>
+                        <th>方法</th>
+                        <th>KV参数量</th>
+                        <th>KV Cache大小</th>
+                        <th>表达能力</th>
+                        <th>推理速度</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td><strong>MHA</strong></td>
+                        <td>100%</td>
+                        <td>100%</td>
+                        <td>⭐⭐⭐⭐⭐</td>
+                        <td>⭐⭐⭐</td>
+                    </tr>
+                    <tr>
+                        <td><strong>MQA</strong></td>
+                        <td>1/n_heads</td>
+                        <td>1/n_heads</td>
+                        <td>⭐⭐⭐</td>
+                        <td>⭐⭐⭐⭐⭐</td>
+                    </tr>
+                    <tr>
+                        <td><strong>GQA</strong></td>
+                        <td>n_kv_heads/n_heads</td>
+                        <td>n_kv_heads/n_heads</td>
+                        <td>⭐⭐⭐⭐</td>
+                        <td>⭐⭐⭐⭐</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- 💻 Part 4: 工程优化 -->
+    <div class="optimization-section" style="border-color: #8b5cf6;">
+        <div style="text-align: center; margin-bottom: 3rem;">
+            <div style="display: inline-flex; align-items: center; gap: 1rem; background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(124, 58, 237, 0.1)); padding: 1.5rem 3rem; border-radius: 30px; border: 1px solid rgba(139, 92, 246, 0.4);">
+                <span style="font-size: 2rem;">💻</span>
+                <h2 style="color: #8b5cf6; margin: 0; font-size: 1.8rem; font-weight: bold;">Part 4: 工程优化</h2>
+            </div>
+        </div>
+
+        <!-- 4.1 算子融合 -->
+        <div class="optimization-step">
+            <div class="step-header">
+                <div class="step-number">9</div>
+                <div class="step-title">算子融合：减少内存带宽瓶颈</div>
+            </div>
+
+            <div class="code-implementation">
+                <div class="code-header">
+                    <div class="code-title">实现融合的LayerNorm和激活函数</div>
+                    <div class="code-filename">optimization/operator_fusion.py</div>
+                </div>
+                <pre><code><span class="code-keyword">import</span> torch
+<span class="code-keyword">import</span> torch.nn <span class="code-keyword">as</span> nn
+<span class="code-keyword">from</span> torch.cuda.amp <span class="code-keyword">import</span> custom_fwd, custom_bwd
+
+<span class="code-comment"># JIT编译的融合算子</span>
+@torch.jit.script
+<span class="code-keyword">def</span> <span class="code-function">fused_gelu</span>(x: torch.Tensor) -> torch.Tensor:
+    <span class="code-string">"""融合的GELU激活函数"""</span>
+    <span class="code-keyword">return</span> x * <span class="code-number">0.5</span> * (<span class="code-number">1.0</span> + torch.tanh(<span class="code-number">0.79788456</span> * x * (<span class="code-number">1</span> + <span class="code-number">0.044715</span> * x * x)))
+
+@torch.jit.script
+<span class="code-keyword">def</span> <span class="code-function">fused_layer_norm</span>(x: torch.Tensor,
+                        weight: torch.Tensor,
+                        bias: torch.Tensor,
+                        eps: float = <span class="code-number">1e-5</span>) -> torch.Tensor:
+    <span class="code-string">"""融合的LayerNorm"""</span>
+    mean = x.mean(dim=-<span class="code-number">1</span>, keepdim=True)
+    var = ((x - mean) ** <span class="code-number">2</span>).mean(dim=-<span class="code-number">1</span>, keepdim=True)
+    x_norm = (x - mean) / torch.sqrt(var + eps)
+    <span class="code-keyword">return</span> weight * x_norm + bias
+
+<span class="code-comment"># 自定义CUDA算子（伪代码）</span>
+<span class="code-keyword">class</span> <span class="code-class">FusedLayerNormGELU</span>(torch.autograd.Function):
+    <span class="code-string">"""融合LayerNorm + GELU的自定义算子"""</span>
+
+    @staticmethod
+    @custom_fwd
+    <span class="code-keyword">def</span> <span class="code-function">forward</span>(ctx, x, weight, bias, eps=<span class="code-number">1e-5</span>):
+        <span class="code-comment"># 在实际实现中，这会调用自定义CUDA kernel</span>
+        <span class="code-comment"># 这里用Python展示逻辑</span>
+
+        <span class="code-comment"># LayerNorm</span>
+        mean = x.mean(dim=-<span class="code-number">1</span>, keepdim=True)
+        var = ((x - mean) ** <span class="code-number">2</span>).mean(dim=-<span class="code-number">1</span>, keepdim=True)
+        std = torch.sqrt(var + eps)
+        x_norm = (x - mean) / std
+        ln_out = weight * x_norm + bias
+
+        <span class="code-comment"># GELU</span>
+        gelu_out = ln_out * <span class="code-number">0.5</span> * (<span class="code-number">1.0</span> + torch.tanh(
+            <span class="code-number">0.79788456</span> * ln_out * (<span class="code-number">1</span> + <span class="code-number">0.044715</span> * ln_out * ln_out)
+        ))
+
+        <span class="code-comment"># 保存中间结果用于反向传播</span>
+        ctx.save_for_backward(x, weight, mean, std, ln_out)
+        ctx.eps = eps
+
+        <span class="code-keyword">return</span> gelu_out
+
+    @staticmethod
+    @custom_bwd
+    <span class="code-keyword">def</span> <span class="code-function">backward</span>(ctx, grad_output):
+        x, weight, mean, std, ln_out = ctx.saved_tensors
+        eps = ctx.eps
+
+        <span class="code-comment"># GELU的梯度</span>
+        tanh_out = torch.tanh(<span class="code-number">0.79788456</span> * ln_out * (<span class="code-number">1</span> + <span class="code-number">0.044715</span> * ln_out * ln_out))
+        ff = <span class="code-number">0.5</span> * ln_out * ((<span class="code-number">1</span> - tanh_out * tanh_out) *
+             (<span class="code-number">0.79788456</span> + <span class="code-number">0.1070322243</span> * ln_out * ln_out)) + <span class="code-number">0.5</span> * (<span class="code-number">1</span> + tanh_out)
+        grad_ln = grad_output * ff
+
+        <span class="code-comment"># LayerNorm的梯度</span>
+        x_norm = (x - mean) / std
+        grad_weight = (grad_ln * x_norm).sum(dim=(<span class="code-number">0</span>, <span class="code-number">1</span>))
+        grad_bias = grad_ln.sum(dim=(<span class="code-number">0</span>, <span class="code-number">1</span>))
+
+        <span class="code-comment"># 输入的梯度（简化版）</span>
+        grad_x = grad_ln * weight / std
+
+        <span class="code-keyword">return</span> grad_x, grad_weight, grad_bias, None
+
+<span class="code-comment"># 使用融合算子的模块</span>
+<span class="code-keyword">class</span> <span class="code-class">OptimizedFeedForward</span>(nn.Module):
+    <span class="code-string">"""优化的前馈网络，使用融合算子"""</span>
+
+    <span class="code-keyword">def</span> <span class="code-function">__init__</span>(self, d_model: int, d_ff: int):
+        super().__init__()
+        self.linear1 = nn.Linear(d_model, d_ff)
+        self.linear2 = nn.Linear(d_ff, d_model)
+
+        <span class="code-comment"># LayerNorm参数</span>
+        self.ln_weight = nn.Parameter(torch.ones(d_ff))
+        self.ln_bias = nn.Parameter(torch.zeros(d_ff))
+
+        self.dropout = nn.Dropout(<span class="code-number">0.1</span>)
+
+    <span class="code-keyword">def</span> <span class="code-function">forward</span>(self, x: torch.Tensor) -> torch.Tensor:
+        <span class="code-comment"># 第一层 + 融合的LayerNorm+GELU</span>
+        h = self.linear1(x)
+        h = FusedLayerNormGELU.apply(h, self.ln_weight, self.ln_bias)
+        h = self.dropout(h)
+
+        <span class="code-comment"># 第二层</span>
+        output = self.linear2(h)
+        <span class="code-keyword">return</span> self.dropout(output)</code></pre>
+            </div>
+        </div>
+
+        <!-- 4.2 模型并行 -->
+        <div class="optimization-step">
+            <div class="step-header">
+                <div class="step-number">10</div>
+                <div class="step-title">模型并行：突破单GPU限制</div>
+            </div>
+
+            <div class="code-implementation">
+                <div class="code-header">
+                    <div class="code-title">实现张量模型并行</div>
+                    <div class="code-filename">distributed/tensor_parallel.py</div>
+                </div>
+                <pre><code><span class="code-keyword">import</span> torch
+<span class="code-keyword">import</span> torch.nn <span class="code-keyword">as</span> nn
+<span class="code-keyword">import</span> torch.distributed <span class="code-keyword">as</span> dist
+<span class="code-keyword">from</span> torch.nn <span class="code-keyword">import</span> functional <span class="code-keyword">as</span> F
+
+<span class="code-keyword">class</span> <span class="code-class">ColumnParallelLinear</span>(nn.Module):
+    <span class="code-string">"""列并行的线性层
+
+    将权重矩阵按列分割到多个GPU上
+    """</span>
+
+    <span class="code-keyword">def</span> <span class="code-function">__init__</span>(self,
+                 in_features: int,
+                 out_features: int,
+                 world_size: int,
+                 rank: int,
+                 bias: bool = True):
+        super().__init__()
+
+        self.in_features = in_features
+        self.out_features = out_features
+        self.world_size = world_size
+        self.rank = rank
+
+        <span class="code-comment"># 计算每个GPU的输出维度</span>
+        assert out_features % world_size == <span class="code-number">0</span>
+        self.out_features_per_partition = out_features // world_size
+
+        <span class="code-comment"># 初始化本地权重</span>
+        self.weight = nn.Parameter(torch.empty(
+            self.out_features_per_partition,
+            in_features
+        ))
+
+        <span class="code-keyword">if</span> bias:
+            self.bias = nn.Parameter(torch.empty(self.out_features_per_partition))
+        <span class="code-keyword">else</span>:
+            self.register_parameter(<span class="code-string">'bias'</span>, None)
+
+        <span class="code-comment"># 初始化</span>
+        nn.init.kaiming_uniform_(self.weight)
+        <span class="code-keyword">if</span> bias:
+            nn.init.zeros_(self.bias)
+
+    <span class="code-keyword">def</span> <span class="code-function">forward</span>(self, x: torch.Tensor) -> torch.Tensor:
+        <span class="code-comment"># 输入在所有GPU上是相同的</span>
+        <span class="code-comment"># 每个GPU计算部分输出</span>
+        local_output = F.linear(x, self.weight, self.bias)
+
+        <span class="code-comment"># 不需要通信，直接返回局部结果</span>
+        <span class="code-keyword">return</span> local_output
+
+
+<span class="code-keyword">class</span> <span class="code-class">RowParallelLinear</span>(nn.Module):
+    <span class="code-string">"""行并行的线性层
+
+    将权重矩阵按行分割，需要在最后进行归约
+    """</span>
+
+    <span class="code-keyword">def</span> <span class="code-function">__init__</span>(self,
+                 in_features: int,
+                 out_features: int,
+                 world_size: int,
+                 rank: int,
+                 bias: bool = True):
+        super().__init__()
+
+        self.in_features = in_features
+        self.out_features = out_features
+        self.world_size = world_size
+        self.rank = rank
+
+        <span class="code-comment"># 计算每个GPU的输入维度</span>
+        assert in_features % world_size == <span class="code-number">0</span>
+        self.in_features_per_partition = in_features // world_size
+
+        <span class="code-comment"># 初始化本地权重</span>
+        self.weight = nn.Parameter(torch.empty(
+            out_features,
+            self.in_features_per_partition
+        ))
+
+        <span class="code-keyword">if</span> bias <span class="code-keyword">and</span> rank == <span class="code-number">0</span>:
+            <span class="code-comment"># 只在第一个GPU上保存bias</span>
+            self.bias = nn.Parameter(torch.empty(out_features))
+        <span class="code-keyword">else</span>:
+            self.register_parameter(<span class="code-string">'bias'</span>, None)
+
+        <span class="code-comment"># 初始化</span>
+        nn.init.kaiming_uniform_(self.weight)
+        <span class="code-keyword">if</span> hasattr(self, <span class="code-string">'bias'</span>) <span class="code-keyword">and</span> self.bias <span class="code-keyword">is not None</span>:
+            nn.init.zeros_(self.bias)
+
+    <span class="code-keyword">def</span> <span class="code-function">forward</span>(self, x: torch.Tensor) -> torch.Tensor:
+        <span class="code-comment"># x来自列并行层，已经被分割</span>
+        local_output = F.linear(x, self.weight)
+
+        <span class="code-comment"># All-reduce：将所有GPU的结果相加</span>
+        <span class="code-keyword">if</span> self.world_size > <span class="code-number">1</span>:
+            dist.all_reduce(local_output)
+
+        <span class="code-comment"># 只在rank 0上加bias</span>
+        <span class="code-keyword">if</span> self.bias <span class="code-keyword">is not None</span>:
+            local_output = local_output + self.bias
+
+        <span class="code-keyword">return</span> local_output
+
+
+<span class="code-keyword">class</span> <span class="code-class">ParallelMLP</span>(nn.Module):
+    <span class="code-string">"""张量并行的MLP层"""</span>
+
+    <span class="code-keyword">def</span> <span class="code-function">__init__</span>(self, d_model: int, d_ff: int, world_size: int, rank: int):
+        super().__init__()
+
+        <span class="code-comment"># 第一层：列并行（不需要通信）</span>
+        self.fc1 = ColumnParallelLinear(d_model, d_ff, world_size, rank)
+
+        <span class="code-comment"># 激活函数</span>
+        self.activation = nn.GELU()
+
+        <span class="code-comment"># 第二层：行并行（需要all-reduce）</span>
+        self.fc2 = RowParallelLinear(d_ff // world_size, d_model, world_size, rank)
+
+        self.dropout = nn.Dropout(<span class="code-number">0.1</span>)
+
+    <span class="code-keyword">def</span> <span class="code-function">forward</span>(self, x: torch.Tensor) -> torch.Tensor:
+        <span class="code-comment"># 前向传播</span>
+        h = self.fc1(x)
+        h = self.activation(h)
+        h = self.dropout(h)
+        output = self.fc2(h)
+        <span class="code-keyword">return</span> self.dropout(output)
+
+
+<span class="code-comment"># Pipeline并行示例</span>
+<span class="code-keyword">class</span> <span class="code-class">PipelineParallelTransformer</span>(nn.Module):
+    <span class="code-string">"""流水线并行的Transformer
+
+    将模型层分配到不同GPU上
+    """</span>
+
+    <span class="code-keyword">def</span> <span class="code-function">__init__</span>(self,
+                 n_layers: int,
+                 d_model: int,
+                 n_devices: int):
+        super().__init__()
+
+        self.n_layers = n_layers
+        self.n_devices = n_devices
+
+        <span class="code-comment"># 计算每个设备的层数</span>
+        layers_per_device = n_layers // n_devices
+
+        <span class="code-comment"># 创建层并分配到设备</span>
+        self.layers = nn.ModuleList()
+        <span class="code-keyword">for</span> i <span class="code-keyword">in</span> range(n_layers):
+            device_id = i // layers_per_device
+            layer = TransformerLayer(d_model).to(<span class="code-string">f'cuda:{device_id}'</span>)
+            self.layers.append(layer)
+
+    <span class="code-keyword">def</span> <span class="code-function">forward</span>(self, x: torch.Tensor) -> torch.Tensor:
+        <span class="code-comment"># 逐层前向，自动处理设备间传输</span>
+        <span class="code-keyword">for</span> layer <span class="code-keyword">in</span> self.layers:
+            device = next(layer.parameters()).device
+            x = x.to(device)
+            x = layer(x)
+
+        <span class="code-keyword">return</span> x</code></pre>
+            </div>
+
+            <div class="performance-card">
+                <h4 style="color: #8b5cf6; margin-bottom: 1rem;">📊 并行策略对比</h4>
+                <div class="comparison-table">
+                    <table style="width: 100%; background: transparent;">
+                        <thead>
+                        <tr style="background: rgba(139, 92, 246, 0.2);">
+                            <th style="color: #8b5cf6; padding: 0.8rem;">并行方式</th>
+                            <th style="color: #8b5cf6; padding: 0.8rem;">通信开销</th>
+                            <th style="color: #8b5cf6; padding: 0.8rem;">内存效率</th>
+                            <th style="color: #8b5cf6; padding: 0.8rem;">适用场景</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr>
+                            <td style="padding: 0.8rem;"><strong>数据并行</strong></td>
+                            <td style="padding: 0.8rem;">高（梯度同步）</td>
+                            <td style="padding: 0.8rem;">低（复制模型）</td>
+                            <td style="padding: 0.8rem;">小模型</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 0.8rem;"><strong>张量并行</strong></td>
+                            <td style="padding: 0.8rem;">中（激活同步）</td>
+                            <td style="padding: 0.8rem;">高（分割模型）</td>
+                            <td style="padding: 0.8rem;">单层很大</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 0.8rem;"><strong>流水线并行</strong></td>
+                            <td style="padding: 0.8rem;">低（层间传输）</td>
+                            <td style="padding: 0.8rem;">高（分割模型）</td>
+                            <td style="padding: 0.8rem;">层数很多</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 🎯 实战优化技巧 -->
+    <div class="optimization-section" style="border-color: #22c55e; background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(16, 185, 129, 0.05));">
+        <div style="text-align: center; margin-bottom: 3rem;">
+            <div style="display: inline-flex; align-items: center; gap: 1rem; background: linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(16, 185, 129, 0.1)); padding: 1.5rem 3rem; border-radius: 30px; border: 1px solid rgba(34, 197, 94, 0.4);">
+                <span style="font-size: 2rem;">🎯</span>
+                <h2 style="color: #22c55e; margin: 0; font-size: 1.8rem; font-weight: bold;">实战优化清单</h2>
+            </div>
+        </div>
+
+        <!-- 优化决策树 -->
+        <div style="background: rgba(15, 23, 42, 0.9); padding: 2.5rem; border-radius: 16px; margin-bottom: 2rem;">
+            <h3 style="color: #fbbf24; margin-bottom: 1.5rem; text-align: center;">🌳 优化决策树</h3>
+
+            <div style="background: rgba(255, 255, 255, 0.05); padding: 2rem; border-radius: 12px;">
+                <div style="color: #cbd5e1; line-height: 2;">
+                    <strong style="color: #3b82f6;">1. 首先确定瓶颈：</strong><br>
+                    　　├─ 训练太慢 → 混合精度 + 梯度累积<br>
+                    　　├─ 显存不足 → 梯度检查点 + 模型并行<br>
+                    　　├─ 推理延迟高 → KV Cache + 量化<br>
+                    　　└─ 吞吐量低 → 批处理优化 + 算子融合<br><br>
+
+                    <strong style="color: #22c55e;">2. 根据模型规模选择：</strong><br>
+                    　　├─ < 1B参数：数据并行 + 混合精度<br>
+                    　　├─ 1B-10B：张量并行 + ZeRO-2<br>
+                    　　├─ 10B-100B：3D并行 + ZeRO-3<br>
+                    　　└─ > 100B：专家并行 + 所有技术<br><br>
+
+                    <strong style="color: #fbbf24;">3. 推理优化优先级：</strong><br>
+                    　　1️⃣ KV Cache（必须）<br>
+                    　　2️⃣ 量化（INT8/INT4）<br>
+                    　　3️⃣ Flash Attention<br>
+                    　　4️⃣ 模型剪枝<br>
+                    　　5️⃣ 知识蒸馏
+                </div>
+            </div>
+        </div>
+
+        <!-- 最佳实践 -->
+        <div style="background: rgba(15, 23, 42, 0.9); padding: 2rem; border-radius: 16px; margin-bottom: 2rem;">
+            <h3 style="color: #3b82f6; margin-bottom: 1.5rem; text-align: center;">💡 优化最佳实践</h3>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem;">
+                <div class="optimization-card">
+                    <h4 style="color: #fbbf24; margin-bottom: 1rem;">⚡ 训练加速技巧</h4>
+                    <div style="color: #cbd5e1; font-size: 0.95rem;">
+                        ✓ 使用torch.compile()加速20-30%<br>
+                        ✓ 开启cudnn.benchmark自动调优<br>
+                        ✓ 预先分配显存避免碎片化<br>
+                        ✓ 使用NCCL_P2P_DISABLE=1减少P2P开销<br>
+                        ✓ 设置合适的num_workers加载数据
+                    </div>
+                </div>
+
+                <div class="optimization-card">
+                    <h4 style="color: #22c55e; margin-bottom: 1rem;">🚀 推理优化技巧</h4>
+                    <div style="color: #cbd5e1; font-size: 0.95rem;">
+                        ✓ 使用torch.inference_mode()替代no_grad<br>
+                        ✓ 启用CUDA Graphs减少kernel启动开销<br>
+                        ✓ 批处理相似长度的序列<br>
+                        ✓ 使用torch.jit.script融合小算子<br>
+                        ✓ 考虑ONNX/TensorRT部署
+                    </div>
+                </div>
+
+                <div class="optimization-card">
+                    <h4 style="color: #3b82f6; margin-bottom: 1rem;">💾 内存优化技巧</h4>
+                    <div style="color: #cbd5e1; font-size: 0.95rem;">
+                        ✓ 及时del不用的中间变量<br>
+                        ✓ 使用inplace操作减少内存分配<br>
+                        ✓ 启用梯度检查点（activation checkpointing）<br>
+                        ✓ 使用CPU offload处理大模型<br>
+                        ✓ 监控torch.cuda.memory_summary()
+                    </div>
+                </div>
+
+                <div class="optimization-card">
+                    <h4 style="color: #8b5cf6; margin-bottom: 1rem;">🔧 调试优化技巧</h4>
+                    <div style="color: #cbd5e1; font-size: 0.95rem;">
+                        ✓ 使用PyTorch Profiler找瓶颈<br>
+                        ✓ 开启anomaly detection排查NaN<br>
+                        ✓ 使用wandb/tensorboard监控指标<br>
+                        ✓ 记录每层的激活值统计<br>
+                        ✓ 定期保存checkpoint防止崩溃
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 性能基准测试代码 -->
+        <div class="code-implementation">
+            <div class="code-header">
+                <div class="code-title">完整的性能基准测试</div>
+                <div class="code-filename">benchmark/performance_test.py</div>
+            </div>
+            <pre><code><span class="code-keyword">import</span> torch
+<span class="code-keyword">import</span> time
+<span class="code-keyword">from</span> contextlib <span class="code-keyword">import</span> contextmanager
+<span class="code-keyword">from</span> dataclasses <span class="code-keyword">import</span> dataclass
+<span class="code-keyword">from</span> typing <span class="code-keyword">import</span> Dict, List
+
+@dataclass
+<span class="code-keyword">class</span> <span class="code-class">BenchmarkResult</span>:
+    <span class="code-string">"""基准测试结果"""</span>
+    name: str
+    avg_time: float
+    memory_used: float
+    throughput: float
+
+<span class="code-keyword">class</span> <span class="code-class">TransformerBenchmark</span>:
+    <span class="code-string">"""Transformer性能基准测试套件"""</span>
+
+    <span class="code-keyword">def</span> <span class="code-function">__init__</span>(self, model, device=<span class="code-string">'cuda'</span>):
+        self.model = model.to(device)
+        self.device = device
+        self.results = []
+
+    @contextmanager
+    <span class="code-keyword">def</span> <span class="code-function">timer</span>(self, name: str):
+        <span class="code-string">"""计时上下文管理器"""</span>
+        torch.cuda.synchronize()
+        start_time = time.time()
+        start_memory = torch.cuda.memory_allocated()
+
+        <span class="code-keyword">yield</span>
+
+        torch.cuda.synchronize()
+        end_time = time.time()
+        end_memory = torch.cuda.memory_allocated()
+
+        elapsed = end_time - start_time
+        memory_used = (end_memory - start_memory) / <span class="code-number">1024</span>**<span class="code-number">3</span>  <span class="code-comment"># GB</span>
+
+        self.results.append({
+            <span class="code-string">'name'</span>: name,
+            <span class="code-string">'time'</span>: elapsed,
+            <span class="code-string">'memory'</span>: memory_used
+        })
+
+    <span class="code-keyword">def</span> <span class="code-function">benchmark_training</span>(self,
+                            batch_size: int = <span class="code-number">32</span>,
+                            seq_length: int = <span class="code-number">512</span>,
+                            num_iterations: int = <span class="code-number">100</span>):
+        <span class="code-string">"""训练性能基准测试"""</span>
+
+        <span class="code-comment"># 准备数据</span>
+        src = torch.randint(<span class="code-number">0</span>, <span class="code-number">10000</span>, (batch_size, seq_length)).to(self.device)
+        tgt = torch.randint(<span class="code-number">0</span>, <span class="code-number">10000</span>, (batch_size, seq_length)).to(self.device)
+
+        optimizer = torch.optim.AdamW(self.model.parameters(), lr=<span class="code-number">1e-4</span>)
+        criterion = nn.CrossEntropyLoss()
+
+        <span class="code-comment"># 预热</span>
+        <span class="code-keyword">for</span> _ <span class="code-keyword">in</span> range(<span class="code-number">10</span>):
+            output = self.model(src, tgt[:, :-<span class="code-number">1</span>])
+            loss = criterion(output.reshape(-<span class="code-number">1</span>, output.size(-<span class="code-number">1</span>)),
+                           tgt[:, <span class="code-number">1</span>:].reshape(-<span class="code-number">1</span>))
+            loss.backward()
+            optimizer.step()
+            optimizer.zero_grad()
+
+        <span class="code-comment"># 实际测试</span>
+        times = []
+        <span class="code-keyword">with</span> self.timer(<span class="code-string">"Training"</span>):
+            <span class="code-keyword">for</span> _ <span class="code-keyword">in</span> range(num_iterations):
+                start = time.time()
+
+                output = self.model(src, tgt[:, :-<span class="code-number">1</span>])
+                loss = criterion(output.reshape(-<span class="code-number">1</span>, output.size(-<span class="code-number">1</span>)),
+                               tgt[:, <span class="code-number">1</span>:].reshape(-<span class="code-number">1</span>))
+                loss.backward()
+                optimizer.step()
+                optimizer.zero_grad()
+
+                torch.cuda.synchronize()
+                times.append(time.time() - start)
+
+        <span class="code-keyword">return</span> {
+            <span class="code-string">'avg_time_per_iter'</span>: sum(times) / len(times),
+            <span class="code-string">'throughput'</span>: batch_size * seq_length / (sum(times) / len(times)),
+            <span class="code-string">'memory_gb'</span>: torch.cuda.max_memory_allocated() / <span class="code-number">1024</span>**<span class="code-number">3</span>
+        }
+
+    <span class="code-keyword">def</span> <span class="code-function">benchmark_inference</span>(self,
+                             batch_size: int = <span class="code-number">1</span>,
+                             prompt_length: int = <span class="code-number">128</span>,
+                             generation_length: int = <span class="code-number">128</span>):
+        <span class="code-string">"""推理性能基准测试"""</span>
+
+        <span class="code-comment"># 测试带KV Cache的推理</span>
+        prompt = torch.randint(<span class="code-number">0</span>, <span class="code-number">10000</span>, (batch_size, prompt_length)).to(self.device)
+
+        <span class="code-keyword">with</span> torch.inference_mode():
+            <span class="code-comment"># 处理prompt</span>
+            <span class="code-keyword">with</span> self.timer(<span class="code-string">"Prompt Processing"</span>):
+                _ = self.model(prompt, prompt)
+
+            <span class="code-comment"># 生成tokens</span>
+            generation_times = []
+            <span class="code-keyword">for</span> i <span class="code-keyword">in</span> range(generation_length):
+                start = time.time()
+
+                <span class="code-comment"># 模拟生成（实际应该使用KV Cache）</span>
+                new_token = torch.randint(<span class="code-number">0</span>, <span class="code-number">10000</span>, (batch_size, <span class="code-number">1</span>)).to(self.device)
+                _ = self.model(new_token, new_token)
+
+                torch.cuda.synchronize()
+                generation_times.append(time.time() - start)
+
+        <span class="code-keyword">return</span> {
+            <span class="code-string">'prompt_processing_time'</span>: self.results[-<span class="code-number">2</span>][<span class="code-string">'time'</span>],
+            <span class="code-string">'avg_generation_time'</span>: sum(generation_times) / len(generation_times),
+            <span class="code-string">'tokens_per_second'</span>: <span class="code-number">1.0</span> / (sum(generation_times) / len(generation_times))
+        }
+
+    <span class="code-keyword">def</span> <span class="code-function">compare_optimizations</span>(self, configs: List[Dict]):
+        <span class="code-string">"""比较不同优化配置"""</span>
+        results = []
+
+        <span class="code-keyword">for</span> config <span class="code-keyword">in</span> configs:
+            print(<span class="code-string">f"\n测试配置: {config['name']}"</span>)
+
+            <span class="code-comment"># 应用配置</span>
+            <span class="code-keyword">if</span> config.get(<span class="code-string">'mixed_precision'</span>):
+                <span class="code-keyword">with</span> torch.cuda.amp.autocast():
+                    result = self.benchmark_training()
+            <span class="code-keyword">elif</span> config.get(<span class="code-string">'compile'</span>):
+                compiled_model = torch.compile(self.model)
+                self.model = compiled_model
+                result = self.benchmark_training()
+            <span class="code-keyword">else</span>:
+                result = self.benchmark_training()
+
+            results.append({
+                <span class="code-string">'config'</span>: config[<span class="code-string">'name'</span>],
+                **result
+            })
+
+        <span class="code-keyword">return</span> results
+
+<span class="code-comment"># 使用示例</span>
+<span class="code-keyword">if</span> __name__ == <span class="code-string">"__main__"</span>:
+    <span class="code-comment"># 创建模型</span>
+    model = Transformer(config)
+
+    <span class="code-comment"># 创建基准测试</span>
+    benchmark = TransformerBenchmark(model)
+
+    <span class="code-comment"># 测试不同配置</span>
+    configs = [
+        {<span class="code-string">'name'</span>: <span class="code-string">'Baseline'</span>},
+        {<span class="code-string">'name'</span>: <span class="code-string">'Mixed Precision'</span>, <span class="code-string">'mixed_precision'</span>: True},
+        {<span class="code-string">'name'</span>: <span class="code-string">'Compiled'</span>, <span class="code-string">'compile'</span>: True},
+    ]
+
+    results = benchmark.compare_optimizations(configs)
+
+    <span class="code-comment"># 打印结果</span>
+    print(<span class="code-string">"\n性能对比结果:"</span>)
+    print(<span class="code-string">"-"</span> * <span class="code-number">60</span>)
+    <span class="code-keyword">for</span> r <span class="code-keyword">in</span> results:
+        print(<span class="code-string">f"{r['config']:20s} | "</span>
+              <span class="code-string">f"速度: {r['throughput']:.0f} tokens/s | "</span>
+              <span class="code-string">f"显存: {r['memory_gb']:.2f} GB"</span>)</code></pre>
+        </div>
+    </div>
+
+    <!-- 🎓 总结 -->
+    <div class="optimization-section" style="border-color: #8b5cf6; background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(124, 58, 237, 0.05));">
+        <div style="text-align: center; margin-bottom: 3rem;">
+            <div style="display: inline-flex; align-items: center; gap: 1rem; background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(124, 58, 237, 0.1)); padding: 1.5rem 3rem; border-radius: 30px; border: 1px solid rgba(139, 92, 246, 0.4);">
+                <span style="font-size: 2rem;">🎓</span>
+                <h2 style="color: #8b5cf6; margin: 0; font-size: 1.8rem; font-weight: bold;">总结：优化的艺术与科学</h2>
+            </div>
+        </div>
+
+        <!-- 核心要点 -->
+        <div style="background: rgba(15, 23, 42, 0.9); padding: 2.5rem; border-radius: 16px; margin-bottom: 2rem;">
+            <h3 style="color: #22c55e; margin-bottom: 1.5rem; text-align: center;">✨ 优化的核心要点</h3>
+
+            <div style="display: grid; gap: 1.5rem;">
+                <div style="background: rgba(255, 255, 255, 0.05); padding: 1.5rem; border-radius: 8px;">
+                    <h4 style="color: #3b82f6; margin-bottom: 0.8rem;">🎯 没有银弹</h4>
+                    <div style="color: #cbd5e1;">
+                        每种优化技术都有其适用场景和权衡。混合精度可能加速训练但需要调整学习率；
+                        量化减少内存但可能损失精度；并行提高吞吐但增加通信开销。
+                        <strong>关键是根据具体需求选择合适的组合。</strong>
+                    </div>
+                </div>
+
+                <div style="background: rgba(255, 255, 255, 0.05); padding: 1.5rem; border-radius: 8px;">
+                    <h4 style="color: #22c55e; margin-bottom: 0.8rem;">📊 度量驱动</h4>
+                    <div style="color: #cbd5e1;">
+                        优化必须基于准确的性能度量。使用Profiler找出真正的瓶颈，
+                        而不是凭经验猜测。记住：<strong>过早优化是万恶之源，
+                        但在深度学习中，某些优化（如混合精度）应该从一开始就启用。</strong>
+                    </div>
+                </div>
+
+                <div style="background: rgba(255, 255, 255, 0.05); padding: 1.5rem; border-radius: 8px;">
+                    <h4 style="color: #fbbf24; margin-bottom: 0.8rem;">🔄 持续迭代</h4>
+                    <div style="color: #cbd5e1;">
+                        优化是一个持续的过程。新的硬件（H100、TPU v5）带来新的优化机会；
+                        新的算法（Flash Attention 2、Ring Attention）不断涌现。
+                        <strong>保持学习，跟踪最新进展，但也要验证在自己场景下的实际效果。</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 未来展望 -->
+        <div style="background: linear-gradient(135deg, rgba(251, 191, 36, 0.15), rgba(245, 158, 11, 0.1)); padding: 2rem; border-radius: 16px; border: 1px solid rgba(251, 191, 36, 0.3); margin-bottom: 2rem;">
+            <h3 style="color: #fbbf24; margin-bottom: 1.5rem; text-align: center;">🚀 优化技术的未来</h3>
+
+            <div style="color: #f1f5f9; font-size: 1rem; line-height: 1.8;">
+                <strong>1. 硬件协同设计：</strong>未来的优化将更多考虑特定硬件特性<br>
+                <strong>2. 自动优化：</strong>编译器和框架将自动选择最佳优化策略<br>
+                <strong>3. 稀疏化计算：</strong>利用模型的稀疏性大幅提升效率<br>
+                <strong>4. 近似计算：</strong>在可接受的精度损失下获得数量级加速<br>
+                <strong>5. 端到端优化：</strong>从算法到硬件的全栈优化<br><br>
+
+                <div style="text-align: center; font-size: 1.2rem; color: #3b82f6; margin-top: 1.5rem;">
+                    <strong>记住：优化的目标不是追求极致性能，而是在约束条件下找到最佳平衡点。</strong>
+                </div>
+            </div>
+        </div>
+
+        <!-- 结语 -->
+        <div style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(147, 51, 234, 0.1)); padding: 3rem; border-radius: 20px; text-align: center; border: 1px solid rgba(59, 130, 246, 0.3);">
+            <h2 style="color: #8b5cf6; margin-bottom: 1.5rem;">🎉 恭喜你掌握了Transformer优化！</h2>
+            <div style="color: #f1f5f9; font-size: 1.1rem; line-height: 1.8;">
+                通过本章的学习，你已经了解了：<br><br>
+
+                <strong style="color: #3b82f6;">
+                    从训练到推理的全方位优化技术<br>
+                    从算法到工程的深度优化策略<br>
+                    从理论到实践的完整优化路径<br>
+                </strong><br>
+
+                这些优化技术让Transformer从实验室走向了生产环境，<br>
+                让大模型从少数人的玩具变成了改变世界的工具。<br><br>
+
+                <span style="font-size: 1.5rem;">⚡</span><br>
+                <strong style="color: #fbbf24;">
+                    现在，你已经准备好让你的Transformer飞起来了！
+                </strong>
+            </div>
+        </div>
+    </div>
+
+    <!-- 导航 -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 3rem; padding: 2rem; background: rgba(255, 255, 255, 0.05); border-radius: 12px; backdrop-filter: blur(10px);">
+        <button style="padding: 0.8rem 1.5rem; background: linear-gradient(45deg, #3b82f6, #2563eb); color: white; border: none; border-radius: 8px; cursor: pointer; text-decoration: none; transition: all 0.3s ease; font-weight: bold; display: flex; align-items: center; gap: 0.5rem;" onclick="window.history.back()">
+            ← 第11章：完整实现
+        </button>
+
+        <div style="text-align: center; color: #cbd5e1;">
+            <strong>第12章：Transformer优化</strong><br>
+            <span>让模型飞起来</span>
+        </div>
+
+        <button style="padding: 0.8rem 1.5rem; background: linear-gradient(45deg, #22c55e, #16a34a); color: white; border: none; border-radius: 8px; cursor: pointer; text-decoration: none; transition: all 0.3s ease; font-weight: bold; display: flex; align-items: center; gap: 0.5rem;" onclick="alert('下一章：Transformer的应用与变体')">
+            第13章：应用与变体 →
+        </button>
+    </div>
+</div>
+
+<script>
+    // 添加交互效果
+    document.addEventListener('DOMContentLoaded', function() {
+        // 性能条动画
+        const metricBars = document.querySelectorAll('.metric-fill');
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const bar = entry.target;
+                    const width = bar.style.width;
+                    bar.style.width = '0%';
+                    setTimeout(() => {
+                        bar.style.width = width;
+                    }, 100);
+                }
+            });
+        }, { threshold: 0.5 });
+
+        metricBars.forEach(bar => observer.observe(bar));
+
+        // 代码块动画
+        const codeBlocks = document.querySelectorAll('.code-implementation');
+        codeBlocks.forEach((block, index) => {
+            block.style.opacity = '0';
+            block.style.transform = 'translateY(20px)';
+
+            setTimeout(() => {
+                block.style.transition = 'all 0.6s ease-out';
+                block.style.opacity = '1';
+                block.style.transform = 'translateY(0)';
+            }, index * 100);
+        });
+
+        // 优化卡片悬停效果
+        const optimizationCards = document.querySelectorAll('.optimization-card');
+        optimizationCards.forEach(card => {
+            card.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateY(-5px) scale(1.02)';
+                this.style.boxShadow = '0 15px 40px rgba(251, 191, 36, 0.3)';
+            });
+
+            card.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateY(0) scale(1)';
+                this.style.boxShadow = 'none';
+            });
+        });
+
+        // 步骤编号动画
+        const stepNumbers = document.querySelectorAll('.step-number');
+        stepNumbers.forEach((num, index) => {
+            num.style.opacity = '0';
+            num.style.transform = 'scale(0)';
+
+            setTimeout(() => {
+                num.style.transition = 'all 0.5s ease-out';
+                num.style.opacity = '1';
+                num.style.transform = 'scale(1)';
+            }, index * 150);
+        });
+
+        // 添加代码复制功能
+        const codeHeaders = document.querySelectorAll('.code-header');
+        codeHeaders.forEach(header => {
+            const copyBtn = document.createElement('button');
+            copyBtn.textContent = '📋 复制';
+            copyBtn.style.cssText = `
+                background: rgba(251, 191, 36, 0.2);
+                color: #fbbf24;
+                border: 1px solid rgba(251, 191, 36, 0.3);
+                padding: 0.3rem 0.8rem;
+                border-radius: 6px;
+                cursor: pointer;
+                font-size: 0.85rem;
+                transition: all 0.3s ease;
+            `;
+
+            copyBtn.addEventListener('click', function() {
+                const codeBlock = header.nextElementSibling;
+                const code = codeBlock.textContent;
+
+                navigator.clipboard.writeText(code).then(() => {
+                    copyBtn.textContent = '✅ 已复制';
+                    setTimeout(() => {
+                        copyBtn.textContent = '📋 复制';
+                    }, 2000);
+                });
+            });
+
+            copyBtn.addEventListener('mouseenter', function() {
+                this.style.background = 'rgba(251, 191, 36, 0.3)';
+            });
+
+            copyBtn.addEventListener('mouseleave', function() {
+                this.style.background = 'rgba(251, 191, 36, 0.2)';
+            });
+
+            header.appendChild(copyBtn);
+        });
+
+        // 表格行悬停效果
+        const tableRows = document.querySelectorAll('.comparison-table tr');
+        tableRows.forEach(row => {
+            row.addEventListener('mouseenter', function() {
+                this.style.background = 'rgba(255, 255, 255, 0.08)';
+            });
+
+            row.addEventListener('mouseleave', function() {
+                this.style.background = '';
+            });
+        });
+    });
+</script>
+</body>
+</html>

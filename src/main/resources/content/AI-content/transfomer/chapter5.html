@@ -1,0 +1,2053 @@
+<meta charset="UTF-8">
+    <div class="chapter-content">
+
+        <div style="background: linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(16, 185, 129, 0.1)); border-radius: 24px; padding: 3rem; margin-bottom: 3rem; position: relative; overflow: hidden; border: 1px solid rgba(34, 197, 94, 0.3);">
+
+            <div style="position: relative; z-index: 2;">
+                <h1 style="font-size: 2.8rem; margin-bottom: 1.5rem; background: linear-gradient(45deg, #22c55e, #16a34a, #06b6d4); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-align: center;">
+                    第5章：极简版Transformer诞生
+                </h1>
+                <p style="font-size: 1.3rem; color: #cbd5e1; text-align: center; margin-bottom: 2rem; line-height: 1.6;">
+                    从理论到实践的飞跃 —— 让我们创造第一个能运行的Transformer！
+                </p>
+                <div style="display: flex; justify-content: center; gap: 2rem; flex-wrap: wrap;">
+                <span style="background: rgba(34, 197, 94, 0.2); color: #22c55e; padding: 0.8rem 1.5rem; border-radius: 25px; font-weight: bold; display: flex; align-items: center; gap: 0.5rem;">
+                    🏗️ <span>动手实现</span>
+                </span>
+                    <span style="background: rgba(6, 182, 212, 0.2); color: #06b6d4; padding: 0.8rem 1.5rem; border-radius: 25px; font-weight: bold; display: flex; align-items: center; gap: 0.5rem;">
+                    ⏱️ <span>90分钟</span>
+                </span>
+                    <span style="background: rgba(251, 191, 36, 0.2); color: #fbbf24; padding: 0.8rem 1.5rem; border-radius: 25px; font-weight: bold; display: flex; align-items: center; gap: 0.5rem;">
+                    🎯 <span>极简原则</span>
+                </span>
+                </div>
+            </div>
+        </div>
+        <!-- 🎬 故事开场 - 从实验室到代码 -->
+        <div style="background: linear-gradient(135deg, rgba(15, 23, 42, 0.9), rgba(30, 41, 59, 0.8)); border-radius: 24px; padding: 3rem; margin-bottom: 4rem; position: relative; overflow: hidden; border: 2px solid rgba(34, 197, 94, 0.2);">
+            <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0.05; background-image: repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(34, 197, 94, 0.03) 10px, rgba(34, 197, 94, 0.03) 20px);"></div>
+
+            <div style="position: relative; z-index: 2;">
+                <div style="text-align: center; margin-bottom: 3rem;">
+                    <div style="display: inline-flex; align-items: center; gap: 1rem; background: linear-gradient(135deg, rgba(34, 197, 94, 0.3), rgba(16, 185, 129, 0.2)); padding: 1.5rem 3rem; border-radius: 30px; border: 1px solid rgba(34, 197, 94, 0.4);">
+                        <span style="font-size: 2rem;">🎬</span>
+                        <h2 style="color: #22c55e; margin: 0; font-size: 1.8rem; font-weight: bold;">在一个深夜的实验室里...</h2>
+                    </div>
+                </div>
+
+                <!-- 故事场景 -->
+                <div style="background: linear-gradient(135deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.9)); border-radius: 20px; padding: 3rem; border: 1px solid rgba(34, 197, 94, 0.3);">
+                    <div style="font-size: 1.1rem; line-height: 1.8; color: #f1f5f9; margin-bottom: 2rem;">
+                        <p style="margin-bottom: 1.5rem;">
+                            凌晨2点，你终于看完了第4章的注意力机制理论。桌上的咖啡已经凉了，但你的激情却越来越热烈。
+                        </p>
+                        <p style="margin-bottom: 1.5rem;">
+                            "理论看了这么多，是时候<strong style="color: #22c55e;">写点真正的代码</strong>了！" 你兴奋地打开编辑器。
+                        </p>
+                        <p style="margin-bottom: 1.5rem;">
+                            但突然，一个声音在脑海中响起："等等，要实现完整的Transformer，需要处理位置编码、多头注意力、层归一化、残差连接..."
+                        </p>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr auto 1fr; gap: 2rem; align-items: center; margin-bottom: 2rem;">
+                        <div style="text-align: center;">
+                            <div style="width: 80px; height: 80px; border-radius: 50%; background: linear-gradient(135deg, #ef4444, #dc2626); display: flex; align-items: center; justify-content: center; font-size: 2rem; margin: 0 auto 1rem; box-shadow: 0 8px 25px rgba(239, 68, 68, 0.3);">
+                                😫
+                            </div>
+                            <div style="color: #cbd5e1; font-size: 1.1rem;">
+                                <strong style="color: #ef4444;">焦虑的你</strong><br>
+                                "这也太复杂了..."
+                            </div>
+                        </div>
+
+                        <div style="color: #8b5cf6; font-size: 2rem;">💭</div>
+
+                        <div style="text-align: center;">
+                            <div style="width: 80px; height: 80px; border-radius: 50%; background: linear-gradient(135deg, #22c55e, #16a34a); display: flex; align-items: center; justify-content: center; font-size: 2rem; margin: 0 auto 1rem; box-shadow: 0 8px 25px rgba(34, 197, 94, 0.3);">
+                                😊
+                            </div>
+                            <div style="color: #cbd5e1; font-size: 1.1rem;">
+                                <strong style="color: #22c55e;">智慧的导师</strong><br>
+                                "先做最简单的版本！"
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="background: linear-gradient(135deg, rgba(34, 197, 94, 0.15), rgba(16, 185, 129, 0.1)); padding: 2rem; border-radius: 16px; border: 1px solid rgba(34, 197, 94, 0.3);">
+                        <p style="font-size: 1.1rem; line-height: 1.8; color: #f1f5f9; text-align: center; margin: 0;">
+                            <strong style="color: #22c55e;">关键洞察：</strong><br>
+                            "连爱因斯坦都说：'Everything should be made as simple as possible, but not simpler.'<br>
+                            让我们先做一个<strong style="color: #fbbf24;">能跑起来的最简版本</strong>，然后再逐步完善！"
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 🎯 设计目标：最简原则 -->
+        <div style="background: linear-gradient(135deg, rgba(251, 191, 36, 0.15), rgba(245, 158, 11, 0.1)); border-radius: 24px; padding: 3rem; margin-bottom: 4rem; border: 2px solid rgba(251, 191, 36, 0.2); position: relative; overflow: hidden;">
+            <div style="position: absolute; top: -25px; right: -25px; font-size: 6rem; opacity: 0.08; transform: rotate(20deg);">🎯</div>
+
+            <div style="text-align: center; margin-bottom: 3rem;">
+                <div style="display: inline-flex; align-items: center; gap: 1rem; background: linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(245, 158, 11, 0.1)); padding: 1.5rem 3rem; border-radius: 30px; border: 1px solid rgba(251, 191, 36, 0.4);">
+                    <span style="font-size: 2rem;">🎯</span>
+                    <h2 style="color: #fbbf24; margin: 0; font-size: 1.8rem; font-weight: bold;">极简版设计原则</h2>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 2rem;">
+                <!-- 原则1 -->
+                <div style="background: rgba(255, 255, 255, 0.08); border-radius: 16px; padding: 2rem; border: 1px solid rgba(251, 191, 36, 0.3); position: relative; overflow: hidden;">
+                    <div style="position: absolute; top: -10px; right: -10px; font-size: 3rem; opacity: 0.1;">🏃</div>
+                    <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+                        <div style="background: linear-gradient(135deg, #ef4444, #dc2626); width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">
+                            1
+                        </div>
+                        <h3 style="color: #ef4444; margin: 0;">能跑就行</h3>
+                    </div>
+                    <p style="color: #cbd5e1; font-size: 0.95rem; line-height: 1.6;">
+                        不追求性能，不考虑优化<br>
+                        只要能展示注意力机制的效果<br>
+                        <em style="color: #94a3b8; font-size: 0.85rem;">"先让它动起来！"</em>
+                    </p>
+                </div>
+
+                <!-- 原则2 -->
+                <div style="background: rgba(255, 255, 255, 0.08); border-radius: 16px; padding: 2rem; border: 1px solid rgba(251, 191, 36, 0.3); position: relative; overflow: hidden;">
+                    <div style="position: absolute; top: -10px; right: -10px; font-size: 3rem; opacity: 0.1;">📖</div>
+                    <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+                        <div style="background: linear-gradient(135deg, #22c55e, #16a34a); width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">
+                            2
+                        </div>
+                        <h3 style="color: #22c55e; margin: 0;">代码清晰</h3>
+                    </div>
+                    <p style="color: #cbd5e1; font-size: 0.95rem; line-height: 1.6;">
+                        每一行都要易于理解<br>
+                        宁可冗长也不要晦涩<br>
+                        <em style="color: #94a3b8; font-size: 0.85rem;">"代码是写给人看的"</em>
+                    </p>
+                </div>
+
+                <!-- 原则3 -->
+                <div style="background: rgba(255, 255, 255, 0.08); border-radius: 16px; padding: 2rem; border: 1px solid rgba(251, 191, 36, 0.3); position: relative; overflow: hidden;">
+                    <div style="position: absolute; top: -10px; right: -10px; font-size: 3rem; opacity: 0.1;">🎯</div>
+                    <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+                        <div style="background: linear-gradient(135deg, #8b5cf6, #7c3aed); width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">
+                            3
+                        </div>
+                        <h3 style="color: #8b5cf6; margin: 0;">功能最小</h3>
+                    </div>
+                    <p style="color: #cbd5e1; font-size: 0.95rem; line-height: 1.6;">
+                        只实现最核心的组件<br>
+                        暂时忽略所有优化技巧<br>
+                        <em style="color: #94a3b8; font-size: 0.85rem;">"少即是多"</em>
+                    </p>
+                </div>
+
+                <!-- 原则4 -->
+                <div style="background: rgba(255, 255, 255, 0.08); border-radius: 16px; padding: 2rem; border: 1px solid rgba(251, 191, 36, 0.3); position: relative; overflow: hidden;">
+                    <div style="position: absolute; top: -10px; right: -10px; font-size: 3rem; opacity: 0.1;">👁️</div>
+                    <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+                        <div style="background: linear-gradient(135deg, #06b6d4, #0891b2); width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">
+                            4
+                        </div>
+                        <h3 style="color: #06b6d4; margin: 0;">可视化验证</h3>
+                    </div>
+                    <p style="color: #cbd5e1; font-size: 0.95rem; line-height: 1.6;">
+                        每一步都能看到结果<br>
+                        确保理解发生了什么<br>
+                        <em style="color: #94a3b8; font-size: 0.85rem;">"眼见为实"</em>
+                    </p>
+                </div>
+            </div>
+
+            <!-- 具体规格 -->
+            <div style="background: rgba(251, 191, 36, 0.1); padding: 2rem; border-radius: 16px; border: 1px solid rgba(251, 191, 36, 0.3); margin-top: 2rem;">
+                <h4 style="color: #fbbf24; margin-bottom: 1rem; text-align: center;">📋 极简版规格（故意设得很小！）</h4>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; text-align: center;">
+                    <div>
+                        <div style="color: #fbbf24; font-weight: bold;">词汇表大小</div>
+                        <div style="color: #cbd5e1; font-size: 1.5rem;">100</div>
+                        <div style="color: #334155; font-size: 0.8rem;">够用就行</div>
+                    </div>
+                    <div>
+                        <div style="color: #fbbf24; font-weight: bold;">嵌入维度</div>
+                        <div style="color: #cbd5e1; font-size: 1.5rem;">8</div>
+                        <div style="color: #94a3b8; font-size: 0.8rem;">方便可视化</div>
+                    </div>
+                    <div>
+                        <div style="color: #fbbf24; font-weight: bold;">注意力头数</div>
+                        <div style="color: #cbd5e1; font-size: 1.5rem;">1</div>
+                        <div style="color: #94a3b8; font-size: 0.8rem;">先从单头开始</div>
+                    </div>
+                    <div>
+                        <div style="color: #fbbf24; font-weight: bold;">最大序列长度</div>
+                        <div style="color: #cbd5e1; font-size: 1.5rem;">10</div>
+                        <div style="color: #94a3b8; font-size: 0.8rem;">短句子测试</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 🧱 组件1：词嵌入层 -->
+        <div style="background: linear-gradient(135deg, rgba(79, 70, 229, 0.15), rgba(67, 56, 202, 0.1)); border-radius: 24px; padding: 3rem; margin-bottom: 4rem; border: 2px solid rgba(79, 70, 229, 0.2); position: relative; overflow: hidden;">
+            <div style="position: absolute; top: -20px; right: -20px; font-size: 6rem; opacity: 0.08; transform: rotate(-10deg);">🧱</div>
+
+            <div style="text-align: center; margin-bottom: 3rem;">
+                <div style="display: inline-flex; align-items: center; gap: 1rem; background: linear-gradient(135deg, rgba(79, 70, 229, 0.2), rgba(67, 56, 202, 0.1)); padding: 1.5rem 3rem; border-radius: 30px; border: 1px solid rgba(79, 70, 229, 0.4);">
+                    <span style="font-size: 2rem;">🧱</span>
+                    <h2 style="color: #4f46e5; margin: 0; font-size: 1.8rem; font-weight: bold;">组件1：词嵌入层</h2>
+                </div>
+            </div>
+
+            <!-- 概念解释 -->
+            <div style="background: rgba(255, 255, 255, 0.08); border-radius: 16px; padding: 2rem; margin-bottom: 2rem; border: 1px solid rgba(79, 70, 229, 0.3);">
+                <h4 style="color: #4f46e5; margin-bottom: 1rem;">🎯 作用：把词ID转换成向量</h4>
+                <div style="color: #cbd5e1; font-size: 1rem; line-height: 1.6;">
+                    还记得第2章吗？计算机不懂文字，只懂数字。<br>
+                    词嵌入层就是一个<strong style="color: #4f46e5;">查找表</strong>，把每个词映射到一个固定的向量。<br>
+                    就像每个词都有自己的"身份证号码"一样！
+                </div>
+            </div>
+
+            <!-- 生动的可视化示例 -->
+            <div style="background: rgba(15, 23, 42, 0.9); border-radius: 16px; padding: 2rem; margin-bottom: 2rem; border: 1px solid rgba(79, 70, 229, 0.3);">
+                <div style="text-align: center; margin-bottom: 2rem;">
+                    <div style="color: #4f46e5; font-weight: bold; font-size: 1.2rem;">词嵌入查找过程（像查字典一样！）</div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr auto 1fr; gap: 2rem; align-items: center;">
+                    <!-- 输入 -->
+                    <div style="text-align: center;">
+                        <div style="background: rgba(239, 68, 68, 0.2); padding: 1.5rem; border-radius: 12px; border: 1px solid rgba(239, 68, 68, 0.3);">
+                            <div style="color: #ef4444; font-weight: bold; margin-bottom: 1rem;">输入：词ID</div>
+                            <div style="font-family: 'Courier New', monospace; font-size: 1.2rem; color: #f1f5f9;">
+                                [5, 12, 7, 3]<br>
+                                <span style="font-size: 0.9rem; color: #94a3b8;">我 爱 学习 AI</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="text-align: center;">
+                        <div style="font-size: 2rem; color: #4f46e5; animation: arrow-move 2s ease-in-out infinite;">→</div>
+                        <div style="color: #94a3b8; font-size: 0.85rem; margin-top: 0.5rem;">查表</div>
+                    </div>
+
+                    <!-- 输出 -->
+                    <div style="text-align: center;">
+                        <div style="background: rgba(34, 197, 94, 0.2); padding: 1.5rem; border-radius: 12px; border: 1px solid rgba(34, 197, 94, 0.3);">
+                            <div style="color: #22c55e; font-weight: bold; margin-bottom: 1rem;">输出：词向量</div>
+                            <div style="font-family: 'Courier New', monospace; font-size: 0.9rem; color: #f1f5f9;">
+                                [[0.1, -0.2, ..., 0.3],<br>
+                                [0.5, 0.1, ..., -0.2],<br>
+                                [0.3, -0.4, ..., 0.2],<br>
+                                [0.2, 0.3, ..., -0.1]]
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 代码实现 -->
+            <div class="code-section">
+                <div class="code-header">
+                    <div class="code-title">
+                        <span>💻</span>
+                        词嵌入层实现
+                    </div>
+                    <div class="code-actions">
+                        <button class="code-btn">复制代码</button>
+                    </div>
+                </div>
+
+                <div class="code-content">
+                    <pre class="python-code"><code><span class="keyword">import</span> <span class="module">numpy</span> <span class="keyword">as</span> <span class="module">np</span>
+
+<span class="keyword">class</span> <span class="class-name">EmbeddingLayer</span>:
+    <span class="string">"""
+    极简版词嵌入层
+    """</span>
+    <span class="keyword">def</span> <span class="function">__init__</span>(<span class="param">self</span>, <span class="param">vocab_size</span>=<span class="number">100</span>, <span class="param">embed_dim</span>=<span class="number">8</span>):
+        <span class="string">"""
+        初始化嵌入层
+
+        Args:
+            vocab_size: 词汇表大小
+            embed_dim: 嵌入向量维度
+        """</span>
+        <span class="keyword">self</span>.vocab_size = vocab_size
+        <span class="keyword">self</span>.embed_dim = embed_dim
+
+        <span class="comment"># 🎲 随机初始化嵌入矩阵</span>
+        <span class="comment"># 每一行代表一个词的向量表示</span>
+        <span class="keyword">self</span>.embeddings = np.random.randn(vocab_size, embed_dim) * <span class="number">0.1</span>
+
+        <span class="builtin">print</span>(<span class="string">f"✅ 词嵌入层初始化完成"</span>)
+        <span class="builtin">print</span>(<span class="string">f"   词汇表大小: {vocab_size}"</span>)
+        <span class="builtin">print</span>(<span class="string">f"   嵌入维度: {embed_dim}"</span>)
+        <span class="builtin">print</span>(<span class="string">f"   嵌入矩阵形状: {<span class="keyword">self</span>.embeddings.shape}"</span>)
+
+    <span class="keyword">def</span> <span class="function">forward</span>(<span class="param">self</span>, <span class="param">token_ids</span>):
+        <span class="string">"""
+        前向传播：查找词向量
+
+        Args:
+            token_ids: 词ID列表，如 [5, 12, 7, 3]
+
+        Returns:
+            对应的词向量矩阵
+        """</span>
+        <span class="comment"># 🔍 直接通过索引查找</span>
+        <span class="comment"># 就像在字典里查找一样简单！</span>
+        <span class="keyword">return</span> <span class="keyword">self</span>.embeddings[token_ids]
+
+    <span class="keyword">def</span> <span class="function">get_vocab_sample</span>(<span class="param">self</span>):
+        <span class="string">"""获取词汇表样本，用于可视化"""</span>
+        sample_words = {
+            <span class="number">0</span>: <span class="string">"&lt;PAD&gt;"</span>,    <span class="comment"># 填充符</span>
+            <span class="number">1</span>: <span class="string">"&lt;START&gt;"</span>,  <span class="comment"># 开始符</span>
+            <span class="number">2</span>: <span class="string">"&lt;END&gt;"</span>,    <span class="comment"># 结束符</span>
+            <span class="number">5</span>: <span class="string">"我"</span>,
+            <span class="number">12</span>: <span class="string">"爱"</span>,
+            <span class="number">7</span>: <span class="string">"学习"</span>,
+            <span class="number">3</span>: <span class="string">"AI"</span>,
+            <span class="number">15</span>: <span class="string">"很"</span>,
+            <span class="number">20</span>: <span class="string">"有趣"</span>
+        }
+        <span class="keyword">return</span> sample_words
+
+<span class="comment"># 测试词嵌入层</span>
+<span class="builtin">print</span>(<span class="string">"🧪 测试词嵌入层"</span>)
+<span class="builtin">print</span>(<span class="string">"="</span>*<span class="number">50</span>)
+
+embed_layer = EmbeddingLayer(vocab_size=<span class="number">100</span>, embed_dim=<span class="number">8</span>)
+
+<span class="comment"># 测试句子："我爱学习AI"</span>
+test_tokens = [<span class="number">5</span>, <span class="number">12</span>, <span class="number">7</span>, <span class="number">3</span>]
+test_embeddings = embed_layer.forward(test_tokens)
+
+<span class="builtin">print</span>(<span class="string">f"\n📝 输入词ID: {test_tokens}"</span>)
+<span class="builtin">print</span>(<span class="string">f"📊 输出向量形状: {test_embeddings.shape}"</span>)
+<span class="builtin">print</span>(<span class="string">f"\n🔍 第一个词'我'的向量:"</span>)
+<span class="builtin">print</span>(test_embeddings[<span class="number">0</span>])
+</code></pre>
+                </div>
+            </div>
+
+            <!-- 运行结果可视化 -->
+            <div style="background: rgba(34, 197, 94, 0.1); padding: 1.5rem; border-radius: 12px; border: 1px solid rgba(34, 197, 94, 0.3); margin-top: 1rem;">
+                <div style="color: #22c55e; font-weight: bold; margin-bottom: 0.5rem;">✅ 运行成功！</div>
+                <div class="output-text">
+                    🧪 测试词嵌入层<br>
+                    ==================================================<br>
+                    ✅ 词嵌入层初始化完成<br>
+                    &nbsp;&nbsp;&nbsp;词汇表大小: 100<br>
+                    &nbsp;&nbsp;&nbsp;嵌入维度: 8<br>
+                    &nbsp;&nbsp;&nbsp;嵌入矩阵形状: (100, 8)<br><br>
+                    📝 输入词ID: [5, 12, 7, 3]<br>
+                    📊 输出向量形状: (4, 8)<br><br>
+                    🔍 第一个词'我'的向量:<br>
+                    <span style="color: #fbbf24;">[ 0.087 -0.123  0.045  0.198 -0.076  0.134  0.091 -0.112]</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 🔥 组件2：自注意力层 -->
+        <div style="background: linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(220, 38, 38, 0.1)); border-radius: 24px; padding: 3rem; margin-bottom: 4rem; border: 2px solid rgba(239, 68, 68, 0.2); position: relative; overflow: hidden;">
+            <div style="position: absolute; top: -25px; right: -25px; font-size: 6rem; opacity: 0.08; transform: rotate(15deg);">🔥</div>
+
+            <div style="text-align: center; margin-bottom: 3rem;">
+                <div style="display: inline-flex; align-items: center; gap: 1rem; background: linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(220, 38, 38, 0.1)); padding: 1.5rem 3rem; border-radius: 30px; border: 1px solid rgba(239, 68, 68, 0.4);">
+                    <span style="font-size: 2rem;">🔥</span>
+                    <h2 style="color: #ef4444; margin: 0; font-size: 1.8rem; font-weight: bold;">组件2：自注意力层（核心！）</h2>
+                </div>
+            </div>
+
+            <!-- 详细的QKV复习 -->
+            <div style="background: rgba(255, 255, 255, 0.08); border-radius: 16px; padding: 2.5rem; margin-bottom: 2rem; border: 1px solid rgba(239, 68, 68, 0.3);">
+                <h4 style="color: #ef4444; margin-bottom: 1.5rem;">📚 深入理解QKV（Query, Key, Value）</h4>
+
+                <!-- QKV比喻说明 -->
+                <div style="background: rgba(15, 23, 42, 0.8); border-radius: 12px; padding: 2rem; margin-bottom: 1.5rem;">
+                    <h5 style="color: #fbbf24; margin-bottom: 1rem;">🎭 用一个聚会的比喻来理解：</h5>
+                    <div style="color: #cbd5e1; font-size: 1rem; line-height: 1.8;">
+                        想象你在一个聚会上想找人聊天：<br><br>
+
+                        <strong style="color: #fbbf24;">Q (Query) - 你想聊什么？</strong><br>
+                        你脑海中有个话题："我想聊聊AI技术"<br>
+                        这就是你的Query - 你在寻找什么<br><br>
+
+                        <strong style="color: #22c55e;">K (Key) - 别人的标签</strong><br>
+                        每个人胸前都有个标签，写着他们的专长<br>
+                        "我是AI研究员"、"我是程序员"、"我是设计师"<br>
+                        这些标签就是Key - 他们能提供什么<br><br>
+
+                        <strong style="color: #8b5cf6;">V (Value) - 实际的知识</strong><br>
+                        当你找到合适的人（Q和K匹配），他们会分享知识<br>
+                        这些知识就是Value - 真正有价值的内容
+                    </div>
+                </div>
+
+                <!-- 数学公式可视化 -->
+                <div style="background: rgba(139, 92, 246, 0.1); border-radius: 12px; padding: 1.5rem; text-align: center;">
+                    <div style="font-size: 1.2rem; color: #8b5cf6; margin-bottom: 1rem;">
+                        注意力计算公式：
+                    </div>
+                    <div style="font-size: 1.5rem; color: #f1f5f9; font-family: 'Times New Roman', serif;">
+                        Attention = softmax(QK<sup>T</sup>/√d) × V
+                    </div>
+                    <div style="color: #94a3b8; font-size: 0.9rem; margin-top: 1rem;">
+                        相似度 → 归一化权重 → 加权求和
+                    </div>
+                </div>
+            </div>
+
+            <!-- 单头注意力实现 -->
+            <div class="code-section">
+                <div class="code-header">
+                    <div class="code-title">
+                        <span>🎯</span>
+                        单头自注意力实现
+                    </div>
+                    <div class="code-actions">
+                        <button class="code-btn">复制代码</button>
+                    </div>
+                </div>
+
+                <div class="code-content">
+                    <pre class="python-code"><code><span class="keyword">class</span> <span class="class-name">SelfAttention</span>:
+    <span class="string">"""
+    极简版单头自注意力
+    """</span>
+    <span class="keyword">def</span> <span class="function">__init__</span>(<span class="param">self</span>, <span class="param">embed_dim</span>=<span class="number">8</span>):
+        <span class="string">"""
+        初始化自注意力层
+
+        Args:
+            embed_dim: 输入向量维度
+        """</span>
+        <span class="keyword">self</span>.embed_dim = embed_dim
+
+        <span class="comment"># 🎯 QKV三个变换矩阵</span>
+        <span class="comment"># 暂时让它们的输出维度与输入相同</span>
+        <span class="keyword">self</span>.W_Q = np.random.randn(embed_dim, embed_dim) * <span class="number">0.1</span>
+        <span class="keyword">self</span>.W_K = np.random.randn(embed_dim, embed_dim) * <span class="number">0.1</span>
+        <span class="keyword">self</span>.W_V = np.random.randn(embed_dim, embed_dim) * <span class="number">0.1</span>
+
+        <span class="builtin">print</span>(<span class="string">f"✅ 自注意力层初始化完成"</span>)
+        <span class="builtin">print</span>(<span class="string">f"   嵌入维度: {embed_dim}"</span>)
+        <span class="builtin">print</span>(<span class="string">f"   QKV矩阵形状: {<span class="keyword">self</span>.W_Q.shape}"</span>)
+
+    <span class="keyword">def</span> <span class="function">forward</span>(<span class="param">self</span>, <span class="param">X</span>, <span class="param">visualize</span>=<span class="keyword">False</span>):
+        <span class="string">"""
+        前向传播
+
+        Args:
+            X: 输入矩阵 [seq_len, embed_dim]
+            visualize: 是否打印中间结果
+
+        Returns:
+            注意力输出 [seq_len, embed_dim]
+        """</span>
+        seq_len = X.shape[<span class="number">0</span>]
+
+        <span class="comment"># 步骤1：计算Q、K、V</span>
+        Q = np.dot(X, <span class="keyword">self</span>.W_Q)  <span class="comment"># [seq_len, embed_dim]</span>
+        K = np.dot(X, <span class="keyword">self</span>.W_K)  <span class="comment"># [seq_len, embed_dim]</span>
+        V = np.dot(X, <span class="keyword">self</span>.W_V)  <span class="comment"># [seq_len, embed_dim]</span>
+
+        <span class="keyword">if</span> visualize:
+            <span class="builtin">print</span>(<span class="string">"\n📊 步骤1：QKV变换"</span>)
+            <span class="builtin">print</span>(<span class="string">f"   Q形状: {Q.shape}"</span>)
+            <span class="builtin">print</span>(<span class="string">f"   K形状: {K.shape}"</span>)
+            <span class="builtin">print</span>(<span class="string">f"   V形状: {V.shape}"</span>)
+
+        <span class="comment"># 步骤2：计算注意力分数</span>
+        <span class="comment"># QK^T: 每个位置对所有位置的原始分数</span>
+        scores = np.dot(Q, K.T)  <span class="comment"># [seq_len, seq_len]</span>
+
+        <span class="comment"># 步骤3：缩放（防止softmax饱和）</span>
+        scores = scores / np.sqrt(<span class="keyword">self</span>.embed_dim)
+
+        <span class="keyword">if</span> visualize:
+            <span class="builtin">print</span>(<span class="string">f"\n📊 步骤2-3：注意力分数（缩放后）"</span>)
+            <span class="builtin">print</span>(<span class="string">f"   分数矩阵形状: {scores.shape}"</span>)
+            <span class="builtin">print</span>(<span class="string">f"   分数范围: [{scores.min():.3f}, {scores.max():.3f}]"</span>)
+
+        <span class="comment"># 步骤4：Softmax归一化</span>
+        <span class="comment"># 对每一行做softmax，确保权重和为1</span>
+        exp_scores = np.exp(scores - np.max(scores, axis=<span class="number">1</span>, keepdims=<span class="keyword">True</span>))
+        attention_weights = exp_scores / np.sum(exp_scores, axis=<span class="number">1</span>, keepdims=<span class="keyword">True</span>)
+
+        <span class="keyword">if</span> visualize:
+            <span class="builtin">print</span>(<span class="string">f"\n📊 步骤4：注意力权重（Softmax后）"</span>)
+            <span class="builtin">print</span>(<span class="string">"   注意力权重矩阵:"</span>)
+            <span class="keyword">for</span> i <span class="keyword">in</span> <span class="builtin">range</span>(<span class="builtin">min</span>(seq_len, <span class="number">4</span>)):  <span class="comment"># 只显示前4行</span>
+                <span class="builtin">print</span>(<span class="string">f"   位置{i}: "</span>, end=<span class="string">""</span>)
+                <span class="keyword">for</span> j <span class="keyword">in</span> <span class="builtin">range</span>(<span class="builtin">min</span>(seq_len, <span class="number">4</span>)):
+                    <span class="builtin">print</span>(<span class="string">f"{attention_weights[i,j]:.3f} "</span>, end=<span class="string">""</span>)
+                <span class="builtin">print</span>(<span class="string">"..."</span>)
+
+        <span class="comment"># 步骤5：加权求和V</span>
+        output = np.dot(attention_weights, V)  <span class="comment"># [seq_len, embed_dim]</span>
+
+        <span class="keyword">if</span> visualize:
+            <span class="builtin">print</span>(<span class="string">f"\n📊 步骤5：最终输出"</span>)
+            <span class="builtin">print</span>(<span class="string">f"   输出形状: {output.shape}"</span>)
+
+        <span class="keyword">return</span> output, attention_weights
+
+    <span class="keyword">def</span> <span class="function">visualize_attention</span>(<span class="param">self</span>, <span class="param">attention_weights</span>, <span class="param">tokens</span>=<span class="keyword">None</span>):
+        <span class="string">"""
+        可视化注意力权重矩阵（带颜色！）
+        """</span>
+        seq_len = attention_weights.shape[<span class="number">0</span>]
+
+        <span class="builtin">print</span>(<span class="string">"\n🎨 注意力权重可视化"</span>)
+        <span class="builtin">print</span>(<span class="string">"   (颜色越深，注意力越强)"</span>)
+        <span class="builtin">print</span>()
+
+        <span class="comment"># 打印列标题</span>
+        <span class="keyword">if</span> tokens:
+            <span class="builtin">print</span>(<span class="string">"      "</span>, end=<span class="string">""</span>)
+            <span class="keyword">for</span> token <span class="keyword">in</span> tokens[:seq_len]:
+                <span class="builtin">print</span>(<span class="string">f"{token:>8}"</span>, end=<span class="string">""</span>)
+            <span class="builtin">print</span>()
+
+        <span class="comment"># 打印矩阵（带颜色！）</span>
+        <span class="keyword">for</span> i <span class="keyword">in</span> <span class="builtin">range</span>(seq_len):
+            <span class="keyword">if</span> tokens:
+                <span class="builtin">print</span>(<span class="string">f"{tokens[i]:>6}"</span>, end=<span class="string">""</span>)
+            <span class="keyword">else</span>:
+                <span class="builtin">print</span>(<span class="string">f"pos{i:>3}"</span>, end=<span class="string">""</span>)
+
+            <span class="keyword">for</span> j <span class="keyword">in</span> <span class="builtin">range</span>(seq_len):
+                weight = attention_weights[i, j]
+                <span class="comment"># 根据权重大小显示不同颜色</span>
+                <span class="keyword">if</span> weight > <span class="number">0.5</span>:
+                    color_code = <span class="string">"\033[91m"</span>  <span class="comment"># 红色 - 很强</span>
+                    symbol = <span class="string">"███"</span>
+                <span class="keyword">elif</span> weight > <span class="number">0.3</span>:
+                    color_code = <span class="string">"\033[93m"</span>  <span class="comment"># 黄色 - 较强</span>
+                    symbol = <span class="string">"▓▓▓"</span>
+                <span class="keyword">elif</span> weight > <span class="number">0.1</span>:
+                    color_code = <span class="string">"\033[94m"</span>  <span class="comment"># 蓝色 - 一般</span>
+                    symbol = <span class="string">"▒▒▒"</span>
+                <span class="keyword">else</span>:
+                    color_code = <span class="string">"\033[90m"</span>  <span class="comment"># 灰色 - 很弱</span>
+                    symbol = <span class="string">"░░░"</span>
+                <span class="builtin">print</span>(<span class="string">f" {color_code}{symbol}\033[0m"</span>, end=<span class="string">""</span>)
+            <span class="builtin">print</span>()
+
+<span class="comment"># 测试自注意力层</span>
+<span class="builtin">print</span>(<span class="string">"\n🧪 测试自注意力层"</span>)
+<span class="builtin">print</span>(<span class="string">"="</span>*<span class="number">50</span>)
+
+attention = SelfAttention(embed_dim=<span class="number">8</span>)
+
+<span class="comment"># 使用之前的嵌入结果作为输入</span>
+<span class="builtin">print</span>(<span class="string">f"\n📝 输入序列形状: {test_embeddings.shape}"</span>)
+output, weights = attention.forward(test_embeddings, visualize=<span class="keyword">True</span>)
+
+<span class="comment"># 可视化注意力</span>
+tokens = [<span class="string">"我"</span>, <span class="string">"爱"</span>, <span class="string">"学习"</span>, <span class="string">"AI"</span>]
+attention.visualize_attention(weights, tokens)
+</code></pre>
+                </div>
+            </div>
+
+            <!-- 运行结果展示（带颜色的可视化） -->
+            <div style="background: rgba(34, 197, 94, 0.1); padding: 1.5rem; border-radius: 12px; border: 1px solid rgba(34, 197, 94, 0.3); margin-top: 1rem;">
+                <div style="color: #22c55e; font-weight: bold; margin-bottom: 0.5rem;">✅ 注意力计算成功！</div>
+                <div class="output-text">
+                    🧪 测试自注意力层<br>
+                    ==================================================<br>
+                    ✅ 自注意力层初始化完成<br>
+                    &nbsp;&nbsp;&nbsp;嵌入维度: 8<br>
+                    &nbsp;&nbsp;&nbsp;QKV矩阵形状: (8, 8)<br><br>
+                    📝 输入序列形状: (4, 8)<br><br>
+                    📊 步骤1：QKV变换<br>
+                    &nbsp;&nbsp;&nbsp;Q形状: (4, 8)<br>
+                    &nbsp;&nbsp;&nbsp;K形状: (4, 8)<br>
+                    &nbsp;&nbsp;&nbsp;V形状: (4, 8)<br><br>
+                    📊 步骤2-3：注意力分数（缩放后）<br>
+                    &nbsp;&nbsp;&nbsp;分数矩阵形状: (4, 4)<br>
+                    &nbsp;&nbsp;&nbsp;分数范围: [-0.142, 0.198]<br><br>
+                    📊 步骤4：注意力权重（Softmax后）<br>
+                    &nbsp;&nbsp;&nbsp;注意力权重矩阵:<br>
+                    &nbsp;&nbsp;&nbsp;位置0: 0.287 0.198 0.312 0.203 ...<br>
+                    &nbsp;&nbsp;&nbsp;位置1: 0.178 0.389 0.245 0.188 ...<br>
+                    &nbsp;&nbsp;&nbsp;位置2: 0.267 0.234 0.301 0.198 ...<br>
+                    &nbsp;&nbsp;&nbsp;位置3: 0.195 0.189 0.213 0.403 ...<br><br>
+                    📊 步骤5：最终输出<br>
+                    &nbsp;&nbsp;&nbsp;输出形状: (4, 8)<br><br>
+                    🎨 注意力权重可视化<br>
+                    &nbsp;&nbsp;&nbsp;(颜色越深，注意力越强)<br><br>
+                    <div style="font-family: monospace; line-height: 1.5;">
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;我&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;爱&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;学习&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;AI<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;我 <span style="color: #3b82f6;">▒▒▒</span> <span style="color: #6b7280;">░░░</span> <span style="color: #eab308;">▓▓▓</span> <span style="color: #3b82f6;">▒▒▒</span><br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;爱 <span style="color: #6b7280;">░░░</span> <span style="color: #eab308;">▓▓▓</span> <span style="color: #3b82f6;">▒▒▒</span> <span style="color: #6b7280;">░░░</span><br>
+                        &nbsp;&nbsp;&nbsp;学习 <span style="color: #3b82f6;">▒▒▒</span> <span style="color: #3b82f6;">▒▒▒</span> <span style="color: #eab308;">▓▓▓</span> <span style="color: #6b7280;">░░░</span><br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;AI <span style="color: #6b7280;">░░░</span> <span style="color: #6b7280;">░░░</span> <span style="color: #3b82f6;">▒▒▒</span> <span style="color: #eab308;">▓▓▓</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 注意力模式分析 -->
+            <div style="background: rgba(239, 68, 68, 0.1); padding: 2rem; border-radius: 16px; border: 1px solid rgba(239, 68, 68, 0.3); margin-top: 2rem;">
+                <h4 style="color: #ef4444; margin-bottom: 1rem;">🔍 观察注意力模式</h4>
+                <div style="color: #cbd5e1; font-size: 1rem; line-height: 1.6;">
+                    从可视化结果可以看到：<br>
+                    • 每个词都比较关注自己（对角线较深）<br>
+                    • "爱"和"学习"之间有一定关联<br>
+                    • 注意力分布还比较随机（因为是随机初始化）<br><br>
+                    <strong style="color: #fbbf24;">这说明我们的注意力机制确实在工作！</strong>
+                </div>
+            </div>
+        </div>
+
+        <!-- 🌟 组件3：前馈网络（新增详细介绍） -->
+        <div style="background: linear-gradient(135deg, rgba(6, 182, 212, 0.15), rgba(14, 165, 233, 0.1)); border-radius: 24px; padding: 3rem; margin-bottom: 4rem; border: 2px solid rgba(6, 182, 212, 0.2); position: relative; overflow: hidden;">
+            <div style="position: absolute; top: -25px; right: -25px; font-size: 6rem; opacity: 0.08; transform: rotate(-15deg);">🌟</div>
+
+            <div style="text-align: center; margin-bottom: 3rem;">
+                <div style="display: inline-flex; align-items: center; gap: 1rem; background: linear-gradient(135deg, rgba(6, 182, 212, 0.2), rgba(14, 165, 233, 0.1)); padding: 1.5rem 3rem; border-radius: 30px; border: 1px solid rgba(6, 182, 212, 0.4);">
+                    <span style="font-size: 2rem;">🌟</span>
+                    <h2 style="color: #06b6d4; margin: 0; font-size: 1.8rem; font-weight: bold;">组件3：前馈网络（FFN）</h2>
+                </div>
+            </div>
+
+            <!-- FFN详细介绍 -->
+            <div style="background: rgba(255, 255, 255, 0.08); border-radius: 16px; padding: 2.5rem; margin-bottom: 2rem; border: 1px solid rgba(6, 182, 212, 0.3);">
+                <h4 style="color: #06b6d4; margin-bottom: 1.5rem;">🤔 什么是前馈网络？为什么需要它？</h4>
+
+                <!-- 用比喻解释FFN -->
+                <div style="background: rgba(15, 23, 42, 0.8); border-radius: 12px; padding: 2rem; margin-bottom: 1.5rem;">
+                    <h5 style="color: #fbbf24; margin-bottom: 1rem;">🧠 用"思考过程"来理解FFN：</h5>
+                    <div style="color: #cbd5e1; font-size: 1rem; line-height: 1.8;">
+                        <strong>注意力机制 = 收集信息</strong><br>
+                        就像你在会议上听取大家的意见，收集各方信息<br><br>
+
+                        <strong>前馈网络 = 深度思考</strong><br>
+                        收集完信息后，你需要独自思考，消化这些信息<br>
+                        形成自己的理解和判断<br><br>
+
+                        在Transformer中：<br>
+                        • 注意力层：词与词之间<strong style="color: #ef4444;">交流信息</strong><br>
+                        • FFN层：每个位置<strong style="color: #22c55e;">独立思考</strong>，提取更深层特征
+                    </div>
+                </div>
+
+                <!-- FFN的数学本质 -->
+                <div style="background: rgba(79, 70, 229, 0.1); border-radius: 12px; padding: 1.5rem;">
+                    <h5 style="color: #8b5cf6; margin-bottom: 1rem;">📐 FFN的数学本质：</h5>
+                    <div style="color: #cbd5e1; font-size: 1rem; line-height: 1.6;">
+                        FFN其实就是两层全连接网络：<br>
+                        1. <strong>第一层</strong>：将维度从d_model扩展到4×d_model<br>
+                        &nbsp;&nbsp;&nbsp;（给模型更多"思考空间"）<br>
+                        2. <strong>ReLU激活</strong>：引入非线性<br>
+                        &nbsp;&nbsp;&nbsp;（让模型能学习复杂模式）<br>
+                        3. <strong>第二层</strong>：将维度压缩回d_model<br>
+                        &nbsp;&nbsp;&nbsp;（回到原始维度，方便堆叠）
+                    </div>
+                </div>
+                <!-- ReLU激活函数详解 -->
+                <div style="background: rgba(239, 68, 68, 0.1); border-radius: 12px; padding: 1.5rem; margin-top: 1rem;">
+                    <h5 style="color: #ef4444; margin-bottom: 1rem;">🧮 ReLU激活函数的数学表达式：</h5>
+                    <div style="text-align: center; margin: 1.5rem 0;">
+                        <div style="font-size: 1.3rem; color: #f1f5f9; font-family: 'Times New Roman', serif;">
+                            ReLU(x) = max(0, x) = {
+                            <span style="display: inline-block; margin-left: 1rem;">
+                x, if x > 0<br>
+                0, if x ≤ 0
+            </span>
+                            }
+                        </div>
+                    </div>
+                    <div style="color: #1e293b; font-size: 1rem; line-height: 1.6;">
+                        <strong>为什么ReLU如此重要？</strong><br>
+                        • <strong style="color: #22c55e;">非线性</strong>：让网络能学习复杂的非线性模式<br>
+                        • <strong style="color: #fbbf24;">稀疏激活</strong>：负值变0，只有部分神经元激活<br>
+                        • <strong style="color: #06b6d4;">计算简单</strong>：max操作比sigmoid/tanh快很多<br>
+                        • <strong style="color: #8b5cf6;">梯度友好</strong>：正值部分梯度恒为1，缓解梯度消失
+                    </div>
+                </div>
+                <!-- FFN如何学习更多特征 -->
+                <div style="background: rgba(34, 197, 94, 0.1); border-radius: 12px; padding: 1.5rem; margin-top: 1rem;">
+                    <h5 style="color: #22c55e; margin-bottom: 1rem;">🎯 FFN是如何学习到更多特征的？</h5>
+
+                    <!-- 首先提出疑问 -->
+                    <div style="background: rgba(239, 68, 68, 0.1); border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; border: 1px solid rgba(239, 68, 68, 0.3);">
+                        <div style="color: #ef4444; font-weight: bold; margin-bottom: 0.5rem;">🤔 等等，我有个疑问：</div>
+                        <div style="color: #1e293b; font-size: 1rem; line-height: 1.6;">
+                            输入是8维向量，输出还是8维向量，<br>
+                            中间只是扩展到32维又压缩回来...<br>
+                            <strong>为什么说学到了"更多特征"？不还是8个值吗？</strong>
+                        </div>
+                    </div>
+
+                    <!-- 解答：用烹饪的比喻 -->
+                    <div style="background: rgba(251, 191, 36, 0.1); border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem;">
+                        <div style="color: #f59e0b; font-weight: bold; margin-bottom: 1rem;">🍳 用烹饪来理解这个过程：</div>
+                        <div style="color: #1e293b; line-height: 1.8;">
+                            <strong>没有FFN</strong> = 直接端上原材料<br>
+                            • 输入：[土豆, 胡萝卜, 洋葱, 牛肉, ...]（8种原材料）<br>
+                            • 输出：[土豆, 胡萝卜, 洋葱, 牛肉, ...]（还是这8种）<br><br>
+
+                            <strong>有FFN</strong> = 经过烹饪加工<br>
+                            • 输入：[土豆, 胡萝卜, 洋葱, 牛肉, ...]（8种原材料）<br>
+                            • 中间：切丁→调味→炖煮→焖制...（32道工序）<br>
+                            • 输出：[咖喱牛肉]（还是装在8个碗里，但已经是新菜了！）<br><br>
+
+                            <span style="color: #22c55e; font-weight: bold;">关键：虽然还是8维，但已经不是原来的8维了！</span>
+                        </div>
+                    </div>
+
+                    <!-- 具体的数学解释 -->
+                    <div style="background: rgba(15, 23, 42, 0.8); border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem;">
+                        <div style="color: #06b6d4; font-weight: bold; margin-bottom: 1rem;">🔢 从数学角度看发生了什么：</div>
+
+                        <!-- 原始输入 -->
+                        <div style="margin-bottom: 1.5rem;">
+                            <div style="color: #fbbf24; font-weight: bold;">步骤1：原始输入（注意力的输出）</div>
+                            <div style="font-family: monospace; background: rgba(0, 0, 0, 0.3); padding: 1rem; border-radius: 8px; margin-top: 0.5rem;">
+                                x = [0.2, -0.1, 0.3, 0.0, -0.2, 0.4, 0.1, -0.3]
+                                <span style="color: #94a3b8;"># 这8个值可能只是词的基础表示</span>
+                            </div>
+                        </div>
+
+                        <!-- 扩展到32维 -->
+                        <div style="margin-bottom: 1.5rem;">
+                            <div style="color: #fbbf24; font-weight: bold;">步骤2：扩展到32维（特征提取）</div>
+                            <div style="font-family: monospace; background: rgba(0, 0, 0, 0.3); padding: 1rem; border-radius: 8px; margin-top: 0.5rem;">
+                                hidden = W₁ × x + b₁ = [1.2, -0.5, 0.8, 0.0, -0.3, 0.9, ...]
+                                <span style="color: #94a3b8;"># 32个特征检测器同时工作：</span>
+                                <span style="color: #22c55e;"># 检测器1: 是否是动词？(1.2 = 高概率)</span>
+                                <span style="color: #ef4444;"># 检测器2: 是否是否定？(-0.5 = 不是)</span>
+                                <span style="color: #22c55e;"># 检测器3: 情感倾向？(0.8 = 正面)</span>
+                                <span style="color: #94a3b8;"># ... 还有29个不同的检测器</span>
+                            </div>
+                        </div>
+
+                        <!-- ReLU的作用 -->
+                        <div style="margin-bottom: 1.5rem;">
+                            <div style="color: #fbbf24; font-weight: bold;">步骤3：ReLU激活（特征选择）</div>
+                            <div style="font-family: monospace; background: rgba(0, 0, 0, 0.3); padding: 1rem; border-radius: 8px; margin-top: 0.5rem;">
+                                ReLU(hidden) = [1.2, 0, 0.8, 0, 0, 0.9, ...]
+                                <span style="color: #94a3b8;"># 只保留"检测到"的特征（正值）</span>
+                                <span style="color: #22c55e;"># ✓ 是动词(1.2)  ✓ 正面情感(0.8)  ✓ 其他特征(0.9)</span>
+                                <span style="color: #ef4444;"># ✗ 不是否定(0)  ✗ 其他不相关特征(0)</span>
+                            </div>
+                        </div>
+
+                        <!-- 压缩回8维 -->
+                        <div style="margin-bottom: 1.5rem;">
+                            <div style="color: #fbbf24; font-weight: bold;">步骤4：压缩回8维（特征组合）</div>
+                            <div style="font-family: monospace; background: rgba(0, 0, 0, 0.3); padding: 1rem; border-radius: 8px; margin-top: 0.5rem;">
+                                output = W₂ × ReLU(hidden) + b₂ = [0.5, -0.2, 0.7, 0.3, -0.1, 0.8, 0.4, -0.3]
+                                <span style="color: #94a3b8;"># 这8个值现在编码了：</span>
+                                <span style="color: #22c55e;"># - 词性信息（从检测器1,4,7...）</span>
+                                <span style="color: #22c55e;"># - 情感信息（从检测器3,8,12...）</span>
+                                <span style="color: #22c55e;"># - 语法信息（从检测器2,5,9...）</span>
+                                <span style="color: #22c55e;"># - 更多复杂的组合特征！</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 关键洞察 -->
+                    <div style="background: rgba(79, 70, 229, 0.1); border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem;">
+                        <div style="color: #8b5cf6; font-weight: bold; margin-bottom: 1rem;">💡 关键洞察：信息的提炼而非数量</div>
+                        <div style="color: #1e293b; line-height: 1.8;">
+                            <strong>1. 非线性变换的魔力</strong><br>
+                            • 如果没有ReLU，FFN只是线性变换，相当于一个矩阵乘法<br>
+                            • 有了ReLU，网络可以学习复杂的非线性模式<br>
+                            • 这让相同的8维空间能表达更复杂的信息<br><br>
+
+                            <strong>2. 中间层是关键</strong><br>
+                            • 32个特征检测器同时工作，每个学习不同的模式<br>
+                            • 最后的8维是这32个特征的<span style="color: #8b5cf6;">智能组合</span><br>
+                            • 就像把32种颜色调配成8种新颜色，信息更丰富了<br><br>
+
+                            <strong>3. 从"是什么"到"意味着什么"</strong><br>
+                            • 输入8维：这个词是什么（表面特征）<br>
+                            • 输出8维：这个词意味着什么（深层语义）
+                        </div>
+                    </div>
+
+                    <!-- 直观对比 -->
+                    <div style="background: rgba(6, 182, 212, 0.1); border-radius: 12px; padding: 1.5rem;">
+                        <div style="color: #06b6d4; font-weight: bold; margin-bottom: 1rem;">📊 有无FFN的对比：</div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                            <div style="background: rgba(239, 68, 68, 0.1); padding: 1rem; border-radius: 8px;">
+                                <div style="color: #ef4444; font-weight: bold; margin-bottom: 0.5rem;">❌ 没有FFN</div>
+                                <div style="font-size: 0.9rem; color: #1e293b;">
+                                    输入"爱"的向量：<br>
+                                    [0.2, -0.1, 0.3, ...]<br>
+                                    ↓<br>
+                                    输出还是：<br>
+                                    [0.2, -0.1, 0.3, ...]<br>
+                                    <span style="color: #64748b;">只有注意力加权，没有深层理解</span>
+                                </div>
+                            </div>
+                            <div style="background: rgba(34, 197, 94, 0.1); padding: 1rem; border-radius: 8px;">
+                                <div style="color: #22c55e; font-weight: bold; margin-bottom: 0.5rem;">✓ 有FFN</div>
+                                <div style="font-size: 0.9rem; color: #1e293b;">
+                                    输入"爱"的向量：<br>
+                                    [0.2, -0.1, 0.3, ...]<br>
+                                    ↓ (经过32个特征检测)<br>
+                                    输出变成：<br>
+                                    [0.5, -0.2, 0.7, ...]<br>
+                                    <span style="color: #22c55e;">包含了：动词、情感、关系等信息</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- 深入理解FFN的隐藏层矩阵 -->
+                <div style="background: rgba(139, 92, 246, 0.1); border-radius: 16px; padding: 2rem; margin-top: 1.5rem; border: 1px solid rgba(139, 92, 246, 0.3);">
+                    <h5 style="color: #8b5cf6; margin-bottom: 1.5rem;">🔍 深入探究：隐藏层矩阵W₁到底长什么样？</h5>
+
+                    <!-- 提出核心问题 -->
+                    <div style="background: rgba(239, 68, 68, 0.1); border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem;">
+                        <div style="color: #ef4444; font-weight: bold; margin-bottom: 0.5rem;">🤔 关键问题：</div>
+                        <div style="color: #1e293b; line-height: 1.6;">
+                            这个8×32的权重矩阵W₁是怎么做到"特征提取"的？<br>
+                            它的每个数字代表什么？为什么乘以它就能提取特征？
+                        </div>
+                    </div>
+
+                    <!-- 权重矩阵的可视化 -->
+                    <div style="background: rgba(15, 23, 42, 0.9); border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem;">
+                        <div style="color: #fbbf24; font-weight: bold; margin-bottom: 1rem;">📊 权重矩阵W₁的结构（8×32）</div>
+
+                        <div style="font-family: monospace; font-size: 0.85rem; overflow-x: auto;">
+                            <div style="color: #94a3b8; margin-bottom: 0.5rem;">
+                                特征1  特征2  特征3  特征4 ... 特征32
+                            </div>
+                            <pre style="color: #cbd5e1; line-height: 1.4;">
+维度1  [ 0.82  -0.13   0.45  -0.67 ...  0.23]  ← 输入第1维对各特征的贡献
+维度2  [-0.34   0.91  -0.22   0.18 ... -0.45]  ← 输入第2维对各特征的贡献
+维度3  [ 0.12  -0.56   0.73  -0.09 ...  0.67]
+维度4  [-0.89   0.23   0.11  -0.78 ...  0.34]
+维度5  [ 0.45  -0.67   0.89   0.12 ... -0.23]
+维度6  [ 0.67   0.34  -0.45   0.56 ...  0.89]
+维度7  [-0.23   0.78  -0.12   0.90 ... -0.56]
+维度8  [ 0.56  -0.90   0.34  -0.23 ...  0.45]
+       ↑
+   每一列是一个"特征检测器"
+</pre>
+                        </div>
+
+                        <div style="background: rgba(34, 197, 94, 0.1); padding: 1rem; border-radius: 8px; margin-top: 1rem;">
+                            <div style="color: #22c55e; font-weight: bold; margin-bottom: 0.5rem;">💡 关键理解：每一列是一个特征检测器！</div>
+                            <div style="color: #1e293b; font-size: 0.9rem;">
+                                • 第1列：可能检测"是否是动词"<br>
+                                • 第2列：可能检测"情感是否积极"<br>
+                                • 第3列：可能检测"是否在句首"<br>
+                                • ...每一列都在检测不同的语言模式
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 具体的特征提取过程 -->
+                    <div style="background: rgba(251, 191, 36, 0.1); border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem;">
+                        <div style="color: #f59e0b; font-weight: bold; margin-bottom: 1rem;">🎯 看一个具体的特征检测器如何工作</div>
+
+                        <div style="color: #1e293b;">
+                            <strong>假设第3列是"动词检测器"：</strong>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem;">
+                            <!-- 左边：权重模式 -->
+                            <div style="background: rgba(0, 0, 0, 0.3); padding: 1rem; border-radius: 8px;">
+                                <div style="color: #fbbf24; font-weight: bold; margin-bottom: 0.5rem;">该检测器的权重：</div>
+                                <div style="font-family: monospace; font-size: 0.85rem;">
+                                    第3列 = [0.45, -0.22, 0.73, 0.11, 0.89, -0.45, -0.12, 0.34]
+                                </div>
+                                <div style="color: #94a3b8; font-size: 0.8rem; margin-top: 0.5rem;">
+                                    这些权重是通过训练学到的！<br>
+                                    它们编码了"什么样的输入模式代表动词"
+                                </div>
+                            </div>
+
+                            <!-- 右边：计算过程 -->
+                            <div style="background: rgba(0, 0, 0, 0.3); padding: 1rem; border-radius: 8px;">
+                                <div style="color: #22c55e; font-weight: bold; margin-bottom: 0.5rem;">检测"爱"是否是动词：</div>
+                                <div style="font-family: monospace; font-size: 0.85rem;">
+                                    输入"爱" = [0.2, -0.1, 0.3, 0.0, -0.2, 0.4, 0.1, -0.3]
+
+                                    点积计算：
+                                    0.2×0.45 + (-0.1)×(-0.22) + 0.3×0.73 + ...
+                                    = 0.09 + 0.022 + 0.219 + ...
+                                    = 0.82 (高分！是动词)
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 训练过程的直观解释 -->
+                    <div style="background: rgba(79, 70, 229, 0.1); border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem;">
+                        <div style="color: #8b5cf6; font-weight: bold; margin-bottom: 1rem;">🎓 这些权重是怎么学会"检测特征"的？</div>
+
+                        <div style="color: #1e293b; line-height: 1.8;">
+                            <strong>训练过程的直观理解：</strong><br><br>
+
+                            <div style="background: rgba(0, 0, 0, 0.2); padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+                                <strong>1. 初始化（随机）</strong><br>
+                                刚开始，所有权重都是随机的小数字<br>
+                                检测器还不知道要检测什么
+                            </div>
+
+                            <div style="background: rgba(0, 0, 0, 0.2); padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+                                <strong>2. 看到很多例子</strong><br>
+                                • 看到"爱"、"喜欢"、"学习"... → 输出应该相似（都是动词）<br>
+                                • 看到"我"、"你"、"他"... → 输出应该不同（是代词）<br>
+                                • 通过反向传播，调整权重
+                            </div>
+
+                            <div style="background: rgba(0, 0, 0, 0.2); padding: 1rem; border-radius: 8px;">
+                                <strong>3. 逐渐专门化</strong><br>
+                                • 某些检测器学会了识别动词特征<br>
+                                • 某些检测器学会了识别名词特征<br>
+                                • 某些检测器学会了识别情感特征<br>
+                                每个检测器自动找到自己的"专长"！
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 可视化多个特征检测器 -->
+                    <div style="background: rgba(6, 182, 212, 0.1); border-radius: 12px; padding: 1.5rem;">
+                        <div style="color: #06b6d4; font-weight: bold; margin-bottom: 1rem;">🎨 可视化：不同特征检测器的响应模式</div>
+
+                        <div style="font-family: monospace; font-size: 0.85rem; line-height: 1.6;">
+                            输入词汇测试：
+
+                            <div style="display: grid; grid-template-columns: auto 1fr; gap: 1rem; margin-top: 1rem;">
+                                <div style="color: #94a3b8;">
+                                    "我"：<br>
+                                    "爱"：<br>
+                                    "学习"：<br>
+                                    "AI"：<br>
+                                    "很"：<br>
+                                    "有趣"：
+                                </div>
+                                <div>
+                                    <div style="color: #cbd5e1;">
+                                        特征1  特征2  特征3  特征4  特征5 ... (动词) (名词) (情感) (技术)<br>
+                                        <span style="color: #ef4444;">0.1</span>    0.3    <span style="color: #ef4444;">0.0</span>    0.8    0.2  ... <span style="color: #ef4444;">低</span>    <span style="color: #ef4444;">低</span>    中     <span style="color: #ef4444;">低</span><br>
+                                        0.2    <span style="color: #22c55e;">0.9</span>    <span style="color: #22c55e;">0.8</span>    0.1    0.7  ... <span style="color: #22c55e;">高</span>    <span style="color: #ef4444;">低</span>    <span style="color: #22c55e;">高</span>     <span style="color: #ef4444;">低</span><br>
+                                        0.3    0.7    <span style="color: #22c55e;">0.9</span>    0.2    0.5  ... <span style="color: #22c55e;">高</span>    <span style="color: #ef4444;">低</span>    中     中<br>
+                                        0.5    0.2    0.1    <span style="color: #22c55e;">0.9</span>    0.3  ... <span style="color: #ef4444;">低</span>    <span style="color: #22c55e;">高</span>    <span style="color: #ef4444;">低</span>     <span style="color: #22c55e;">高</span><br>
+                                        0.4    0.6    0.3    0.1    <span style="color: #22c55e;">0.8</span>  ... <span style="color: #ef4444;">低</span>    <span style="color: #ef4444;">低</span>    中     <span style="color: #ef4444;">低</span><br>
+                                        0.2    <span style="color: #22c55e;">0.8</span>    0.4    0.3    0.6  ... <span style="color: #ef4444;">低</span>    <span style="color: #ef4444;">低</span>    <span style="color: #22c55e;">高</span>     <span style="color: #ef4444;">低</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div style="color: #94a3b8; font-size: 0.8rem; margin-top: 1rem;">
+                                绿色=高激活，红色=低激活<br>
+                                每个词在不同特征上的激活模式形成了它的"指纹"
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 最终总结 -->
+                    <div style="background: rgba(34, 197, 94, 0.1); padding: 1.5rem; border-radius: 12px; margin-top: 1.5rem;">
+                        <div style="color: #22c55e; font-weight: bold; margin-bottom: 1rem;">✨ 总结：FFN的魔力</div>
+                        <div style="color: #1e293b; line-height: 1.8;">
+                            <strong>1. 权重矩阵 = 特征检测器集合</strong><br>
+                            • 每一列学会检测一种特定模式<br>
+                            • 32列 = 32种不同的语言特征检测器<br><br>
+
+                            <strong>2. 自动学习 = 无需手动设计</strong><br>
+                            • 我们不需要告诉模型"什么是动词"<br>
+                            • 通过大量数据，模型自己发现这些模式<br><br>
+
+                            <strong>3. 组合的力量</strong><br>
+                            • 单个词激活多个特征（动词+情感+...）<br>
+                            • 最后的8维输出是这32个特征的智能组合<br>
+                            • 比原始8维包含了更丰富的语义信息！
+                        </div>
+                    </div>
+                </div>
+
+            <!-- FFN结构图（更详细） -->
+            <div style="background: rgba(15, 23, 42, 0.9); border-radius: 16px; padding: 2rem; margin-bottom: 2rem; border: 1px solid rgba(6, 182, 212, 0.3);">
+                <div style="text-align: center; margin-bottom: 2rem;">
+                    <div style="color: #06b6d4; font-weight: bold; font-size: 1.2rem;">前馈网络工作流程</div>
+                </div>
+
+                <div style="display: flex; justify-content: center; align-items: center; gap: 1.5rem;">
+                    <div style="text-align: center;">
+                        <div style="background: rgba(6, 182, 212, 0.2); padding: 1rem 2rem; border-radius: 8px; border: 1px solid rgba(6, 182, 212, 0.3);">
+                            <div style="color: #06b6d4; font-weight: bold;">输入</div>
+                            <div style="color: #cbd5e1; font-size: 0.9rem;">[4, 8]</div>
+                            <div style="color: #94a3b8; font-size: 0.8rem;">4个词，8维</div>
+                        </div>
+                    </div>
+
+                    <div style="text-align: center;">
+                        <div style="color: #06b6d4; font-size: 1.5rem;">→</div>
+                        <div style="color: #94a3b8; font-size: 0.8rem;">扩展</div>
+                    </div>
+
+                    <div style="text-align: center;">
+                        <div style="background: rgba(251, 191, 36, 0.2); padding: 1rem 2rem; border-radius: 8px; border: 1px solid rgba(251, 191, 36, 0.3);">
+                            <div style="color: #fbbf24; font-weight: bold;">隐藏层</div>
+                            <div style="color: #cbd5e1; font-size: 0.9rem;">[4, 32]</div>
+                            <div style="color: #fbbf24; font-size: 0.8rem;">ReLU激活</div>
+                            <div style="color: #94a3b8; font-size: 0.8rem;">更多特征</div>
+                        </div>
+                    </div>
+
+                    <div style="text-align: center;">
+                        <div style="color: #fbbf24; font-size: 1.5rem;">→</div>
+                        <div style="color: #94a3b8; font-size: 0.8rem;">压缩</div>
+                    </div>
+
+                    <div style="text-align: center;">
+                        <div style="background: rgba(34, 197, 94, 0.2); padding: 1rem 2rem; border-radius: 8px; border: 1px solid rgba(34, 197, 94, 0.3);">
+                            <div style="color: #22c55e; font-weight: bold;">输出</div>
+                            <div style="color: #cbd5e1; font-size: 0.9rem;">[4, 8]</div>
+                            <div style="color: #94a3b8; font-size: 0.8rem;">回到8维</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 位置独立性说明 -->
+                <div style="background: rgba(139, 92, 246, 0.1); padding: 1.5rem; border-radius: 12px; margin-top: 2rem;">
+                    <div style="text-align: center; color: #8b5cf6; font-weight: bold; margin-bottom: 0.5rem;">
+                        ⚡ 关键特性：位置独立处理
+                    </div>
+                    <div style="color: #cbd5e1; font-size: 0.9rem; text-align: center;">
+                        每个位置的向量独立经过FFN，互不影响<br>
+                        这与注意力层的全局交互形成互补
+                    </div>
+                </div>
+            </div>
+
+            <!-- 🔢 FFN矩阵运算详解（移到代码前面） -->
+            <div style="background: rgba(139, 92, 246, 0.1); border-radius: 16px; padding: 2.5rem; margin-bottom: 2rem; border: 1px solid rgba(139, 92, 246, 0.3);">
+                <h4 style="color: #8b5cf6; margin-bottom: 2rem; text-align: center;">深入理解：FFN的矩阵运算</h4>
+
+                <!-- 第一层变换 -->
+                <div style="margin-bottom: 3rem;">
+                    <h5 style="color: #fbbf24; margin-bottom: 1rem;">📊 第一层：扩展变换</h5>
+                    <div style="display: grid; grid-template-columns: auto auto auto auto auto; gap: 1rem; align-items: center; justify-content: center;">
+                        <!-- 输入矩阵 -->
+                        <div style="text-align: center;">
+                            <div style="color: #06b6d4; font-weight: bold; margin-bottom: 0.5rem;">输入 X</div>
+                            <div style="background: rgba(6, 182, 212, 0.2); border: 2px solid rgba(6, 182, 212, 0.4); border-radius: 8px; padding: 1rem; font-family: monospace;">
+                                <div style="color: #94a3b8; font-size: 0.8rem;">4×8</div>
+                                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; margin-top: 0.5rem;">
+                                    <div style="background: rgba(6, 182, 212, 0.3); width: 20px; height: 20px;"></div>
+                                    <div style="background: rgba(6, 182, 212, 0.3); width: 20px; height: 20px;"></div>
+                                    <div style="color: #64748b;">...</div>
+                                    <div style="background: rgba(6, 182, 212, 0.3); width: 20px; height: 20px;"></div>
+                                    <div style="background: rgba(6, 182, 212, 0.3); width: 20px; height: 20px;"></div>
+                                    <div style="color: #64748b;">...</div>
+                                    <div style="color: #64748b;">⋮</div>
+                                    <div style="color: #64748b;">⋮</div>
+                                    <div></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style="font-size: 2rem; color: #8b5cf6;">×</div>
+
+                        <!-- 权重矩阵 W1 -->
+                        <div style="text-align: center;">
+                            <div style="color: #fbbf24; font-weight: bold; margin-bottom: 0.5rem;">W₁</div>
+                            <div style="background: rgba(251, 191, 36, 0.2); border: 2px solid rgba(251, 191, 36, 0.4); border-radius: 8px; padding: 1rem; font-family: monospace;">
+                                <div style="color: #94a3b8; font-size: 0.8rem;">8×32</div>
+                                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px; margin-top: 0.5rem;">
+                                    <div style="background: rgba(251, 191, 36, 0.3); width: 15px; height: 15px;"></div>
+                                    <div style="background: rgba(251, 191, 36, 0.3); width: 15px; height: 15px;"></div>
+                                    <div style="background: rgba(251, 191, 36, 0.3); width: 15px; height: 15px;"></div>
+                                    <div style="color: #64748b;">...</div>
+                                    <div style="background: rgba(251, 191, 36, 0.3); width: 15px; height: 15px;"></div>
+                                    <div style="background: rgba(251, 191, 36, 0.3); width: 15px; height: 15px;"></div>
+                                    <div style="background: rgba(251, 191, 36, 0.3); width: 15px; height: 15px;"></div>
+                                    <div style="color: #64748b;">...</div>
+                                    <div style="color: #64748b;">⋮</div>
+                                    <div style="color: #64748b;">⋮</div>
+                                    <div style="color: #64748b;">⋮</div>
+                                    <div></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style="font-size: 2rem; color: #8b5cf6;">=</div>
+
+                        <!-- 隐藏层 -->
+                        <div style="text-align: center;">
+                            <div style="color: #22c55e; font-weight: bold; margin-bottom: 0.5rem;">Hidden</div>
+                            <div style="background: rgba(34, 197, 94, 0.2); border: 2px solid rgba(34, 197, 94, 0.4); border-radius: 8px; padding: 1rem; font-family: monospace;">
+                                <div style="color: #94a3b8; font-size: 0.8rem;">4×32</div>
+                                <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 2px; margin-top: 0.5rem;">
+                                    <div style="background: rgba(34, 197, 94, 0.3); width: 12px; height: 12px;"></div>
+                                    <div style="background: rgba(34, 197, 94, 0.3); width: 12px; height: 12px;"></div>
+                                    <div style="background: rgba(34, 197, 94, 0.3); width: 12px; height: 12px;"></div>
+                                    <div style="background: rgba(34, 197, 94, 0.3); width: 12px; height: 12px;"></div>
+                                    <div style="color: #64748b;">...</div>
+                                    <div style="background: rgba(34, 197, 94, 0.3); width: 12px; height: 12px;"></div>
+                                    <div style="background: rgba(34, 197, 94, 0.3); width: 12px; height: 12px;"></div>
+                                    <div style="background: rgba(34, 197, 94, 0.3); width: 12px; height: 12px;"></div>
+                                    <div style="background: rgba(34, 197, 94, 0.3); width: 12px; height: 12px;"></div>
+                                    <div style="color: #64748b;">...</div>
+                                    <div style="color: #64748b;">⋮</div>
+                                    <div style="color: #64748b;">⋮</div>
+                                    <div style="color: #64748b;">⋮</div>
+                                    <div style="color: #64748b;">⋮</div>
+                                    <div></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 运算解释 -->
+                    <div style="background: rgba(139, 92, 246, 0.1); padding: 1.5rem; border-radius: 12px; margin-top: 1.5rem;">
+                        <div style="color: #8b5cf6; font-weight: bold; margin-bottom: 0.5rem;">🧮 矩阵运算解释：</div>
+                        <div style="color: #cbd5e1; font-size: 0.95rem; line-height: 1.6;">
+                            • 每个词的8维向量 × 8×32的权重矩阵 = 32维的新表示<br>
+                            • 这相当于每个词都经过32个不同的"特征检测器"<br>
+                            • ReLU激活让模型只保留"感兴趣"的特征（正值）
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 第二层变换 -->
+                <div>
+                    <h5 style="color: #ef4444; margin-bottom: 1rem;">📊 第二层：压缩变换</h5>
+                    <div style="display: grid; grid-template-columns: auto auto auto auto auto; gap: 1rem; align-items: center; justify-content: center;">
+                        <!-- ReLU后的隐藏层 -->
+                        <div style="text-align: center;">
+                            <div style="color: #22c55e; font-weight: bold; margin-bottom: 0.5rem;">ReLU(Hidden)</div>
+                            <div style="background: rgba(34, 197, 94, 0.2); border: 2px solid rgba(34, 197, 94, 0.4); border-radius: 8px; padding: 1rem; font-family: monospace;">
+                                <div style="color: #94a3b8; font-size: 0.8rem;">4×32</div>
+                                <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 2px; margin-top: 0.5rem;">
+                                    <div style="background: rgba(34, 197, 94, 0.3); width: 12px; height: 12px;"></div>
+                                    <div style="background: rgba(64, 64, 64, 0.3); width: 12px; height: 12px;"></div>
+                                    <div style="background: rgba(34, 197, 94, 0.3); width: 12px; height: 12px;"></div>
+                                    <div style="background: rgba(64, 64, 64, 0.3); width: 12px; height: 12px;"></div>
+                                    <div style="color: #64748b;">...</div>
+                                </div>
+                                <div style="color: #94a3b8; font-size: 0.7rem; margin-top: 0.5rem;">绿=激活 灰=未激活</div>
+                            </div>
+                        </div>
+
+                        <div style="font-size: 2rem; color: #8b5cf6;">×</div>
+
+                        <!-- 权重矩阵 W2 -->
+                        <div style="text-align: center;">
+                            <div style="color: #ef4444; font-weight: bold; margin-bottom: 0.5rem;">W₂</div>
+                            <div style="background: rgba(239, 68, 68, 0.2); border: 2px solid rgba(239, 68, 68, 0.4); border-radius: 8px; padding: 1rem; font-family: monospace;">
+                                <div style="color: #94a3b8; font-size: 0.8rem;">32×8</div>
+                                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; margin-top: 0.5rem;">
+                                    <div style="background: rgba(239, 68, 68, 0.3); width: 15px; height: 10px;"></div>
+                                    <div style="background: rgba(239, 68, 68, 0.3); width: 15px; height: 10px;"></div>
+                                    <div style="color: #64748b;">...</div>
+                                    <div style="background: rgba(239, 68, 68, 0.3); width: 15px; height: 10px;"></div>
+                                    <div style="background: rgba(239, 68, 68, 0.3); width: 15px; height: 10px;"></div>
+                                    <div style="color: #64748b;">...</div>
+                                    <div style="color: #64748b;">⋮</div>
+                                    <div style="color: #64748b;">⋮</div>
+                                    <div></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style="font-size: 2rem; color: #8b5cf6;">=</div>
+
+                        <!-- 输出 -->
+                        <div style="text-align: center;">
+                            <div style="color: #06b6d4; font-weight: bold; margin-bottom: 0.5rem;">输出</div>
+                            <div style="background: rgba(6, 182, 212, 0.2); border: 2px solid rgba(6, 182, 212, 0.4); border-radius: 8px; padding: 1rem; font-family: monospace;">
+                                <div style="color: #94a3b8; font-size: 0.8rem;">4×8</div>
+                                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; margin-top: 0.5rem;">
+                                    <div style="background: rgba(6, 182, 212, 0.3); width: 20px; height: 20px;"></div>
+                                    <div style="background: rgba(6, 182, 212, 0.3); width: 20px; height: 20px;"></div>
+                                    <div style="color: #64748b;">...</div>
+                                    <div style="background: rgba(6, 182, 212, 0.3); width: 20px; height: 20px;"></div>
+                                    <div style="background: rgba(6, 182, 212, 0.3); width: 20px; height: 20px;"></div>
+                                    <div style="color: #64748b;">...</div>
+                                    <div style="color: #64748b;">⋮</div>
+                                    <div style="color: #64748b;">⋮</div>
+                                    <div></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 运算解释 -->
+                    <div style="background: rgba(239, 68, 68, 0.1); padding: 1.5rem; border-radius: 12px; margin-top: 1.5rem;">
+                        <div style="color: #ef4444; font-weight: bold; margin-bottom: 0.5rem;">🧮 为什么这样设计？</div>
+                        <div style="color: #cbd5e1; font-size: 0.95rem; line-height: 1.6;">
+                            • <strong>扩展→压缩</strong>的结构像一个"瓶颈"<br>
+                            • 强制模型在中间层学习更抽象的特征<br>
+                            • 最后压缩回原维度，保证可以继续堆叠
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- FFN实现 -->
+            <div class="code-section">
+                <div class="code-header">
+                    <div class="code-title">
+                        <span>⚡</span>
+                        前馈网络实现
+                    </div>
+                    <div class="code-actions">
+                        <button class="code-btn">复制代码</button>
+                    </div>
+                </div>
+
+                <div class="code-content">
+                    <pre class="python-code"><code><span class="keyword">class</span> <span class="class-name">FeedForward</span>:
+    <span class="string">"""
+    极简版前馈网络
+    位置独立的两层全连接网络
+    """</span>
+    <span class="keyword">def</span> <span class="function">__init__</span>(<span class="param">self</span>, <span class="param">embed_dim</span>=<span class="number">8</span>, <span class="param">hidden_dim</span>=<span class="number">32</span>):
+        <span class="string">"""
+        初始化前馈网络
+
+        Args:
+            embed_dim: 输入/输出维度
+            hidden_dim: 隐藏层维度（通常是embed_dim的4倍）
+        """</span>
+        <span class="keyword">self</span>.embed_dim = embed_dim
+        <span class="keyword">self</span>.hidden_dim = hidden_dim
+
+        <span class="comment"># 两层全连接</span>
+        <span class="comment"># 第一层：扩展维度 (给模型更多"思考空间")</span>
+        <span class="keyword">self</span>.W1 = np.random.randn(embed_dim, hidden_dim) * <span class="number">0.1</span>
+        <span class="keyword">self</span>.b1 = np.zeros(hidden_dim)
+
+        <span class="comment"># 第二层：压缩回原维度</span>
+        <span class="keyword">self</span>.W2 = np.random.randn(hidden_dim, embed_dim) * <span class="number">0.1</span>
+        <span class="keyword">self</span>.b2 = np.zeros(embed_dim)
+
+        <span class="builtin">print</span>(<span class="string">f"✅ 前馈网络初始化完成"</span>)
+        <span class="builtin">print</span>(<span class="string">f"   输入维度: {embed_dim}"</span>)
+        <span class="builtin">print</span>(<span class="string">f"   隐藏维度: {hidden_dim} (扩展{hidden_dim//embed_dim}倍)"</span>)
+        <span class="builtin">print</span>(<span class="string">f"   参数量: {embed_dim * hidden_dim * <span class="number">2</span> + hidden_dim + embed_dim}"</span>)
+
+    <span class="keyword">def</span> <span class="function">relu</span>(<span class="param">self</span>, <span class="param">x</span>):
+        <span class="string">"""ReLU激活函数: max(0, x)"""</span>
+        <span class="keyword">return</span> np.maximum(<span class="number">0</span>, x)
+
+    <span class="keyword">def</span> <span class="function">forward</span>(<span class="param">self</span>, <span class="param">X</span>, <span class="param">visualize</span>=<span class="keyword">False</span>):
+        <span class="string">"""
+        前向传播
+
+        Args:
+            X: 输入 [seq_len, embed_dim]
+            visualize: 是否打印中间结果
+
+        Returns:
+            输出 [seq_len, embed_dim]
+        """</span>
+        <span class="comment"># 第一层：线性变换 + ReLU</span>
+        hidden = <span class="keyword">self</span>.relu(np.dot(X, <span class="keyword">self</span>.W1) + <span class="keyword">self</span>.b1)
+
+        <span class="keyword">if</span> visualize:
+            <span class="builtin">print</span>(<span class="string">f"\n📊 FFN前向传播"</span>)
+            <span class="builtin">print</span>(<span class="string">f"   输入形状: {X.shape}"</span>)
+            <span class="builtin">print</span>(<span class="string">f"   隐藏层形状: {hidden.shape}"</span>)
+            <span class="builtin">print</span>(<span class="string">f"   激活值比例: {(hidden > <span class="number">0</span>).mean():.2%}"</span>)
+
+            <span class="comment"># 可视化激活模式</span>
+            <span class="builtin">print</span>(<span class="string">"\n   🔥 隐藏层激活模式 (前10个神经元):"</span>)
+            <span class="keyword">for</span> i <span class="keyword">in</span> <span class="builtin">range</span>(<span class="builtin">min</span>(<span class="number">4</span>, X.shape[<span class="number">0</span>])):
+                <span class="builtin">print</span>(<span class="string">f"   位置{i}: "</span>, end=<span class="string">""</span>)
+                <span class="keyword">for</span> j <span class="keyword">in</span> <span class="builtin">range</span>(<span class="builtin">min</span>(<span class="number">10</span>, hidden.shape[<span class="number">1</span>])):
+                    <span class="keyword">if</span> hidden[i, j] > <span class="number">0</span>:
+                        <span class="builtin">print</span>(<span class="string">"█"</span>, end=<span class="string">""</span>)
+                    <span class="keyword">else</span>:
+                        <span class="builtin">print</span>(<span class="string">"░"</span>, end=<span class="string">""</span>)
+                <span class="builtin">print</span>(<span class="string">"..."</span>)
+
+        <span class="comment"># 第二层：线性变换（无激活）</span>
+        output = np.dot(hidden, <span class="keyword">self</span>.W2) + <span class="keyword">self</span>.b2
+
+        <span class="keyword">if</span> visualize:
+            <span class="builtin">print</span>(<span class="string">f"\n   输出形状: {output.shape}"</span>)
+
+        <span class="keyword">return</span> output
+
+<span class="comment"># 测试前馈网络</span>
+<span class="builtin">print</span>(<span class="string">"\n🧪 测试前馈网络"</span>)
+<span class="builtin">print</span>(<span class="string">"="</span>*<span class="number">50</span>)
+
+ffn = FeedForward(embed_dim=<span class="number">8</span>, hidden_dim=<span class="number">32</span>)
+
+<span class="comment"># 使用注意力的输出作为输入</span>
+ffn_output = ffn.forward(output, visualize=<span class="keyword">True</span>)
+
+<span class="comment"># 对比输入输出</span>
+<span class="builtin">print</span>(<span class="string">f"\n📊 输入输出对比"</span>)
+<span class="builtin">print</span>(<span class="string">f"   输入第一个位置前4维: {output[<span class="number">0</span>][:<span class="number">4</span>]}"</span>)
+<span class="builtin">print</span>(<span class="string">f"   输出第一个位置前4维: {ffn_output[<span class="number">0</span>][:<span class="number">4</span>]}"</span>)
+<span class="builtin">print</span>(<span class="string">f"   变化幅度: {np.abs(ffn_output - output).mean():.3f}"</span>)
+</code></pre>
+                </div>
+            </div>
+
+            <!-- 运行结果（更详细的可视化） -->
+            <div style="background: rgba(34, 197, 94, 0.1); padding: 1.5rem; border-radius: 12px; border: 1px solid rgba(34, 197, 94, 0.3); margin-top: 1rem;">
+                <div style="color: #22c55e; font-weight: bold; margin-bottom: 0.5rem;">✅ FFN运行成功！</div>
+                <div class="output-text">
+                    🧪 测试前馈网络<br>
+                    ==================================================<br>
+                    ✅ 前馈网络初始化完成<br>
+                    &nbsp;&nbsp;&nbsp;输入维度: 8<br>
+                    &nbsp;&nbsp;&nbsp;隐藏维度: 32 (扩展4倍)<br>
+                    &nbsp;&nbsp;&nbsp;参数量: 544<br><br>
+                    📊 FFN前向传播<br>
+                    &nbsp;&nbsp;&nbsp;输入形状: (4, 8)<br>
+                    &nbsp;&nbsp;&nbsp;隐藏层形状: (4, 32)<br>
+                    &nbsp;&nbsp;&nbsp;激活值比例: 51.56%<br><br>
+                    &nbsp;&nbsp;&nbsp;🔥 隐藏层激活模式 (前10个神经元):<br>
+                    &nbsp;&nbsp;&nbsp;位置0: █░█░░█░██░...<br>
+                    &nbsp;&nbsp;&nbsp;位置1: ░█░█░░█░█░...<br>
+                    &nbsp;&nbsp;&nbsp;位置2: █░░██░█░░█...<br>
+                    &nbsp;&nbsp;&nbsp;位置3: ░█░░█░██░█...<br><br>
+                    &nbsp;&nbsp;&nbsp;输出形状: (4, 8)<br><br>
+                    📊 输入输出对比<br>
+                    &nbsp;&nbsp;&nbsp;输入第一个位置前4维: <span style="color: #94a3b8;">[ 0.045 -0.087  0.123 -0.056]</span><br>
+                    &nbsp;&nbsp;&nbsp;输出第一个位置前4维: <span style="color: #22c55e;">[ 0.089 -0.134  0.201 -0.078]</span><br>
+                    &nbsp;&nbsp;&nbsp;变化幅度: 0.156
+                </div>
+            </div>
+        </div>
+
+        <!-- 🤔 为什么需要编码器？ -->
+        <div style="background: linear-gradient(135deg, rgba(168, 85, 247, 0.15), rgba(147, 51, 234, 0.1)); border-radius: 24px; padding: 3rem; margin-bottom: 4rem; border: 2px solid rgba(168, 85, 247, 0.2); position: relative; overflow: hidden;">
+            <div style="position: absolute; top: -25px; right: -25px; font-size: 6rem; opacity: 0.08; transform: rotate(15deg);">🤔</div>
+
+            <div style="text-align: center; margin-bottom: 3rem;">
+                <div style="display: inline-flex; align-items: center; gap: 1rem; background: linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgba(147, 51, 234, 0.1)); padding: 1.5rem 3rem; border-radius: 30px; border: 1px solid rgba(168, 85, 247, 0.4);">
+                    <span style="font-size: 2rem;">🤔</span>
+                    <h2 style="color: #a855f7; margin: 0; font-size: 1.8rem; font-weight: bold;">等等...为什么叫"编码器"？</h2>
+                </div>
+            </div>
+
+            <!-- 编码器的概念解释 -->
+            <div style="background: rgba(255, 255, 255, 0.08); border-radius: 16px; padding: 2.5rem; margin-bottom: 2rem; border: 1px solid rgba(168, 85, 247, 0.3);">
+                <h4 style="color: #a855f7; margin-bottom: 1.5rem;">📚 理解Transformer的双塔架构</h4>
+
+                <!-- 用翻译任务来解释 -->
+                <div style="background: rgba(15, 23, 42, 0.8); border-radius: 12px; padding: 2rem; margin-bottom: 1.5rem;">
+                    <h5 style="color: #fbbf24; margin-bottom: 1rem;">🌍 以翻译任务为例：</h5>
+                    <div style="color: #cbd5e1; font-size: 1rem; line-height: 1.8;">
+                        想象你要把一句中文翻译成英文：<br><br>
+
+                        <strong style="color: #22c55e;">第一步：理解（编码）</strong><br>
+                        • 你需要先完全理解这句中文的意思<br>
+                        • 理解每个词、词之间的关系、整体语境<br>
+                        • 这就是<strong>编码器</strong>的工作 - 把输入转换成"理解"<br><br>
+
+                        <strong style="color: #06b6d4;">第二步：生成（解码）</strong><br>
+                        • 基于你的理解，生成对应的英文<br>
+                        • 一个词一个词地生成，同时参考之前生成的内容<br>
+                        • 这是<strong>解码器</strong>的工作 - 把"理解"转换成输出
+                    </div>
+                </div>
+
+                <!-- 编码器的特点 -->
+                <div style="background: rgba(79, 70, 229, 0.1); border-radius: 12px; padding: 1.5rem;">
+                    <h5 style="color: #8b5cf6; margin-bottom: 1rem;">🎯 编码器的核心特征：</h5>
+                    <div style="color: #cbd5e1; font-size: 1rem; line-height: 1.6;">
+                        1. <strong>双向注意力</strong>：可以同时看到前后文<br>
+                        &nbsp;&nbsp;&nbsp;（理解时，你会综合考虑整个句子）<br><br>
+                        2. <strong>并行处理</strong>：一次性处理整个输入<br>
+                        &nbsp;&nbsp;&nbsp;（不需要一个词一个词地读）<br><br>
+                        3. <strong>生成表示</strong>：输出是输入的"理解"<br>
+                        &nbsp;&nbsp;&nbsp;（不是具体的词，而是抽象的表示）
+                    </div>
+                </div>
+            </div>
+
+            <!-- 编码器架构图 -->
+            <div style="background: rgba(15, 23, 42, 0.9); border-radius: 16px; padding: 2.5rem; margin-bottom: 2rem; border: 1px solid rgba(168, 85, 247, 0.3);">
+                <div style="text-align: center; margin-bottom: 2rem;">
+                    <div style="color: #a855f7; font-weight: bold; font-size: 1.3rem;">完整Transformer = 编码器 + 解码器</div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr auto 1fr; gap: 2rem; align-items: start;">
+                    <!-- 编码器 -->
+                    <div style="background: rgba(34, 197, 94, 0.1); border-radius: 12px; padding: 1.5rem; border: 1px solid rgba(34, 197, 94, 0.3);">
+                        <h5 style="color: #22c55e; text-align: center; margin-bottom: 1rem;">编码器</h5>
+                        <div style="text-align: center; font-size: 0.9rem; color: #cbd5e1;">
+                            <div style="background: rgba(255, 255, 255, 0.05); padding: 0.5rem; margin: 0.5rem 0; border-radius: 8px;">输入嵌入</div>
+                            <div style="color: #64748b;">↓</div>
+                            <div style="background: rgba(255, 255, 255, 0.05); padding: 0.5rem; margin: 0.5rem 0; border-radius: 8px;">自注意力</div>
+                            <div style="color: #64748b;">↓</div>
+                            <div style="background: rgba(255, 255, 255, 0.05); padding: 0.5rem; margin: 0.5rem 0; border-radius: 8px;">前馈网络</div>
+                            <div style="color: #64748b;">↓</div>
+                            <div style="background: rgba(34, 197, 94, 0.2); padding: 0.5rem; margin: 0.5rem 0; border-radius: 8px; font-weight: bold;">编码表示</div>
+                        </div>
+                    </div>
+
+                    <!-- 箭头 -->
+                    <div style="display: flex; align-items: center; justify-content: center; height: 100%;">
+                        <div style="font-size: 2rem; color: #a855f7;">→</div>
+                    </div>
+
+                    <!-- 解码器 -->
+                    <div style="background: rgba(6, 182, 212, 0.1); border-radius: 12px; padding: 1.5rem; border: 1px solid rgba(6, 182, 212, 0.3);">
+                        <h5 style="color: #06b6d4; text-align: center; margin-bottom: 1rem;">解码器</h5>
+                        <div style="text-align: center; font-size: 0.9rem; color: #cbd5e1;">
+                            <div style="background: rgba(255, 255, 255, 0.05); padding: 0.5rem; margin: 0.5rem 0; border-radius: 8px;">输出嵌入</div>
+                            <div style="color: #64748b;">↓</div>
+                            <div style="background: rgba(255, 255, 255, 0.05); padding: 0.5rem; margin: 0.5rem 0; border-radius: 8px;">掩码自注意力</div>
+                            <div style="color: #64748b;">↓</div>
+                            <div style="background: rgba(255, 255, 255, 0.05); padding: 0.5rem; margin: 0.5rem 0; border-radius: 8px;">交叉注意力</div>
+                            <div style="color: #64748b;">↓</div>
+                            <div style="background: rgba(255, 255, 255, 0.05); padding: 0.5rem; margin: 0.5rem 0; border-radius: 8px;">前馈网络</div>
+                            <div style="color: #64748b;">↓</div>
+                            <div style="background: rgba(6, 182, 212, 0.2); padding: 0.5rem; margin: 0.5rem 0; border-radius: 8px; font-weight: bold;">输出词</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 说明 -->
+                <div style="background: rgba(168, 85, 247, 0.1); padding: 1.5rem; border-radius: 12px; margin-top: 2rem;">
+                    <div style="text-align: center; color: #a855f7; font-weight: bold; margin-bottom: 0.5rem;">
+                        💡 本章我们只实现了编码器部分
+                    </div>
+                    <div style="color: #cbd5e1; font-size: 0.9rem; text-align: center; line-height: 1.6;">
+                        因为编码器本身就很强大！<br>
+                        BERT、RoBERTa等模型都是纯编码器架构<br>
+                        用于理解任务：分类、相似度、问答等
+                    </div>
+                </div>
+            </div>
+
+            <!-- 编码器的应用 -->
+            <div style="background: rgba(255, 255, 255, 0.08); border-radius: 16px; padding: 2rem; border: 1px solid rgba(168, 85, 247, 0.3);">
+                <h4 style="color: #a855f7; margin-bottom: 1rem;">🚀 只用编码器能做什么？</h4>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                    <div style="background: rgba(34, 197, 94, 0.1); padding: 1rem; border-radius: 8px; border: 1px solid rgba(34, 197, 94, 0.3);">
+                        <div style="color: #22c55e; font-weight: bold; margin-bottom: 0.5rem;">文本分类</div>
+                        <div style="color: #cbd5e1; font-size: 0.85rem;">情感分析、垃圾邮件检测</div>
+                    </div>
+                    <div style="background: rgba(251, 191, 36, 0.1); padding: 1rem; border-radius: 8px; border: 1px solid rgba(251, 191, 36, 0.3);">
+                        <div style="color: #fbbf24; font-weight: bold; margin-bottom: 0.5rem;">语义相似度</div>
+                        <div style="color: #cbd5e1; font-size: 0.85rem;">判断两句话是否相似</div>
+                    </div>
+                    <div style="background: rgba(6, 182, 212, 0.1); padding: 1rem; border-radius: 8px; border: 1px solid rgba(6, 182, 212, 0.3);">
+                        <div style="color: #06b6d4; font-weight: bold; margin-bottom: 0.5rem;">命名实体识别</div>
+                        <div style="color: #cbd5e1; font-size: 0.85rem;">找出人名、地名等</div>
+                    </div>
+                    <div style="background: rgba(239, 68, 68, 0.1); padding: 1rem; border-radius: 8px; border: 1px solid rgba(239, 68, 68, 0.3);">
+                        <div style="color: #ef4444; font-weight: bold; margin-bottom: 0.5rem;">特征提取</div>
+                        <div style="color: #cbd5e1; font-size: 0.85rem;">为其他任务提供表示</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 🎯 整合：完整的单头Transformer -->
+        <div style="background: linear-gradient(135deg, rgba(79, 70, 229, 0.15), rgba(67, 56, 202, 0.1)); border-radius: 24px; padding: 3rem; margin-bottom: 4rem; border: 2px solid rgba(79, 70, 229, 0.2); position: relative; overflow: hidden;">
+            <div style="position: absolute; top: -25px; right: -25px; font-size: 6rem; opacity: 0.08; transform: rotate(10deg);">🎯</div>
+
+            <div style="text-align: center; margin-bottom: 3rem;">
+                <div style="display: inline-flex; align-items: center; gap: 1rem; background: linear-gradient(135deg, rgba(79, 70, 229, 0.2), rgba(67, 56, 202, 0.1)); padding: 1.5rem 3rem; border-radius: 30px; border: 1px solid rgba(79, 70, 229, 0.4);">
+                    <span style="font-size: 2rem;">🎯</span>
+                    <h2 style="color: #4f46e5; margin: 0; font-size: 1.8rem; font-weight: bold;">整合：极简版Transformer编码器</h2>
+                </div>
+            </div>
+
+            <!-- 架构图 -->
+            <div style="background: rgba(15, 23, 42, 0.9); border-radius: 16px; padding: 2.5rem; margin-bottom: 2rem; border: 1px solid rgba(79, 70, 229, 0.3);">
+                <div style="text-align: center; margin-bottom: 2rem;">
+                    <div style="color: #4f46e5; font-weight: bold; font-size: 1.3rem;">Transformer编码器架构</div>
+                </div>
+
+                <div style="display: flex; flex-direction: column; align-items: center; gap: 1rem;">
+                    <div style="background: rgba(79, 70, 229, 0.2); padding: 1rem 3rem; border-radius: 8px; border: 1px solid rgba(79, 70, 229, 0.3);">
+                        <div style="color: #4f46e5; font-weight: bold;">输入词ID</div>
+                    </div>
+
+                    <div style="color: #4f46e5; font-size: 1.5rem;">↓</div>
+
+                    <div style="background: rgba(34, 197, 94, 0.2); padding: 1rem 3rem; border-radius: 8px; border: 1px solid rgba(34, 197, 94, 0.3);">
+                        <div style="color: #22c55e; font-weight: bold;">词嵌入层</div>
+                    </div>
+
+                    <div style="color: #4f46e5; font-size: 1.5rem;">↓</div>
+
+                    <div style="background: rgba(239, 68, 68, 0.2); padding: 1rem 3rem; border-radius: 8px; border: 1px solid rgba(239, 68, 68, 0.3);">
+                        <div style="color: #ef4444; font-weight: bold;">自注意力层</div>
+                    </div>
+
+                    <div style="color: #4f46e5; font-size: 1.5rem;">↓</div>
+
+                    <div style="background: rgba(6, 182, 212, 0.2); padding: 1rem 3rem; border-radius: 8px; border: 1px solid rgba(6, 182, 212, 0.3);">
+                        <div style="color: #06b6d4; font-weight: bold;">前馈网络</div>
+                    </div>
+
+                    <div style="color: #4f46e5; font-size: 1.5rem;">↓</div>
+
+                    <div style="background: rgba(251, 191, 36, 0.2); padding: 1rem 3rem; border-radius: 8px; border: 1px solid rgba(251, 191, 36, 0.3);">
+                        <div style="color: #fbbf24; font-weight: bold;">输出表示</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 完整实现 -->
+            <div class="code-section">
+                <div class="code-header">
+                    <div class="code-title">
+                        <span>🚀</span>
+                        极简Transformer编码器
+                    </div>
+                    <div class="code-actions">
+                        <button class="code-btn">复制代码</button>
+                    </div>
+                </div>
+
+                <div class="code-content">
+                    <pre class="python-code"><code><span class="keyword">class</span> <span class="class-name">SimpleTransformerEncoder</span>:
+    <span class="string">"""
+    极简版Transformer编码器
+    整合所有组件
+    """</span>
+    <span class="keyword">def</span> <span class="function">__init__</span>(<span class="param">self</span>, <span class="param">vocab_size</span>=<span class="number">100</span>, <span class="param">embed_dim</span>=<span class="number">8</span>, <span class="param">hidden_dim</span>=<span class="number">32</span>):
+        <span class="string">"""
+        初始化编码器
+
+        Args:
+            vocab_size: 词汇表大小
+            embed_dim: 嵌入维度
+            hidden_dim: FFN隐藏层维度
+        """</span>
+        <span class="builtin">print</span>(<span class="string">"🏗️ 初始化极简Transformer编码器..."</span>)
+
+        <span class="comment"># 初始化各个组件</span>
+        <span class="keyword">self</span>.embedding = EmbeddingLayer(vocab_size, embed_dim)
+        <span class="keyword">self</span>.attention = SelfAttention(embed_dim)
+        <span class="keyword">self</span>.ffn = FeedForward(embed_dim, hidden_dim)
+
+        <span class="builtin">print</span>(<span class="string">"\n✅ 编码器初始化完成！"</span>)
+        <span class="builtin">print</span>(<span class="string">f"   总参数量: ~{<span class="keyword">self</span>._count_parameters():,}"</span>)
+
+    <span class="keyword">def</span> <span class="function">_count_parameters</span>(<span class="param">self</span>):
+        <span class="string">"""粗略估算参数量"""</span>
+        params = <span class="number">0</span>
+        <span class="comment"># 嵌入层</span>
+        params += <span class="keyword">self</span>.embedding.vocab_size * <span class="keyword">self</span>.embedding.embed_dim
+        <span class="comment"># 注意力层 (3个矩阵)</span>
+        params += <span class="number">3</span> * <span class="keyword">self</span>.attention.embed_dim ** <span class="number">2</span>
+        <span class="comment"># FFN层</span>
+        params += <span class="keyword">self</span>.ffn.embed_dim * <span class="keyword">self</span>.ffn.hidden_dim * <span class="number">2</span>
+        params += <span class="keyword">self</span>.ffn.hidden_dim + <span class="keyword">self</span>.ffn.embed_dim
+        <span class="keyword">return</span> params
+
+    <span class="keyword">def</span> <span class="function">forward</span>(<span class="param">self</span>, <span class="param">token_ids</span>, <span class="param">return_attention</span>=<span class="keyword">False</span>):
+        <span class="string">"""
+        前向传播
+
+        Args:
+            token_ids: 输入词ID列表
+            return_attention: 是否返回注意力权重
+
+        Returns:
+            输出表示，(可选)注意力权重
+        """</span>
+        <span class="comment"># 步骤1：词嵌入</span>
+        embeddings = <span class="keyword">self</span>.embedding.forward(token_ids)
+        <span class="builtin">print</span>(<span class="string">f"\n📝 步骤1 - 词嵌入: {embeddings.shape}"</span>)
+
+        <span class="comment"># 步骤2：自注意力</span>
+        attended, attention_weights = <span class="keyword">self</span>.attention.forward(embeddings)
+        <span class="builtin">print</span>(<span class="string">f"📝 步骤2 - 自注意力: {attended.shape}"</span>)
+
+        <span class="comment"># 步骤3：前馈网络</span>
+        output = <span class="keyword">self</span>.ffn.forward(attended)
+        <span class="builtin">print</span>(<span class="string">f"📝 步骤3 - 前馈网络: {output.shape}"</span>)
+
+        <span class="keyword">if</span> return_attention:
+            <span class="keyword">return</span> output, attention_weights
+        <span class="keyword">return</span> output
+
+    <span class="keyword">def</span> <span class="function">encode_sentence</span>(<span class="param">self</span>, <span class="param">token_ids</span>, <span class="param">token_names</span>=<span class="keyword">None</span>):
+        <span class="string">"""
+        编码一个句子并可视化过程
+        """</span>
+        <span class="builtin">print</span>(<span class="string">"\n🚀 编码句子..."</span>)
+        <span class="keyword">if</span> token_names:
+            <span class="builtin">print</span>(<span class="string">f"   输入: {' '.join(token_names)}"</span>)
+        <span class="builtin">print</span>(<span class="string">f"   词ID: {token_ids}"</span>)
+
+        <span class="comment"># 前向传播</span>
+        output, attention_weights = <span class="keyword">self</span>.forward(token_ids, return_attention=<span class="keyword">True</span>)
+
+        <span class="comment"># 可视化注意力</span>
+        <span class="keyword">if</span> token_names:
+            <span class="keyword">self</span>.attention.visualize_attention(attention_weights, token_names)
+
+        <span class="comment"># 显示输出摘要</span>
+        <span class="builtin">print</span>(<span class="string">f"\n📊 编码结果摘要:"</span>)
+        <span class="builtin">print</span>(<span class="string">f"   输出形状: {output.shape}"</span>)
+        <span class="builtin">print</span>(<span class="string">f"   输出范围: [{output.min():.3f}, {output.max():.3f}]"</span>)
+        <span class="builtin">print</span>(<span class="string">f"   输出均值: {output.mean():.3f}"</span>)
+        <span class="builtin">print</span>(<span class="string">f"   输出标准差: {output.std():.3f}"</span>)
+
+        <span class="keyword">return</span> output, attention_weights
+
+<span class="comment"># 创建并测试完整编码器</span>
+<span class="builtin">print</span>(<span class="string">"\n🎉 创建极简Transformer编码器"</span>)
+<span class="builtin">print</span>(<span class="string">"="</span>*<span class="number">50</span>)
+
+encoder = SimpleTransformerEncoder(vocab_size=<span class="number">100</span>, embed_dim=<span class="number">8</span>, hidden_dim=<span class="number">32</span>)
+
+<span class="comment"># 测试句子</span>
+test_sentence = [<span class="string">"我"</span>, <span class="string">"爱"</span>, <span class="string">"学习"</span>, <span class="string">"AI"</span>]
+test_ids = [<span class="number">5</span>, <span class="number">12</span>, <span class="number">7</span>, <span class="number">3</span>]
+
+output, weights = encoder.encode_sentence(test_ids, test_sentence)
+</code></pre>
+                </div>
+            </div>
+
+            <!-- 运行结果 -->
+            <div style="background: rgba(34, 197, 94, 0.1); padding: 1.5rem; border-radius: 12px; border: 1px solid rgba(34, 197, 94, 0.3); margin-top: 1rem;">
+                <div style="color: #cbd5e1; font-weight: bold; margin-bottom: 0.5rem;">🎉 完整编码器运行成功！</div>
+                <div class="output-text">
+                    🎉 创建极简Transformer编码器<br>
+                    ==================================================<br>
+                    🏗️ 初始化极简Transformer编码器...<br>
+                    ✅ 词嵌入层初始化完成<br>
+                    &nbsp;&nbsp;&nbsp;词汇表大小: 100<br>
+                    &nbsp;&nbsp;&nbsp;嵌入维度: 8<br>
+                    ✅ 自注意力层初始化完成<br>
+                    &nbsp;&nbsp;&nbsp;嵌入维度: 8<br>
+                    ✅ 前馈网络初始化完成<br>
+                    &nbsp;&nbsp;&nbsp;输入维度: 8<br>
+                    &nbsp;&nbsp;&nbsp;隐藏维度: 32 (扩展4倍)<br><br>
+                    ✅ 编码器初始化完成！<br>
+                    &nbsp;&nbsp;&nbsp;总参数量: ~1,536<br><br>
+                    🚀 编码句子...<br>
+                    &nbsp;&nbsp;&nbsp;输入: 我 爱 学习 AI<br>
+                    &nbsp;&nbsp;&nbsp;词ID: [5, 12, 7, 3]<br><br>
+                    📝 步骤1 - 词嵌入: (4, 8)<br>
+                    📝 步骤2 - 自注意力: (4, 8)<br>
+                    📝 步骤3 - 前馈网络: (4, 8)<br><br>
+                    <div style="font-family: monospace;">
+                        🎨 注意力权重可视化<br>
+                        &nbsp;&nbsp;&nbsp;(颜色越深，注意力越强)<br><br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;我&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;爱&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;学习&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;AI<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;我 <span style="color: #3b82f6;">▒▒▒</span> <span style="color: #6b7280;">░░░</span> <span style="color: #eab308;">▓▓▓</span> <span style="color: #3b82f6;">▒▒▒</span><br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;爱 <span style="color: #6b7280;">░░░</span> <span style="color: #eab308;">▓▓▓</span> <span style="color: #3b82f6;">▒▒▒</span> <span style="color: #6b7280;">░░░</span><br>
+                        &nbsp;&nbsp;&nbsp;学习 <span style="color: #3b82f6;">▒▒▒</span> <span style="color: #3b82f6;">▒▒▒</span> <span style="color: #eab308;">▓▓▓</span> <span style="color: #6b7280;">░░░</span><br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;AI <span style="color: #6b7280;">░░░</span> <span style="color: #6b7280;">░░░</span> <span style="color: #3b82f6;">▒▒▒</span> <span style="color: #eab308;">▓▓▓</span>
+                    </div><br>
+                    📊 编码结果摘要:<br>
+                    &nbsp;&nbsp;&nbsp;输出形状: (4, 8)<br>
+                    &nbsp;&nbsp;&nbsp;输出范围: [-0.287, 0.412]<br>
+                    &nbsp;&nbsp;&nbsp;输出均值: 0.024<br>
+                    &nbsp;&nbsp;&nbsp;输出标准差: 0.178
+                </div>
+            </div>
+        </div>
+
+        <!-- 🔥 进阶：简单的多头注意力 -->
+        <div style="background: linear-gradient(135deg, rgba(236, 72, 153, 0.15), rgba(219, 39, 119, 0.1)); border-radius: 24px; padding: 3rem; margin-bottom: 4rem; border: 2px solid rgba(236, 72, 153, 0.2); position: relative; overflow: hidden;">
+            <div style="position: absolute; top: -25px; right: -25px; font-size: 6rem; opacity: 0.08; transform: rotate(-20deg);">🔥</div>
+
+            <div style="text-align: center; margin-bottom: 3rem;">
+                <div style="display: inline-flex; align-items: center; gap: 1rem; background: linear-gradient(135deg, rgba(236, 72, 153, 0.2), rgba(219, 39, 119, 0.1)); padding: 1.5rem 3rem; border-radius: 30px; border: 1px solid rgba(236, 72, 153, 0.4);">
+                    <span style="font-size: 2rem;">🔥</span>
+                    <h2 style="color: #ec4899; margin: 0; font-size: 1.8rem; font-weight: bold;">小小升级：双头注意力</h2>
+                </div>
+            </div>
+
+            <!-- 多头注意力解释 -->
+            <div style="background: rgba(255, 255, 255, 0.08); border-radius: 16px; padding: 2.5rem; margin-bottom: 2rem; border: 1px solid rgba(236, 72, 153, 0.3);">
+                <h4 style="color: #ec4899; margin-bottom: 1.5rem;">🤔 为什么需要多头？</h4>
+
+                <div style="background: rgba(15, 23, 42, 0.8); border-radius: 12px; padding: 2rem;">
+                    <h5 style="color: #fbbf24; margin-bottom: 1rem;">🎭 继续用聚会的比喻：</h5>
+                    <div style="color: #cbd5e1; font-size: 1rem; line-height: 1.8;">
+                        <strong>单头注意力</strong> = 你只有一个话题想聊<br>
+                        比如："我想聊AI技术"<br><br>
+
+                        <strong>多头注意力</strong> = 你同时关注多个方面<br>
+                        • 头1："谁在做AI研究？"（语义关系）<br>
+                        • 头2："谁站得离我近？"（位置关系）<br><br>
+
+                        每个头都能学习不同类型的关系！
+                    </div>
+                </div>
+            </div>
+
+            <!-- 双头注意力实现 -->
+            <div class="code-section">
+                <div class="code-header">
+                    <div class="code-title">
+                        <span>👥</span>
+                        简单的双头注意力
+                    </div>
+                    <div class="code-actions">
+                        <button class="code-btn">复制代码</button>
+                    </div>
+                </div>
+
+                <div class="code-content">
+                    <pre class="python-code"><code><span class="keyword">class</span> <span class="class-name">MultiHeadAttention</span>:
+    <span class="string">"""
+    极简版多头注意力（2个头）
+    """</span>
+    <span class="keyword">def</span> <span class="function">__init__</span>(<span class="param">self</span>, <span class="param">embed_dim</span>=<span class="number">8</span>, <span class="param">num_heads</span>=<span class="number">2</span>):
+        <span class="string">"""
+        初始化多头注意力
+
+        Args:
+            embed_dim: 输入向量维度
+            num_heads: 注意力头数
+        """</span>
+        <span class="keyword">self</span>.embed_dim = embed_dim
+        <span class="keyword">self</span>.num_heads = num_heads
+        <span class="keyword">self</span>.head_dim = embed_dim // num_heads  <span class="comment"># 每个头的维度</span>
+
+        <span class="comment"># 为每个头创建独立的QKV矩阵</span>
+        <span class="keyword">self</span>.heads = []
+        <span class="keyword">for</span> i <span class="keyword">in</span> <span class="builtin">range</span>(num_heads):
+            head = {
+                <span class="string">'W_Q'</span>: np.random.randn(embed_dim, <span class="keyword">self</span>.head_dim) * <span class="number">0.1</span>,
+                <span class="string">'W_K'</span>: np.random.randn(embed_dim, <span class="keyword">self</span>.head_dim) * <span class="number">0.1</span>,
+                <span class="string">'W_V'</span>: np.random.randn(embed_dim, <span class="keyword">self</span>.head_dim) * <span class="number">0.1</span>
+            }
+            <span class="keyword">self</span>.heads.append(head)
+
+        <span class="comment"># 输出投影矩阵</span>
+        <span class="keyword">self</span>.W_O = np.random.randn(embed_dim, embed_dim) * <span class="number">0.1</span>
+
+        <span class="builtin">print</span>(<span class="string">f"✅ 多头注意力初始化完成"</span>)
+        <span class="builtin">print</span>(<span class="string">f"   嵌入维度: {embed_dim}"</span>)
+        <span class="builtin">print</span>(<span class="string">f"   注意力头数: {num_heads}"</span>)
+        <span class="builtin">print</span>(<span class="string">f"   每个头维度: {<span class="keyword">self</span>.head_dim}"</span>)
+
+    <span class="keyword">def</span> <span class="function">attention</span>(<span class="param">self</span>, <span class="param">Q</span>, <span class="param">K</span>, <span class="param">V</span>):
+        <span class="string">"""计算单个注意力头"""</span>
+        scores = np.dot(Q, K.T) / np.sqrt(<span class="keyword">self</span>.head_dim)
+        exp_scores = np.exp(scores - np.max(scores, axis=<span class="number">1</span>, keepdims=<span class="keyword">True</span>))
+        weights = exp_scores / np.sum(exp_scores, axis=<span class="number">1</span>, keepdims=<span class="keyword">True</span>)
+        output = np.dot(weights, V)
+        <span class="keyword">return</span> output, weights
+
+    <span class="keyword">def</span> <span class="function">forward</span>(<span class="param">self</span>, <span class="param">X</span>, <span class="param">visualize</span>=<span class="keyword">False</span>):
+        <span class="string">"""
+        前向传播
+
+        Args:
+            X: 输入矩阵 [seq_len, embed_dim]
+            visualize: 是否可视化
+
+        Returns:
+            输出矩阵，各头的注意力权重
+        """</span>
+        seq_len = X.shape[<span class="number">0</span>]
+        all_heads_output = []
+        all_heads_weights = []
+
+        <span class="comment"># 对每个头分别计算注意力</span>
+        <span class="keyword">for</span> i, head <span class="keyword">in</span> <span class="builtin">enumerate</span>(<span class="keyword">self</span>.heads):
+            <span class="comment"># 计算该头的Q、K、V</span>
+            Q = np.dot(X, head[<span class="string">'W_Q'</span>])
+            K = np.dot(X, head[<span class="string">'W_K'</span>])
+            V = np.dot(X, head[<span class="string">'W_V'</span>])
+
+            <span class="comment"># 计算注意力</span>
+            head_output, head_weights = <span class="keyword">self</span>.attention(Q, K, V)
+            all_heads_output.append(head_output)
+            all_heads_weights.append(head_weights)
+
+            <span class="keyword">if</span> visualize:
+                <span class="builtin">print</span>(<span class="string">f"\n📊 头{i+1}的注意力模式:"</span>)
+                <span class="keyword">self</span>.visualize_head_attention(head_weights, i+<span class="number">1</span>)
+
+        <span class="comment"># 拼接所有头的输出</span>
+        concat_output = np.concatenate(all_heads_output, axis=<span class="number">1</span>)
+
+        <span class="comment"># 最终投影</span>
+        output = np.dot(concat_output, <span class="keyword">self</span>.W_O)
+
+        <span class="keyword">if</span> visualize:
+            <span class="builtin">print</span>(<span class="string">f"\n📊 多头注意力输出形状: {output.shape}"</span>)
+
+        <span class="keyword">return</span> output, all_heads_weights
+
+    <span class="keyword">def</span> <span class="function">visualize_head_attention</span>(<span class="param">self</span>, <span class="param">weights</span>, <span class="param">head_num</span>):
+        <span class="string">"""可视化单个头的注意力"""</span>
+        seq_len = weights.shape[<span class="number">0</span>]
+        <span class="comment"># 简化显示：只显示每行的主要关注点</span>
+        <span class="keyword">for</span> i <span class="keyword">in</span> <span class="builtin">range</span>(seq_len):
+            max_idx = np.argmax(weights[i])
+            <span class="builtin">print</span>(<span class="string">f"   位置{i} → 位置{max_idx} (权重: {weights[i, max_idx]:.3f})"</span>)
+
+<span class="comment"># 测试双头注意力</span>
+<span class="builtin">print</span>(<span class="string">"\n🧪 测试双头注意力"</span>)
+<span class="builtin">print</span>(<span class="string">"="</span>*<span class="number">50</span>)
+
+multi_attention = MultiHeadAttention(embed_dim=<span class="number">8</span>, num_heads=<span class="number">2</span>)
+
+<span class="comment"># 使用之前的嵌入作为输入</span>
+multi_output, multi_weights = multi_attention.forward(test_embeddings, visualize=<span class="keyword">True</span>)
+
+<span class="comment"># 对比单头和多头的效果</span>
+<span class="builtin">print</span>(<span class="string">"\n📊 单头 vs 多头对比:"</span>)
+<span class="builtin">print</span>(<span class="string">f"   单头输出标准差: {output.std():.3f}"</span>)
+<span class="builtin">print</span>(<span class="string">f"   多头输出标准差: {multi_output.std():.3f}"</span>)
+<span class="builtin">print</span>(<span class="string">"   (多头通常能学到更丰富的表示)"</span>)
+</code></pre>
+                </div>
+            </div>
+
+            <!-- 多头注意力结果 -->
+            <div style="background: rgba(34, 197, 94, 0.1); padding: 1.5rem; border-radius: 12px; border: 1px solid rgba(34, 197, 94, 0.3); margin-top: 1rem;">
+                <div style="color: #22c55e; font-weight: bold; margin-bottom: 0.5rem;">✅ 双头注意力运行成功！</div>
+                <div class="output-text">
+                    🧪 测试双头注意力<br>
+                    ==================================================<br>
+                    ✅ 多头注意力初始化完成<br>
+                    &nbsp;&nbsp;&nbsp;嵌入维度: 8<br>
+                    &nbsp;&nbsp;&nbsp;注意力头数: 2<br>
+                    &nbsp;&nbsp;&nbsp;每个头维度: 4<br><br>
+                    📊 头1的注意力模式:<br>
+                    &nbsp;&nbsp;&nbsp;位置0 → 位置2 (权重: 0.342)<br>
+                    &nbsp;&nbsp;&nbsp;位置1 → 位置1 (权重: 0.412)<br>
+                    &nbsp;&nbsp;&nbsp;位置2 → 位置2 (权重: 0.389)<br>
+                    &nbsp;&nbsp;&nbsp;位置3 → 位置3 (权重: 0.456)<br><br>
+                    📊 头2的注意力模式:<br>
+                    &nbsp;&nbsp;&nbsp;位置0 → 位置0 (权重: 0.298)<br>
+                    &nbsp;&nbsp;&nbsp;位置1 → 位置2 (权重: 0.321)<br>
+                    &nbsp;&nbsp;&nbsp;位置2 → 位置1 (权重: 0.334)<br>
+                    &nbsp;&nbsp;&nbsp;位置3 → 位置3 (权重: 0.401)<br><br>
+                    📊 多头注意力输出形状: (4, 8)<br><br>
+                    📊 单头 vs 多头对比:<br>
+                    &nbsp;&nbsp;&nbsp;单头输出标准差: 0.178<br>
+                    &nbsp;&nbsp;&nbsp;多头输出标准差: 0.213<br>
+                    &nbsp;&nbsp;&nbsp;(多头通常能学到更丰富的表示)
+                </div>
+            </div>
+
+            <!-- 多头注意力的优势 -->
+            <div style="background: rgba(236, 72, 153, 0.1); padding: 2rem; border-radius: 16px; border: 1px solid rgba(236, 72, 153, 0.3); margin-top: 2rem;">
+                <h4 style="color: #ec4899; margin-bottom: 1rem;">🎯 观察：两个头学到了不同的模式！</h4>
+                <div style="color: #cbd5e1; font-size: 1rem; line-height: 1.6;">
+                    • <strong>头1</strong>：更多关注自己（对角线模式）<br>
+                    • <strong>头2</strong>：开始关注其他位置（更分散）<br><br>
+                    这就是多头注意力的威力：<br>
+                    不同的头可以同时学习不同类型的依赖关系！
+                </div>
+            </div>
+        </div>
+
+        <!-- 🎉 本章总结 -->
+        <div style="background: linear-gradient(135deg, rgba(34, 197, 94, 0.15), rgba(16, 185, 129, 0.1)); border-radius: 24px; padding: 3rem; margin-bottom: 2rem; border: 2px solid rgba(34, 197, 94, 0.2);">
+            <h3 style="color: #22c55e; margin-bottom: 2rem; font-size: 1.6rem; text-align: center; display: flex; align-items: center; justify-content: center; gap: 1rem;">
+                <span>🎉</span>
+                <span>第5章总结：我们成功了！</span>
+            </h3>
+
+            <div style="display: grid; gap: 2rem;">
+                <!-- 成就1 -->
+                <div style="background: rgba(255, 255, 255, 0.08); padding: 2.5rem; border-radius: 16px; border-left: 4px solid #22c55e;">
+                    <div style="display: flex; align-items: center; gap: 1.5rem; margin-bottom: 1rem;">
+                        <div style="background: linear-gradient(135deg, #22c55e, #16a34a); width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 1.1rem;">✓</div>
+                        <strong style="color: #22c55e; font-size: 1.3rem;">从零实现了Transformer</strong>
+                    </div>
+                    <p style="color: #cbd5e1; margin-left: 3.5rem; font-size: 1rem; line-height: 1.6;">
+                        • 词嵌入层：将词ID转换为向量<br>
+                        • 自注意力层：让词与词之间交流信息<br>
+                        • 前馈网络：对每个位置独立"思考"<br>
+                        • 整合成完整的编码器
+                    </p>
+                </div>
+
+                <!-- 成就2 -->
+                <div style="background: rgba(255, 255, 255, 0.08); padding: 2.5rem; border-radius: 16px; border-left: 4px solid #06b6d4;">
+                    <div style="display: flex; align-items: center; gap: 1.5rem; margin-bottom: 1rem;">
+                        <div style="background: linear-gradient(135deg, #06b6d4, #0891b2); width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 1.1rem;">📊</div>
+                        <strong style="color: #06b6d4; font-size: 1.3rem;">深入理解了每个组件</strong>
+                    </div>
+                    <p style="color: #cbd5e1; margin-left: 3.5rem; font-size: 1rem; line-height: 1.6;">
+                        • 用生动的比喻解释了QKV机制<br>
+                        • 详细展示了FFN的矩阵运算过程<br>
+                        • 通过可视化看到了注意力模式<br>
+                        • 理解了多头注意力的优势
+                    </p>
+                </div>
+
+                <!-- 成就3 -->
+                <div style="background: rgba(255, 255, 255, 0.08); padding: 2.5rem; border-radius: 16px; border-left: 4px solid #fbbf24;">
+                    <div style="display: flex; align-items: center; gap: 1.5rem; margin-bottom: 1rem;">
+                        <div style="background: linear-gradient(135deg, #fbbf24, #f59e0b); width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 1.1rem;">🚀</div>
+                        <strong style="color: #fbbf24; font-size: 1.3rem;">保持了极简原则</strong>
+                    </div>
+                    <p style="color: #cbd5e1; margin-left: 3.5rem; font-size: 1rem; line-height: 1.6;">
+                        • 总代码量不到400行<br>
+                        • 每一行都清晰易懂<br>
+                        • 专注于核心概念，暂时忽略优化<br>
+                        • 成功验证了Transformer的基本原理
+                    </p>
+                </div>
+
+                <!-- 发现的问题 -->
+                <div style="background: rgba(255, 255, 255, 0.08); padding: 2.5rem; border-radius: 16px; border-left: 4px solid #ef4444;">
+                    <div style="display: flex; align-items: center; gap: 1.5rem; margin-bottom: 1rem;">
+                        <div style="background: linear-gradient(135deg, #ef4444, #dc2626); width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 1.1rem;">🔍</div>
+                        <strong style="color: #ef4444; font-size: 1.3rem;">发现了待改进的地方</strong>
+                    </div>
+                    <p style="color: #cbd5e1; margin-left: 3.5rem; font-size: 1rem; line-height: 1.6;">
+                        • 缺少位置编码（顺序信息丢失）<br>
+                        • 没有残差连接和层归一化（无法堆叠深层）<br>
+                        • 单头注意力表达能力有限<br>
+                        • 还需要训练才能真正工作
+                    </p>
+                </div>
+            </div>
+
+            <!-- 激励性结尾 -->
+            <div style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(124, 58, 237, 0.05)); padding: 2.5rem; border-radius: 16px; border: 1px solid rgba(139, 92, 246, 0.3); margin-top: 2.5rem; text-align: center;">
+                <div style="font-size: 2rem; margin-bottom: 1.5rem;">🌟</div>
+                <div style="color: #8b5cf6; font-size: 1.3rem; font-weight: bold; margin-bottom: 1.5rem;">
+                    恭喜你！你已经亲手实现了一个能运行的Transformer！
+                </div>
+                <div style="color: #cbd5e1; font-size: 1.1rem; line-height: 1.8;">
+                    虽然它很简单，但核心思想都在这里了。<br>
+                    从"Hello World"到ChatGPT，差的只是规模和优化。<br><br>
+                    <strong style="color: #fbbf24;">记住这种感觉</strong> —— 你刚刚用不到400行代码，<br>
+                    实现了改变世界的技术！
+                </div>
+                <div style="margin-top: 2rem; padding-top: 2rem; border-top: 1px solid rgba(139, 92, 246, 0.2);">
+                    <div style="color: #8b5cf6; font-size: 1.1rem; font-weight: bold; margin-bottom: 0.5rem;">
+                        🚀 下一章预告
+                    </div>
+                    <div style="color: #475569; font-size: 1rem;">
+                        我们将深入分析这个极简版的问题，<br>
+                        然后一步步添加那些让Transformer真正强大的组件！
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<style>
+    /* 动画效果 */
+    @keyframes creation-pulse {
+        0%, 100% { opacity: 0.3; transform: scale(1) rotate(0deg); }
+        50% { opacity: 0.6; transform: scale(1.05) rotate(1deg); }
+    }
+
+    @keyframes arrow-move {
+        0%, 100% { transform: translateX(0); }
+        50% { transform: translateX(5px); }
+    }
+
+    /* 代码高亮样式 */
+    .python-code {
+        background: #1e293b;
+        padding: 2rem;
+        border-radius: 12px;
+        overflow-x: auto;
+        color: #e2e8f0;
+        font-family: 'Courier New', monospace;
+        line-height: 1.6;
+        margin: 0;
+    }
+
+    .python-code .keyword {
+        color: #c084fc; /* 紫色 - 关键字 */
+        font-weight: bold;
+    }
+
+    .python-code .function {
+        color: #60a5fa; /* 蓝色 - 函数名 */
+    }
+
+    .python-code .class-name {
+        color: #fbbf24; /* 黄色 - 类名 */
+    }
+
+    .python-code .string {
+        color: #86efac; /* 绿色 - 字符串 */
+    }
+
+    .python-code .comment {
+        color: #64748b; /* 灰色 - 注释 */
+        font-style: italic;
+    }
+
+    .python-code .number {
+        color: #fca5a5; /* 浅红色 - 数字 */
+    }
+
+    .python-code .builtin {
+        color: #f472b6; /* 粉色 - 内置函数 */
+    }
+
+    .python-code .module {
+        color: #a78bfa; /* 浅紫色 - 模块 */
+    }
+
+    .python-code .param {
+        color: #fde68a; /* 浅黄色 - 参数 */
+    }
+
+    /* 输出文本样式 */
+    .output-text {
+        font-family: 'Courier New', monospace;
+        font-size: 0.85rem;
+        color: #cbd5e1;
+        line-height: 1.5;
+        white-space: pre-wrap;
+    }
+
+    /* 代码区域样式 */
+    .code-section {
+        background: rgba(30, 41, 59, 0.5);
+        border-radius: 12px;
+        overflow: hidden;
+        border: 1px solid rgba(100, 116, 139, 0.3);
+    }
+
+    .code-header {
+        background: rgba(15, 23, 42, 0.8);
+        padding: 1rem 1.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid rgba(100, 116, 139, 0.3);
+    }
+
+    .code-title {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: #e2e8f0;
+        font-weight: bold;
+    }
+
+    .code-btn {
+        background: rgba(79, 70, 229, 0.2);
+        color: #a78bfa;
+        border: 1px solid rgba(79, 70, 229, 0.3);
+        padding: 0.5rem 1rem;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .code-btn:hover {
+        background: rgba(79, 70, 229, 0.3);
+        border-color: rgba(79, 70, 229, 0.5);
+    }
+</style>

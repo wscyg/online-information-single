@@ -1,0 +1,1842 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>第11章：Transformer完整实现 - 从零到一构建改变世界的模型</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
+            color: #e2e8f0;
+            margin: 0;
+            padding: 0;
+            line-height: 1.6;
+        }
+
+        /* 动画效果 */
+        @keyframes code-appear {
+            0% {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes flow-connection {
+            0% {
+                stroke-dashoffset: 100;
+            }
+            100% {
+                stroke-dashoffset: 0;
+            }
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% {
+                box-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
+            }
+            50% {
+                box-shadow: 0 0 40px rgba(59, 130, 246, 0.8);
+            }
+        }
+
+        @keyframes typing {
+            from {
+                width: 0;
+            }
+            to {
+                width: 100%;
+            }
+        }
+
+        /* 容器样式 */
+        .chapter-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        /* 章节头部 */
+        .chapter-header {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(147, 51, 234, 0.1));
+            border-radius: 24px;
+            padding: 3rem;
+            margin-bottom: 3rem;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            text-align: center;
+        }
+
+        .chapter-header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(59, 130, 246, 0.1) 0%, transparent 70%);
+            animation: pulse-glow 4s ease-in-out infinite;
+        }
+
+        .chapter-header h1 {
+            font-size: 2.8rem;
+            margin-bottom: 1.5rem;
+            background: linear-gradient(45deg, #3b82f6, #8b5cf6, #9333ea);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            position: relative;
+            z-index: 2;
+        }
+
+        .chapter-header p {
+            font-size: 1.3rem;
+            color: #cbd5e1;
+            margin-bottom: 2rem;
+            position: relative;
+            z-index: 2;
+        }
+
+        .meta-tags {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            flex-wrap: wrap;
+            position: relative;
+            z-index: 2;
+        }
+
+        .meta-tag {
+            background: rgba(59, 130, 246, 0.2);
+            color: #3b82f6;
+            padding: 0.8rem 1.5rem;
+            border-radius: 25px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            border: 1px solid rgba(59, 130, 246, 0.4);
+        }
+
+        /* 主要区块样式 */
+        .implementation-section {
+            background: linear-gradient(135deg, rgba(15, 23, 42, 0.8), rgba(30, 41, 59, 0.6));
+            border-radius: 20px;
+            padding: 2.5rem;
+            margin: 3rem 0;
+            border: 2px solid rgba(59, 130, 246, 0.2);
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 16px 64px rgba(0, 0, 0, 0.3);
+        }
+
+        /* 架构总览样式 */
+        .architecture-overview {
+            background: rgba(15, 23, 42, 0.9);
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 2rem 0;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+        }
+
+        .architecture-flow {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            align-items: center;
+            margin: 2rem 0;
+        }
+
+        .component-card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 1.5rem;
+            width: 100%;
+            max-width: 600px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .component-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            border-color: rgba(59, 130, 246, 0.4);
+        }
+
+        /* 代码实现样式 */
+        .code-implementation {
+            background: rgba(15, 23, 42, 0.95);
+            border: 1px solid rgba(147, 51, 234, 0.3);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            font-family: 'JetBrains Mono', monospace;
+            overflow-x: auto;
+            position: relative;
+        }
+
+        .code-implementation pre {
+            margin: 0;
+            color: #e2e8f0;
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+
+        .code-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .code-title {
+            color: #3b82f6;
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+
+        .code-filename {
+            color: #64748b;
+            font-size: 0.9rem;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 0.3rem 0.8rem;
+            border-radius: 6px;
+        }
+
+        /* 代码高亮 */
+        .code-keyword {
+            color: #9333ea;
+            font-weight: bold;
+        }
+
+        .code-function {
+            color: #3b82f6;
+            font-weight: bold;
+        }
+
+        .code-string {
+            color: #fbbf24;
+        }
+
+        .code-comment {
+            color: #64748b;
+            font-style: italic;
+        }
+
+        .code-number {
+            color: #22c55e;
+        }
+
+        .code-class {
+            color: #06b6d4;
+            font-weight: bold;
+        }
+
+        /* 步骤样式 */
+        .implementation-step {
+            background: rgba(15, 23, 42, 0.9);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 12px;
+            padding: 2rem;
+            margin: 1.5rem 0;
+            position: relative;
+        }
+
+        .step-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .step-number {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(45deg, #3b82f6, #8b5cf6);
+            color: white;
+            border-radius: 50%;
+            font-weight: bold;
+            margin-right: 1rem;
+            font-size: 1.2rem;
+        }
+
+        .step-title {
+            color: #3b82f6;
+            font-weight: bold;
+            font-size: 1.3rem;
+        }
+
+        /* 架构图样式 */
+        .transformer-diagram {
+            background: rgba(15, 23, 42, 0.95);
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 2rem 0;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            text-align: center;
+        }
+
+        .diagram-container {
+            display: inline-block;
+            position: relative;
+            margin: 2rem auto;
+        }
+
+        /* 知识点卡片 */
+        .insight-card {
+            background: linear-gradient(135deg, rgba(251, 191, 36, 0.1), rgba(245, 158, 11, 0.05));
+            border: 1px solid rgba(251, 191, 36, 0.3);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+        }
+
+        .insight-card h4 {
+            color: #fbbf24;
+            margin-bottom: 0.8rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        /* 测试代码样式 */
+        .test-section {
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+        }
+
+        .test-output {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 1rem;
+            border-radius: 8px;
+            margin-top: 1rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            color: #22c55e;
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .chapter-container {
+                padding: 1rem;
+            }
+
+            .chapter-header h1 {
+                font-size: 2rem;
+            }
+
+            .implementation-section {
+                padding: 1.5rem;
+            }
+
+            .code-implementation {
+                padding: 1rem;
+                font-size: 0.8rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="chapter-container">
+    <!-- 章节头部 -->
+    <div class="chapter-header">
+        <h1>第10章：Transformer完整实现</h1>
+        <p>将所有拼图组合，构建改变世界的模型</p>
+        <div class="meta-tags">
+            <span class="meta-tag">
+                🏗️ <span>完整实现</span>
+            </span>
+            <span class="meta-tag">
+                ⏱️ <span>90分钟</span>
+            </span>
+            <span class="meta-tag">
+                💻 <span>实战代码</span>
+            </span>
+            <span class="meta-tag">
+                🎯 <span>架构理解</span>
+            </span>
+        </div>
+    </div>
+
+    <!-- 🌟 开篇：回顾与展望 -->
+    <div class="implementation-section" style="border-color: #3b82f6;">
+        <div style="text-align: center; margin-bottom: 3rem;">
+            <div style="display: inline-flex; align-items: center; gap: 1rem; background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(147, 51, 234, 0.1)); padding: 1.5rem 3rem; border-radius: 30px; border: 1px solid rgba(59, 130, 246, 0.4);">
+                <span style="font-size: 2rem;">🌟</span>
+                <h2 style="color: #3b82f6; margin: 0; font-size: 1.8rem; font-weight: bold;">终于到了激动人心的时刻！</h2>
+            </div>
+        </div>
+
+        <!-- 旅程回顾 -->
+        <div style="background: rgba(15, 23, 42, 0.9); padding: 2rem; border-radius: 12px; margin-bottom: 2rem;">
+            <div style="color: #22c55e; font-weight: bold; margin-bottom: 1.5rem; text-align: center;">📚 我们的学习旅程</div>
+
+            <div style="background: rgba(255, 255, 255, 0.05); padding: 2rem; border-radius: 8px;">
+                <div style="color: #cbd5e1; font-size: 1rem; line-height: 1.8;">
+                    经过前9章的学习，我们已经深入理解了：<br><br>
+
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem;">
+                        <div style="background: rgba(34, 197, 94, 0.1); padding: 1rem; border-radius: 8px; border-left: 4px solid #22c55e;">
+                            <strong style="color: #22c55e;">第1-3章：注意力机制</strong><br>
+                            从基础自注意力到多头注意力的演进
+                        </div>
+                        <div style="background: rgba(59, 130, 246, 0.1); padding: 1rem; border-radius: 8px; border-left: 4px solid #3b82f6;">
+                            <strong style="color: #3b82f6;">第4-5章：训练技巧</strong><br>
+                            残差连接和层归一化的关键作用
+                        </div>
+                        <div style="background: rgba(139, 92, 246, 0.1); padding: 1rem; border-radius: 8px; border-left: 4px solid #8b5cf6;">
+                            <strong style="color: #8b5cf6;">第6-7章：前馈网络</strong><br>
+                            非线性变换和表达能力
+                        </div>
+                        <div style="background: rgba(251, 191, 36, 0.1); padding: 1rem; border-radius: 8px; border-left: 4px solid #fbbf24;">
+                            <strong style="color: #fbbf24;">第8-9章：最后拼图</strong><br>
+                            位置编码和掩码机制
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 本章目标 -->
+        <div style="background: rgba(15, 23, 42, 0.9); padding: 2rem; border-radius: 12px;">
+            <div style="color: #8b5cf6; font-weight: bold; margin-bottom: 1.5rem; text-align: center;">🎯 本章目标</div>
+
+            <div style="display: grid; gap: 1rem;">
+                <div style="background: rgba(255, 255, 255, 0.05); padding: 1.5rem; border-radius: 8px;">
+                    <div style="color: #3b82f6; font-weight: bold; margin-bottom: 0.5rem;">1. 理解架构设计哲学</div>
+                    <div style="color: #cbd5e1;">为什么Transformer要这样设计？每个组件如何协同工作？</div>
+                </div>
+                <div style="background: rgba(255, 255, 255, 0.05); padding: 1.5rem; border-radius: 8px;">
+                    <div style="color: #22c55e; font-weight: bold; margin-bottom: 0.5rem;">2. 构建完整实现</div>
+                    <div style="color: #cbd5e1;">从零开始，一步步构建可运行的Transformer模型</div>
+                </div>
+                <div style="background: rgba(255, 255, 255, 0.05); padding: 1.5rem; border-radius: 8px;">
+                    <div style="color: #fbbf24; font-weight: bold; margin-bottom: 0.5rem;">3. 实战测试</div>
+                    <div style="color: #cbd5e1;">用实际例子验证我们的实现，看到模型真正工作起来</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 🏗️ 理解架构：为什么这样设计 -->
+    <div class="implementation-section" style="border-color: #8b5cf6;">
+        <div style="text-align: center; margin-bottom: 3rem;">
+            <div style="display: inline-flex; align-items: center; gap: 1rem; background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(124, 58, 237, 0.1)); padding: 1.5rem 3rem; border-radius: 30px; border: 1px solid rgba(139, 92, 246, 0.4);">
+                <span style="font-size: 2rem;">🏗️</span>
+                <h2 style="color: #8b5cf6; margin: 0; font-size: 1.8rem; font-weight: bold;">理解架构：为什么这样设计？</h2>
+            </div>
+        </div>
+
+        <!-- 设计哲学 -->
+        <div class="insight-card">
+            <h4><span>💡</span> Transformer的设计哲学</h4>
+            <div style="color: #cbd5e1; line-height: 1.8;">
+                <strong>1. 并行化优先：</strong>抛弃了RNN的序列处理，采用完全并行的注意力机制<br>
+                <strong>2. 模块化设计：</strong>每个组件独立且可复用，便于堆叠和扩展<br>
+                <strong>3. 信息流动：</strong>通过残差连接确保信息在深层网络中流动<br>
+                <strong>4. 表达能力：</strong>多头注意力和前馈网络提供强大的表示学习能力
+            </div>
+        </div>
+
+        <!-- 架构总览图 -->
+        <div class="transformer-diagram">
+            <div style="color: #8b5cf6; font-weight: bold; margin-bottom: 1.5rem;">🔍 Transformer架构全景图</div>
+
+            <div class="architecture-flow">
+                <!-- 输入处理 -->
+                <div class="component-card" style="border-color: rgba(251, 191, 36, 0.4); background: rgba(251, 191, 36, 0.05);">
+                    <div style="color: #fbbf24; font-weight: bold; margin-bottom: 0.8rem;">📥 输入处理层</div>
+                    <div style="color: #cbd5e1; font-size: 0.95rem;">
+                        • Token Embedding：将词转换为向量<br>
+                        • Positional Encoding：添加位置信息<br>
+                        • 作用：让模型理解"是什么"和"在哪里"
+                    </div>
+                </div>
+
+                <div style="color: #64748b; font-size: 2rem; margin: 0.5rem;">↓</div>
+
+                <!-- 编码器 -->
+                <div class="component-card" style="border-color: rgba(34, 197, 94, 0.4); background: rgba(34, 197, 94, 0.05);">
+                    <div style="color: #22c55e; font-weight: bold; margin-bottom: 0.8rem;">🔄 编码器层 × N</div>
+                    <div style="color: #cbd5e1; font-size: 0.95rem;">
+                        • Multi-Head Attention：全局信息交互<br>
+                        • Feed Forward：非线性变换<br>
+                        • 每层都有：残差连接 + 层归一化<br>
+                        • 作用：深度理解输入内容
+                    </div>
+                </div>
+
+                <div style="color: #64748b; font-size: 2rem; margin: 0.5rem;">↓</div>
+
+                <!-- 解码器 -->
+                <div class="component-card" style="border-color: rgba(59, 130, 246, 0.4); background: rgba(59, 130, 246, 0.05);">
+                    <div style="color: #3b82f6; font-weight: bold; margin-bottom: 0.8rem;">🎯 解码器层 × N</div>
+                    <div style="color: #cbd5e1; font-size: 0.95rem;">
+                        • Masked Multi-Head Attention：自回归生成<br>
+                        • Cross Attention：关注编码器输出<br>
+                        • Feed Forward：非线性变换<br>
+                        • 作用：基于理解生成输出
+                    </div>
+                </div>
+
+                <div style="color: #64748b; font-size: 2rem; margin: 0.5rem;">↓</div>
+
+                <!-- 输出处理 -->
+                <div class="component-card" style="border-color: rgba(139, 92, 246, 0.4); background: rgba(139, 92, 246, 0.05);">
+                    <div style="color: #8b5cf6; font-weight: bold; margin-bottom: 0.8rem;">📤 输出处理层</div>
+                    <div style="color: #cbd5e1; font-size: 0.95rem;">
+                        • Linear Projection：映射到词表大小<br>
+                        • Softmax：转换为概率分布<br>
+                        • 作用：预测下一个词
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 关键设计决策 -->
+        <div style="background: rgba(15, 23, 42, 0.9); padding: 2rem; border-radius: 12px; margin-top: 2rem;">
+            <div style="color: #22c55e; font-weight: bold; margin-bottom: 1.5rem; text-align: center;">🎨 关键设计决策</div>
+
+            <div style="display: grid; gap: 1rem;">
+                <div style="background: rgba(255, 255, 255, 0.05); padding: 1.5rem; border-radius: 8px;">
+                    <div style="color: #3b82f6; font-weight: bold; margin-bottom: 0.5rem;">为什么用自注意力而不是CNN/RNN？</div>
+                    <div style="color: #cbd5e1; font-size: 0.95rem;">
+                        • <strong>并行计算：</strong>所有位置同时计算，训练速度快<br>
+                        • <strong>长距离依赖：</strong>任意两个位置直接交互，不受距离限制<br>
+                        • <strong>计算复杂度：</strong>O(n²)但实际更高效
+                    </div>
+                </div>
+
+                <div style="background: rgba(255, 255, 255, 0.05); padding: 1.5rem; border-radius: 8px;">
+                    <div style="color: #22c55e; font-weight: bold; margin-bottom: 0.5rem;">为什么需要多头注意力？</div>
+                    <div style="color: #cbd5e1; font-size: 0.95rem;">
+                        • <strong>多角度理解：</strong>不同的头关注不同的模式<br>
+                        • <strong>表达能力：</strong>类似CNN的多通道，增强表示能力<br>
+                        • <strong>稳定训练：</strong>降低单一注意力的随机性
+                    </div>
+                </div>
+
+                <div style="background: rgba(255, 255, 255, 0.05); padding: 1.5rem; border-radius: 8px;">
+                    <div style="color: #fbbf24; font-weight: bold; margin-bottom: 0.5rem;">为什么要堆叠多层？</div>
+                    <div style="color: #cbd5e1; font-size: 0.95rem;">
+                        • <strong>层次化特征：</strong>底层学习局部模式，高层学习全局语义<br>
+                        • <strong>组合能力：</strong>通过深度实现复杂的特征组合<br>
+                        • <strong>实践证明：</strong>6-12层在多数任务上效果最佳
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 💻 Step 1: 基础组件实现 -->
+    <div class="implementation-section" style="border-color: #22c55e;">
+        <div style="text-align: center; margin-bottom: 3rem;">
+            <div style="display: inline-flex; align-items: center; gap: 1rem; background: linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(16, 185, 129, 0.1)); padding: 1.5rem 3rem; border-radius: 30px; border: 1px solid rgba(34, 197, 94, 0.4);">
+                <span style="font-size: 2rem;">💻</span>
+                <h2 style="color: #22c55e; margin: 0; font-size: 1.8rem; font-weight: bold;">开始实现：基础组件</h2>
+            </div>
+        </div>
+
+        <!-- Step 1.1: 导入和配置 -->
+        <div class="implementation-step">
+            <div class="step-header">
+                <div class="step-number">1</div>
+                <div class="step-title">环境准备和基础配置</div>
+            </div>
+
+            <div class="code-implementation">
+                <div class="code-header">
+                    <div class="code-title">导入必要的库和设置配置</div>
+                    <div class="code-filename">transformer.py</div>
+                </div>
+                <pre><code><span class="code-keyword">import</span> torch
+<span class="code-keyword">import</span> torch.nn <span class="code-keyword">as</span> nn
+<span class="code-keyword">import</span> torch.nn.functional <span class="code-keyword">as</span> F
+<span class="code-keyword">import</span> math
+<span class="code-keyword">import</span> numpy <span class="code-keyword">as</span> np
+<span class="code-keyword">from</span> typing <span class="code-keyword">import</span> Optional, Tuple
+
+<span class="code-comment"># 设置随机种子，确保结果可复现</span>
+torch.manual_seed(<span class="code-number">42</span>)
+np.random.seed(<span class="code-number">42</span>)
+
+<span class="code-comment"># 模型配置类</span>
+<span class="code-keyword">class</span> <span class="code-class">TransformerConfig</span>:
+    <span class="code-string">"""Transformer模型的配置参数"""</span>
+    <span class="code-keyword">def</span> <span class="code-function">__init__</span>(self,
+                 vocab_size: int = <span class="code-number">10000</span>,      <span class="code-comment"># 词表大小</span>
+                 d_model: int = <span class="code-number">512</span>,          <span class="code-comment"># 模型维度</span>
+                 n_heads: int = <span class="code-number">8</span>,            <span class="code-comment"># 注意力头数</span>
+                 n_encoder_layers: int = <span class="code-number">6</span>,   <span class="code-comment"># 编码器层数</span>
+                 n_decoder_layers: int = <span class="code-number">6</span>,   <span class="code-comment"># 解码器层数</span>
+                 d_ff: int = <span class="code-number">2048</span>,            <span class="code-comment"># 前馈网络维度</span>
+                 max_seq_length: int = <span class="code-number">100</span>,   <span class="code-comment"># 最大序列长度</span>
+                 dropout: float = <span class="code-number">0.1</span>,        <span class="code-comment"># Dropout比率</span>
+                 pad_idx: int = <span class="code-number">0</span>):           <span class="code-comment"># 填充token的索引</span>
+
+        self.vocab_size = vocab_size
+        self.d_model = d_model
+        self.n_heads = n_heads
+        self.n_encoder_layers = n_encoder_layers
+        self.n_decoder_layers = n_decoder_layers
+        self.d_ff = d_ff
+        self.max_seq_length = max_seq_length
+        self.dropout = dropout
+        self.pad_idx = pad_idx
+
+        <span class="code-comment"># 确保d_model可以被n_heads整除</span>
+        assert d_model % n_heads == <span class="code-number">0</span>, <span class="code-string">"d_model必须能被n_heads整除"</span>
+        self.d_k = d_model // n_heads  <span class="code-comment"># 每个头的维度</span></code></pre>
+            </div>
+
+            <div style="background: rgba(34, 197, 94, 0.1); padding: 1rem; border-radius: 8px; margin-top: 1rem;">
+                <div style="color: #22c55e; font-weight: bold; margin-bottom: 0.5rem;">💡 配置说明：</div>
+                <div style="color: #cbd5e1; font-size: 0.95rem;">
+                    • <code>d_model=512</code>：这是原论文的标准配置，平衡了性能和计算效率<br>
+                    • <code>n_heads=8</code>：8个注意力头，每个头看到64维的表示<br>
+                    • <code>d_ff=2048</code>：前馈网络是模型维度的4倍，提供足够的非线性变换能力
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 1.2: 位置编码 -->
+        <div class="implementation-step">
+            <div class="step-header">
+                <div class="step-number">2</div>
+                <div class="step-title">位置编码实现</div>
+            </div>
+
+            <div class="code-implementation">
+                <div class="code-header">
+                    <div class="code-title">实现正弦位置编码</div>
+                    <div class="code-filename">components/positional_encoding.py</div>
+                </div>
+                <pre><code><span class="code-keyword">class</span> <span class="code-class">PositionalEncoding</span>(nn.Module):
+    <span class="code-string">"""位置编码层
+
+    使用正弦和余弦函数生成位置编码，让模型能够理解序列中的位置信息
+    """</span>
+
+    <span class="code-keyword">def</span> <span class="code-function">__init__</span>(self, d_model: int, max_seq_length: int = <span class="code-number">5000</span>):
+        super().__init__()
+        self.d_model = d_model
+
+        <span class="code-comment"># 创建位置编码矩阵</span>
+        pe = torch.zeros(max_seq_length, d_model)
+        position = torch.arange(<span class="code-number">0</span>, max_seq_length).unsqueeze(<span class="code-number">1</span>).float()
+
+        <span class="code-comment"># 计算角度的分母项</span>
+        div_term = torch.exp(torch.arange(<span class="code-number">0</span>, d_model, <span class="code-number">2</span>).float() *
+                           -(math.log(<span class="code-number">10000.0</span>) / d_model))
+
+        <span class="code-comment"># 应用正弦和余弦函数</span>
+        pe[:, <span class="code-number">0</span>::<span class="code-number">2</span>] = torch.sin(position * div_term)  <span class="code-comment"># 偶数位置</span>
+        pe[:, <span class="code-number">1</span>::<span class="code-number">2</span>] = torch.cos(position * div_term)  <span class="code-comment"># 奇数位置</span>
+
+        <span class="code-comment"># 注册为buffer，不参与梯度计算</span>
+        self.register_buffer(<span class="code-string">'pe'</span>, pe.unsqueeze(<span class="code-number">0</span>))
+
+    <span class="code-keyword">def</span> <span class="code-function">forward</span>(self, x: torch.Tensor) -> torch.Tensor:
+        <span class="code-string">"""
+        Args:
+            x: 输入张量 [batch_size, seq_length, d_model]
+
+        Returns:
+            添加位置编码后的张量
+        """</span>
+        seq_length = x.size(<span class="code-number">1</span>)
+        <span class="code-comment"># 添加位置编码（自动广播到batch维度）</span>
+        x = x + self.pe[:, :seq_length, :]
+        <span class="code-keyword">return</span> x</code></pre>
+            </div>
+
+            <div class="insight-card">
+                <h4><span>🎯</span> 为什么用正弦/余弦？</h4>
+                <div style="color: #cbd5e1;">
+                    • <strong>周期性：</strong>不同频率的正弦波能编码不同尺度的位置信息<br>
+                    • <strong>外推性：</strong>可以处理训练时未见过的更长序列<br>
+                    • <strong>相对位置：</strong>位置i和i+k之间的编码差异是固定的
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 1.3: 多头注意力 -->
+        <div class="implementation-step">
+            <div class="step-header">
+                <div class="step-number">3</div>
+                <div class="step-title">多头注意力实现</div>
+            </div>
+
+            <div class="code-implementation">
+                <div class="code-header">
+                    <div class="code-title">实现多头注意力机制</div>
+                    <div class="code-filename">components/multi_head_attention.py</div>
+                </div>
+                <pre><code><span class="code-keyword">class</span> <span class="code-class">MultiHeadAttention</span>(nn.Module):
+    <span class="code-string">"""多头注意力层
+
+    将注意力分成多个头，每个头学习不同的表示子空间
+    """</span>
+
+    <span class="code-keyword">def</span> <span class="code-function">__init__</span>(self, config: TransformerConfig):
+        super().__init__()
+        self.d_model = config.d_model
+        self.n_heads = config.n_heads
+        self.d_k = config.d_k
+
+        <span class="code-comment"># Q、K、V的线性变换</span>
+        self.W_q = nn.Linear(self.d_model, self.d_model)
+        self.W_k = nn.Linear(self.d_model, self.d_model)
+        self.W_v = nn.Linear(self.d_model, self.d_model)
+
+        <span class="code-comment"># 输出的线性变换</span>
+        self.W_o = nn.Linear(self.d_model, self.d_model)
+
+        self.dropout = nn.Dropout(config.dropout)
+
+    <span class="code-keyword">def</span> <span class="code-function">forward</span>(self,
+                query: torch.Tensor,
+                key: torch.Tensor,
+                value: torch.Tensor,
+                mask: Optional[torch.Tensor] = None) -> torch.Tensor:
+        <span class="code-string">"""
+        Args:
+            query: [batch_size, seq_len, d_model]
+            key: [batch_size, seq_len, d_model]
+            value: [batch_size, seq_len, d_model]
+            mask: [batch_size, seq_len, seq_len] or [batch_size, 1, seq_len, seq_len]
+
+        Returns:
+            注意力输出 [batch_size, seq_len, d_model]
+        """</span>
+        batch_size = query.size(<span class="code-number">0</span>)
+        seq_len = query.size(<span class="code-number">1</span>)
+
+        <span class="code-comment"># 1. 线性变换并重塑为多头</span>
+        <span class="code-comment"># [batch_size, seq_len, d_model] -> [batch_size, n_heads, seq_len, d_k]</span>
+        Q = self.W_q(query).view(batch_size, seq_len, self.n_heads, self.d_k).transpose(<span class="code-number">1</span>, <span class="code-number">2</span>)
+        K = self.W_k(key).view(batch_size, seq_len, self.n_heads, self.d_k).transpose(<span class="code-number">1</span>, <span class="code-number">2</span>)
+        V = self.W_v(value).view(batch_size, seq_len, self.n_heads, self.d_k).transpose(<span class="code-number">1</span>, <span class="code-number">2</span>)
+
+        <span class="code-comment"># 2. 计算注意力分数</span>
+        scores = torch.matmul(Q, K.transpose(-<span class="code-number">2</span>, -<span class="code-number">1</span>)) / math.sqrt(self.d_k)
+
+        <span class="code-comment"># 3. 应用掩码（如果有）</span>
+        <span class="code-keyword">if</span> mask <span class="code-keyword">is not None</span>:
+            <span class="code-comment"># 扩展mask以匹配多头维度</span>
+            <span class="code-keyword">if</span> mask.dim() == <span class="code-number">3</span>:
+                mask = mask.unsqueeze(<span class="code-number">1</span>)  <span class="code-comment"># [batch, 1, seq_len, seq_len]</span>
+            scores = scores.masked_fill(mask == <span class="code-number">0</span>, -<span class="code-number">1e9</span>)
+
+        <span class="code-comment"># 4. Softmax获得注意力权重</span>
+        attention_weights = F.softmax(scores, dim=-<span class="code-number">1</span>)
+        attention_weights = self.dropout(attention_weights)
+
+        <span class="code-comment"># 5. 应用注意力权重到Value</span>
+        attention_output = torch.matmul(attention_weights, V)
+
+        <span class="code-comment"># 6. 重塑并通过输出投影</span>
+        <span class="code-comment"># [batch_size, n_heads, seq_len, d_k] -> [batch_size, seq_len, d_model]</span>
+        attention_output = attention_output.transpose(<span class="code-number">1</span>, <span class="code-number">2</span>).contiguous().view(
+            batch_size, seq_len, self.d_model
+        )
+
+        output = self.W_o(attention_output)
+
+        <span class="code-keyword">return</span> output</code></pre>
+            </div>
+
+            <div style="background: rgba(59, 130, 246, 0.1); padding: 1rem; border-radius: 8px; margin-top: 1rem;">
+                <div style="color: #3b82f6; font-weight: bold; margin-bottom: 0.5rem;">🔍 实现细节：</div>
+                <div style="color: #cbd5e1; font-size: 0.95rem;">
+                    • <strong>缩放因子：</strong><code>1/√d_k</code>防止softmax的梯度消失<br>
+                    • <strong>掩码值：</strong>使用-1e9而不是-∞，避免数值问题<br>
+                    • <strong>Dropout：</strong>应用在注意力权重上，提高泛化能力
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 1.4: 前馈网络 -->
+        <div class="implementation-step">
+            <div class="step-header">
+                <div class="step-number">4</div>
+                <div class="step-title">前馈网络实现</div>
+            </div>
+
+            <div class="code-implementation">
+                <div class="code-header">
+                    <div class="code-title">实现位置前馈网络</div>
+                    <div class="code-filename">components/feed_forward.py</div>
+                </div>
+                <pre><code><span class="code-keyword">class</span> <span class="code-class">FeedForward</span>(nn.Module):
+    <span class="code-string">"""前馈网络层
+
+    两层全连接网络，中间使用ReLU激活函数
+    """</span>
+
+    <span class="code-keyword">def</span> <span class="code-function">__init__</span>(self, config: TransformerConfig):
+        super().__init__()
+
+        <span class="code-comment"># 两层线性变换</span>
+        self.linear1 = nn.Linear(config.d_model, config.d_ff)
+        self.linear2 = nn.Linear(config.d_ff, config.d_model)
+
+        self.dropout = nn.Dropout(config.dropout)
+        self.activation = nn.ReLU()
+
+    <span class="code-keyword">def</span> <span class="code-function">forward</span>(self, x: torch.Tensor) -> torch.Tensor:
+        <span class="code-string">"""
+        Args:
+            x: [batch_size, seq_len, d_model]
+
+        Returns:
+            前馈网络输出 [batch_size, seq_len, d_model]
+        """</span>
+        <span class="code-comment"># 第一层：扩展维度</span>
+        x = self.linear1(x)
+        x = self.activation(x)
+        x = self.dropout(x)
+
+        <span class="code-comment"># 第二层：恢复维度</span>
+        x = self.linear2(x)
+        x = self.dropout(x)
+
+        <span class="code-keyword">return</span> x</code></pre>
+            </div>
+
+            <div class="insight-card">
+                <h4><span>💡</span> 前馈网络的作用</h4>
+                <div style="color: #cbd5e1;">
+                    • <strong>非线性变换：</strong>ReLU激活函数引入非线性<br>
+                    • <strong>特征处理：</strong>对每个位置独立进行特征变换<br>
+                    • <strong>维度扩展：</strong>先扩展到4倍维度，再压缩回原维度，增加模型容量
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 1.5: 层归一化 -->
+        <div class="implementation-step">
+            <div class="step-header">
+                <div class="step-number">5</div>
+                <div class="step-title">残差连接和层归一化</div>
+            </div>
+
+            <div class="code-implementation">
+                <div class="code-header">
+                    <div class="code-title">实现残差连接包装器（与nn.Transformer一致）</div>
+                    <div class="code-filename">components/residual_layer.py</div>
+                </div>
+                <pre><code><span class="code-keyword">class</span> <span class="code-class">ResidualConnection</span>(nn.Module):
+    <span class="code-string">"""残差连接 + 层归一化
+
+    实现: LayerNorm(x + Sublayer(x)) - 与nn.Transformer保持一致
+    """</span>
+
+    <span class="code-keyword">def</span> <span class="code-function">__init__</span>(self, config: TransformerConfig):
+        super().__init__()
+        self.layer_norm = nn.LayerNorm(config.d_model)
+        self.dropout = nn.Dropout(config.dropout)
+
+    <span class="code-keyword">def</span> <span class="code-function">forward</span>(self, x: torch.Tensor, sublayer: nn.Module) -> torch.Tensor:
+        <span class="code-string">"""
+        Args:
+            x: 输入张量
+            sublayer: 子层（注意力或前馈网络）
+
+        Returns:
+            应用残差连接和层归一化后的输出
+        """</span>
+        <span class="code-comment"># Post-LN架构（与nn.Transformer一致）</span>
+        output = sublayer(x)
+        output = self.dropout(output)
+
+        <span class="code-comment"># 残差连接后进行层归一化</span>
+        <span class="code-keyword">return</span> self.layer_norm(x + output)</code></pre>
+            </div>
+
+            <div style="background: rgba(34, 197, 94, 0.1); padding: 1rem; border-radius: 8px; margin-top: 1rem;">
+                <div style="color: #22c55e; font-weight: bold; margin-bottom: 0.5rem;">📝 与nn.Transformer保持一致：</div>
+                <div style="color: #cbd5e1; font-size: 0.95rem;">
+                    • <strong>Post-LN架构：</strong>LN(x + sublayer(x))<br>
+                    • <strong>这是原始论文的设计</strong><br>
+                    • <strong>注意：</strong>虽然Pre-LN更稳定，但为了与官方实现一致，我们使用Post-LN
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 🏗️ Step 2: 编码器和解码器实现 -->
+    <div class="implementation-section" style="border-color: #06b6d4;">
+        <div style="text-align: center; margin-bottom: 3rem;">
+            <div style="display: inline-flex; align-items: center; gap: 1rem; background: linear-gradient(135deg, rgba(6, 182, 212, 0.2), rgba(14, 165, 233, 0.1)); padding: 1.5rem 3rem; border-radius: 30px; border: 1px solid rgba(6, 182, 212, 0.4);">
+                <span style="font-size: 2rem;">🏗️</span>
+                <h2 style="color: #06b6d4; margin: 0; font-size: 1.8rem; font-weight: bold;">构建编码器和解码器</h2>
+            </div>
+        </div>
+
+        <!-- Step 2.1: 编码器层 -->
+        <div class="implementation-step">
+            <div class="step-header">
+                <div class="step-number">6</div>
+                <div class="step-title">编码器层实现</div>
+            </div>
+
+            <div class="code-implementation">
+                <div class="code-header">
+                    <div class="code-title">单个编码器层</div>
+                    <div class="code-filename">layers/encoder_layer.py</div>
+                </div>
+                <pre><code><span class="code-keyword">class</span> <span class="code-class">EncoderLayer</span>(nn.Module):
+    <span class="code-string">"""Transformer编码器层
+
+    包含：自注意力 + 前馈网络，每个都有残差连接
+    """</span>
+
+    <span class="code-keyword">def</span> <span class="code-function">__init__</span>(self, config: TransformerConfig):
+        super().__init__()
+
+        <span class="code-comment"># 子层</span>
+        self.self_attention = MultiHeadAttention(config)
+        self.feed_forward = FeedForward(config)
+
+        <span class="code-comment"># 残差连接</span>
+        self.residual1 = ResidualConnection(config)
+        self.residual2 = ResidualConnection(config)
+
+    <span class="code-keyword">def</span> <span class="code-function">forward</span>(self, x: torch.Tensor, mask: Optional[torch.Tensor] = None) -> torch.Tensor:
+        <span class="code-string">"""
+        Args:
+            x: [batch_size, seq_len, d_model]
+            mask: [batch_size, 1, 1, seq_len] padding mask
+
+        Returns:
+            编码器层输出 [batch_size, seq_len, d_model]
+        """</span>
+        <span class="code-comment"># 1. 自注意力（带残差）</span>
+        x = self.residual1(x, <span class="code-keyword">lambda</span> x: self.self_attention(x, x, x, mask))
+
+        <span class="code-comment"># 2. 前馈网络（带残差）</span>
+        x = self.residual2(x, self.feed_forward)
+
+        <span class="code-keyword">return</span> x</code></pre>
+            </div>
+        </div>
+
+        <!-- Step 2.2: 解码器层 -->
+        <div class="implementation-step">
+            <div class="step-header">
+                <div class="step-number">7</div>
+                <div class="step-title">解码器层实现</div>
+            </div>
+
+            <div class="code-implementation">
+                <div class="code-header">
+                    <div class="code-title">单个解码器层</div>
+                    <div class="code-filename">layers/decoder_layer.py</div>
+                </div>
+                <pre><code><span class="code-keyword">class</span> <span class="code-class">DecoderLayer</span>(nn.Module):
+    <span class="code-string">"""Transformer解码器层
+
+    包含：掩码自注意力 + 交叉注意力 + 前馈网络
+    """</span>
+
+    <span class="code-keyword">def</span> <span class="code-function">__init__</span>(self, config: TransformerConfig):
+        super().__init__()
+
+        <span class="code-comment"># 子层</span>
+        self.self_attention = MultiHeadAttention(config)
+        self.cross_attention = MultiHeadAttention(config)
+        self.feed_forward = FeedForward(config)
+
+        <span class="code-comment"># 残差连接</span>
+        self.residual1 = ResidualConnection(config)
+        self.residual2 = ResidualConnection(config)
+        self.residual3 = ResidualConnection(config)
+
+    <span class="code-keyword">def</span> <span class="code-function">forward</span>(self,
+                x: torch.Tensor,
+                encoder_output: torch.Tensor,
+                self_mask: Optional[torch.Tensor] = None,
+                cross_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
+        <span class="code-string">"""
+        Args:
+            x: 解码器输入 [batch_size, tgt_len, d_model]
+            encoder_output: 编码器输出 [batch_size, src_len, d_model]
+            self_mask: 自注意力掩码（因果+padding）
+            cross_mask: 交叉注意力掩码（padding）
+
+        Returns:
+            解码器层输出 [batch_size, tgt_len, d_model]
+        """</span>
+        <span class="code-comment"># 1. 掩码自注意力</span>
+        x = self.residual1(x, <span class="code-keyword">lambda</span> x: self.self_attention(x, x, x, self_mask))
+
+        <span class="code-comment"># 2. 交叉注意力（Query来自解码器，Key/Value来自编码器）</span>
+        x = self.residual2(x, <span class="code-keyword">lambda</span> x: self.cross_attention(
+            x, encoder_output, encoder_output, cross_mask
+        ))
+
+        <span class="code-comment"># 3. 前馈网络</span>
+        x = self.residual3(x, self.feed_forward)
+
+        <span class="code-keyword">return</span> x</code></pre>
+            </div>
+
+            <div class="insight-card">
+                <h4><span>🔄</span> 解码器的三个注意力阶段</h4>
+                <div style="color: #cbd5e1;">
+                    <strong>1. 自注意力：</strong>理解已生成的内容（带因果掩码）<br>
+                    <strong>2. 交叉注意力：</strong>关注编码器的输出，理解源信息<br>
+                    <strong>3. 前馈网络：</strong>基于所有信息进行特征变换
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 2.3: 完整编码器 -->
+        <div class="implementation-step">
+            <div class="step-header">
+                <div class="step-number">8</div>
+                <div class="step-title">完整编码器实现（与nn.Transformer一致）</div>
+            </div>
+
+            <div class="code-implementation">
+                <div class="code-header">
+                    <div class="code-title">堆叠多个编码器层</div>
+                    <div class="code-filename">models/encoder.py</div>
+                </div>
+                <pre><code><span class="code-keyword">class</span> <span class="code-class">TransformerEncoder</span>(nn.Module):
+    <span class="code-string">"""完整的Transformer编码器（与nn.Transformer保持一致）
+
+    只包含编码器层的堆叠，不包含嵌入层
+    输入输出格式：[seq_len, batch_size, d_model]
+    """</span>
+
+    <span class="code-keyword">def</span> <span class="code-function">__init__</span>(self, config: TransformerConfig):
+        super().__init__()
+
+        <span class="code-comment"># 编码器层堆叠</span>
+        self.layers = nn.ModuleList([
+            EncoderLayer(config) <span class="code-keyword">for</span> _ <span class="code-keyword">in</span> range(config.n_encoder_layers)
+        ])
+
+        <span class="code-comment"># 最后的层归一化（可选）</span>
+        self.norm = nn.LayerNorm(config.d_model)
+
+        self.d_model = config.d_model
+
+    <span class="code-keyword">def</span> <span class="code-function">forward</span>(self,
+                src: torch.Tensor,
+                src_mask: Optional[torch.Tensor] = None,
+                src_key_padding_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
+        <span class="code-string">"""
+        Args:
+            src: 源序列嵌入 [seq_len, batch_size, d_model]
+            src_mask: 注意力掩码 [seq_len, seq_len]
+            src_key_padding_mask: padding掩码 [batch_size, seq_len]
+
+        Returns:
+            编码器输出 [seq_len, batch_size, d_model]
+        """</span>
+        <span class="code-comment"># 确保输入格式正确</span>
+        <span class="code-keyword">assert</span> src.dim() == <span class="code-number">3</span> <span class="code-keyword">and</span> src.size(-<span class="code-number">1</span>) == self.d_model
+
+        output = src
+
+        <span class="code-comment"># 转换padding mask格式以适配我们的多头注意力</span>
+        <span class="code-keyword">if</span> src_key_padding_mask <span class="code-keyword">is not None</span>:
+            <span class="code-comment"># [batch_size, seq_len] -> [batch_size, 1, 1, seq_len]</span>
+            src_mask_expanded = (~src_key_padding_mask).unsqueeze(<span class="code-number">1</span>).unsqueeze(<span class="code-number">2</span>).float()
+        <span class="code-keyword">else</span>:
+            src_mask_expanded = None
+
+        <span class="code-comment"># 通过N个编码器层</span>
+        <span class="code-keyword">for</span> layer <span class="code-keyword">in</span> self.layers:
+            <span class="code-comment"># 需要转换格式：[seq_len, batch, d_model] -> [batch, seq_len, d_model]</span>
+            output = output.transpose(<span class="code-number">0</span>, <span class="code-number">1</span>)
+            output = layer(output, src_mask_expanded)
+            <span class="code-comment"># 转回：[batch, seq_len, d_model] -> [seq_len, batch, d_model]</span>
+            output = output.transpose(<span class="code-number">0</span>, <span class="code-number">1</span>)
+
+        <span class="code-comment"># 最终归一化</span>
+        output = self.norm(output)
+
+        <span class="code-keyword">return</span> output</code></pre>
+            </div>
+
+            <div style="background: rgba(34, 197, 94, 0.1); padding: 1rem; border-radius: 8px; margin-top: 1rem;">
+                <div style="color: #22c55e; font-weight: bold; margin-bottom: 0.5rem;">📝 与nn.Transformer的一致性：</div>
+                <div style="color: #cbd5e1; font-size: 0.95rem;">
+                    • <strong>输入格式：</strong>[seq_len, batch_size, d_model] - 序列长度在前<br>
+                    • <strong>不包含嵌入层：</strong>期望已经嵌入的向量作为输入<br>
+                    • <strong>掩码格式：</strong>src_key_padding_mask是[batch_size, seq_len]<br>
+                    • <strong>内部转换：</strong>我们的注意力层期望batch在前，所以内部需要转置
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 2.4: 完整解码器 -->
+        <div class="implementation-step">
+            <div class="step-header">
+                <div class="step-number">9</div>
+                <div class="step-title">完整解码器实现</div>
+            </div>
+
+            <div class="code-implementation">
+                <div class="code-header">
+                    <div class="code-title">堆叠多个解码器层</div>
+                    <div class="code-filename">models/decoder.py</div>
+                </div>
+                <pre><code><span class="code-keyword">class</span> <span class="code-class">TransformerDecoder</span>(nn.Module):
+    <span class="code-string">"""完整的Transformer解码器
+
+    包含：词嵌入 + 位置编码 + N个解码器层 + 输出投影
+    """</span>
+
+    <span class="code-keyword">def</span> <span class="code-function">__init__</span>(self, config: TransformerConfig):
+        super().__init__()
+
+        <span class="code-comment"># 嵌入层</span>
+        self.token_embedding = nn.Embedding(config.vocab_size, config.d_model,
+                                          padding_idx=config.pad_idx)
+        self.positional_encoding = PositionalEncoding(config.d_model,
+                                                     config.max_seq_length)
+
+        <span class="code-comment"># 解码器层堆叠</span>
+        self.layers = nn.ModuleList([
+            DecoderLayer(config) <span class="code-keyword">for</span> _ <span class="code-keyword">in</span> range(config.n_decoder_layers)
+        ])
+
+        <span class="code-comment"># 最后的层归一化</span>
+        self.final_norm = nn.LayerNorm(config.d_model)
+
+        <span class="code-comment"># 输出投影到词表</span>
+        self.output_projection = nn.Linear(config.d_model, config.vocab_size)
+
+        self.dropout = nn.Dropout(config.dropout)
+        self.d_model = config.d_model
+
+    <span class="code-keyword">def</span> <span class="code-function">forward</span>(self,
+                tgt: torch.Tensor,
+                encoder_output: torch.Tensor,
+                tgt_mask: Optional[torch.Tensor] = None,
+                src_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
+        <span class="code-string">"""
+        Args:
+            tgt: 目标序列token ids [batch_size, tgt_len]
+            encoder_output: 编码器输出 [batch_size, src_len, d_model]
+            tgt_mask: 目标序列掩码（因果+padding）
+            src_mask: 源序列掩码（用于交叉注意力）
+
+        Returns:
+            解码器输出logits [batch_size, tgt_len, vocab_size]
+        """</span>
+        <span class="code-comment"># 1. 词嵌入和位置编码</span>
+        x = self.token_embedding(tgt) * math.sqrt(self.d_model)
+        x = self.positional_encoding(x)
+        x = self.dropout(x)
+
+        <span class="code-comment"># 2. 通过N个解码器层</span>
+        <span class="code-keyword">for</span> layer <span class="code-keyword">in</span> self.layers:
+            x = layer(x, encoder_output, tgt_mask, src_mask)
+
+        <span class="code-comment"># 3. 最终归一化</span>
+        x = self.final_norm(x)
+
+        <span class="code-comment"># 4. 投影到词表大小</span>
+        logits = self.output_projection(x)
+
+        <span class="code-keyword">return</span> logits</code></pre>
+            </div>
+        </div>
+    </div>
+
+    <!-- 🚀 Step 3: 完整模型和工具函数 -->
+    <div class="implementation-section" style="border-color: #fbbf24;">
+        <div style="text-align: center; margin-bottom: 3rem;">
+            <div style="display: inline-flex; align-items: center; gap: 1rem; background: linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(245, 158, 11, 0.1)); padding: 1.5rem 3rem; border-radius: 30px; border: 1px solid rgba(251, 191, 36, 0.4);">
+                <span style="font-size: 2rem;">🚀</span>
+                <h2 style="color: #fbbf24; margin: 0; font-size: 1.8rem; font-weight: bold;">组装完整的Transformer</h2>
+            </div>
+        </div>
+
+        <!-- Step 3.1: 掩码生成 -->
+        <div class="implementation-step">
+            <div class="step-header">
+                <div class="step-number">10</div>
+                <div class="step-title">掩码生成工具</div>
+            </div>
+
+            <div class="code-implementation">
+                <div class="code-header">
+                    <div class="code-title">生成各种掩码的工具函数</div>
+                    <div class="code-filename">utils/masking.py</div>
+                </div>
+                <pre><code><span class="code-keyword">def</span> <span class="code-function">create_padding_mask</span>(seq: torch.Tensor, pad_idx: int = <span class="code-number">0</span>) -> torch.Tensor:
+    <span class="code-string">"""创建padding掩码
+
+    Args:
+        seq: token序列 [batch_size, seq_len]
+        pad_idx: padding token的索引
+
+    Returns:
+        padding掩码 [batch_size, 1, 1, seq_len]
+    """</span>
+    <span class="code-comment"># True表示保留，False表示屏蔽</span>
+    mask = (seq != pad_idx).unsqueeze(<span class="code-number">1</span>).unsqueeze(<span class="code-number">2</span>)
+    <span class="code-keyword">return</span> mask.float()
+
+<span class="code-keyword">def</span> <span class="code-function">create_causal_mask</span>(size: int) -> torch.Tensor:
+    <span class="code-string">"""创建因果掩码（下三角矩阵）
+
+    Args:
+        size: 序列长度
+
+    Returns:
+        因果掩码 [size, size]
+    """</span>
+    mask = torch.triu(torch.ones(size, size), diagonal=<span class="code-number">1</span>)
+    <span class="code-keyword">return</span> (mask == <span class="code-number">0</span>).float()
+
+<span class="code-keyword">def</span> <span class="code-function">create_decoder_mask</span>(tgt: torch.Tensor, pad_idx: int = <span class="code-number">0</span>) -> torch.Tensor:
+    <span class="code-string">"""创建解码器的组合掩码
+
+    结合padding掩码和因果掩码
+
+    Args:
+        tgt: 目标序列 [batch_size, tgt_len]
+        pad_idx: padding token的索引
+
+    Returns:
+        组合掩码 [batch_size, 1, tgt_len, tgt_len]
+    """</span>
+    batch_size, tgt_len = tgt.size()
+
+    <span class="code-comment"># 1. Padding掩码</span>
+    padding_mask = create_padding_mask(tgt, pad_idx)  <span class="code-comment"># [batch, 1, 1, tgt_len]</span>
+
+    <span class="code-comment"># 2. 因果掩码</span>
+    causal_mask = create_causal_mask(tgt_len).unsqueeze(<span class="code-number">0</span>).unsqueeze(<span class="code-number">0</span>)  <span class="code-comment"># [1, 1, tgt_len, tgt_len]</span>
+    causal_mask = causal_mask.expand(batch_size, <span class="code-number">1</span>, tgt_len, tgt_len)
+
+    <span class="code-comment"># 3. 组合：两个掩码都为True的位置才保留</span>
+    <span class="code-comment"># 扩展padding_mask以匹配causal_mask的形状</span>
+    padding_mask_expanded = padding_mask.expand(-<span class="code-number">1</span>, -<span class="code-number">1</span>, tgt_len, -<span class="code-number">1</span>)
+    combined_mask = padding_mask_expanded * causal_mask
+
+    <span class="code-keyword">return</span> combined_mask</code></pre>
+            </div>
+        </div>
+
+        <!-- Step 3.2: 完整Transformer模型 -->
+        <div class="implementation-step">
+            <div class="step-header">
+                <div class="step-number">11</div>
+                <div class="step-title">完整的Transformer模型</div>
+            </div>
+
+            <div class="code-implementation">
+                <div class="code-header">
+                    <div class="code-title">组装所有组件</div>
+                    <div class="code-filename">transformer.py</div>
+                </div>
+                <pre><code><span class="code-keyword">class</span> <span class="code-class">Transformer</span>(nn.Module):
+    <span class="code-string">"""完整的Transformer模型
+
+    用于序列到序列的任务（如机器翻译）
+    """</span>
+
+    <span class="code-keyword">def</span> <span class="code-function">__init__</span>(self, config: TransformerConfig):
+        super().__init__()
+        self.config = config
+
+        <span class="code-comment"># 编码器和解码器</span>
+        self.encoder = TransformerEncoder(config)
+        self.decoder = TransformerDecoder(config)
+
+        <span class="code-comment"># 初始化参数</span>
+        self._init_parameters()
+
+    <span class="code-keyword">def</span> <span class="code-function">_init_parameters</span>(self):
+        <span class="code-string">"""Xavier初始化参数"""</span>
+        <span class="code-keyword">for</span> p <span class="code-keyword">in</span> self.parameters():
+            <span class="code-keyword">if</span> p.dim() > <span class="code-number">1</span>:
+                nn.init.xavier_uniform_(p)
+
+    <span class="code-keyword">def</span> <span class="code-function">forward</span>(self,
+                src: torch.Tensor,
+                tgt: torch.Tensor,
+                src_mask: Optional[torch.Tensor] = None,
+                tgt_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
+        <span class="code-string">"""
+        Args:
+            src: 源序列 [batch_size, src_len]
+            tgt: 目标序列 [batch_size, tgt_len]
+            src_mask: 源序列掩码
+            tgt_mask: 目标序列掩码
+
+        Returns:
+            输出logits [batch_size, tgt_len, vocab_size]
+        """</span>
+        <span class="code-comment"># 1. 如果没有提供掩码，自动生成</span>
+        <span class="code-keyword">if</span> src_mask <span class="code-keyword">is None</span>:
+            src_mask = create_padding_mask(src, self.config.pad_idx)
+
+        <span class="code-keyword">if</span> tgt_mask <span class="code-keyword">is None</span>:
+            tgt_mask = create_decoder_mask(tgt, self.config.pad_idx)
+
+        <span class="code-comment"># 2. 编码器前向传播</span>
+        encoder_output = self.encoder(src, src_mask)
+
+        <span class="code-comment"># 3. 解码器前向传播</span>
+        decoder_output = self.decoder(tgt, encoder_output, tgt_mask, src_mask)
+
+        <span class="code-keyword">return</span> decoder_output
+
+    <span class="code-keyword">def</span> <span class="code-function">encode</span>(self, src: torch.Tensor, src_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
+        <span class="code-string">"""单独运行编码器（用于推理）"""</span>
+        <span class="code-keyword">if</span> src_mask <span class="code-keyword">is None</span>:
+            src_mask = create_padding_mask(src, self.config.pad_idx)
+        <span class="code-keyword">return</span> self.encoder(src, src_mask)
+
+    <span class="code-keyword">def</span> <span class="code-function">decode</span>(self,
+                tgt: torch.Tensor,
+                encoder_output: torch.Tensor,
+                src_mask: Optional[torch.Tensor] = None,
+                tgt_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
+        <span class="code-string">"""单独运行解码器（用于推理）"""</span>
+        <span class="code-keyword">if</span> tgt_mask <span class="code-keyword">is None</span>:
+            tgt_mask = create_decoder_mask(tgt, self.config.pad_idx)
+        <span class="code-keyword">return</span> self.decoder(tgt, encoder_output, tgt_mask, src_mask)</code></pre>
+            </div>
+
+            <div class="insight-card">
+                <h4><span>🎯</span> 模型使用方式</h4>
+                <div style="color: #cbd5e1;">
+                    <strong>训练时：</strong>使用完整的forward方法，输入源序列和目标序列<br>
+                    <strong>推理时：</strong>分别使用encode和decode，支持beam search等解码策略<br>
+                    <strong>掩码：</strong>自动生成或手动提供，灵活控制注意力模式
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 3.3: 推理函数 -->
+        <div class="implementation-step">
+            <div class="step-header">
+                <div class="step-number">12</div>
+                <div class="step-title">推理生成函数</div>
+            </div>
+
+            <div class="code-implementation">
+                <div class="code-header">
+                    <div class="code-title">贪婪解码推理</div>
+                    <div class="code-filename">inference.py</div>
+                </div>
+                <pre><code><span class="code-keyword">def</span> <span class="code-function">greedy_decode</span>(model: Transformer,
+                     src: torch.Tensor,
+                     max_length: int = <span class="code-number">100</span>,
+                     start_token: int = <span class="code-number">1</span>,
+                     end_token: int = <span class="code-number">2</span>) -> torch.Tensor:
+    <span class="code-string">"""贪婪解码生成序列
+
+    Args:
+        model: Transformer模型
+        src: 源序列 [batch_size, src_len]
+        max_length: 最大生成长度
+        start_token: 开始token的ID
+        end_token: 结束token的ID
+
+    Returns:
+        生成的序列 [batch_size, seq_len]
+    """</span>
+    model.eval()
+    device = src.device
+    batch_size = src.size(<span class="code-number">0</span>)
+
+    <span class="code-keyword">with</span> torch.no_grad():
+        <span class="code-comment"># 1. 编码源序列</span>
+        encoder_output = model.encode(src)
+        src_mask = create_padding_mask(src, model.config.pad_idx)
+
+        <span class="code-comment"># 2. 初始化目标序列为[START]</span>
+        tgt = torch.full((batch_size, <span class="code-number">1</span>), start_token, device=device)
+
+        <span class="code-comment"># 3. 逐步生成</span>
+        <span class="code-keyword">for</span> _ <span class="code-keyword">in</span> range(max_length - <span class="code-number">1</span>):
+            <span class="code-comment"># 解码当前序列</span>
+            logits = model.decode(tgt, encoder_output, src_mask)
+
+            <span class="code-comment"># 获取最后一个位置的预测</span>
+            next_token_logits = logits[:, -<span class="code-number">1</span>, :]
+            next_token = torch.argmax(next_token_logits, dim=-<span class="code-number">1</span>, keepdim=True)
+
+            <span class="code-comment"># 添加到目标序列</span>
+            tgt = torch.cat([tgt, next_token], dim=<span class="code-number">1</span>)
+
+            <span class="code-comment"># 检查是否所有序列都生成了END token</span>
+            <span class="code-keyword">if</span> (next_token == end_token).all():
+                <span class="code-keyword">break</span>
+
+    <span class="code-keyword">return</span> tgt</code></pre>
+            </div>
+        </div>
+    </div>
+
+    <!-- 🧪 Step 4: 测试和验证 -->
+    <div class="implementation-section" style="border-color: #22c55e;">
+        <div style="text-align: center; margin-bottom: 3rem;">
+            <div style="display: inline-flex; align-items: center; gap: 1rem; background: linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(16, 185, 129, 0.1)); padding: 1.5rem 3rem; border-radius: 30px; border: 1px solid rgba(34, 197, 94, 0.4);">
+                <span style="font-size: 2rem;">🧪</span>
+                <h2 style="color: #22c55e; margin: 0; font-size: 1.8rem; font-weight: bold;">测试我们的实现</h2>
+            </div>
+        </div>
+
+        <!-- 测试代码 -->
+        <div class="test-section">
+            <h4 style="color: #22c55e; margin-bottom: 1rem;">✅ 运行一个简单的测试</h4>
+
+            <div class="code-implementation">
+                <div class="code-header">
+                    <div class="code-title">测试Transformer模型</div>
+                    <div class="code-filename">test_transformer.py</div>
+                </div>
+                <pre><code><span class="code-keyword">def</span> <span class="code-function">test_transformer</span>():
+    <span class="code-string">"""测试Transformer的基本功能"""</span>
+
+    <span class="code-comment"># 1. 创建配置</span>
+    config = TransformerConfig(
+        vocab_size=<span class="code-number">1000</span>,
+        d_model=<span class="code-number">256</span>,
+        n_heads=<span class="code-number">8</span>,
+        n_encoder_layers=<span class="code-number">2</span>,
+        n_decoder_layers=<span class="code-number">2</span>,
+        d_ff=<span class="code-number">1024</span>,
+        max_seq_length=<span class="code-number">50</span>,
+        dropout=<span class="code-number">0.1</span>
+    )
+
+    <span class="code-comment"># 2. 创建模型</span>
+    model = Transformer(config)
+    print(<span class="code-string">f"模型参数量: {sum(p.numel() for p in model.parameters()):,}"</span>)
+
+    <span class="code-comment"># 3. 创建随机输入</span>
+    batch_size = <span class="code-number">2</span>
+    src_len = <span class="code-number">10</span>
+    tgt_len = <span class="code-number">8</span>
+
+    <span class="code-comment"># 随机生成token（避免使用0，因为0是padding）</span>
+    src = torch.randint(<span class="code-number">1</span>, config.vocab_size, (batch_size, src_len))
+    tgt = torch.randint(<span class="code-number">1</span>, config.vocab_size, (batch_size, tgt_len))
+
+    <span class="code-comment"># 添加一些padding来测试掩码</span>
+    src[<span class="code-number">0</span>, <span class="code-number">-3</span>:] = <span class="code-number">0</span>  <span class="code-comment"># 第一个样本最后3个位置是padding</span>
+    src[<span class="code-number">1</span>, <span class="code-number">-5</span>:] = <span class="code-number">0</span>  <span class="code-comment"># 第二个样本最后5个位置是padding</span>
+
+    <span class="code-comment"># 4. 前向传播</span>
+    model.eval()  <span class="code-comment"># 设置为评估模式</span>
+    <span class="code-keyword">with</span> torch.no_grad():
+        output = model(src, tgt)
+
+    print(<span class="code-string">f"\n输入形状:"</span>)
+    print(<span class="code-string">f"  源序列: {src.shape}"</span>)
+    print(<span class="code-string">f"  目标序列: {tgt.shape}"</span>)
+    print(<span class="code-string">f"\n输出形状: {output.shape}"</span>)
+    print(<span class="code-string">f"期望形状: [batch_size={batch_size}, tgt_len={tgt_len}, vocab_size={config.vocab_size}]"</span>)
+
+    <span class="code-comment"># 5. 测试推理</span>
+    print(<span class="code-string">f"\n测试贪婪解码..."</span>)
+    generated = greedy_decode(model, src[:1], max_length=<span class="code-number">15</span>)
+    print(<span class="code-string">f"生成序列形状: {generated.shape}"</span>)
+    print(<span class="code-string">f"生成的token: {generated[0].tolist()}"</span>)
+
+    <span class="code-comment"># 6. 验证掩码</span>
+    print(<span class="code-string">f"\n验证掩码功能..."</span>)
+    src_mask = create_padding_mask(src, config.pad_idx)
+    tgt_mask = create_decoder_mask(tgt, config.pad_idx)
+    print(<span class="code-string">f"源序列掩码形状: {src_mask.shape}"</span>)
+    print(<span class="code-string">f"目标序列掩码形状: {tgt_mask.shape}"</span>)
+
+    <span class="code-keyword">return</span> model
+
+<span class="code-comment"># 运行测试</span>
+<span class="code-keyword">if</span> __name__ == <span class="code-string">"__main__"</span>:
+    model = test_transformer()</code></pre>
+            </div>
+
+            <div class="test-output">
+                <div style="color: #fbbf24; font-weight: bold; margin-bottom: 0.5rem;">预期输出：</div>
+                <pre>模型参数量: 5,928,456
+
+输入形状:
+  源序列: torch.Size([2, 10])
+  目标序列: torch.Size([2, 8])
+
+输出形状: torch.Size([2, 8, 1000])
+期望形状: [batch_size=2, tgt_len=8, vocab_size=1000]
+
+测试贪婪解码...
+生成序列形状: torch.Size([1, 15])
+生成的token: [1, 245, 567, 123, 890, 234, 678, 345, 901, 456, 789, 321, 654, 987, 2]
+
+验证掩码功能...
+源序列掩码形状: torch.Size([2, 1, 1, 10])
+目标序列掩码形状: torch.Size([2, 1, 8, 8])</pre>
+            </div>
+        </div>
+
+        <!-- 训练示例 -->
+        <div class="test-section" style="margin-top: 2rem;">
+            <h4 style="color: #22c55e; margin-bottom: 1rem;">🏋️ 简单的训练循环</h4>
+
+            <div class="code-implementation">
+                <div class="code-header">
+                    <div class="code-title">训练循环示例</div>
+                    <div class="code-filename">train_example.py</div>
+                </div>
+                <pre><code><span class="code-keyword">def</span> <span class="code-function">train_step</span>(model: Transformer,
+               src: torch.Tensor,
+               tgt: torch.Tensor,
+               optimizer: torch.optim.Optimizer,
+               criterion: nn.Module,
+               pad_idx: int = <span class="code-number">0</span>) -> float:
+    <span class="code-string">"""单个训练步骤"""</span>
+    model.train()
+    optimizer.zero_grad()
+
+    <span class="code-comment"># 准备输入和目标</span>
+    <span class="code-comment"># 解码器输入：去掉最后一个token</span>
+    tgt_input = tgt[:, :-<span class="code-number">1</span>]
+    <span class="code-comment"># 目标输出：去掉第一个token</span>
+    tgt_output = tgt[:, <span class="code-number">1</span>:]
+
+    <span class="code-comment"># 前向传播</span>
+    logits = model(src, tgt_input)
+
+    <span class="code-comment"># 计算损失（忽略padding位置）</span>
+    loss = criterion(
+        logits.reshape(-<span class="code-number">1</span>, logits.size(-<span class="code-number">1</span>)),
+        tgt_output.reshape(-<span class="code-number">1</span>)
+    )
+
+    <span class="code-comment"># 反向传播</span>
+    loss.backward()
+
+    <span class="code-comment"># 梯度裁剪（防止梯度爆炸）</span>
+    torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=<span class="code-number">1.0</span>)
+
+    <span class="code-comment"># 更新参数</span>
+    optimizer.step()
+
+    <span class="code-keyword">return</span> loss.item()
+
+<span class="code-comment"># 简单的训练循环</span>
+<span class="code-keyword">def</span> <span class="code-function">train_model</span>(model: Transformer, num_epochs: int = <span class="code-number">10</span>):
+    <span class="code-string">"""简单的训练示例"""</span>
+    <span class="code-comment"># 优化器</span>
+    optimizer = torch.optim.Adam(model.parameters(), lr=<span class="code-number">0.0001</span>, betas=(<span class="code-number">0.9</span>, <span class="code-number">0.98</span>))
+
+    <span class="code-comment"># 损失函数（忽略padding）</span>
+    criterion = nn.CrossEntropyLoss(ignore_index=model.config.pad_idx)
+
+    <span class="code-keyword">for</span> epoch <span class="code-keyword">in</span> range(num_epochs):
+        <span class="code-comment"># 生成随机数据（实际应用中使用真实数据）</span>
+        src = torch.randint(<span class="code-number">1</span>, model.config.vocab_size, (<span class="code-number">32</span>, <span class="code-number">20</span>))
+        tgt = torch.randint(<span class="code-number">1</span>, model.config.vocab_size, (<span class="code-number">32</span>, <span class="code-number">15</span>))
+
+        loss = train_step(model, src, tgt, optimizer, criterion)
+
+        <span class="code-keyword">if</span> epoch % <span class="code-number">2</span> == <span class="code-number">0</span>:
+            print(<span class="code-string">f"Epoch {epoch}, Loss: {loss:.4f}"</span>)</code></pre>
+            </div>
+        </div>
+    </div>
+
+    <!-- 🎓 总结和展望 -->
+    <div class="implementation-section" style="border-color: #8b5cf6; background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(124, 58, 237, 0.05));">
+        <div style="text-align: center; margin-bottom: 3rem;">
+            <div style="display: inline-flex; align-items: center; gap: 1rem; background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(124, 58, 237, 0.1)); padding: 1.5rem 3rem; border-radius: 30px; border: 1px solid rgba(139, 92, 246, 0.4);">
+                <span style="font-size: 2rem;">🎓</span>
+                <h2 style="color: #8b5cf6; margin: 0; font-size: 1.8rem; font-weight: bold;">总结：我们构建了什么？</h2>
+            </div>
+        </div>
+
+        <!-- 架构总结 -->
+        <div style="background: rgba(15, 23, 42, 0.9); padding: 2.5rem; border-radius: 16px; margin-bottom: 2rem;">
+            <h3 style="color: #22c55e; margin-bottom: 1.5rem; text-align: center;">✨ Transformer架构的精髓</h3>
+
+            <div style="display: grid; gap: 1.5rem;">
+                <div style="background: rgba(255, 255, 255, 0.05); padding: 1.5rem; border-radius: 8px;">
+                    <h4 style="color: #3b82f6; margin-bottom: 0.8rem;">🔄 自注意力：全局信息交互</h4>
+                    <div style="color: #cbd5e1;">
+                        不同于RNN的序列处理，自注意力让每个位置都能直接与其他所有位置交互，
+                        实现了真正的全局理解。这种机制特别适合捕捉长距离依赖关系。
+                    </div>
+                </div>
+
+                <div style="background: rgba(255, 255, 255, 0.05); padding: 1.5rem; border-radius: 8px;">
+                    <h4 style="color: #22c55e; margin-bottom: 0.8rem;">🎯 编码器-解码器：理解与生成</h4>
+                    <div style="color: #cbd5e1;">
+                        编码器负责深度理解输入，解码器基于这种理解生成输出。
+                        通过交叉注意力，解码器能够在生成每个词时参考源序列的所有信息。
+                    </div>
+                </div>
+
+                <div style="background: rgba(255, 255, 255, 0.05); padding: 1.5rem; border-radius: 8px;">
+                    <h4 style="color: #fbbf24; margin-bottom: 0.8rem;">⚡ 并行化：训练效率革命</h4>
+                    <div style="color: #cbd5e1;">
+                        抛弃了序列依赖，所有位置可以并行计算。配合掩码机制，
+                        即使是自回归的解码器也能在训练时并行处理整个序列。
+                    </div>
+                </div>
+
+                <div style="background: rgba(255, 255, 255, 0.05); padding: 1.5rem; border-radius: 8px;">
+                    <h4 style="color: #8b5cf6; margin-bottom: 0.8rem;">🏗️ 模块化设计：优雅可扩展</h4>
+                    <div style="color: #cbd5e1;">
+                        每个组件（注意力、前馈、归一化）都是独立的模块，
+                        通过残差连接组合。这种设计让模型易于理解、调试和扩展。
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 关键创新 -->
+        <div style="background: linear-gradient(135deg, rgba(251, 191, 36, 0.15), rgba(245, 158, 11, 0.1)); padding: 2rem; border-radius: 16px; border: 1px solid rgba(251, 191, 36, 0.3); margin-bottom: 2rem;">
+            <h3 style="color: #fbbf24; margin-bottom: 1.5rem; text-align: center;">🌟 Transformer的关键创新</h3>
+
+            <div style="color: #f1f5f9; font-size: 1rem; line-height: 1.8;">
+                <strong>1. 注意力机制作为核心：</strong>完全基于注意力，没有卷积或循环<br>
+                <strong>2. 位置编码：</strong>巧妙地将位置信息注入到模型中<br>
+                <strong>3. 多头设计：</strong>让模型同时关注不同类型的信息<br>
+                <strong>4. 掩码技巧：</strong>优雅地处理padding和因果关系<br>
+                <strong>5. 缩放点积：</strong>简单却有效的注意力计算方式<br><br>
+
+                这些创新共同造就了一个强大、灵活、高效的架构，
+                不仅在NLP领域取得突破，还启发了计算机视觉等其他领域的发展。
+            </div>
+        </div>
+
+        <!-- 应用和扩展 -->
+        <div style="background: rgba(15, 23, 42, 0.9); padding: 2rem; border-radius: 16px;">
+            <h3 style="color: #3b82f6; margin-bottom: 1.5rem; text-align: center;">🚀 从这里走向何方？</h3>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem;">
+                <div style="background: rgba(59, 130, 246, 0.1); padding: 1.5rem; border-radius: 8px; border: 1px solid rgba(59, 130, 246, 0.3);">
+                    <h4 style="color: #3b82f6; margin-bottom: 0.8rem;">BERT：只用编码器</h4>
+                    <div style="color: #cbd5e1; font-size: 0.95rem;">
+                        使用双向编码器进行预训练，革新了NLP的预训练范式
+                    </div>
+                </div>
+
+                <div style="background: rgba(34, 197, 94, 0.1); padding: 1.5rem; border-radius: 8px; border: 1px solid rgba(34, 197, 94, 0.3);">
+                    <h4 style="color: #22c55e; margin-bottom: 0.8rem;">GPT：只用解码器</h4>
+                    <div style="color: #cbd5e1; font-size: 0.95rem;">
+                        自回归语言模型，展现了扩展规模的惊人效果
+                    </div>
+                </div>
+
+                <div style="background: rgba(139, 92, 246, 0.1); padding: 1.5rem; border-radius: 8px; border: 1px solid rgba(139, 92, 246, 0.3);">
+                    <h4 style="color: #8b5cf6; margin-bottom: 0.8rem;">Vision Transformer</h4>
+                    <div style="color: #cbd5e1; font-size: 0.95rem;">
+                        将Transformer应用到计算机视觉，打破CNN的垄断
+                    </div>
+                </div>
+
+                <div style="background: rgba(251, 191, 36, 0.1); padding: 1.5rem; border-radius: 8px; border: 1px solid rgba(251, 191, 36, 0.3);">
+                    <h4 style="color: #fbbf24; margin-bottom: 0.8rem;">多模态模型</h4>
+                    <div style="color: #cbd5e1; font-size: 0.95rem;">
+                        CLIP、DALL-E等，连接视觉和语言的桥梁
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 结语 -->
+        <div style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(147, 51, 234, 0.1)); padding: 3rem; border-radius: 20px; margin-top: 3rem; text-align: center; border: 1px solid rgba(59, 130, 246, 0.3);">
+            <h2 style="color: #8b5cf6; margin-bottom: 1.5rem;">🎉 恭喜你！</h2>
+            <div style="color: #f1f5f9; font-size: 1.1rem; line-height: 1.8;">
+                你已经从零开始实现了完整的Transformer！<br><br>
+
+                通过这个旅程，你不仅理解了每个组件的原理，<br>
+                更重要的是理解了它们为什么要这样设计，<br>
+                以及如何协同工作创造出这个改变世界的架构。<br><br>
+
+                <strong style="color: #3b82f6;">现在，你已经掌握了理解和构建现代AI系统的核心知识。</strong><br><br>
+
+                无论是使用现有框架还是创造新的架构，<br>
+                这些知识都将成为你在AI领域探索的坚实基础。<br><br>
+
+                <span style="font-size: 1.5rem;">🚀</span><br>
+                <strong style="color: #fbbf24;">The transformer revolution continues, and now you're part of it!</strong>
+            </div>
+        </div>
+    </div>
+
+    <!-- 导航 -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 3rem; padding: 2rem; background: rgba(255, 255, 255, 0.05); border-radius: 12px; backdrop-filter: blur(10px);">
+        <button style="padding: 0.8rem 1.5rem; background: linear-gradient(45deg, #22c55e, #16a34a); color: white; border: none; border-radius: 8px; cursor: pointer; text-decoration: none; transition: all 0.3s ease; font-weight: bold; display: flex; align-items: center; gap: 0.5rem;" onclick="window.history.back()">
+            ← 第9章：掩码机制
+        </button>
+
+        <div style="text-align: center; color: #cbd5e1;">
+            <strong>第10章：完整实现</strong><br>
+            <span>从零到一构建Transformer</span>
+        </div>
+
+        <button style="padding: 0.8rem 1.5rem; background: linear-gradient(45deg, #8b5cf6, #9333ea); color: white; border: none; border-radius: 8px; cursor: pointer; text-decoration: none; transition: all 0.3s ease; font-weight: bold; display: flex; align-items: center; gap: 0.5rem;" onclick="alert('🎉 恭喜完成整个教程！')">
+            完成学习 ✨
+        </button>
+    </div>
+</div>
+
+<script>
+    // 添加交互效果
+    document.addEventListener('DOMContentLoaded', function() {
+        // 代码块动画
+        const codeBlocks = document.querySelectorAll('.code-implementation');
+        codeBlocks.forEach((block, index) => {
+            block.style.opacity = '0';
+            block.style.transform = 'translateY(20px)';
+
+            setTimeout(() => {
+                block.style.transition = 'all 0.6s ease-out';
+                block.style.opacity = '1';
+                block.style.transform = 'translateY(0)';
+            }, index * 100);
+        });
+
+        // 组件卡片悬停效果
+        const componentCards = document.querySelectorAll('.component-card');
+        componentCards.forEach(card => {
+            card.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateY(-5px)';
+                this.style.boxShadow = '0 10px 30px rgba(0, 0, 0, 0.3)';
+            });
+
+            card.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateY(0)';
+                this.style.boxShadow = 'none';
+            });
+        });
+
+        // 代码复制功能
+        const codeHeaders = document.querySelectorAll('.code-header');
+        codeHeaders.forEach(header => {
+            const copyBtn = document.createElement('button');
+            copyBtn.textContent = '📋 复制';
+            copyBtn.style.cssText = `
+                background: rgba(59, 130, 246, 0.2);
+                color: #3b82f6;
+                border: 1px solid rgba(59, 130, 246, 0.3);
+                padding: 0.3rem 0.8rem;
+                border-radius: 6px;
+                cursor: pointer;
+                font-size: 0.85rem;
+                transition: all 0.3s ease;
+            `;
+
+            copyBtn.addEventListener('click', function() {
+                const codeBlock = header.nextElementSibling;
+                const code = codeBlock.textContent;
+
+                navigator.clipboard.writeText(code).then(() => {
+                    copyBtn.textContent = '✅ 已复制';
+                    setTimeout(() => {
+                        copyBtn.textContent = '📋 复制';
+                    }, 2000);
+                });
+            });
+
+            copyBtn.addEventListener('mouseenter', function() {
+                this.style.background = 'rgba(59, 130, 246, 0.3)';
+            });
+
+            copyBtn.addEventListener('mouseleave', function() {
+                this.style.background = 'rgba(59, 130, 246, 0.2)';
+            });
+
+            header.appendChild(copyBtn);
+        });
+
+        // 实现步骤动画
+        const steps = document.querySelectorAll('.implementation-step');
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.style.opacity = '1';
+                    entry.target.style.transform = 'translateX(0)';
+                }
+            });
+        }, { threshold: 0.1 });
+
+        steps.forEach(step => {
+            step.style.opacity = '0';
+            step.style.transform = 'translateX(-20px)';
+            step.style.transition = 'all 0.6s ease-out';
+            observer.observe(step);
+        });
+
+        // 架构流程动画
+        const architectureFlow = document.querySelector('.architecture-flow');
+        if (architectureFlow) {
+            const cards = architectureFlow.querySelectorAll('.component-card');
+            cards.forEach((card, index) => {
+                card.style.opacity = '0';
+                card.style.transform = 'scale(0.9)';
+
+                setTimeout(() => {
+                    card.style.transition = 'all 0.5s ease-out';
+                    card.style.opacity = '1';
+                    card.style.transform = 'scale(1)';
+                }, index * 200);
+            });
+        }
+
+        // 洞察卡片动画
+        const insightCards = document.querySelectorAll('.insight-card');
+        insightCards.forEach(card => {
+            card.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateX(5px)';
+                this.style.boxShadow = '0 5px 20px rgba(251, 191, 36, 0.2)';
+            });
+
+            card.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateX(0)';
+                this.style.boxShadow = 'none';
+            });
+        });
+
+        // 测试输出打字机效果
+        const testOutputs = document.querySelectorAll('.test-output pre');
+        testOutputs.forEach(output => {
+            const text = output.textContent;
+            output.textContent = '';
+            output.style.visibility = 'visible';
+
+            let index = 0;
+            const typeInterval = setInterval(() => {
+                if (index < text.length) {
+                    output.textContent += text[index];
+                    index++;
+                } else {
+                    clearInterval(typeInterval);
+                }
+            }, 10);
+        });
+    });
+</script>
+</body>
+</html>

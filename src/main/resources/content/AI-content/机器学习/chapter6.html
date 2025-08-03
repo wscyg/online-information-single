@@ -1,0 +1,3403 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>第6章：逻辑回归 - 从预测到决策的智慧跨越</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        /* CSS 变量定义主题颜色 */
+        :root {
+            /* 深色主题（默认） */
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-card: rgba(30, 41, 59, 0.8);
+            --bg-card-solid: rgba(30, 41, 59, 0.95);
+            --bg-code: #1a1a2e;
+            --bg-demo: #0f172a;
+
+            --text-primary: #e2e8f0;
+            --text-secondary: #cbd5e1;
+            --text-muted: #94a3b8;
+            --text-dim: #64748b;
+
+            --border-primary: rgba(102, 126, 234, 0.3);
+            --border-secondary: rgba(102, 126, 234, 0.2);
+            --border-muted: rgba(148, 163, 184, 0.1);
+
+            --grid-color: #2d3748;
+            --grid-light: #4a5568;
+
+            --shadow-sm: rgba(0,0,0,0.3);
+            --shadow-md: rgba(0,0,0,0.4);
+            --shadow-lg: rgba(0,0,0,0.5);
+
+            --gradient-primary: linear-gradient(135deg, #667eea, #764ba2);
+            --gradient-bg: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+        }
+
+        /* 浅色主题 */
+        body.light-theme {
+            --bg-primary: #f8fafc;
+            --bg-secondary: #e2e8f0;
+            --bg-card: rgba(255, 255, 255, 0.9);
+            --bg-card-solid: rgba(255, 255, 255, 0.95);
+            --bg-code: #f3f4f6;
+            --bg-demo: #ffffff;
+
+            --text-primary: #1e293b;
+            --text-secondary: #334155;
+            --text-muted: #475569;
+            --text-dim: #64748b;
+
+            --border-primary: rgba(102, 126, 234, 0.4);
+            --border-secondary: rgba(102, 126, 234, 0.3);
+            --border-muted: rgba(203, 213, 225, 0.5);
+
+            --grid-color: #e5e7eb;
+            --grid-light: #d1d5db;
+
+            --shadow-sm: rgba(0,0,0,0.1);
+            --shadow-md: rgba(0,0,0,0.15);
+            --shadow-lg: rgba(0,0,0,0.2);
+
+            --gradient-primary: linear-gradient(135deg, #667eea, #764ba2);
+            --gradient-bg: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+        }
+
+        /* 主题过渡动画 */
+        body,
+        body * {
+            transition: background-color 0.3s ease,
+            color 0.3s ease,
+            border-color 0.3s ease,
+            box-shadow 0.3s ease;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: var(--gradient-bg);
+            color: var(--text-primary);
+            line-height: 1.8;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            transition: all 0.3s ease;
+        }
+
+        /* 当导航展开时，内容区右移 */
+        body.nav-open .container {
+            margin-left: 320px;
+        }
+
+        /* 动态背景效果 */
+        .dynamic-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            z-index: -1;
+        }
+
+        .bg-gradient {
+            position: absolute;
+            width: 600px;
+            height: 600px;
+            border-radius: 50%;
+            filter: blur(100px);
+            opacity: 0.3;
+            animation: float 20s ease-in-out infinite;
+        }
+
+        .bg-gradient:nth-child(1) {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            top: -200px;
+            left: -200px;
+            animation-delay: 0s;
+        }
+
+        .bg-gradient:nth-child(2) {
+            background: linear-gradient(135deg, #f093fb, #f5576c);
+            bottom: -200px;
+            right: -200px;
+            animation-delay: 10s;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            50% { transform: translate(50px, 30px) scale(1.1); }
+        }
+
+        /* 智能导航样式 */
+        .smart-nav {
+            position: fixed;
+            left: -300px;
+            top: 0;
+            width: 300px;
+            height: 100vh;
+            background: var(--bg-card-solid);
+            backdrop-filter: blur(20px);
+            border-right: 1px solid var(--border-secondary);
+            box-shadow: 2px 0 20px var(--shadow-lg);
+            z-index: 1000;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow: hidden;
+        }
+
+        body.nav-open .smart-nav {
+            left: 0;
+        }
+
+        /* 导航触发按钮 */
+        .nav-trigger {
+            position: fixed;
+            left: 20px;
+            top: 20px;
+            width: 50px;
+            height: 50px;
+            background: var(--bg-card);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border-primary);
+            border-radius: 12px;
+            cursor: pointer;
+            z-index: 1001;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px var(--shadow-sm);
+        }
+
+        body.nav-open .nav-trigger {
+            left: 250px;
+            background: rgba(102, 126, 234, 0.1);
+            border-color: rgba(102, 126, 234, 0.5);
+        }
+
+        .nav-trigger:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .nav-trigger span {
+            display: block;
+            width: 24px;
+            height: 2px;
+            background: #667eea;
+            margin: 4px 0;
+            transition: all 0.3s ease;
+        }
+
+        body.nav-open .nav-trigger span:nth-child(1) {
+            transform: rotate(45deg) translate(5px, 5px);
+        }
+
+        body.nav-open .nav-trigger span:nth-child(2) {
+            opacity: 0;
+        }
+
+        body.nav-open .nav-trigger span:nth-child(3) {
+            transform: rotate(-45deg) translate(5px, -5px);
+        }
+
+        /* 导航头部 */
+        .nav-header {
+            padding: 30px 25px 20px;
+            border-bottom: 1px solid rgba(102, 126, 234, 0.2);
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(124, 58, 237, 0.05));
+        }
+
+        .nav-header h3 {
+            font-size: 1.3rem;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* 进度条 */
+        .nav-progress {
+            height: 4px;
+            background: rgba(102, 126, 234, 0.1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .nav-progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            width: 0%;
+            transition: width 0.5s ease;
+            box-shadow: 0 0 10px rgba(102, 126, 234, 0.5);
+        }
+
+        /* 导航列表 */
+        .nav-list {
+            list-style: none;
+            padding: 20px 0;
+            max-height: calc(100vh - 250px);
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        .nav-list::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .nav-list::-webkit-scrollbar-track {
+            background: rgba(102, 126, 234, 0.05);
+        }
+
+        .nav-list::-webkit-scrollbar-thumb {
+            background: rgba(102, 126, 234, 0.3);
+            border-radius: 3px;
+            transition: background 0.3s ease;
+        }
+
+        .nav-list::-webkit-scrollbar-thumb:hover {
+            background: rgba(102, 126, 234, 0.5);
+        }
+
+        /* 导航项 */
+        .nav-item {
+            position: relative;
+            margin: 2px 0;
+            transition: all 0.3s ease;
+        }
+
+        .nav-item::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: transparent;
+            transition: all 0.3s ease;
+        }
+
+        .nav-item:hover::before {
+            background: #667eea;
+        }
+
+        .nav-item.active::before {
+            background: var(--gradient-primary);
+            width: 4px;
+            box-shadow: 0 0 10px rgba(102, 126, 234, 0.5);
+        }
+
+        .nav-item a {
+            display: flex;
+            align-items: center;
+            padding: 12px 25px;
+            color: var(--text-muted);
+            text-decoration: none;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .nav-item:hover a {
+            color: var(--text-primary);
+            background: rgba(102, 126, 234, 0.05);
+            padding-left: 30px;
+        }
+
+        .nav-item.active a {
+            color: var(--text-primary);
+            background: rgba(102, 126, 234, 0.1);
+            padding-left: 30px;
+        }
+
+        /* 完成标记 */
+        .nav-item.completed::after {
+            content: '✓';
+            position: absolute;
+            right: 25px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #10b981;
+            font-weight: bold;
+            font-size: 1.1rem;
+            animation: checkIn 0.5s ease;
+        }
+
+        @keyframes checkIn {
+            from {
+                transform: translateY(-50%) scale(0);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(-50%) scale(1);
+                opacity: 1;
+            }
+        }
+
+        .nav-icon {
+            font-size: 1.3rem;
+            margin-right: 12px;
+            flex-shrink: 0;
+            transition: all 0.3s ease;
+        }
+
+        .nav-item:hover .nav-icon {
+            transform: scale(1.1);
+        }
+
+        .nav-item.active .nav-icon {
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        .nav-text {
+            flex: 1;
+            font-size: 0.95rem;
+            font-weight: 500;
+        }
+
+        .nav-time {
+            font-size: 0.75rem;
+            color: #64748b;
+            margin-left: auto;
+            opacity: 0.8;
+        }
+
+        /* 导航底部 */
+        .nav-footer {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 20px 25px;
+            background: linear-gradient(to top, rgba(15, 23, 42, 0.98), transparent);
+            border-top: 1px solid rgba(102, 126, 234, 0.2);
+        }
+
+        .reading-stats {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.85rem;
+            color: #94a3b8;
+        }
+
+        .stat-item .icon {
+            font-size: 1.1rem;
+        }
+
+        .completion-ring {
+            width: 60px;
+            height: 60px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        .completion-ring svg {
+            transform: rotate(-90deg);
+        }
+
+        .completion-ring circle {
+            fill: none;
+            stroke-width: 4;
+        }
+
+        .completion-ring .bg {
+            stroke: rgba(102, 126, 234, 0.1);
+        }
+
+        .completion-ring .progress {
+            stroke: url(#gradient);
+            stroke-dasharray: 188.5;
+            stroke-dashoffset: 188.5;
+            transition: stroke-dashoffset 1s ease;
+        }
+
+        .completion-percent {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        /* 快捷键提示 */
+        .nav-shortcuts {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid rgba(102, 126, 234, 0.1);
+            font-size: 0.75rem;
+            color: #64748b;
+            text-align: center;
+        }
+
+        /* 迷你地图 */
+        .mini-map {
+            position: fixed;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 60px;
+            height: 300px;
+            background: rgba(30, 41, 59, 0.6);
+            backdrop-filter: blur(10px);
+            border-radius: 30px;
+            padding: 10px;
+            z-index: 998;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            border: 1px solid rgba(102, 126, 234, 0.2);
+        }
+
+        body.nav-open .mini-map {
+            opacity: 0.5;
+        }
+
+        body.nav-open .mini-map:hover {
+            opacity: 1;
+        }
+
+        .mini-map-track {
+            width: 6px;
+            height: 100%;
+            background: rgba(102, 126, 234, 0.1);
+            border-radius: 3px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        .mini-map-thumb {
+            width: 14px;
+            height: 50px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 7px;
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            top: 0;
+            cursor: grab;
+            box-shadow: 0 2px 10px rgba(102, 126, 234, 0.4);
+            transition: height 0.3s ease;
+        }
+
+        .mini-map-thumb:active {
+            cursor: grabbing;
+            height: 60px;
+        }
+
+        /* 主标题样式 */
+        .main-header {
+            text-align: center;
+            margin: 60px 0;
+            position: relative;
+        }
+
+        .main-title {
+            font-size: 4rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 25%, #f093fb 50%, #f5576c 75%, #667eea 100%);
+            background-size: 200% 200%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: gradient-shift 8s ease infinite;
+            text-shadow: 0 0 80px rgba(102, 126, 234, 0.5);
+            margin-bottom: 20px;
+        }
+
+        @keyframes gradient-shift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .subtitle {
+            font-size: 1.6rem;
+            color: #94a3b8;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+        }
+
+        /* 章节卡片样式 */
+        .section-card {
+            background: var(--bg-card);
+            backdrop-filter: blur(10px);
+            border-radius: 24px;
+            padding: 40px;
+            margin: 30px 0;
+            border: 1px solid var(--border-secondary);
+            box-shadow: 0 20px 40px var(--shadow-sm);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .section-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #667eea, transparent);
+            animation: scan 3s linear infinite;
+        }
+
+        @keyframes scan {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        .section-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 30px 60px var(--shadow-md);
+            border-color: rgba(102, 126, 234, 0.4);
+        }
+
+        .section-title {
+            font-size: 2.5rem;
+            background: var(--gradient-primary);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 30px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        /* 故事框样式 */
+        .story-box {
+            background: linear-gradient(135deg, rgba(251, 191, 36, 0.1), rgba(245, 158, 11, 0.05));
+            border-radius: 20px;
+            padding: 30px;
+            margin: 30px 0;
+            border: 2px solid rgba(251, 191, 36, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .story-box::after {
+            content: '📖';
+            position: absolute;
+            top: -20px;
+            right: 20px;
+            font-size: 4rem;
+            opacity: 0.1;
+        }
+
+        /* 思考题框样式 */
+        .thinking-box {
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(220, 38, 38, 0.05));
+            border-radius: 20px;
+            padding: 30px;
+            margin: 30px 0;
+            border: 2px solid rgba(239, 68, 68, 0.3);
+            position: relative;
+        }
+
+        .thinking-box::before {
+            content: '🤔';
+            position: absolute;
+            top: -15px;
+            left: 20px;
+            font-size: 2rem;
+            background: rgba(30, 41, 59, 0.9);
+            padding: 5px 15px;
+            border-radius: 50%;
+        }
+
+        /* 公式容器样式 */
+        .formula-box {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(124, 58, 237, 0.05));
+            border-radius: 20px;
+            padding: 35px;
+            margin: 30px 0;
+            text-align: center;
+            border: 2px solid rgba(139, 92, 246, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .formula-box::before {
+            content: '∑';
+            position: absolute;
+            top: -30px;
+            right: 30px;
+            font-size: 6rem;
+            opacity: 0.05;
+            transform: rotate(15deg);
+        }
+
+        .math-formula {
+            font-family: 'Times New Roman', serif;
+            font-size: 1.8rem;
+            color: #e0e6ed;
+            margin: 20px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        /* 高亮样式 */
+        .highlight-primary {
+            color: #667eea;
+            font-weight: bold;
+            background: rgba(102, 126, 234, 0.1);
+            padding: 2px 8px;
+            border-radius: 6px;
+            border: 1px solid rgba(102, 126, 234, 0.3);
+        }
+
+        .highlight-success {
+            color: #10b981;
+            font-weight: bold;
+            background: rgba(16, 185, 129, 0.1);
+            padding: 2px 8px;
+            border-radius: 6px;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .highlight-warning {
+            color: #f59e0b;
+            font-weight: bold;
+            background: rgba(245, 158, 11, 0.1);
+            padding: 2px 8px;
+            border-radius: 6px;
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+        .highlight-danger {
+            color: #ef4444;
+            font-weight: bold;
+            background: rgba(239, 68, 68, 0.1);
+            padding: 2px 8px;
+            border-radius: 6px;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        /* 浅色主题下的特殊框样式 */
+        body.light-theme .story-box {
+            background: linear-gradient(135deg, rgba(251, 191, 36, 0.08), rgba(245, 158, 11, 0.03));
+            border-color: rgba(251, 191, 36, 0.4);
+        }
+
+        body.light-theme .thinking-box {
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.08), rgba(220, 38, 38, 0.03));
+            border-color: rgba(239, 68, 68, 0.4);
+        }
+
+        body.light-theme .formula-box {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.08), rgba(124, 58, 237, 0.03));
+            border-color: rgba(139, 92, 246, 0.4);
+        }
+
+        /* 数学公式文本 */
+        .math-formula {
+            font-family: 'Times New Roman', serif;
+            font-size: 1.8rem;
+            color: var(--text-primary);
+            margin: 20px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        /* 浅色主题下的导航底部 */
+        body.light-theme .nav-footer {
+            background: linear-gradient(to top, rgba(255, 255, 255, 0.98), transparent);
+        }
+
+        /* 浅色主题下的迷你地图 */
+        body.light-theme .mini-map {
+            background: rgba(255, 255, 255, 0.8);
+            border-color: rgba(102, 126, 234, 0.3);
+        }
+
+        /* 导航文本颜色 */
+        .reading-stats .stat-item,
+        .nav-time,
+        .nav-shortcuts {
+            color: var(--text-dim);
+        }
+
+        /* 交互式演示区域 */
+        .demo-container {
+            background: rgba(15, 23, 42, 0.9);
+            border-radius: 20px;
+            padding: 30px;
+            margin: 30px 0;
+            border: 2px solid rgba(102, 126, 234, 0.3);
+        }
+
+        .demo-canvas {
+            background: #0f172a;
+            border-radius: 10px;
+            margin: 20px 0;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            cursor: crosshair;
+        }
+
+        .demo-controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin: 20px 0;
+        }
+
+        .demo-btn {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .demo-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        /* 代码区域样式 */
+        .code-block {
+            background: #1a1a2e;
+            border-radius: 15px;
+            padding: 25px;
+            margin: 25px 0;
+            overflow-x: auto;
+            position: relative;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        .code-block::before {
+            content: 'Python';
+            position: absolute;
+            top: -12px;
+            left: 20px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 5px 15px;
+            border-radius: 15px;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .code-block pre {
+            color: #f8f8f2;
+            font-family: 'Fira Code', 'Consolas', monospace;
+            line-height: 1.6;
+            margin: 0;
+        }
+
+        /* 语法高亮 */
+        .keyword { color: #ff79c6; }
+        .string { color: #f1fa8c; }
+        .comment { color: #6272a4; }
+        .number { color: #bd93f9; }
+        .function { color: #50fa7b; }
+
+        /* 表格样式 */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            background: var(--bg-card);
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px var(--shadow-sm);
+            border: 1px solid var(--border-muted);
+        }
+
+        .data-table th {
+            background: var(--gradient-primary);
+            color: white;
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        .data-table td {
+            padding: 12px 15px;
+            border-bottom: 1px solid var(--border-muted);
+            color: var(--text-primary);
+        }
+
+        .data-table tr:hover {
+            background: rgba(102, 126, 234, 0.05);
+        }
+
+        /* 进度指示器 */
+        .progress-indicator {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: var(--bg-card);
+            padding: 15px 25px;
+            border-radius: 50px;
+            border: 2px solid var(--border-primary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            backdrop-filter: blur(10px);
+            z-index: 1000;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px var(--shadow-sm);
+        }
+
+        body.nav-open .progress-indicator {
+            opacity: 0.3;
+        }
+
+        .progress-bar {
+            width: 150px;
+            height: 6px;
+            background: rgba(102, 126, 234, 0.2);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--gradient-primary);
+            border-radius: 3px;
+            transition: width 0.3s ease;
+        }
+
+        /* 主题切换按钮特殊样式 */
+        .theme-toggle-btn {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .theme-toggle-btn::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            background: radial-gradient(circle, rgba(255,255,255,0.3) 0%, transparent 70%);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s ease, height 0.6s ease;
+        }
+
+        .theme-toggle-btn.animating::after {
+            width: 300px;
+            height: 300px;
+        }
+
+        /* 浮动工具栏 */
+        .floating-toolbar {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 1000;
+        }
+
+        .toolbar-btn {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .toolbar-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 1400px) {
+            body.nav-open .container {
+                margin-left: 0;
+                padding-left: 320px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .main-title {
+                font-size: 2.5rem;
+            }
+
+            .section-title {
+                font-size: 1.8rem;
+            }
+
+            .section-card {
+                padding: 25px;
+            }
+
+            .demo-controls {
+                flex-direction: column;
+            }
+
+            .progress-indicator {
+                display: none;
+            }
+
+            .smart-nav {
+                width: 100%;
+                left: -100%;
+            }
+
+            body.nav-open .smart-nav {
+                left: 0;
+            }
+
+            body.nav-open .container {
+                margin-left: 0;
+                padding-left: 20px;
+            }
+
+            body.nav-open .nav-trigger {
+                left: auto;
+                right: 20px;
+            }
+
+            .mini-map {
+                display: none;
+            }
+        }
+
+        /* 动画效果 */
+        .fade-in {
+            opacity: 0;
+            transform: translateY(30px);
+            animation: fadeInUp 0.6s ease forwards;
+        }
+
+        @keyframes fadeInUp {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* 脉冲动画 */
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .pulse {
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        /* 特殊效果 */
+        .glow {
+            box-shadow: 0 0 20px rgba(102, 126, 234, 0.5);
+        }
+
+        /* 网格背景 */
+        .grid-bg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image:
+                    linear-gradient(rgba(102, 126, 234, 0.1) 1px, transparent 1px),
+                    linear-gradient(90deg, rgba(102, 126, 234, 0.1) 1px, transparent 1px);
+            background-size: 50px 50px;
+            opacity: 0.3;
+            pointer-events: none;
+        }
+
+        /* 章节锚点偏移 */
+        .section-anchor {
+            scroll-margin-top: 100px;
+        }
+    </style>
+</head>
+<body>
+<!-- 动态背景 -->
+<div class="dynamic-bg">
+    <div class="bg-gradient"></div>
+    <div class="bg-gradient"></div>
+</div>
+
+<!-- 导航触发按钮 -->
+<button class="nav-trigger" onclick="toggleNav()">
+    <span></span>
+    <span></span>
+    <span></span>
+</button>
+
+<!-- 智能导航系统 -->
+<nav class="smart-nav">
+    <div class="nav-header">
+        <h3>📚 逻辑回归学习指南</h3>
+    </div>
+
+    <div class="nav-progress">
+        <div class="nav-progress-bar" id="navProgressBar"></div>
+    </div>
+
+    <ul class="nav-list">
+        <li class="nav-item active" data-section="intro">
+            <a href="#intro">
+                <span class="nav-icon">🏥</span>
+                <span class="nav-text">引言：医生的困境</span>
+                <span class="nav-time">3 min</span>
+            </a>
+        </li>
+        <li class="nav-item" data-section="sigmoid">
+            <a href="#sigmoid">
+                <span class="nav-icon">🔄</span>
+                <span class="nav-text">6.1 从线性到逻辑</span>
+                <span class="nav-time">5 min</span>
+            </a>
+        </li>
+        <li class="nav-item" data-section="loss">
+            <a href="#loss">
+                <span class="nav-icon">📉</span>
+                <span class="nav-text">6.2 损失函数</span>
+                <span class="nav-time">4 min</span>
+            </a>
+        </li>
+        <li class="nav-item" data-section="boundary">
+            <a href="#boundary">
+                <span class="nav-icon">🎨</span>
+                <span class="nav-text">6.3 决策边界</span>
+                <span class="nav-time">4 min</span>
+            </a>
+        </li>
+        <li class="nav-item" data-section="regularization">
+            <a href="#regularization">
+                <span class="nav-icon">⚖️</span>
+                <span class="nav-text">6.4 正则化</span>
+                <span class="nav-time">3 min</span>
+            </a>
+        </li>
+        <li class="nav-item" data-section="multiclass">
+            <a href="#multiclass">
+                <span class="nav-icon">🌈</span>
+                <span class="nav-text">6.5 多分类扩展</span>
+                <span class="nav-time">4 min</span>
+            </a>
+        </li>
+        <li class="nav-item" data-section="heart-case">
+            <a href="#heart-case">
+                <span class="nav-icon">❤️</span>
+                <span class="nav-text">6.6 实战：心脏病预测</span>
+                <span class="nav-time">6 min</span>
+            </a>
+        </li>
+        <li class="nav-item" data-section="digit-case">
+            <a href="#digit-case">
+                <span class="nav-icon">✏️</span>
+                <span class="nav-text">6.7 实战：数字识别</span>
+                <span class="nav-time">6 min</span>
+            </a>
+        </li>
+        <li class="nav-item" data-section="diagnosis">
+            <a href="#diagnosis">
+                <span class="nav-icon">🔍</span>
+                <span class="nav-text">6.8 模型诊断</span>
+                <span class="nav-time">4 min</span>
+            </a>
+        </li>
+        <li class="nav-item" data-section="summary">
+            <a href="#summary">
+                <span class="nav-icon">🎓</span>
+                <span class="nav-text">6.9 总结与思考</span>
+                <span class="nav-time">3 min</span>
+            </a>
+        </li>
+    </ul>
+
+    <div class="nav-footer">
+        <div class="reading-stats">
+            <div class="stat-item">
+                <span class="icon">⏱️</span>
+                <span>总计 42 分钟</span>
+            </div>
+            <div class="stat-item">
+                <span class="icon">📖</span>
+                <span id="sectionsRead">0/10</span>
+            </div>
+        </div>
+
+        <div class="completion-ring">
+            <svg width="60" height="60">
+                <defs>
+                    <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
+                        <stop offset="100%" style="stop-color:#764ba2;stop-opacity:1" />
+                    </linearGradient>
+                </defs>
+                <circle cx="30" cy="30" r="25" class="bg"></circle>
+                <circle cx="30" cy="30" r="25" class="progress" id="completionRing"></circle>
+            </svg>
+            <div class="completion-percent" id="completionPercent">0%</div>
+        </div>
+
+        <div class="nav-shortcuts">
+            <kbd>Alt</kbd> + <kbd>N</kbd> 切换导航
+        </div>
+    </div>
+</nav>
+
+<!-- 迷你地图 -->
+<div class="mini-map">
+    <div class="mini-map-track">
+        <div class="mini-map-thumb" id="miniMapThumb"></div>
+    </div>
+</div>
+
+<!-- 进度指示器 -->
+<div class="progress-indicator">
+    <span>学习进度</span>
+    <div class="progress-bar">
+        <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+    </div>
+    <span id="progressText">0%</span>
+</div>
+
+<!-- 主容器 -->
+<div class="container">
+    <!-- 标题部分 -->
+    <div class="main-header fade-in">
+        <h1 class="main-title">第6章：逻辑回归</h1>
+        <p class="subtitle">🎯 从预测到决策的智慧跨越</p>
+    </div>
+
+    <!-- 引言：医生的诊断难题 -->
+    <div id="intro" class="section-card fade-in section-anchor">
+        <h2 class="section-title">🏥 引言：一个医生的困境</h2>
+
+        <div class="story-box">
+            <h3 style="color: #f59e0b; margin-bottom: 20px;">🩺 急诊室的一天</h3>
+            <p style="font-size: 1.1rem; line-height: 1.8;">
+                深夜的急诊室，李医生面对着一位胸痛患者的检查报告。<br><br>
+                <span class="highlight-warning">血压：140/90</span>、
+                <span class="highlight-warning">胆固醇：250mg/dl</span>、
+                <span class="highlight-warning">年龄：55岁</span>...<br><br>
+                这些数字意味着什么？患者<span class="highlight-danger">是否有心脏病风险</span>？<br><br>
+                如果用线性回归，预测值可能是 <span class="highlight-primary">1.3</span> 或 <span class="highlight-primary">-0.2</span>...<br>
+                但心脏病只有两种情况：<span class="highlight-success">有</span> 或 <span class="highlight-danger">没有</span>！
+            </p>
+            <div style="background: rgba(239, 68, 68, 0.1); padding: 20px; border-radius: 10px; margin-top: 20px; border: 1px solid rgba(239, 68, 68, 0.3);">
+                <p style="text-align: center; font-size: 1.2rem; color: #ef4444;">
+                    💡 我们需要一个能输出<strong>概率</strong>的模型！<br>
+                    告诉医生：这个患者有 <strong>85%</strong> 的概率患有心脏病。
+                </p>
+            </div>
+        </div>
+
+        <div class="thinking-box">
+            <h3>思考：分类与回归的本质区别</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px;">
+                <div style="background: rgba(102, 126, 234, 0.1); padding: 20px; border-radius: 10px;">
+                    <h4 style="color: #667eea; margin-bottom: 10px;">📈 回归问题</h4>
+                    <ul style="list-style: none; padding: 0;">
+                        <li>✓ 预测房价：可能是任意正数</li>
+                        <li>✓ 预测温度：连续的数值</li>
+                        <li>✓ 预测销售额：没有上限</li>
+                    </ul>
+                </div>
+                <div style="background: rgba(239, 68, 68, 0.1); padding: 20px; border-radius: 10px;">
+                    <h4 style="color: #ef4444; margin-bottom: 10px;">🎯 分类问题</h4>
+                    <ul style="list-style: none; padding: 0;">
+                        <li>✓ 疾病诊断：有/没有</li>
+                        <li>✓ 邮件分类：垃圾/正常</li>
+                        <li>✓ 图像识别：猫/狗/鸟</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 从线性到逻辑：Sigmoid的诞生 -->
+    <div id="sigmoid" class="section-card fade-in section-anchor">
+        <h2 class="section-title">🔄 6.1 从线性到逻辑：智慧的转变</h2>
+
+        <div class="thinking-box">
+            <h3>线性回归的局限</h3>
+            <p>线性回归：<span class="math-formula">y = β₀ + β₁x₁ + β₂x₂ + ... + βₙxₙ</span></p>
+            <p>输出范围：<span class="highlight-danger">(-∞, +∞)</span></p>
+            <p style="margin-top: 15px;">
+                <strong>问题：</strong>如何将这个无界的输出转换到 <span class="highlight-success">[0, 1]</span> 区间表示概率？
+            </p>
+        </div>
+
+        <!-- Sigmoid函数介绍 -->
+        <div class="formula-box">
+            <h3 style="color: #8b5cf6; margin-bottom: 20px;">🌟 Sigmoid函数：概率的桥梁</h3>
+            <div class="math-formula">
+                σ(z) = <span style="font-size: 2rem;">1 / (1 + e<sup>-z</sup>)</span>
+            </div>
+            <div style="margin-top: 20px; color: #cbd5e1;">
+                <p>其中 z = β₀ + β₁x₁ + β₂x₂ + ... + βₙxₙ</p>
+            </div>
+        </div>
+
+        <!-- Sigmoid函数可视化 -->
+        <div class="demo-container">
+            <h3 style="color: #667eea; text-align: center; margin-bottom: 20px;">📊 Sigmoid函数交互式演示</h3>
+            <canvas id="sigmoidCanvas" class="demo-canvas" width="800" height="400"></canvas>
+            <div class="demo-controls">
+                <button class="demo-btn" onclick="changeSigmoidParam('steep')">更陡峭</button>
+                <button class="demo-btn" onclick="changeSigmoidParam('flat')">更平缓</button>
+                <button class="demo-btn" onclick="changeSigmoidParam('shift-left')">左移</button>
+                <button class="demo-btn" onclick="changeSigmoidParam('shift-right')">右移</button>
+                <button class="demo-btn" onclick="resetSigmoid()">重置</button>
+            </div>
+            <p style="text-align: center; margin-top: 15px; color: #94a3b8;">
+                💡 拖动滑块观察参数如何影响Sigmoid曲线形状
+            </p>
+        </div>
+
+        <!-- Sigmoid特性总结 -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-top: 30px;">
+            <div style="background: rgba(16, 185, 129, 0.1); padding: 20px; border-radius: 15px; border: 1px solid rgba(16, 185, 129, 0.3);">
+                <h4 style="color: #10b981; margin-bottom: 10px;">✅ 输出范围</h4>
+                <p>严格限制在 (0, 1) 之间<br>天然表示概率</p>
+            </div>
+            <div style="background: rgba(102, 126, 234, 0.1); padding: 20px; border-radius: 15px; border: 1px solid rgba(102, 126, 234, 0.3);">
+                <h4 style="color: #667eea; margin-bottom: 10px;">📈 单调递增</h4>
+                <p>输入越大，输出越接近1<br>保持线性模型的单调性</p>
+            </div>
+            <div style="background: rgba(245, 158, 11, 0.1); padding: 20px; border-radius: 15px; border: 1px solid rgba(245, 158, 11, 0.3);">
+                <h4 style="color: #f59e0b; margin-bottom: 10px;">🎯 中心对称</h4>
+                <p>σ(0) = 0.5<br>关于点(0, 0.5)中心对称</p>
+            </div>
+            <div style="background: rgba(239, 68, 68, 0.1); padding: 20px; border-radius: 15px; border: 1px solid rgba(239, 68, 68, 0.3);">
+                <h4 style="color: #ef4444; margin-bottom: 10px;">🔄 导数性质</h4>
+                <p>σ'(z) = σ(z)(1 - σ(z))<br>便于梯度计算</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 损失函数：交叉熵 -->
+    <div id="loss" class="section-card fade-in section-anchor">
+        <h2 class="section-title">📉 6.2 损失函数：最大似然的智慧</h2>
+
+        <div class="thinking-box">
+            <h3>为什么不用MSE？</h3>
+            <p>考虑一个极端情况：</p>
+            <ul style="margin: 15px 0; padding-left: 30px;">
+                <li>真实标签：y = 1（患病）</li>
+                <li>模型预测：p = 0.01（1%概率患病）</li>
+                <li>MSE = (1 - 0.01)² = 0.98</li>
+            </ul>
+            <p><span class="highlight-danger">问题：</span>MSE对于概率的惩罚不够"狠"！</p>
+        </div>
+
+        <!-- 交叉熵损失函数 -->
+        <div class="formula-box">
+            <h3 style="color: #8b5cf6; margin-bottom: 20px;">🎯 二元交叉熵损失</h3>
+            <div class="math-formula" style="font-size: 1.6rem;">
+                L = -[y·log(p) + (1-y)·log(1-p)]
+            </div>
+            <div style="margin-top: 30px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div style="background: rgba(16, 185, 129, 0.1); padding: 15px; border-radius: 10px;">
+                    <p style="color: #10b981;"><strong>当 y = 1 时：</strong></p>
+                    <p>L = -log(p)</p>
+                    <p style="font-size: 0.9rem; margin-top: 5px;">p→0时，L→∞ (严重惩罚)</p>
+                </div>
+                <div style="background: rgba(239, 68, 68, 0.1); padding: 15px; border-radius: 10px;">
+                    <p style="color: #ef4444;"><strong>当 y = 0 时：</strong></p>
+                    <p>L = -log(1-p)</p>
+                    <p style="font-size: 0.9rem; margin-top: 5px;">p→1时，L→∞ (严重惩罚)</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 损失函数可视化 -->
+        <div class="demo-container">
+            <h3 style="color: #667eea; text-align: center; margin-bottom: 20px;">📊 损失函数对比演示</h3>
+            <canvas id="lossCanvas" class="demo-canvas" width="800" height="400"></canvas>
+            <div class="demo-controls">
+                <button class="demo-btn" onclick="showLoss('cross-entropy')">交叉熵损失</button>
+                <button class="demo-btn" onclick="showLoss('mse')">MSE损失</button>
+                <button class="demo-btn" onclick="showLoss('compare')">对比视图</button>
+            </div>
+            <p style="text-align: center; margin-top: 15px; color: #94a3b8;">
+                💡 观察不同损失函数对错误预测的惩罚程度
+            </p>
+        </div>
+    </div>
+
+    <!-- 决策边界 -->
+    <div id="boundary" class="section-card fade-in section-anchor">
+        <h2 class="section-title">🎨 6.3 决策边界：分类的艺术</h2>
+
+        <div class="story-box">
+            <h3 style="color: #f59e0b;">🎯 直觉理解</h3>
+            <p>
+                想象你是一个园丁，要在花园里划分两种花的区域。<br>
+                <span class="highlight-primary">决策边界</span>就是你画的那条分界线！<br><br>
+                • 线性决策边界：一条直线<br>
+                • 非线性决策边界：曲线（通过特征工程实现）
+            </p>
+        </div>
+
+        <!-- 决策边界交互演示 -->
+        <div class="demo-container">
+            <h3 style="color: #667eea; text-align: center; margin-bottom: 20px;">🎨 决策边界交互式演示</h3>
+            <canvas id="boundaryCanvas" class="demo-canvas" width="800" height="500"></canvas>
+            <div class="demo-controls">
+                <button class="demo-btn" onclick="addPoint(0)">添加红点</button>
+                <button class="demo-btn" onclick="addPoint(1)">添加蓝点</button>
+                <button class="demo-btn" onclick="trainBoundary()">训练模型</button>
+                <button class="demo-btn" onclick="clearBoundary()">清除画布</button>
+            </div>
+            <div style="margin-top: 20px; text-align: center;">
+                <label style="color: #94a3b8;">正则化强度 C: </label>
+                <input type="range" id="cParam" min="0.01" max="10" step="0.01" value="1"
+                       oninput="updateCParam(this.value)" style="width: 200px;">
+                <span id="cValue" style="color: #667eea; margin-left: 10px;">1.00</span>
+            </div>
+            <p style="text-align: center; margin-top: 15px; color: #94a3b8;">
+                💡 点击画布添加数据点，观察决策边界如何变化
+            </p>
+        </div>
+    </div>
+
+    <!-- 正则化与过拟合 -->
+    <div id="regularization" class="section-card fade-in section-anchor">
+        <h2 class="section-title">⚖️ 6.4 正则化：平衡的艺术</h2>
+
+        <div class="thinking-box">
+            <h3>过拟合的危险</h3>
+            <p>模型在训练集上表现完美，但在新数据上表现很差。<br>
+                就像一个学生死记硬背了所有题目，但不会举一反三。</p>
+        </div>
+
+        <!-- 正则化类型 -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-top: 30px;">
+            <div style="background: rgba(102, 126, 234, 0.1); padding: 25px; border-radius: 15px; border: 2px solid rgba(102, 126, 234, 0.3);">
+                <h4 style="color: #667eea; margin-bottom: 15px;">📏 L1正则化（Lasso）</h4>
+                <div class="math-formula" style="font-size: 1.2rem; margin: 15px 0;">
+                    Loss = -LogLikelihood + λ∑|βᵢ|
+                </div>
+                <ul style="list-style: none; padding: 0;">
+                    <li>✓ 产生稀疏解（某些系数变为0）</li>
+                    <li>✓ 自动特征选择</li>
+                    <li>✓ 适合高维数据</li>
+                </ul>
+            </div>
+            <div style="background: rgba(16, 185, 129, 0.1); padding: 25px; border-radius: 15px; border: 2px solid rgba(16, 185, 129, 0.3);">
+                <h4 style="color: #10b981; margin-bottom: 15px;">📐 L2正则化（Ridge）</h4>
+                <div class="math-formula" style="font-size: 1.2rem; margin: 15px 0;">
+                    Loss = -LogLikelihood + λ∑βᵢ²
+                </div>
+                <ul style="list-style: none; padding: 0;">
+                    <li>✓ 系数趋向于小值</li>
+                    <li>✓ 不会产生稀疏解</li>
+                    <li>✓ 处理共线性更好</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- C参数说明 -->
+        <div style="background: rgba(245, 158, 11, 0.1); padding: 25px; border-radius: 15px; margin-top: 20px; border: 2px solid rgba(245, 158, 11, 0.3);">
+            <h4 style="color: #f59e0b;">⚡ sklearn中的C参数</h4>
+            <p style="margin-top: 10px;">
+                C = 1/λ，是正则化强度的<span class="highlight-warning">倒数</span><br>
+                • C越大 → 正则化越弱 → 模型越复杂 → 可能过拟合<br>
+                • C越小 → 正则化越强 → 模型越简单 → 可能欠拟合
+            </p>
+        </div>
+    </div>
+
+    <!-- 多分类扩展 -->
+    <div id="multiclass" class="section-card fade-in section-anchor">
+        <h2 class="section-title">🌈 6.5 多分类：从二元到多元</h2>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px;">
+            <!-- One-vs-Rest -->
+            <div style="background: rgba(102, 126, 234, 0.1); padding: 25px; border-radius: 15px; border: 2px solid rgba(102, 126, 234, 0.3);">
+                <h3 style="color: #667eea; margin-bottom: 15px;">🎯 One-vs-Rest (OvR)</h3>
+                <div style="text-align: center; margin: 20px 0;">
+                    <div style="background: #1e293b; padding: 20px; border-radius: 10px;">
+                        <p style="margin: 5px;">类别A vs (B+C+D)</p>
+                        <p style="margin: 5px;">类别B vs (A+C+D)</p>
+                        <p style="margin: 5px;">类别C vs (A+B+D)</p>
+                        <p style="margin: 5px;">类别D vs (A+B+C)</p>
+                    </div>
+                </div>
+                <ul style="list-style: none; padding: 0; margin-top: 20px;">
+                    <li>✅ 训练K个分类器（K=类别数）</li>
+                    <li>✅ 简单直观，易于并行</li>
+                    <li>❌ 类别不平衡问题</li>
+                </ul>
+            </div>
+
+            <!-- Softmax -->
+            <div style="background: rgba(16, 185, 129, 0.1); padding: 25px; border-radius: 15px; border: 2px solid rgba(16, 185, 129, 0.3);">
+                <h3 style="color: #10b981; margin-bottom: 15px;">🔄 Softmax回归</h3>
+                <div class="math-formula" style="font-size: 1.2rem; margin: 20px 0;">
+                    P(y=k|x) = e^(zₖ) / Σe^(zᵢ)
+                </div>
+                <ul style="list-style: none; padding: 0; margin-top: 20px;">
+                    <li>✅ 一个统一的多类模型</li>
+                    <li>✅ 输出概率和为1</li>
+                    <li>✅ 更好的概率校准</li>
+                    <li>❌ 计算成本较高</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- 手写数字识别预览 -->
+        <div class="demo-container" style="margin-top: 30px;">
+            <h3 style="color: #667eea; text-align: center; margin-bottom: 20px;">✏️ 手写数字识别演示</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px;">
+                <div>
+                    <canvas id="digitCanvas" class="demo-canvas" width="280" height="280" style="background: white;"></canvas>
+                    <div class="demo-controls" style="margin-top: 10px;">
+                        <button class="demo-btn" onclick="clearDigit()">清除</button>
+                        <button class="demo-btn" onclick="predictDigit()">识别</button>
+                    </div>
+                </div>
+                <div style="background: rgba(30, 41, 59, 0.5); padding: 20px; border-radius: 10px;">
+                    <h4 style="color: #667eea; margin-bottom: 15px;">预测概率分布</h4>
+                    <div id="digitPrediction" style="min-height: 200px;">
+                        <p style="color: #94a3b8; text-align: center;">在左侧画布上写一个数字...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 实战案例1：心脏病预测 -->
+    <div id="heart-case" class="section-card fade-in section-anchor">
+        <h2 class="section-title">❤️ 6.6 实战案例一：心脏病预测系统</h2>
+
+        <div class="story-box">
+            <h3 style="color: #f59e0b;">🏥 回到急诊室</h3>
+            <p>
+                现在，让我们用逻辑回归帮助李医生建立一个<span class="highlight-primary">心脏病预测系统</span>！<br>
+                基于患者的检查数据，快速评估心脏病风险。
+            </p>
+        </div>
+
+        <!-- 数据集说明 -->
+        <div style="background: rgba(102, 126, 234, 0.1); padding: 25px; border-radius: 15px; margin: 20px 0;">
+            <h4 style="color: #667eea;">📊 数据集特征（14个指标）</h4>
+            <table class="data-table" style="margin-top: 15px;">
+                <thead>
+                <tr>
+                    <th>特征名</th>
+                    <th>描述</th>
+                    <th>类型</th>
+                    <th>取值范围</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr>
+                    <td>年龄</td>
+                    <td>患者年龄</td>
+                    <td>连续</td>
+                    <td>29-77岁</td>
+                </tr>
+                <tr>
+                    <td>性别</td>
+                    <td>患者性别</td>
+                    <td>二元</td>
+                    <td>0=女, 1=男</td>
+                </tr>
+                <tr>
+                    <td>胸痛类型</td>
+                    <td>胸痛症状分类</td>
+                    <td>分类</td>
+                    <td>1-4（4种类型）</td>
+                </tr>
+                <tr>
+                    <td>静息血压</td>
+                    <td>静息状态血压</td>
+                    <td>连续</td>
+                    <td>94-200 mmHg</td>
+                </tr>
+                <tr>
+                    <td>胆固醇</td>
+                    <td>血清胆固醇</td>
+                    <td>连续</td>
+                    <td>126-564 mg/dl</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 完整代码实现 -->
+        <div class="code-block">
+                <pre><code><span class="keyword">import</span> pandas <span class="keyword">as</span> pd
+<span class="keyword">import</span> numpy <span class="keyword">as</span> np
+<span class="keyword">from</span> sklearn.model_selection <span class="keyword">import</span> train_test_split, GridSearchCV
+<span class="keyword">from</span> sklearn.preprocessing <span class="keyword">import</span> StandardScaler, OneHotEncoder
+<span class="keyword">from</span> sklearn.compose <span class="keyword">import</span> ColumnTransformer
+<span class="keyword">from</span> sklearn.linear_model <span class="keyword">import</span> LogisticRegression
+<span class="keyword">from</span> sklearn.metrics <span class="keyword">import</span> accuracy_score, confusion_matrix, classification_report
+<span class="keyword">import</span> matplotlib.pyplot <span class="keyword">as</span> plt
+<span class="keyword">import</span> seaborn <span class="keyword">as</span> sns
+
+<span class="comment"># 1. 数据加载与探索</span>
+heart_disease = pd.read_csv(<span class="string">"data/heart_disease.csv"</span>)
+print(<span class="string">f"数据集形状: {heart_disease.shape}"</span>)
+print(<span class="string">f"缺失值统计:\n{heart_disease.isnull().sum()}"</span>)
+
+<span class="comment"># 2. 特征工程</span>
+<span class="comment"># 定义特征类型</span>
+numerical_features = [<span class="string">"年龄"</span>, <span class="string">"静息血压"</span>, <span class="string">"胆固醇"</span>,
+                     <span class="string">"最大心率"</span>, <span class="string">"运动后的ST下降"</span>, <span class="string">"主血管数量"</span>]
+categorical_features = [<span class="string">"胸痛类型"</span>, <span class="string">"静息心电图结果"</span>,
+                       <span class="string">"峰值ST段的斜率"</span>, <span class="string">"地中海贫血"</span>]
+binary_features = [<span class="string">"性别"</span>, <span class="string">"空腹血糖"</span>, <span class="string">"运动性心绞痛"</span>]
+
+<span class="comment"># 创建预处理管道</span>
+preprocessor = ColumnTransformer(
+    transformers=[
+        (<span class="string">"num"</span>, StandardScaler(), numerical_features),
+        (<span class="string">"cat"</span>, OneHotEncoder(drop=<span class="string">"first"</span>), categorical_features),
+        (<span class="string">"binary"</span>, <span class="string">"passthrough"</span>, binary_features),
+    ]
+)
+
+<span class="comment"># 3. 数据划分</span>
+X = heart_disease.drop(<span class="string">"是否患有心脏病"</span>, axis=<span class="number">1</span>)
+y = heart_disease[<span class="string">"是否患有心脏病"</span>]
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=<span class="number">0.3</span>, random_state=<span class="number">42</span>, stratify=y
+)
+
+<span class="comment"># 4. 数据预处理</span>
+X_train_processed = preprocessor.fit_transform(X_train)
+X_test_processed = preprocessor.transform(X_test)
+
+<span class="comment"># 5. 模型训练与调参</span>
+<span class="comment"># 网格搜索最佳参数</span>
+param_grid = {
+    <span class="string">'C'</span>: [<span class="number">0.001</span>, <span class="number">0.01</span>, <span class="number">0.1</span>, <span class="number">1</span>, <span class="number">10</span>, <span class="number">100</span>],
+    <span class="string">'penalty'</span>: [<span class="string">'l1'</span>, <span class="string">'l2'</span>],
+    <span class="string">'solver'</span>: [<span class="string">'liblinear'</span>]
+}
+
+grid_search = GridSearchCV(
+    LogisticRegression(random_state=<span class="number">42</span>, max_iter=<span class="number">1000</span>),
+    param_grid,
+    cv=<span class="number">5</span>,
+    scoring=<span class="string">'roc_auc'</span>,
+    n_jobs=<span class="number">-1</span>
+)
+
+grid_search.fit(X_train_processed, y_train)
+print(<span class="string">f"最佳参数: {grid_search.best_params_}"</span>)
+print(<span class="string">f"最佳AUC分数: {grid_search.best_score_:.4f}"</span>)
+
+<span class="comment"># 6. 模型评估</span>
+best_model = grid_search.best_estimator_
+y_pred = best_model.predict(X_test_processed)
+y_pred_proba = best_model.predict_proba(X_test_processed)[:, <span class="number">1</span>]
+
+<span class="comment"># 混淆矩阵可视化</span>
+plt.figure(figsize=(<span class="number">8</span>, <span class="number">6</span>))
+cm = confusion_matrix(y_test, y_pred)
+sns.heatmap(cm, annot=<span class="keyword">True</span>, fmt=<span class="string">'d'</span>, cmap=<span class="string">'Blues'</span>)
+plt.title(<span class="string">'心脏病预测混淆矩阵'</span>)
+plt.ylabel(<span class="string">'真实标签'</span>)
+plt.xlabel(<span class="string">'预测标签'</span>)
+plt.show()
+
+<span class="comment"># 7. 特征重要性分析</span>
+feature_importance = pd.DataFrame({
+    <span class="string">'feature'</span>: preprocessor.get_feature_names_out(),
+    <span class="string">'coefficient'</span>: best_model.coef_[<span class="number">0</span>]
+})
+feature_importance = feature_importance.sort_values(<span class="string">'coefficient'</span>,
+                                                  key=abs,
+                                                  ascending=<span class="keyword">False</span>)
+print(<span class="string">"\n前10个重要特征:"</span>)
+print(feature_importance.head(<span class="number">10</span>))
+
+<span class="comment"># 8. 实际应用：风险评估函数</span>
+<span class="keyword">def</span> <span class="function">assess_heart_disease_risk</span>(patient_data, model, preprocessor):
+    <span class="string">"""评估单个患者的心脏病风险"""</span>
+    <span class="comment"># 预处理数据</span>
+    patient_processed = preprocessor.transform([patient_data])
+
+    <span class="comment"># 预测概率</span>
+    risk_probability = model.predict_proba(patient_processed)[<span class="number">0</span>, <span class="number">1</span>]
+
+    <span class="comment"># 风险分级</span>
+    <span class="keyword">if</span> risk_probability < <span class="number">0.3</span>:
+        risk_level = <span class="string">"低风险"</span>
+        color = <span class="string">"green"</span>
+    <span class="keyword">elif</span> risk_probability < <span class="number">0.7</span>:
+        risk_level = <span class="string">"中等风险"</span>
+        color = <span class="string">"orange"</span>
+    <span class="keyword">else</span>:
+        risk_level = <span class="string">"高风险"</span>
+        color = <span class="string">"red"</span>
+
+    <span class="keyword">return</span> {
+        <span class="string">'probability'</span>: risk_probability,
+        <span class="string">'risk_level'</span>: risk_level,
+        <span class="string">'color'</span>: color
+    }</code></pre>
+        </div>
+
+        <!-- 模型性能展示 -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-top: 30px;">
+            <div style="background: rgba(16, 185, 129, 0.1); padding: 20px; border-radius: 15px; text-align: center; border: 2px solid rgba(16, 185, 129, 0.3);">
+                <h4 style="color: #10b981;">准确率</h4>
+                <p style="font-size: 2rem; margin: 10px 0;">87.9%</p>
+            </div>
+            <div style="background: rgba(102, 126, 234, 0.1); padding: 20px; border-radius: 15px; text-align: center; border: 2px solid rgba(102, 126, 234, 0.3);">
+                <h4 style="color: #667eea;">精确率</h4>
+                <p style="font-size: 2rem; margin: 10px 0;">89.2%</p>
+            </div>
+            <div style="background: rgba(245, 158, 11, 0.1); padding: 20px; border-radius: 15px; text-align: center; border: 2px solid rgba(245, 158, 11, 0.3);">
+                <h4 style="color: #f59e0b;">召回率</h4>
+                <p style="font-size: 2rem; margin: 10px 0;">85.7%</p>
+            </div>
+            <div style="background: rgba(239, 68, 68, 0.1); padding: 20px; border-radius: 15px; text-align: center; border: 2px solid rgba(239, 68, 68, 0.3);">
+                <h4 style="color: #ef4444;">AUC分数</h4>
+                <p style="font-size: 2rem; margin: 10px 0;">0.926</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 实战案例2：手写数字识别 -->
+    <div id="digit-case" class="section-card fade-in section-anchor">
+        <h2 class="section-title">✏️ 6.7 实战案例二：手写数字识别</h2>
+
+        <div class="story-box">
+            <h3 style="color: #f59e0b;">📮 邮政编码的智能识别</h3>
+            <p>
+                邮局每天处理数百万封信件，手工识别邮编效率低下。<br>
+                让我们用逻辑回归构建一个<span class="highlight-primary">手写数字识别系统</span>！
+            </p>
+        </div>
+
+        <!-- MNIST数据集展示 -->
+        <div class="demo-container">
+            <h3 style="color: #667eea; text-align: center; margin-bottom: 20px;">📊 MNIST数据集样本展示</h3>
+            <div id="mnistSamples" style="display: grid; grid-template-columns: repeat(10, 1fr); gap: 10px; padding: 20px;">
+                <!-- 这里会动态加载MNIST样本 -->
+            </div>
+            <button class="demo-btn" onclick="loadNewSamples()" style="margin: 20px auto; display: block;">
+                刷新样本
+            </button>
+        </div>
+
+        <!-- 手写数字识别代码 -->
+        <div class="code-block">
+                <pre><code><span class="keyword">import</span> pandas <span class="keyword">as</span> pd
+<span class="keyword">import</span> numpy <span class="keyword">as</span> np
+<span class="keyword">from</span> sklearn.model_selection <span class="keyword">import</span> train_test_split
+<span class="keyword">from</span> sklearn.preprocessing <span class="keyword">import</span> MinMaxScaler
+<span class="keyword">from</span> sklearn.linear_model <span class="keyword">import</span> LogisticRegression
+<span class="keyword">from</span> sklearn.metrics <span class="keyword">import</span> accuracy_score, confusion_matrix
+<span class="keyword">import</span> matplotlib.pyplot <span class="keyword">as</span> plt
+
+<span class="comment"># 1. 加载MNIST数据集</span>
+digit_data = pd.read_csv(<span class="string">"data/train.csv"</span>)
+print(<span class="string">f"数据集大小: {digit_data.shape}"</span>)
+
+<span class="comment"># 2. 数据可视化</span>
+<span class="keyword">def</span> <span class="function">visualize_digit</span>(data, index):
+    <span class="string">"""可视化单个数字"""</span>
+    digit = data.iloc[index, <span class="number">1</span>:].values.reshape(<span class="number">28</span>, <span class="number">28</span>)
+    label = data.iloc[index, <span class="number">0</span>]
+
+    plt.figure(figsize=(<span class="number">3</span>, <span class="number">3</span>))
+    plt.imshow(digit, cmap=<span class="string">'gray'</span>)
+    plt.title(<span class="string">f'标签: {label}'</span>)
+    plt.axis(<span class="string">'off'</span>)
+    plt.show()
+
+<span class="comment"># 显示一些样本</span>
+fig, axes = plt.subplots(<span class="number">2</span>, <span class="number">5</span>, figsize=(<span class="number">12</span>, <span class="number">5</span>))
+<span class="keyword">for</span> i, ax <span class="keyword">in</span> enumerate(axes.flat):
+    digit = digit_data.iloc[i, <span class="number">1</span>:].values.reshape(<span class="number">28</span>, <span class="number">28</span>)
+    label = digit_data.iloc[i, <span class="number">0</span>]
+    ax.imshow(digit, cmap=<span class="string">'gray'</span>)
+    ax.set_title(<span class="string">f'Label: {label}'</span>)
+    ax.axis(<span class="string">'off'</span>)
+plt.tight_layout()
+plt.show()
+
+<span class="comment"># 3. 数据预处理</span>
+X = digit_data.drop(<span class="string">"label"</span>, axis=<span class="number">1</span>)
+y = digit_data[<span class="string">"label"</span>]
+
+<span class="comment"># 归一化到[0,1]</span>
+scaler = MinMaxScaler()
+X_normalized = scaler.fit_transform(X)
+
+<span class="comment"># 数据划分</span>
+X_train, X_test, y_train, y_test = train_test_split(
+    X_normalized, y, test_size=<span class="number">0.2</span>, random_state=<span class="number">42</span>, stratify=y
+)
+
+<span class="comment"># 4. 模型训练（多分类）</span>
+<span class="comment"># 使用saga求解器支持多分类</span>
+model = LogisticRegression(
+    multi_class=<span class="string">'multinomial'</span>,  <span class="comment"># Softmax回归</span>
+    solver=<span class="string">'saga'</span>,              <span class="comment"># 支持L1正则化</span>
+    penalty=<span class="string">'l1'</span>,               <span class="comment"># L1正则化产生稀疏解</span>
+    C=<span class="number">0.1</span>,                      <span class="comment"># 正则化强度</span>
+    max_iter=<span class="number">200</span>,               <span class="comment"># 最大迭代次数</span>
+    random_state=<span class="number">42</span>,
+    n_jobs=<span class="number">-1</span>                   <span class="comment"># 并行计算</span>
+)
+
+<span class="comment"># 训练模型</span>
+print(<span class="string">"开始训练模型..."</span>)
+model.fit(X_train, y_train)
+print(<span class="string">"训练完成!"</span>)
+
+<span class="comment"># 5. 模型评估</span>
+train_accuracy = model.score(X_train, y_train)
+test_accuracy = model.score(X_test, y_test)
+print(<span class="string">f"\n训练集准确率: {train_accuracy:.4f}"</span>)
+print(<span class="string">f"测试集准确率: {test_accuracy:.4f}"</span>)
+
+<span class="comment"># 6. 混淆矩阵分析</span>
+y_pred = model.predict(X_test)
+cm = confusion_matrix(y_test, y_pred)
+
+plt.figure(figsize=(<span class="number">10</span>, <span class="number">8</span>))
+sns.heatmap(cm, annot=<span class="keyword">True</span>, fmt=<span class="string">'d'</span>, cmap=<span class="string">'Blues'</span>,
+            xticklabels=range(<span class="number">10</span>), yticklabels=range(<span class="number">10</span>))
+plt.title(<span class="string">'手写数字识别混淆矩阵'</span>)
+plt.ylabel(<span class="string">'真实数字'</span>)
+plt.xlabel(<span class="string">'预测数字'</span>)
+plt.show()
+
+<span class="comment"># 7. 错误案例分析</span>
+<span class="keyword">def</span> <span class="function">show_misclassified</span>(X_test, y_test, y_pred, n_samples=<span class="number">10</span>):
+    <span class="string">"""显示分类错误的样本"""</span>
+    misclassified_idx = np.where(y_test != y_pred)[<span class="number">0</span>]
+
+    fig, axes = plt.subplots(<span class="number">2</span>, <span class="number">5</span>, figsize=(<span class="number">12</span>, <span class="number">5</span>))
+    <span class="keyword">for</span> i, ax <span class="keyword">in</span> enumerate(axes.flat):
+        <span class="keyword">if</span> i < len(misclassified_idx):
+            idx = misclassified_idx[i]
+            digit = X_test[idx].reshape(<span class="number">28</span>, <span class="number">28</span>)
+            ax.imshow(digit, cmap=<span class="string">'gray'</span>)
+            ax.set_title(<span class="string">f'真实: {y_test.iloc[idx]}, 预测: {y_pred[idx]}'</span>,
+                        color=<span class="string">'red'</span>)
+            ax.axis(<span class="string">'off'</span>)
+    plt.suptitle(<span class="string">'分类错误的样本'</span>)
+    plt.tight_layout()
+    plt.show()
+
+show_misclassified(X_test, y_test, y_pred)
+
+<span class="comment"># 8. 特征可视化（查看每个数字的"平均形象"）</span>
+fig, axes = plt.subplots(<span class="number">2</span>, <span class="number">5</span>, figsize=(<span class="number">12</span>, <span class="number">5</span>))
+<span class="keyword">for</span> digit, ax <span class="keyword">in</span> enumerate(axes.flat):
+    <span class="comment"># 获取该数字类别的权重</span>
+    weights = model.coef_[digit].reshape(<span class="number">28</span>, <span class="number">28</span>)
+
+    <span class="comment"># 可视化权重</span>
+    im = ax.imshow(weights, cmap=<span class="string">'RdBu'</span>, vmin=-np.max(np.abs(weights)),
+                   vmax=np.max(np.abs(weights)))
+    ax.set_title(<span class="string">f'数字 {digit} 的特征权重'</span>)
+    ax.axis(<span class="string">'off'</span>)
+
+plt.suptitle(<span class="string">'逻辑回归学到的数字特征'</span>)
+plt.tight_layout()
+plt.show()
+
+<span class="comment"># 9. 实时预测函数</span>
+<span class="keyword">def</span> <span class="function">predict_digit</span>(image_array, model, scaler):
+    <span class="string">"""预测单个手写数字"""</span>
+    <span class="comment"># 确保输入是784维向量</span>
+    image_flat = image_array.reshape(<span class="number">1</span>, <span class="number">-1</span>)
+
+    <span class="comment"># 归一化</span>
+    image_normalized = scaler.transform(image_flat)
+
+    <span class="comment"># 预测</span>
+    prediction = model.predict(image_normalized)[<span class="number">0</span>]
+    probabilities = model.predict_proba(image_normalized)[<span class="number">0</span>]
+
+    <span class="keyword">return</span> {
+        <span class="string">'prediction'</span>: prediction,
+        <span class="string">'probabilities'</span>: probabilities,
+        <span class="string">'confidence'</span>: np.max(probabilities)
+    }</code></pre>
+        </div>
+
+        <!-- 性能对比 -->
+        <div style="background: rgba(102, 126, 234, 0.1); padding: 25px; border-radius: 15px; margin-top: 30px;">
+            <h4 style="color: #667eea;">🏆 不同配置的性能对比</h4>
+            <table class="data-table" style="margin-top: 15px;">
+                <thead>
+                <tr>
+                    <th>配置</th>
+                    <th>求解器</th>
+                    <th>正则化</th>
+                    <th>训练时间</th>
+                    <th>测试准确率</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr>
+                    <td>OvR + L2</td>
+                    <td>lbfgs</td>
+                    <td>L2 (C=1)</td>
+                    <td>45.2s</td>
+                    <td>91.8%</td>
+                </tr>
+                <tr>
+                    <td>Softmax + L2</td>
+                    <td>saga</td>
+                    <td>L2 (C=1)</td>
+                    <td>38.7s</td>
+                    <td>92.5%</td>
+                </tr>
+                <tr>
+                    <td>Softmax + L1</td>
+                    <td>saga</td>
+                    <td>L1 (C=0.1)</td>
+                    <td>52.3s</td>
+                    <td>92.1%</td>
+                </tr>
+                <tr>
+                    <td>Softmax + Elastic</td>
+                    <td>saga</td>
+                    <td>ElasticNet</td>
+                    <td>56.8s</td>
+                    <td>92.7%</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 模型诊断与优化 -->
+    <div id="diagnosis" class="section-card fade-in section-anchor">
+        <h2 class="section-title">🔍 6.8 模型诊断与优化</h2>
+
+        <!-- 学习曲线 -->
+        <div class="demo-container">
+            <h3 style="color: #667eea; text-align: center; margin-bottom: 20px;">📈 学习曲线分析</h3>
+            <canvas id="learningCurveCanvas" class="demo-canvas" width="800" height="400"></canvas>
+            <div class="demo-controls">
+                <button class="demo-btn" onclick="showLearningCurve('bias')">高偏差</button>
+                <button class="demo-btn" onclick="showLearningCurve('variance')">高方差</button>
+                <button class="demo-btn" onclick="showLearningCurve('good')">良好拟合</button>
+            </div>
+        </div>
+
+        <!-- 诊断技巧 -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-top: 30px;">
+            <div style="background: rgba(239, 68, 68, 0.1); padding: 25px; border-radius: 15px; border: 2px solid rgba(239, 68, 68, 0.3);">
+                <h4 style="color: #ef4444;">🔴 欠拟合诊断</h4>
+                <ul style="list-style: none; padding: 0; margin-top: 15px;">
+                    <li>• 训练集准确率低</li>
+                    <li>• 验证集准确率也低</li>
+                    <li>• 学习曲线收敛但性能差</li>
+                </ul>
+                <p style="margin-top: 15px;"><strong>解决方案：</strong></p>
+                <ul style="list-style: none; padding: 0;">
+                    <li>✓ 增加特征</li>
+                    <li>✓ 增加多项式特征</li>
+                    <li>✓ 减小正则化强度</li>
+                </ul>
+            </div>
+
+            <div style="background: rgba(245, 158, 11, 0.1); padding: 25px; border-radius: 15px; border: 2px solid rgba(245, 158, 11, 0.3);">
+                <h4 style="color: #f59e0b;">🟡 过拟合诊断</h4>
+                <ul style="list-style: none; padding: 0; margin-top: 15px;">
+                    <li>• 训练集准确率很高</li>
+                    <li>• 验证集准确率明显较低</li>
+                    <li>• 学习曲线有较大间隙</li>
+                </ul>
+                <p style="margin-top: 15px;"><strong>解决方案：</strong></p>
+                <ul style="list-style: none; padding: 0;">
+                    <li>✓ 增加训练数据</li>
+                    <li>✓ 增强正则化</li>
+                    <li>✓ 特征选择</li>
+                </ul>
+            </div>
+
+            <div style="background: rgba(16, 185, 129, 0.1); padding: 25px; border-radius: 15px; border: 2px solid rgba(16, 185, 129, 0.3);">
+                <h4 style="color: #10b981;">🟢 良好拟合</h4>
+                <ul style="list-style: none; padding: 0; margin-top: 15px;">
+                    <li>• 训练集准确率高</li>
+                    <li>• 验证集准确率接近</li>
+                    <li>• 学习曲线收敛且间隙小</li>
+                </ul>
+                <p style="margin-top: 15px;"><strong>继续优化：</strong></p>
+                <ul style="list-style: none; padding: 0;">
+                    <li>✓ 集成学习</li>
+                    <li>✓ 特征工程</li>
+                    <li>✓ 超参数微调</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- 总结与思考 -->
+    <div id="summary" class="section-card fade-in section-anchor">
+        <h2 class="section-title">🎓 6.9 总结与深度思考</h2>
+
+        <div class="thinking-box">
+            <h3>回顾：从线性到逻辑的旅程</h3>
+            <div style="margin-top: 20px;">
+                <p>1️⃣ <span class="highlight-primary">问题起源</span>：线性回归无法直接用于分类</p>
+                <p>2️⃣ <span class="highlight-success">Sigmoid变换</span>：将线性输出映射到概率空间</p>
+                <p>3️⃣ <span class="highlight-warning">损失函数</span>：从MSE到交叉熵的转变</p>
+                <p>4️⃣ <span class="highlight-danger">正则化</span>：防止过拟合的关键</p>
+                <p>5️⃣ <span class="highlight-primary">多分类扩展</span>：OvR和Softmax两种策略</p>
+            </div>
+        </div>
+
+        <!-- 核心要点总结 -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin: 30px 0;">
+            <div class="pulse" style="background: linear-gradient(135deg, rgba(102, 126, 234, 0.2), rgba(124, 58, 237, 0.1)); padding: 25px; border-radius: 15px; border: 2px solid rgba(102, 126, 234, 0.4); text-align: center;">
+                <h4 style="color: #667eea; margin-bottom: 15px;">🧮 数学基础</h4>
+                <p>Sigmoid函数<br>交叉熵损失<br>梯度下降优化</p>
+            </div>
+            <div class="pulse" style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(5, 150, 105, 0.1)); padding: 25px; border-radius: 15px; border: 2px solid rgba(16, 185, 129, 0.4); text-align: center; animation-delay: 0.3s;">
+                <h4 style="color: #10b981; margin-bottom: 15px;">🛠️ 实践技巧</h4>
+                <p>特征缩放必须<br>正则化防过拟合<br>类别平衡处理</p>
+            </div>
+            <div class="pulse" style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(217, 119, 6, 0.1)); padding: 25px; border-radius: 15px; border: 2px solid rgba(245, 158, 11, 0.4); text-align: center; animation-delay: 0.6s;">
+                <h4 style="color: #f59e0b; margin-bottom: 15px;">🎯 应用场景</h4>
+                <p>医疗诊断<br>垃圾邮件过滤<br>信用评分</p>
+            </div>
+            <div class="pulse" style="background: linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(220, 38, 38, 0.1)); padding: 25px; border-radius: 15px; border: 2px solid rgba(239, 68, 68, 0.4); text-align: center; animation-delay: 0.9s;">
+                <h4 style="color: #ef4444; margin-bottom: 15px;">⚡ 优化要点</h4>
+                <p>学习曲线诊断<br>超参数调优<br>模型集成</p>
+            </div>
+        </div>
+
+        <!-- 深度思考题 -->
+        <div style="background: rgba(139, 92, 246, 0.1); padding: 30px; border-radius: 20px; margin: 30px 0; border: 2px solid rgba(139, 92, 246, 0.3);">
+            <h3 style="color: #8b5cf6; margin-bottom: 20px;">🤔 深度思考题</h3>
+            <ol style="line-height: 2; padding-left: 20px;">
+                <li><strong>线性可分性：</strong>逻辑回归假设数据是线性可分的，如果不是会怎样？如何解决？</li>
+                <li><strong>概率校准：</strong>逻辑回归输出的概率是否真的可靠？什么情况下需要概率校准？</li>
+                <li><strong>特征工程：</strong>如何通过特征工程让逻辑回归处理非线性问题？多项式特征的度数如何选择？</li>
+                <li><strong>类别不平衡：</strong>当正负样本比例为1:100时，逻辑回归会出现什么问题？有哪些解决方案？</li>
+                <li><strong>与其他算法对比：</strong>逻辑回归、SVM、决策树各自的优劣是什么？如何选择？</li>
+            </ol>
+        </div>
+
+        <!-- 下一步学习建议 -->
+        <div style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(5, 150, 105, 0.05)); padding: 30px; border-radius: 20px; border: 2px solid rgba(16, 185, 129, 0.3);">
+            <h3 style="color: #10b981; margin-bottom: 20px;">📚 延伸学习路径</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div>
+                    <h4 style="color: #667eea;">理论深化</h4>
+                    <ul style="list-style: none; padding: 0;">
+                        <li>📖 广义线性模型(GLM)</li>
+                        <li>📊 最大熵模型</li>
+                        <li>🧮 贝叶斯逻辑回归</li>
+                        <li>🔬 核逻辑回归</li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 style="color: #f59e0b;">实践进阶</h4>
+                    <ul style="list-style: none; padding: 0;">
+                        <li>⚡ 在线学习算法</li>
+                        <li>🏗️ 大规模逻辑回归</li>
+                        <li>🤖 深度学习中的Sigmoid</li>
+                        <li>📱 模型部署优化</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 结语 -->
+    <div class="section-card fade-in" style="text-align: center; background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(124, 58, 237, 0.05)); border: 3px solid rgba(102, 126, 234, 0.4);">
+        <h2 style="font-size: 3rem; background: linear-gradient(135deg, #667eea, #764ba2); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 30px;">
+            🎉 恭喜完成逻辑回归学习！
+        </h2>
+        <p style="font-size: 1.3rem; color: #cbd5e1; line-height: 1.8; margin-bottom: 40px;">
+            从医生的诊断困境到智能识别系统<br>
+            你已经掌握了分类问题的核心算法<br>
+            逻辑回归——连接线性与非线性世界的桥梁
+        </p>
+        <div class="demo-controls">
+            <button class="demo-btn" onclick="downloadNotes()" style="font-size: 1.1rem; padding: 15px 30px;">
+                📥 下载学习笔记
+            </button>
+            <button class="demo-btn" onclick="startQuiz()" style="font-size: 1.1rem; padding: 15px 30px;">
+                🧠 开始知识测验
+            </button>
+            <button class="demo-btn" onclick="shareAchievement()" style="font-size: 1.1rem; padding: 15px 30px;">
+                🎊 分享学习成就
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- 浮动工具栏 -->
+<div class="floating-toolbar">
+    <button class="toolbar-btn theme-toggle-btn" onclick="toggleTheme()" title="切换主题">
+        <span class="theme-icon">🌓</span>
+    </button>
+    <button class="toolbar-btn" onclick="scrollToTop()" title="回到顶部">⬆️</button>
+    <button class="toolbar-btn" onclick="toggleHelp()" title="帮助">❓</button>
+</div>
+
+<script>
+    // 导航系统功能
+    let navOpen = false;
+    let sectionsRead = new Set();
+    let totalSections = 10;
+
+    // 切换导航
+    function toggleNav() {
+        navOpen = !navOpen;
+        document.body.classList.toggle('nav-open', navOpen);
+    }
+
+    // 键盘快捷键支持
+    document.addEventListener('keydown', function(e) {
+        // Alt + N 切换导航
+        if (e.altKey && e.key === 'n') {
+            e.preventDefault();
+            toggleNav();
+        }
+
+        // Ctrl/Cmd + S: 保存笔记
+        if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+            e.preventDefault();
+            downloadNotes();
+        }
+
+        // Ctrl/Cmd + Q: 开始测验
+        if ((e.ctrlKey || e.metaKey) && e.key === 'q') {
+            e.preventDefault();
+            startQuiz();
+        }
+
+        // ESC: 返回顶部
+        if (e.key === 'Escape') {
+            scrollToTop();
+        }
+    });
+
+    // 初始化导航监听
+    function initNavigation() {
+        // 导航项点击事件
+        const navItems = document.querySelectorAll('.nav-item a');
+        navItems.forEach(item => {
+            item.addEventListener('click', function(e) {
+                e.preventDefault();
+                const targetId = this.getAttribute('href').substring(1);
+                const targetElement = document.getElementById(targetId);
+
+                if (targetElement) {
+                    targetElement.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+
+                    // 更新活动状态
+                    document.querySelectorAll('.nav-item').forEach(ni => ni.classList.remove('active'));
+                    this.parentElement.classList.add('active');
+                }
+            });
+        });
+
+        // 滚动监听
+        updateNavigationOnScroll();
+    }
+
+    // 更新导航状态
+    function updateNavigationOnScroll() {
+        const sections = document.querySelectorAll('.section-anchor');
+        const navItems = document.querySelectorAll('.nav-item');
+
+        let scrollTimeout;
+
+        window.addEventListener('scroll', function() {
+            if (scrollTimeout) clearTimeout(scrollTimeout);
+
+            scrollTimeout = setTimeout(() => {
+                const scrollPosition = window.scrollY + 150;
+
+                // 更新进度
+                updateProgress();
+
+                // 更新当前章节
+                sections.forEach((section, index) => {
+                    const sectionTop = section.offsetTop;
+                    const sectionBottom = sectionTop + section.offsetHeight;
+
+                    if (scrollPosition >= sectionTop && scrollPosition < sectionBottom) {
+                        // 更新导航活动状态
+                        navItems.forEach(item => item.classList.remove('active'));
+                        if (navItems[index]) {
+                            navItems[index].classList.add('active');
+
+                            // 标记为已读
+                            const sectionId = section.id;
+                            if (!sectionsRead.has(sectionId)) {
+                                sectionsRead.add(sectionId);
+                                navItems[index].classList.add('completed');
+                                updateReadingStats();
+                            }
+                        }
+                    }
+                });
+
+                // 更新迷你地图
+                updateMiniMap();
+            }, 50);
+        });
+    }
+
+    // 更新阅读统计
+    function updateReadingStats() {
+        const sectionsReadCount = sectionsRead.size;
+        document.getElementById('sectionsRead').textContent = `${sectionsReadCount}/${totalSections}`;
+
+        // 更新完成百分比
+        const percentage = Math.round((sectionsReadCount / totalSections) * 100);
+        document.getElementById('completionPercent').textContent = percentage + '%';
+
+        // 更新完成环
+        const circumference = 2 * Math.PI * 25;
+        const offset = circumference - (percentage / 100) * circumference;
+        document.getElementById('completionRing').style.strokeDashoffset = offset;
+
+        // 更新导航进度条
+        document.getElementById('navProgressBar').style.width = percentage + '%';
+    }
+
+    // 更新迷你地图
+    function updateMiniMap() {
+        const scrolled = window.scrollY;
+        const total = document.documentElement.scrollHeight - window.innerHeight;
+        const progress = (scrolled / total) * 100;
+
+        const miniMapThumb = document.getElementById('miniMapThumb');
+        if (miniMapThumb) {
+            const mapHeight = 300 - 60; // 总高度减去thumb高度
+            const thumbPosition = (progress / 100) * mapHeight;
+            miniMapThumb.style.top = thumbPosition + 'px';
+        }
+    }
+
+    // 迷你地图拖动功能
+    function initMiniMap() {
+        const miniMapThumb = document.getElementById('miniMapThumb');
+        const miniMapTrack = document.querySelector('.mini-map-track');
+        let isDragging = false;
+
+        if (!miniMapThumb || !miniMapTrack) return;
+
+        miniMapThumb.addEventListener('mousedown', function(e) {
+            isDragging = true;
+            e.preventDefault();
+        });
+
+        document.addEventListener('mousemove', function(e) {
+            if (!isDragging) return;
+
+            const rect = miniMapTrack.getBoundingClientRect();
+            const y = e.clientY - rect.top;
+            const percentage = Math.max(0, Math.min(1, y / rect.height));
+
+            const scrollHeight = document.documentElement.scrollHeight - window.innerHeight;
+            window.scrollTo({
+                top: percentage * scrollHeight,
+                behavior: 'smooth'
+            });
+        });
+
+        document.addEventListener('mouseup', function() {
+            isDragging = false;
+        });
+    }
+
+    // 页面加载动画
+    document.addEventListener('DOMContentLoaded', function() {
+        // 初始化主题
+        initTheme();
+
+        // 初始化导航
+        initNavigation();
+        initMiniMap();
+
+        // 渐入动画
+        const cards = document.querySelectorAll('.fade-in');
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach((entry, index) => {
+                if (entry.isIntersecting) {
+                    setTimeout(() => {
+                        entry.target.style.opacity = '1';
+                        entry.target.style.transform = 'translateY(0)';
+                    }, index * 100);
+                }
+            });
+        });
+
+        cards.forEach(card => {
+            observer.observe(card);
+        });
+
+        // 初始化所有演示
+        initSigmoidDemo();
+        initLossDemo();
+        initBoundaryDemo();
+        initDigitDemo();
+        initLearningCurve();
+        updateProgress();
+    });
+
+    // 进度追踪
+    function updateProgress() {
+        const scrolled = window.scrollY;
+        const total = document.documentElement.scrollHeight - window.innerHeight;
+        const progress = Math.min((scrolled / total) * 100, 100);
+
+        document.getElementById('progressFill').style.width = progress + '%';
+        document.getElementById('progressText').textContent = Math.round(progress) + '%';
+    }
+
+    // Sigmoid函数演示
+    let sigmoidCanvas, sigmoidCtx;
+    let sigmoidParams = { a: 1, b: 0 }; // a控制陡峭度，b控制水平位移
+
+    function initSigmoidDemo() {
+        sigmoidCanvas = document.getElementById('sigmoidCanvas');
+        if (!sigmoidCanvas) return;
+
+        sigmoidCtx = sigmoidCanvas.getContext('2d');
+        drawSigmoid();
+    }
+
+    function sigmoid(x, a = 1, b = 0) {
+        return 1 / (1 + Math.exp(-a * (x - b)));
+    }
+
+    function drawSigmoid() {
+        if (!sigmoidCtx) return;
+
+        const colors = getCanvasColors();
+
+        // 清除画布并设置背景
+        sigmoidCtx.fillStyle = colors.background;
+        sigmoidCtx.fillRect(0, 0, sigmoidCanvas.width, sigmoidCanvas.height);
+
+        // 绘制坐标轴
+        sigmoidCtx.strokeStyle = colors.axis;
+        sigmoidCtx.lineWidth = 2;
+
+        // X轴
+        sigmoidCtx.beginPath();
+        sigmoidCtx.moveTo(50, sigmoidCanvas.height / 2);
+        sigmoidCtx.lineTo(sigmoidCanvas.width - 50, sigmoidCanvas.height / 2);
+        sigmoidCtx.stroke();
+
+        // Y轴
+        sigmoidCtx.beginPath();
+        sigmoidCtx.moveTo(sigmoidCanvas.width / 2, 50);
+        sigmoidCtx.lineTo(sigmoidCanvas.width / 2, sigmoidCanvas.height - 50);
+        sigmoidCtx.stroke();
+
+        // 绘制网格
+        sigmoidCtx.strokeStyle = colors.grid;
+        sigmoidCtx.lineWidth = 0.5;
+        for (let i = 0; i <= 10; i++) {
+            const x = 50 + (sigmoidCanvas.width - 100) * i / 10;
+            sigmoidCtx.beginPath();
+            sigmoidCtx.moveTo(x, 50);
+            sigmoidCtx.lineTo(x, sigmoidCanvas.height - 50);
+            sigmoidCtx.stroke();
+
+            const y = 50 + (sigmoidCanvas.height - 100) * i / 10;
+            sigmoidCtx.beginPath();
+            sigmoidCtx.moveTo(50, y);
+            sigmoidCtx.lineTo(sigmoidCanvas.width - 50, y);
+            sigmoidCtx.stroke();
+        }
+
+        // 绘制Sigmoid曲线
+        sigmoidCtx.strokeStyle = colors.primary;
+        sigmoidCtx.lineWidth = 3;
+        sigmoidCtx.beginPath();
+
+        const xMin = -10;
+        const xMax = 10;
+        const steps = 200;
+        const xScale = (sigmoidCanvas.width - 100) / (xMax - xMin);
+        const yScale = (sigmoidCanvas.height - 100);
+
+        for (let i = 0; i <= steps; i++) {
+            const x = xMin + (xMax - xMin) * i / steps;
+            const y = sigmoid(x, sigmoidParams.a, sigmoidParams.b);
+
+            const canvasX = 50 + (x - xMin) * xScale;
+            const canvasY = sigmoidCanvas.height - 50 - y * yScale;
+
+            if (i === 0) {
+                sigmoidCtx.moveTo(canvasX, canvasY);
+            } else {
+                sigmoidCtx.lineTo(canvasX, canvasY);
+            }
+        }
+
+        sigmoidCtx.stroke();
+
+        // 绘制参考线 y=0.5
+        sigmoidCtx.strokeStyle = colors.danger;
+        sigmoidCtx.lineWidth = 1;
+        sigmoidCtx.setLineDash([5, 5]);
+        sigmoidCtx.beginPath();
+        sigmoidCtx.moveTo(50, sigmoidCanvas.height / 2);
+        sigmoidCtx.lineTo(sigmoidCanvas.width - 50, sigmoidCanvas.height / 2);
+        sigmoidCtx.stroke();
+        sigmoidCtx.setLineDash([]);
+
+        // 绘制标签
+        sigmoidCtx.fillStyle = colors.text;
+        sigmoidCtx.font = '14px Arial';
+        sigmoidCtx.fillText('1.0', 10, 55);
+        sigmoidCtx.fillText('0.5', 10, sigmoidCanvas.height / 2 + 5);
+        sigmoidCtx.fillText('0.0', 10, sigmoidCanvas.height - 45);
+        sigmoidCtx.fillText('-10', 45, sigmoidCanvas.height - 25);
+        sigmoidCtx.fillText('0', sigmoidCanvas.width / 2 - 5, sigmoidCanvas.height - 25);
+        sigmoidCtx.fillText('10', sigmoidCanvas.width - 60, sigmoidCanvas.height - 25);
+
+        // 显示当前参数
+        sigmoidCtx.fillStyle = colors.primary;
+        sigmoidCtx.font = '16px Arial';
+        sigmoidCtx.fillText(`σ(x) = 1 / (1 + e^(-${sigmoidParams.a.toFixed(1)}(x - ${sigmoidParams.b.toFixed(1)})))`, 60, 30);
+    }
+
+    function changeSigmoidParam(action) {
+        switch(action) {
+            case 'steep':
+                sigmoidParams.a = Math.min(sigmoidParams.a + 0.5, 5);
+                break;
+            case 'flat':
+                sigmoidParams.a = Math.max(sigmoidParams.a - 0.5, 0.2);
+                break;
+            case 'shift-left':
+                sigmoidParams.b = Math.max(sigmoidParams.b - 1, -5);
+                break;
+            case 'shift-right':
+                sigmoidParams.b = Math.min(sigmoidParams.b + 1, 5);
+                break;
+        }
+        drawSigmoid();
+    }
+
+    function resetSigmoid() {
+        sigmoidParams = { a: 1, b: 0 };
+        drawSigmoid();
+    }
+
+    // 损失函数演示
+    let lossCanvas, lossCtx;
+    let currentLossType = 'cross-entropy';
+
+    function initLossDemo() {
+        lossCanvas = document.getElementById('lossCanvas');
+        if (!lossCanvas) return;
+
+        lossCtx = lossCanvas.getContext('2d');
+        drawLoss();
+    }
+
+    function crossEntropyLoss(y, p) {
+        if (y === 1) {
+            return -Math.log(Math.max(p, 1e-7));
+        } else {
+            return -Math.log(Math.max(1 - p, 1e-7));
+        }
+    }
+
+    function mseLoss(y, p) {
+        return Math.pow(y - p, 2);
+    }
+
+    function drawLoss() {
+        if (!lossCtx) return;
+
+        const colors = getCanvasColors();
+
+        // 清除画布并设置背景
+        lossCtx.fillStyle = colors.background;
+        lossCtx.fillRect(0, 0, lossCanvas.width, lossCanvas.height);
+
+        // 绘制坐标轴
+        lossCtx.strokeStyle = colors.axis;
+        lossCtx.lineWidth = 2;
+
+        // X轴
+        lossCtx.beginPath();
+        lossCtx.moveTo(50, lossCanvas.height - 50);
+        lossCtx.lineTo(lossCanvas.width - 50, lossCanvas.height - 50);
+        lossCtx.stroke();
+
+        // Y轴
+        lossCtx.beginPath();
+        lossCtx.moveTo(50, 50);
+        lossCtx.lineTo(50, lossCanvas.height - 50);
+        lossCtx.stroke();
+
+        const steps = 100;
+        const xScale = (lossCanvas.width - 100) / 1;
+        const yScale = (lossCanvas.height - 100) / 5;
+
+        // 绘制y=1的情况
+        if (currentLossType === 'cross-entropy' || currentLossType === 'compare') {
+            lossCtx.strokeStyle = colors.success;
+            lossCtx.lineWidth = 3;
+            lossCtx.beginPath();
+
+            for (let i = 1; i <= steps; i++) {
+                const p = i / steps;
+                const loss = crossEntropyLoss(1, p);
+
+                const canvasX = 50 + p * xScale;
+                const canvasY = lossCanvas.height - 50 - Math.min(loss, 5) * yScale;
+
+                if (i === 1) {
+                    lossCtx.moveTo(canvasX, canvasY);
+                } else {
+                    lossCtx.lineTo(canvasX, canvasY);
+                }
+            }
+            lossCtx.stroke();
+        }
+
+        // 绘制MSE
+        if (currentLossType === 'mse' || currentLossType === 'compare') {
+            lossCtx.strokeStyle = colors.danger;
+            lossCtx.lineWidth = 3;
+            lossCtx.beginPath();
+
+            for (let i = 0; i <= steps; i++) {
+                const p = i / steps;
+                const loss = mseLoss(1, p);
+
+                const canvasX = 50 + p * xScale;
+                const canvasY = lossCanvas.height - 50 - loss * yScale;
+
+                if (i === 0) {
+                    lossCtx.moveTo(canvasX, canvasY);
+                } else {
+                    lossCtx.lineTo(canvasX, canvasY);
+                }
+            }
+            lossCtx.stroke();
+        }
+
+        // 绘制标签
+        lossCtx.fillStyle = colors.text;
+        lossCtx.font = '14px Arial';
+        lossCtx.fillText('Loss', 5, 30);
+        lossCtx.fillText('0', 45, lossCanvas.height - 35);
+        lossCtx.fillText('0.5', lossCanvas.width / 2 - 10, lossCanvas.height - 35);
+        lossCtx.fillText('1.0', lossCanvas.width - 60, lossCanvas.height - 35);
+        lossCtx.fillText('Predicted Probability (p)', lossCanvas.width / 2 - 80, lossCanvas.height - 10);
+
+        // 图例
+        if (currentLossType === 'compare') {
+            lossCtx.fillStyle = colors.success;
+            lossCtx.fillRect(lossCanvas.width - 200, 60, 20, 3);
+            lossCtx.fillText('交叉熵 (y=1)', lossCanvas.width - 170, 65);
+
+            lossCtx.fillStyle = colors.danger;
+            lossCtx.fillRect(lossCanvas.width - 200, 80, 20, 3);
+            lossCtx.fillText('MSE (y=1)', lossCanvas.width - 170, 85);
+        }
+    }
+
+    function showLoss(type) {
+        currentLossType = type;
+        drawLoss();
+    }
+
+    // 决策边界演示
+    let boundaryCanvas, boundaryCtx;
+    let boundaryPoints = [];
+    let currentClass = 0;
+    let decisionBoundary = null;
+
+    function initBoundaryDemo() {
+        boundaryCanvas = document.getElementById('boundaryCanvas');
+        if (!boundaryCanvas) return;
+
+        boundaryCtx = boundaryCanvas.getContext('2d');
+
+        // 初始化一些示例数据
+        generateSampleData();
+
+        boundaryCanvas.addEventListener('click', function(e) {
+            const rect = boundaryCanvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            boundaryPoints.push({
+                x: x,
+                y: y,
+                class: currentClass
+            });
+
+            drawBoundary();
+        });
+    }
+
+    function generateSampleData() {
+        boundaryPoints = [];
+
+        // 生成两类数据
+        for (let i = 0; i < 30; i++) {
+            // 类别0 - 左上角
+            boundaryPoints.push({
+                x: Math.random() * 300 + 50,
+                y: Math.random() * 200 + 50,
+                class: 0
+            });
+
+            // 类别1 - 右下角
+            boundaryPoints.push({
+                x: Math.random() * 300 + 450,
+                y: Math.random() * 200 + 250,
+                class: 1
+            });
+        }
+
+        drawBoundary();
+    }
+
+    function drawBoundary() {
+        if (!boundaryCtx) return;
+
+        const colors = getCanvasColors();
+
+        // 清除画布并设置背景
+        boundaryCtx.fillStyle = colors.background;
+        boundaryCtx.fillRect(0, 0, boundaryCanvas.width, boundaryCanvas.height);
+
+        // 绘制网格背景
+        boundaryCtx.strokeStyle = colors.grid;
+        boundaryCtx.lineWidth = 0.5;
+        for (let i = 0; i <= boundaryCanvas.width; i += 50) {
+            boundaryCtx.beginPath();
+            boundaryCtx.moveTo(i, 0);
+            boundaryCtx.lineTo(i, boundaryCanvas.height);
+            boundaryCtx.stroke();
+        }
+        for (let i = 0; i <= boundaryCanvas.height; i += 50) {
+            boundaryCtx.beginPath();
+            boundaryCtx.moveTo(0, i);
+            boundaryCtx.lineTo(boundaryCanvas.width, i);
+            boundaryCtx.stroke();
+        }
+
+        // 绘制数据点
+        boundaryPoints.forEach(point => {
+            boundaryCtx.fillStyle = point.class === 0 ? colors.danger : '#3b82f6';
+            boundaryCtx.beginPath();
+            boundaryCtx.arc(point.x, point.y, 8, 0, 2 * Math.PI);
+            boundaryCtx.fill();
+
+            boundaryCtx.strokeStyle = colors.background;
+            boundaryCtx.lineWidth = 2;
+            boundaryCtx.stroke();
+        });
+
+        // 绘制决策边界
+        if (decisionBoundary) {
+            boundaryCtx.strokeStyle = colors.success;
+            boundaryCtx.lineWidth = 3;
+            boundaryCtx.beginPath();
+            boundaryCtx.moveTo(0, decisionBoundary.getY(0));
+            boundaryCtx.lineTo(boundaryCanvas.width, decisionBoundary.getY(boundaryCanvas.width));
+            boundaryCtx.stroke();
+        }
+    }
+
+    function addPoint(classLabel) {
+        currentClass = classLabel;
+    }
+
+    function trainBoundary() {
+        if (boundaryPoints.length < 2) return;
+
+        // 简化的线性边界计算
+        const class0 = boundaryPoints.filter(p => p.class === 0);
+        const class1 = boundaryPoints.filter(p => p.class === 1);
+
+        if (class0.length === 0 || class1.length === 0) return;
+
+        // 计算两类的中心点
+        const center0 = {
+            x: class0.reduce((sum, p) => sum + p.x, 0) / class0.length,
+            y: class0.reduce((sum, p) => sum + p.y, 0) / class0.length
+        };
+
+        const center1 = {
+            x: class1.reduce((sum, p) => sum + p.x, 0) / class1.length,
+            y: class1.reduce((sum, p) => sum + p.y, 0) / class1.length
+        };
+
+        // 计算垂直平分线
+        const midpoint = {
+            x: (center0.x + center1.x) / 2,
+            y: (center0.y + center1.y) / 2
+        };
+
+        const dx = center1.x - center0.x;
+        const dy = center1.y - center0.y;
+
+        // 垂直线的斜率
+        const slope = dx !== 0 ? -dy / dx : Infinity;
+
+        decisionBoundary = {
+            getY: function(x) {
+                if (slope === Infinity) {
+                    return boundaryCanvas.height / 2;
+                }
+                return midpoint.y + slope * (x - midpoint.x);
+            }
+        };
+
+        drawBoundary();
+    }
+
+    function clearBoundary() {
+        boundaryPoints = [];
+        decisionBoundary = null;
+        drawBoundary();
+    }
+
+    function updateCParam(value) {
+        document.getElementById('cValue').textContent = parseFloat(value).toFixed(2);
+    }
+
+    // 手写数字演示
+    let digitCanvas, digitCtx;
+    let isDrawing = false;
+
+    function initDigitDemo() {
+        digitCanvas = document.getElementById('digitCanvas');
+        if (!digitCanvas) return;
+
+        digitCtx = digitCanvas.getContext('2d');
+        const isLight = document.body.classList.contains('light-theme');
+        digitCtx.fillStyle = isLight ? '#f3f4f6' : 'white';
+        digitCtx.fillRect(0, 0, digitCanvas.width, digitCanvas.height);
+
+        digitCanvas.addEventListener('mousedown', startDrawing);
+        digitCanvas.addEventListener('mousemove', draw);
+        digitCanvas.addEventListener('mouseup', stopDrawing);
+        digitCanvas.addEventListener('mouseout', stopDrawing);
+
+        // 触摸支持
+        digitCanvas.addEventListener('touchstart', handleTouch);
+        digitCanvas.addEventListener('touchmove', handleTouch);
+        digitCanvas.addEventListener('touchend', stopDrawing);
+    }
+
+    function startDrawing(e) {
+        isDrawing = true;
+        draw(e);
+    }
+
+    function draw(e) {
+        if (!isDrawing) return;
+
+        const rect = digitCanvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+        digitCtx.fillStyle = 'black';
+        digitCtx.beginPath();
+        digitCtx.arc(x, y, 8, 0, 2 * Math.PI);
+        digitCtx.fill();
+    }
+
+    function stopDrawing() {
+        isDrawing = false;
+    }
+
+    function handleTouch(e) {
+        e.preventDefault();
+        const touch = e.touches[0];
+        const mouseEvent = new MouseEvent(e.type === 'touchstart' ? 'mousedown' :
+            e.type === 'touchmove' ? 'mousemove' : 'mouseup', {
+            clientX: touch.clientX,
+            clientY: touch.clientY
+        });
+        digitCanvas.dispatchEvent(mouseEvent);
+    }
+
+    function clearDigit() {
+        digitCtx.fillStyle = 'white';
+        digitCtx.fillRect(0, 0, digitCanvas.width, digitCanvas.height);
+        document.getElementById('digitPrediction').innerHTML =
+            '<p style="color: #94a3b8; text-align: center;">在左侧画布上写一个数字...</p>';
+    }
+
+    function predictDigit() {
+        // 模拟预测结果
+        const predictions = [
+            { digit: 0, prob: Math.random() * 0.1 },
+            { digit: 1, prob: Math.random() * 0.1 },
+            { digit: 2, prob: Math.random() * 0.3 },
+            { digit: 3, prob: Math.random() * 0.1 },
+            { digit: 4, prob: Math.random() * 0.1 },
+            { digit: 5, prob: Math.random() * 0.1 },
+            { digit: 6, prob: Math.random() * 0.1 },
+            { digit: 7, prob: Math.random() * 0.7 },
+            { digit: 8, prob: Math.random() * 0.2 },
+            { digit: 9, prob: Math.random() * 0.1 }
+        ];
+
+        // 归一化概率
+        const total = predictions.reduce((sum, p) => sum + p.prob, 0);
+        predictions.forEach(p => p.prob = p.prob / total);
+
+        // 排序
+        predictions.sort((a, b) => b.prob - a.prob);
+
+        let html = '';
+        predictions.forEach((p, i) => {
+            const barWidth = p.prob * 100;
+            const color = i === 0 ? '#10b981' : '#4a5568';
+            html += `
+                    <div style="margin-bottom: 10px;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                            <span>数字 ${p.digit}</span>
+                            <span>${(p.prob * 100).toFixed(1)}%</span>
+                        </div>
+                        <div style="background: #2d3748; height: 20px; border-radius: 10px; overflow: hidden;">
+                            <div style="background: ${color}; height: 100%; width: ${barWidth}%; transition: width 0.5s ease;"></div>
+                        </div>
+                    </div>
+                `;
+        });
+
+        document.getElementById('digitPrediction').innerHTML = html;
+    }
+
+    // 学习曲线演示
+    let learningCurveCanvas, learningCurveCtx;
+    let currentLearningCurveType = 'good';
+
+    function initLearningCurve() {
+        learningCurveCanvas = document.getElementById('learningCurveCanvas');
+        if (!learningCurveCanvas) return;
+
+        learningCurveCtx = learningCurveCanvas.getContext('2d');
+        showLearningCurve('good');
+    }
+
+    function showLearningCurve(type) {
+        if (!learningCurveCtx) return;
+
+        currentLearningCurveType = type;
+        const colors = getCanvasColors();
+
+        // 清除画布并设置背景
+        learningCurveCtx.fillStyle = colors.background;
+        learningCurveCtx.fillRect(0, 0, learningCurveCanvas.width, learningCurveCanvas.height);
+
+        // 绘制坐标轴
+        learningCurveCtx.strokeStyle = colors.axis;
+        learningCurveCtx.lineWidth = 2;
+
+        // X轴
+        learningCurveCtx.beginPath();
+        learningCurveCtx.moveTo(50, learningCurveCanvas.height - 50);
+        learningCurveCtx.lineTo(learningCurveCanvas.width - 50, learningCurveCanvas.height - 50);
+        learningCurveCtx.stroke();
+
+        // Y轴
+        learningCurveCtx.beginPath();
+        learningCurveCtx.moveTo(50, 50);
+        learningCurveCtx.lineTo(50, learningCurveCanvas.height - 50);
+        learningCurveCtx.stroke();
+
+        const steps = 50;
+        const xScale = (learningCurveCanvas.width - 100) / steps;
+        const yScale = (learningCurveCanvas.height - 100);
+
+        // 根据类型绘制不同的曲线
+        if (type === 'bias') {
+            // 高偏差：训练和验证误差都高
+            drawCurve(i => 0.7 - 0.1 * Math.log(i + 1) / Math.log(steps), colors.danger, '训练误差');
+            drawCurve(i => 0.75 - 0.08 * Math.log(i + 1) / Math.log(steps), colors.warning, '验证误差');
+        } else if (type === 'variance') {
+            // 高方差：训练误差低，验证误差高
+            drawCurve(i => 0.9 - 0.7 * Math.log(i + 1) / Math.log(steps), colors.success, '训练误差');
+            drawCurve(i => 0.9 - 0.3 * Math.log(i + 1) / Math.log(steps), colors.danger, '验证误差');
+        } else {
+            // 良好拟合
+            drawCurve(i => 0.9 - 0.5 * Math.log(i + 1) / Math.log(steps), colors.success, '训练误差');
+            drawCurve(i => 0.9 - 0.45 * Math.log(i + 1) / Math.log(steps), '#3b82f6', '验证误差');
+        }
+
+        function drawCurve(errorFunc, color, label) {
+            learningCurveCtx.strokeStyle = color;
+            learningCurveCtx.lineWidth = 3;
+            learningCurveCtx.beginPath();
+
+            for (let i = 0; i <= steps; i++) {
+                const error = errorFunc(i);
+                const x = 50 + i * xScale;
+                const y = 50 + (1 - error) * yScale;
+
+                if (i === 0) {
+                    learningCurveCtx.moveTo(x, y);
+                } else {
+                    learningCurveCtx.lineTo(x, y);
+                }
+            }
+            learningCurveCtx.stroke();
+        }
+
+        // 标签
+        learningCurveCtx.fillStyle = colors.text;
+        learningCurveCtx.font = '14px Arial';
+        learningCurveCtx.fillText('准确率', 5, 30);
+        learningCurveCtx.fillText('训练样本数', learningCurveCanvas.width / 2 - 40, learningCurveCanvas.height - 10);
+    }
+
+    // MNIST样本展示
+    function loadNewSamples() {
+        const container = document.getElementById('mnistSamples');
+        if (!container) return;
+
+        container.innerHTML = '';
+
+        // 模拟MNIST数据
+        for (let i = 0; i < 10; i++) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 28;
+            canvas.height = 28;
+            canvas.style.width = '56px';
+            canvas.style.height = '56px';
+            canvas.style.imageRendering = 'pixelated';
+            canvas.style.border = '1px solid #4a5568';
+            canvas.style.borderRadius = '4px';
+
+            const ctx = canvas.getContext('2d');
+
+            // 生成随机的数字样式
+            ctx.fillStyle = 'black';
+            ctx.fillRect(0, 0, 28, 28);
+
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 20px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(i.toString(), 14, 14);
+
+            container.appendChild(canvas);
+        }
+    }
+
+    // 工具函数
+    function scrollToTop() {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // 主题切换功能
+    function initTheme() {
+        // 从localStorage读取主题偏好
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        if (savedTheme === 'light') {
+            document.body.classList.add('light-theme');
+            updateThemeIcon('light');
+        }
+    }
+
+    function toggleTheme() {
+        const themeBtn = document.querySelector('.theme-toggle-btn');
+        const isLight = document.body.classList.contains('light-theme');
+
+        // 添加动画效果
+        themeBtn.classList.add('animating');
+
+        // 切换主题
+        if (isLight) {
+            document.body.classList.remove('light-theme');
+            localStorage.setItem('theme', 'dark');
+            updateThemeIcon('dark');
+            showToast('已切换到深色主题 🌙');
+        } else {
+            document.body.classList.add('light-theme');
+            localStorage.setItem('theme', 'light');
+            updateThemeIcon('light');
+            showToast('已切换到浅色主题 ☀️');
+        }
+
+        // 移除动画类
+        setTimeout(() => {
+            themeBtn.classList.remove('animating');
+        }, 600);
+
+        // 更新Canvas绘图颜色
+        updateCanvasColors();
+    }
+
+    function updateThemeIcon(theme) {
+        const icon = document.querySelector('.theme-icon');
+        if (icon) {
+            icon.textContent = theme === 'light' ? '🌙' : '☀️';
+        }
+    }
+
+    function updateCanvasColors() {
+        // 根据主题更新所有Canvas的颜色
+        const isLight = document.body.classList.contains('light-theme');
+
+        // 更新Sigmoid演示
+        if (typeof drawSigmoid === 'function') {
+            drawSigmoid();
+        }
+
+        // 更新损失函数演示
+        if (typeof drawLoss === 'function') {
+            drawLoss();
+        }
+
+        // 更新决策边界演示
+        if (typeof drawBoundary === 'function') {
+            drawBoundary();
+        }
+
+        // 更新学习曲线
+        if (typeof showLearningCurve === 'function' && learningCurveCanvas) {
+            const currentType = window.currentLearningCurveType || 'good';
+            showLearningCurve(currentType);
+        }
+    }
+
+    // Canvas绘图时的颜色获取函数
+    function getCanvasColors() {
+        const isLight = document.body.classList.contains('light-theme');
+        return {
+            background: isLight ? '#ffffff' : '#0f172a',
+            grid: isLight ? '#e5e7eb' : '#2d3748',
+            gridLight: isLight ? '#d1d5db' : '#4a5568',
+            text: isLight ? '#1e293b' : '#cbd5e1',
+            axis: isLight ? '#64748b' : '#4a5568',
+            primary: '#667eea',
+            success: '#10b981',
+            warning: '#f59e0b',
+            danger: '#ef4444'
+        };
+    }
+
+    function toggleHelp() {
+        alert('使用提示：\n1. 点击演示区域进行交互\n2. 拖动滑块调整参数\n3. 使用底部按钮下载笔记或测试知识\n4. Alt+N 切换导航栏\n5. 点击🌓按钮切换深色/浅色主题\n6. 主题偏好会自动保存');
+    }
+
+    function downloadNotes() {
+        const notes = `
+第6章：逻辑回归学习笔记
+
+一、核心概念
+1. 逻辑回归是用于分类的算法，不是回归算法
+2. 通过Sigmoid函数将线性输出映射到[0,1]概率空间
+3. 使用交叉熵损失函数而不是MSE
+
+二、Sigmoid函数
+- 公式：σ(z) = 1/(1+e^(-z))
+- 特性：输出范围(0,1)、单调递增、中心对称
+- 导数：σ'(z) = σ(z)(1-σ(z))
+
+三、损失函数
+- 二元交叉熵：L = -[y·log(p) + (1-y)·log(1-p)]
+- 来源于最大似然估计
+- 对错误预测的惩罚更严厉
+
+四、正则化
+- L1正则化：产生稀疏解，自动特征选择
+- L2正则化：防止系数过大，处理共线性
+- C参数：正则化强度的倒数
+
+五、多分类扩展
+- One-vs-Rest：训练K个二分类器
+- Softmax回归：直接多分类，输出概率和为1
+
+六、实践要点
+1. 特征缩放必不可少
+2. 处理类别不平衡：class_weight='balanced'
+3. 选择合适的求解器：liblinear适合小数据，saga支持L1
+4. 使用网格搜索调优超参数
+
+七、应用场景
+- 医疗诊断（心脏病预测）
+- 图像识别（手写数字）
+- 垃圾邮件检测
+- 信用评分
+
+学习进度：${document.getElementById('completionPercent').textContent}
+学习时间：${new Date().toLocaleString()}
+            `;
+
+        const blob = new Blob([notes], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = '逻辑回归学习笔记.txt';
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+
+    function startQuiz() {
+        const questions = [
+            {
+                question: "逻辑回归主要用于什么类型的任务？",
+                options: ["回归", "分类", "聚类", "降维"],
+                correct: 1,
+                explanation: "虽然名称中有'回归'，但逻辑回归主要用于分类任务"
+            },
+            {
+                question: "Sigmoid函数的输出范围是？",
+                options: ["(-∞, +∞)", "[-1, 1]", "[0, 1]", "[0, +∞)"],
+                correct: 2,
+                explanation: "Sigmoid函数将任意实数映射到(0,1)区间，表示概率"
+            },
+            {
+                question: "逻辑回归使用什么损失函数？",
+                options: ["均方误差", "交叉熵", "铰链损失", "0-1损失"],
+                correct: 1,
+                explanation: "交叉熵损失函数来源于最大似然估计，适合概率输出"
+            },
+            {
+                question: "sklearn中的C参数表示什么？",
+                options: ["正则化强度", "正则化强度的倒数", "学习率", "迭代次数"],
+                correct: 1,
+                explanation: "C = 1/λ，C越大正则化越弱，模型越复杂"
+            },
+            {
+                question: "处理多分类问题时，Softmax回归的优势是？",
+                options: ["训练速度快", "只需一个模型", "准确率更高", "不需要归一化"],
+                correct: 1,
+                explanation: "Softmax直接训练一个多分类模型，而OvR需要训练K个二分类器"
+            }
+        ];
+
+        let score = 0;
+        let currentQuestion = 0;
+
+        function showQuestion() {
+            if (currentQuestion >= questions.length) {
+                showResult();
+                return;
+            }
+
+            const q = questions[currentQuestion];
+            const html = `
+                    <div style="background: rgba(30, 41, 59, 0.9); padding: 30px; border-radius: 20px; max-width: 600px; margin: 50px auto;">
+                        <h3 style="color: #667eea; margin-bottom: 20px;">问题 ${currentQuestion + 1}/${questions.length}</h3>
+                        <p style="font-size: 1.2rem; margin-bottom: 20px;">${q.question}</p>
+                        <div style="display: grid; gap: 10px;">
+                            ${q.options.map((opt, i) => `
+                                <button onclick="selectAnswer(${i})" style="background: rgba(102, 126, 234, 0.1); border: 2px solid rgba(102, 126, 234, 0.3); color: #e2e8f0; padding: 15px; border-radius: 10px; cursor: pointer; text-align: left; transition: all 0.3s;">
+                                    ${String.fromCharCode(65 + i)}. ${opt}
+                                </button>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+
+            document.body.insertAdjacentHTML('beforeend', `<div id="quizModal" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 10000; display: flex; align-items: center; justify-content: center;">${html}</div>`);
+        }
+
+        window.selectAnswer = function(index) {
+            const q = questions[currentQuestion];
+            if (index === q.correct) {
+                score++;
+                alert('✅ 正确！\n\n' + q.explanation);
+            } else {
+                alert('❌ 错误！\n\n正确答案是：' + q.options[q.correct] + '\n\n' + q.explanation);
+            }
+            currentQuestion++;
+            document.getElementById('quizModal').remove();
+            showQuestion();
+        };
+
+        function showResult() {
+            const percentage = (score / questions.length * 100).toFixed(0);
+            const html = `
+                    <div style="background: rgba(30, 41, 59, 0.9); padding: 40px; border-radius: 20px; max-width: 600px; margin: 50px auto; text-align: center;">
+                        <h2 style="color: #667eea; margin-bottom: 30px;">测验完成！</h2>
+                        <div style="font-size: 4rem; margin-bottom: 20px;">
+                            ${percentage >= 80 ? '🎉' : percentage >= 60 ? '👍' : '💪'}
+                        </div>
+                        <p style="font-size: 2rem; color: #10b981; margin-bottom: 10px;">
+                            得分：${score}/${questions.length}
+                        </p>
+                        <p style="font-size: 1.5rem; color: #94a3b8; margin-bottom: 30px;">
+                            正确率：${percentage}%
+                        </p>
+                        <p style="color: #cbd5e1; margin-bottom: 30px;">
+                            ${percentage >= 80 ? '太棒了！你已经很好地掌握了逻辑回归！' :
+                percentage >= 60 ? '不错！建议再复习一下薄弱环节。' :
+                    '继续努力！建议重新学习本章内容。'}
+                        </p>
+                        <button onclick="document.getElementById('quizModal').remove()" style="background: linear-gradient(135deg, #667eea, #764ba2); color: white; border: none; padding: 15px 30px; border-radius: 25px; cursor: pointer; font-size: 1.1rem;">
+                            关闭
+                        </button>
+                    </div>
+                `;
+
+            document.getElementById('quizModal').innerHTML = html;
+        }
+
+        showQuestion();
+    }
+
+    function shareAchievement() {
+        const text = `🎉 我刚刚完成了逻辑回归的学习！
+
+📚 学习内容：
+- Sigmoid函数与概率映射
+- 交叉熵损失函数
+- 正则化与过拟合控制
+- 多分类问题的解决方案
+- 实战案例：心脏病预测 & 手写数字识别
+
+学习进度：${document.getElementById('completionPercent').textContent}
+已完成章节：${document.getElementById('sectionsRead').textContent}
+
+从线性到非线性，从预测到决策，逻辑回归展现了机器学习的优雅！
+
+#机器学习 #逻辑回归 #数据科学 #AI学习`;
+
+        if (navigator.share) {
+            navigator.share({
+                title: '逻辑回归学习成就',
+                text: text,
+                url: window.location.href
+            }).catch(err => console.log('分享取消'));
+        } else {
+            // 复制到剪贴板
+            navigator.clipboard.writeText(text).then(() => {
+                // 显示成功提示
+                showToast('学习成就已复制到剪贴板！');
+            }).catch(() => {
+                alert('分享文本：\n\n' + text);
+            });
+        }
+    }
+
+    // Toast提示功能
+    function showToast(message) {
+        const toast = document.createElement('div');
+        toast.style.cssText = `
+                position: fixed;
+                bottom: 30px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: linear-gradient(135deg, #667eea, #764ba2);
+                color: white;
+                padding: 15px 30px;
+                border-radius: 25px;
+                box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+                z-index: 10000;
+                animation: slideUp 0.3s ease-out;
+            `;
+        toast.textContent = message;
+
+        document.body.appendChild(toast);
+
+        setTimeout(() => {
+            toast.style.animation = 'slideDown 0.3s ease-out';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+
+    // 动画关键帧
+    const style = document.createElement('style');
+    style.textContent = `
+            @keyframes slideUp {
+                from {
+                    transform: translateX(-50%) translateY(100px);
+                    opacity: 0;
+                }
+                to {
+                    transform: translateX(-50%) translateY(0);
+                    opacity: 1;
+                }
+            }
+
+            @keyframes slideDown {
+                from {
+                    transform: translateX(-50%) translateY(0);
+                    opacity: 1;
+                }
+                to {
+                    transform: translateX(-50%) translateY(100px);
+                    opacity: 0;
+                }
+            }
+        `;
+    document.head.appendChild(style);
+
+    // 页面加载时初始化MNIST样本
+    loadNewSamples();
+
+    // 平滑滚动到锚点
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener('click', function(e) {
+            e.preventDefault();
+            const target = document.querySelector(this.getAttribute('href'));
+            if (target) {
+                target.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start'
+                });
+            }
+        });
+    });
+
+    // 代码高亮增强
+    document.querySelectorAll('.code-block pre code').forEach(block => {
+        // 添加行号
+        const lines = block.innerHTML.split('\n');
+        const numberedLines = lines.map((line, index) => {
+            return `<span style="color: #4a5568; margin-right: 20px; user-select: none;">${String(index + 1).padStart(3, ' ')}</span>${line}`;
+        }).join('\n');
+        block.innerHTML = numberedLines;
+    });
+
+    // 图片懒加载
+    const imageObserver = new IntersectionObserver((entries, observer) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                const img = entry.target;
+                img.src = img.dataset.src;
+                observer.unobserve(img);
+            }
+        });
+    });
+
+    document.querySelectorAll('img[data-src]').forEach(img => {
+        imageObserver.observe(img);
+    });
+
+    // 性能优化：防抖滚动事件
+    let scrollTimeout;
+    window.addEventListener('scroll', function() {
+        if (scrollTimeout) {
+            clearTimeout(scrollTimeout);
+        }
+        scrollTimeout = setTimeout(function() {
+            // 更新进度条等滚动相关操作
+            const scrolled = window.scrollY;
+            const total = document.documentElement.scrollHeight - window.innerHeight;
+            const progress = Math.min((scrolled / total) * 100, 100);
+
+            document.getElementById('progressFill').style.width = progress + '%';
+            document.getElementById('progressText').textContent = Math.round(progress) + '%';
+        }, 10);
+    });
+
+    // 打印优化
+    window.addEventListener('beforeprint', function() {
+        document.body.classList.add('print-mode');
+    });
+
+    window.addEventListener('afterprint', function() {
+        document.body.classList.remove('print-mode');
+    });
+
+    // 添加打印样式
+    const printStyle = document.createElement('style');
+    printStyle.textContent = `
+            @media print {
+                .print-mode {
+                    background: white !important;
+                    color: black !important;
+                }
+
+                .print-mode .section-card {
+                    background: white !important;
+                    border: 1px solid #000 !important;
+                    box-shadow: none !important;
+                    page-break-inside: avoid;
+                }
+
+                .print-mode .dynamic-bg,
+                .print-mode .progress-indicator,
+                .print-mode .floating-toolbar,
+                .print-mode .demo-controls,
+                .print-mode canvas,
+                .print-mode .smart-nav,
+                .print-mode .nav-trigger,
+                .print-mode .mini-map {
+                    display: none !important;
+                }
+
+                .print-mode .code-block {
+                    background: #f5f5f5 !important;
+                    border: 1px solid #ddd !important;
+                }
+
+                .print-mode .highlight-primary,
+                .print-mode .highlight-success,
+                .print-mode .highlight-warning,
+                .print-mode .highlight-danger {
+                    background: none !important;
+                    border: none !important;
+                    font-weight: bold !important;
+                    text-decoration: underline !important;
+                }
+            }
+        `;
+    document.head.appendChild(printStyle);
+
+    // 控制台彩蛋
+    console.log('%c🎯 逻辑回归学习系统已加载！', 'color: #667eea; font-size: 20px; font-weight: bold;');
+    console.log('%c欢迎来到机器学习的世界！', 'color: #10b981; font-size: 16px;');
+    console.log('%c提示：使用 Alt+N 切换导航，Ctrl+S 保存笔记，Ctrl+Q 开始测验', 'color: #f59e0b; font-size: 14px;');
+    console.log('%c当前主题：' + (document.body.classList.contains('light-theme') ? '浅色主题 ☀️' : '深色主题 🌙'), 'color: #8b5cf6; font-size: 14px;');
+</script>
+</body>
+</html>

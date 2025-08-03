@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>第 1 章：为什么需要 Transformer？</title>
+
+    <!-- ----------------  DESIGN TOKENS  ---------------- -->
+    <style>
+        :root{
+            /* 色彩 */
+            --clr-primary:#4f46e5;
+            --clr-primary-light:#8b5cf6;
+            --clr-secondary:#06b6d4;
+            --clr-danger:#ef4444;
+            --clr-warning:#f59e0b;
+            --clr-success:#22c55e;
+            --clr-bg:#0f172a;
+            --clr-surface:#1e293b;
+            --clr-card:rgba(255,255,255,.08);
+            --clr-border:rgba(255,255,255,.12);
+            --txt-main:#e2e8f0;
+            --txt-muted:#cbd5e1;
+
+            /* 圆角 & 阴影 */
+            --radius-xl:24px;
+            --radius-lg:20px;
+            --radius-md:16px;
+            --shadow-md:0 8px 25px rgba(0,0,0,.25);
+
+            /* 动画 */
+            --dur-rotate:20s;
+        }
+
+        /* ----------------  RESET & BASE  ---------------- */
+        *,::before,::after{box-sizing:border-box;margin:0;padding:0;}
+        body{
+            font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans",sans-serif;
+            background:var(--clr-bg);
+            color:var(--txt-main);
+            line-height:1.7;
+            -webkit-font-smoothing:antialiased;
+            word-break:break-word;
+        }
+        img{max-width:100%;display:block}
+        a{color:inherit;text-decoration:none}
+        h1,h2,h3,h4,h5{line-height:1.3;font-weight:700}
+        h1{font-size:clamp(1.8rem,4vw,2.8rem)}
+        h2{font-size:clamp(1.4rem,3vw,1.8rem)}
+        h3{font-size:clamp(1.25rem,2.5vw,1.6rem)}
+        p{margin:.8rem 0}
+
+        /* ----------------  UTILITIES  ---------------- */
+        .container{max-width:960px;margin-inline:auto;padding-inline:1rem}
+        .section{border-radius:var(--radius-xl);padding:3rem;margin-bottom:3rem;position:relative;border:2px solid var(--clr-border);overflow:hidden}
+        .section--grad-primary{background:linear-gradient(135deg,rgba(79,70,229,.15),rgba(139,92,246,.1))}
+        .section--grad-danger{background:linear-gradient(135deg,rgba(239,68,68,.15),rgba(220,38,38,.1))}
+        .section--grad-info  {background:linear-gradient(135deg,rgba(6,182,212,.15),rgba(14,165,233,.1))}
+        .section--grad-success{background:linear-gradient(135deg,rgba(34,197,94,.15),rgba(16,185,129,.1))}
+        .section--grad-purple{background:linear-gradient(135deg,rgba(139,92,246,.15),rgba(124,58,237,.1))}
+
+        .card{
+            background:var(--clr-card);padding:2.5rem;border-radius:var(--radius-lg);
+            border:1px solid var(--clr-border)
+        }
+        .badge{
+            display:inline-flex;gap:.5rem;align-items:center;font-weight:700;
+            padding:.8rem 1.5rem;border-radius:25px;font-size:.9rem
+        }
+        .badge--primary{background:rgba(79,70,229,.2);color:var(--clr-primary)}
+        .badge--time   {background:rgba(34,197,94,.2);color:var(--clr-success)}
+        .badge--story  {background:rgba(251,191,36,.2);color:var(--clr-warning)}
+
+        .icon-big{font-size:6rem;opacity:.08;position:absolute}
+        .grid-two{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:2rem}
+
+        /* ----------------  ANIMATIONS  ---------------- */
+        @keyframes rotate{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+        @keyframes matrix {0%{transform:translateY(-100%)}100%{transform:translateY(100%)}}
+        @keyframes pulse  {0%,100%{opacity:1;transform:scale(1)}50%{opacity:.7;transform:scale(1.1)}}
+        @keyframes bounce {0%,20%,50%,80%,100%{transform:translateY(0)}40%{transform:translateY(-20px)}60%{transform:translateY(-10px)}}
+
+        /* prefers-reduced-motion */
+        @media (prefers-reduced-motion:reduce){
+            *{animation:none!important}
+        }
+
+        /* ----------------  RESPONSIVE GRID  ---------------- */
+        @media(max-width:480px){
+            .container{padding-inline:.5rem}
+            .section{padding:2rem;margin-bottom:2rem}
+        }
+    </style>
+</head>
+
+<body>
+<header class="container section section--grad-primary" aria-label="章节头部">
+    <!-- 旋转背景 -->
+    <div aria-hidden="true" style="position:absolute;top:-50%;left:-50%;width:200%;height:200%;
+       background:radial-gradient(circle,rgba(79,70,229,.1) 0%,transparent 70%);
+       animation:rotate var(--dur-rotate) linear infinite"></div>
+    <div class="icon-big" style="top:-30px;right:-30px;transform:rotate(15deg)">🤖</div>
+
+    <div style="position:relative;z-index:1;text-align:center">
+        <h1 style="background:linear-gradient(45deg,var(--clr-primary),var(--clr-primary-light),var(--clr-secondary));
+               -webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:1.5rem">
+            第 1 章：为什么需要 Transformer？
+        </h1>
+        <p style="color:var(--txt-muted);font-size:1.1rem;margin-bottom:2rem">
+            一个 AI 研究员的困惑之旅 —— 从挫折到突破
+        </p>
+
+        <div style="display:flex;justify-content:center;gap:1rem;flex-wrap:wrap">
+            <span class="badge badge--primary">🎯 <span>问题导向</span></span>
+            <span class="badge badge--time">⏱️ <span>30 分钟</span></span>
+            <span class="badge badge--story">📖 <span>故事化学习</span></span>
+        </div>
+    </div>
+</header>
+
+<main class="container" id="chapter1">
+    <!-- 🎬 故事开场 -->
+    <section class="section" style="background:linear-gradient(135deg,rgba(15,23,42,.9),rgba(30,41,59,.8))" id="scene">
+        <div aria-hidden="true" style="position:absolute;inset:0;opacity:.05;
+         background-image:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,255,0,.03) 2px,rgba(0,255,0,.03) 4px);
+         animation:matrix 10s linear infinite"></div>
+
+        <header style="text-align:center;margin-bottom:3rem;position:relative;z-index:1">
+            <div class="badge badge--primary" style="padding:1.5rem 3rem;font-size:1.1rem">
+                🎬 <span>2017 年春 · Google</span>
+            </div>
+        </header>
+
+        <article style="position:relative;z-index:1">
+            <p style="text-align:center;font-size:1.1rem;color:var(--txt-main);margin-bottom:2rem">
+                “博士，我们的翻译模型又卡住了……”
+            </p>
+
+            <!-- 角色对话 -->
+            <div class="grid-two" style="gap:2rem;align-items:center">
+                <!-- 学生 -->
+                <figure aria-label="沮丧的研究生" style="text-align:center">
+                    <div aria-hidden="true" style="width:80px;height:80px;margin-inline:auto 1rem;
+               border-radius:50%;background:linear-gradient(135deg,#ef4444,#dc2626);
+               display:flex;align-items:center;justify-content:center;
+               font-size:2rem;box-shadow:var(--shadow-md)">😤</div>
+                    <figcaption style="font-size:.95rem;color:var(--txt-muted)">
+                        <strong style="color:var(--clr-danger)">沮丧的研究生</strong><br>“为什么训练这么慢？”
+                    </figcaption>
+                </figure>
+
+                <!-- 思考泡泡 -->
+                <div aria-hidden="true" style="font-size:2rem;color:var(--clr-primary)">💭</div>
+
+                <!-- 导师 -->
+                <figure aria-label="深思的导师" style="text-align:center">
+                    <div aria-hidden="true" style="width:80px;height:80px;margin-inline:auto;
+               border-radius:50%;background:linear-gradient(135deg,#06b6d4,#0891b2);
+               display:flex;align-items:center;justify-content:center;
+               font-size:2rem;box-shadow:var(--shadow-md)">🤔</div>
+                    <figcaption style="font-size:.95rem;color:var(--txt-muted)">
+                        <strong style="color:var(--clr-secondary)">深思的导师</strong><br>“让我看看问题在哪……”
+                    </figcaption>
+                </figure>
+            </div>
+
+            <!-- 叙述 -->
+            <div class="card" style="margin-top:3rem">
+                <p style="text-align:center;font-size:1rem">
+                    这是一个真实故事。在 Transformer 论文发表之前，全球 AI 研究者都在为同一件事头疼……
+                </p>
+            </div>
+        </article>
+    </section>
+
+    <!-- 🔍 问题发现 -->
+    <section class="section section--grad-danger" id="experiments">
+        <header style="text-align:center;margin-bottom:3rem">
+            <div class="badge" style="background:rgba(239,68,68,.2);color:var(--clr-danger);padding:1.5rem 3rem">
+                🔍 <span>让我们重现发现问题的过程</span>
+            </div>
+        </header>
+
+        <!-- 实验一 -->
+        <article class="card" aria-labelledby="exp1">
+            <header style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem">
+        <span aria-hidden="true" style="width:60px;height:60px;border-radius:50%;
+              background:linear-gradient(135deg,#f59e0b,#d97706);display:flex;
+              align-items:center;justify-content:center;font-size:1.8rem;box-shadow:var(--shadow-md)">📝</span>
+                <div>
+                    <h3 id="exp1" style="color:var(--clr-warning);font-size:1.3rem">实验一：简单机器翻译</h3>
+                    <p style="font-size:.9rem;color:var(--txt-muted)">从一个具体例子开始</p>
+                </div>
+            </header>
+
+            <!-- 句子对比 -->
+            <div class="card" style="background:var(--clr-surface);margin-inline:-.5rem">
+                <div class="grid-two" style="align-items:center">
+                    <div style="text-align:center">
+                        <div class="card" style="background:rgba(34,197,94,.2);border-color:rgba(34,197,94,.3)">
+                            <strong style="color:var(--clr-success)">中文输入</strong>
+                            <p style="font-size:1.1rem">我昨天买的书很有趣</p>
+                        </div>
+                    </div>
+                    <div aria-hidden="true" style="font-size:2rem;color:var(--clr-warning);text-align:center">→</div>
+                    <div style="text-align:center">
+                        <div class="card" style="background:rgba(79,70,229,.2);border-color:rgba(79,70,229,.3)">
+                            <strong style="color:var(--clr-primary)">期望英文输出</strong>
+                            <p style="font-size:1.1rem">The book I bought yesterday is interesting</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 异常提示 -->
+            <aside class="card" style="border-left:4px solid var(--clr-danger);margin-top:2rem">
+                <h4 style="color:var(--clr-danger);font-size:1.1rem;margin-bottom:.5rem">⚠️ 第一个异常现象</h4>
+                <p style="font-size:.95rem">
+                    RNN 处理“我”时还不知道后面有“昨天”，到“昨天”可能已经忘了“我”……
+                </p>
+            </aside>
+        </article>
+
+        <!-- 实验二 -->
+        <article class="card" style="border-color:rgba(251,146,60,.3)">
+            <header style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem">
+        <span aria-hidden="true" style="width:60px;height:60px;border-radius:50%;
+              background:linear-gradient(135deg,#fb923c,#ea580c);display:flex;
+              align-items:center;justify-content:center;font-size:1.8rem;box-shadow:var(--shadow-md)">📚</span>
+                <div>
+                    <h3 style="color:#fb923c;font-size:1.3rem">实验二：长文本处理</h3>
+                    <p style="font-size:.9rem;color:var(--txt-muted)">问题更明显</p>
+                </div>
+            </header>
+
+            <div class="card" style="background:var(--clr-surface);font-size:.95rem">
+                <p>
+                    小明是一位优秀的工程师，他在 Google 工作了五年。去年，
+                    <mark style="background:rgba(239,68,68,.3);color:var(--clr-warning)">他</mark>
+                    开始研究人工智能技术，并且在机器学习领域取得了重大突破。现在，
+                    <mark style="background:rgba(239,68,68,.3);color:var(--clr-warning)">他</mark>
+                    正在开发一个能够理解人类语言的新系统。
+                </p>
+            </div>
+
+            <p style="text-align:center;margin-top:1.5rem">
+                <span class="badge" style="background:rgba(239,68,68,.2);color:var(--clr-danger)">❌ RNN 迷惑：两个“他”指谁？</span>
+            </p>
+        </article>
+
+        <!-- 实验三 -->
+        <article class="card" style="border-color:rgba(139,92,246,.3)">
+            <header style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem">
+        <span aria-hidden="true" style="width:60px;height:60px;border-radius:50%;
+              background:linear-gradient(135deg,#8b5cf6,#7c3aed);display:flex;
+              align-items:center;justify-content:center;font-size:1.8rem;box-shadow:var(--shadow-md)">⚡</span>
+                <div>
+                    <h3 style="color:var(--clr-primary-light);font-size:1.3rem">实验三：性能压力测试</h3>
+                    <p style="font-size:.9rem;color:var(--txt-muted)">最让人绝望</p>
+                </div>
+            </header>
+
+            <div class="grid-two">
+                <div class="card" style="background:rgba(239,68,68,.2);border-color:rgba(239,68,68,.3);text-align:center">
+                    <span aria-hidden="true" style="font-size:2.5rem;display:block;margin-bottom:1rem">🐌</span>
+                    <h4 style="color:var(--clr-danger);margin-bottom:1rem">现实：串行处理</h4>
+                    <p>100 词句子 → 100 个时间步</p>
+                    <small style="color:var(--clr-danger)">1000 GPU 核 只能用 1 个</small>
+                </div>
+                <div class="card" style="background:rgba(6,182,212,.2);border-color:rgba(6,182,212,.3);text-align:center">
+                    <span aria-hidden="true" style="font-size:2.5rem;display:block;margin-bottom:1rem">💭</span>
+                    <h4 style="color:var(--clr-secondary);margin-bottom:1rem">理想：并行处理</h4>
+                    <p>理论上 1 步即可</p>
+                    <small style="color:var(--clr-secondary)">如果能同时处理全部词…</small>
+                </div>
+            </div>
+        </article>
+    </section>
+
+    <!-- 💡 本质分析 -->
+    <section class="section section--grad-info" id="analysis">
+        <header style="text-align:center;margin-bottom:3rem">
+            <div class="badge" style="background:rgba(6,182,212,.2);color:var(--clr-secondary);padding:1.5rem 3rem">
+                💡 <span>深度分析：问题本质</span>
+            </div>
+        </header>
+
+        <div style="text-align:center;margin-bottom:2rem">
+            <div class="card" style="display:inline-block;padding:2rem 3rem;border:2px solid var(--clr-danger)">
+                <h3 style="color:var(--clr-danger);margin-bottom:.5rem">核心问题</h3>
+                <p>RNN 顺序依赖</p>
+                <div aria-hidden="true" class="dot" style="position:absolute;top:-8px;right:-8px;width:20px;height:20px;
+             background:var(--clr-danger);border-radius:50%;animation:pulse 2s infinite"></div>
+            </div>
+        </div>
+
+        <div class="grid-two">
+            <div class="card" style="border-left:4px solid var(--clr-warning)">
+                <h4 style="color:var(--clr-warning);margin-left:1rem">1. 顺序限制</h4>
+                <p style="margin-left:1rem">h<sub>t</sub> = f(h<sub>t-1</sub>, x<sub>t</sub>) → 无法并行</p>
+            </div>
+
+            <div class="card" style="border-left:4px solid var(--clr-danger)">
+                <h4 style="color:var(--clr-danger);margin-left:1rem">2. 信息衰减</h4>
+                <p style="margin-left:1rem">距离越远，梯度越小，难捕获长依赖</p>
+            </div>
+
+            <div class="card" style="border-left:4px solid var(--clr-primary-light)">
+                <h4 style="color:var(--clr-primary-light);margin-left:1rem">3. 资源浪费</h4>
+                <p style="margin-left:1rem">GPU 并行能力被束缚</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- 🚀 突破思路 -->
+    <section class="section section--grad-success" id="solution">
+        <header style="text-align:center;margin-bottom:3rem">
+            <div class="badge" style="background:rgba(34,197,94,.2);color:var(--clr-success);padding:1.5rem 3rem">
+                🚀 <span>突破性思路：换个角度？</span>
+            </div>
+        </header>
+
+        <div class="card" style="margin-bottom:2.5rem">
+            <h3 style="color:var(--clr-success);text-align:center;margin-bottom:2rem">💭 思维跳跃</h3>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:3rem">
+                <div class="card" style="background:rgba(239,68,68,.2);border-color:rgba(239,68,68,.3);max-width:500px;text-align:center">
+                    <h4 style="color:var(--clr-danger);margin-bottom:1rem">传统思维</h4>
+                    <p>"序列必须一个词一个词处理"</p>
+                </div>
+                <div aria-hidden="true" style="font-size:3rem;color:var(--clr-success);animation:bounce 2s infinite">↓</div>
+                <div class="card" style="background:rgba(34,197,94,.2);border-color:rgba(34,197,94,.3);max-width:500px;text-align:center">
+                    <h4 style="color:var(--clr-success);margin-bottom:1rem">革命思维</h4>
+                    <p>"让每个词同时'看到'所有词"</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 注意力可视化 -->
+        <div class="card">
+            <h3 style="color:var(--clr-success);text-align:center;margin-bottom:1.5rem">🎯 注意力机制示例</h3>
+            <p style="text-align:center;color:var(--clr-warning);font-weight:700">"我昨天买的书很有趣"</p>
+
+            <div style="display:flex;justify-content:center;flex-wrap:wrap;gap:.8rem;margin:2rem 0">
+                <span class="word word--focus">我</span>
+                <span class="word word--normal">昨天</span>
+                <span class="word word--normal">买</span>
+                <span class="word word--faded">的</span>
+                <span class="word word--focus">书</span>
+                <span class="word word--faded">很</span>
+                <span class="word word--normal">有趣</span>
+            </div>
+
+            <style>
+                .word{
+                    padding:1rem;border-radius:12px;min-width:80px;text-align:center;font-weight:600
+                }
+                .word--focus{
+                    background:rgba(34,197,94,.3);border:2px solid var(--clr-success);color:var(--clr-success);position:relative
+                }
+                .word--focus::after{
+                    content:"";position:absolute;top:-6px;right:-6px;width:15px;height:15px;background:var(--clr-success);
+                    border-radius:50%;animation:pulse 1.5s infinite
+                }
+                .word--normal{background:rgba(34,197,94,.2);border:2px solid rgba(34,197,94,.5);color:var(--clr-success)}
+                .word--faded{background:rgba(34,197,94,.1);border:2px solid rgba(34,197,94,.3);color:rgba(34,197,94,.7)}
+            </style>
+
+            <p style="text-align:center;margin-top:1.5rem;font-size:.95rem">
+                “我” 与 “书” 直接关联，无需中间传递 —— 这就是 Attention！
+            </p>
+        </div>
+    </section>
+
+    <!-- 🔗 章节衔接 -->
+    <section class="section section--grad-purple" id="next">
+        <header style="text-align:center;margin-bottom:3rem">
+            <div class="badge" style="background:rgba(139,92,246,.2);color:var(--clr-primary-light);padding:1.5rem 3rem">
+                🔗 <span>现在我们需要什么？</span>
+            </div>
+        </header>
+
+        <p style="text-align:center;font-size:1.1rem;margin-bottom:2rem">
+            需要数学工具将“注意力”公式化……
+        </p>
+
+        <div class="grid-two" style="gap:2rem">
+            <div class="card" style="background:rgba(34,197,94,.1);border-color:rgba(34,197,94,.3);text-align:center">
+                <h4 style="color:var(--clr-success);margin-bottom:1rem">✅ 本章收获</h4>
+                <ul style="list-style:none;padding:0;font-size:.95rem;color:var(--txt-muted)">
+                    <li>• 明白 RNN 限制</li>
+                    <li>• 认识并行重要性</li>
+                    <li>• 掌握注意力核心</li>
+                </ul>
+            </div>
+
+            <div class="card" style="background:rgba(6,182,212,.1);border-color:rgba(6,182,212,.3);text-align:center">
+                <h4 style="color:var(--clr-secondary);margin-bottom:1rem">🎯 下一章任务</h4>
+                <ul style="list-style:none;padding:0;font-size:.95rem;color:var(--txt-muted)">
+                    <li>• 矩阵运算基础</li>
+                    <li>• 理解 Q / K / V</li>
+                    <li>• 推导注意力公式</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- 📚 本章总结 -->
+    <section class="section section--grad-primary" id="summary">
+        <h3 style="text-align:center;font-size:1.5rem;margin-bottom:2rem">📚 本章核心要点回顾</h3>
+
+        <div class="grid-two">
+            <div class="card" style="border-left:4px solid var(--clr-danger)">
+                <h4 style="color:var(--clr-danger)">1. 问题发现</h4>
+                <p>RNN 三大局限：顺序处理、信息衰减、资源浪费</p>
+            </div>
+            <div class="card" style="border-left:4px solid var(--clr-secondary)">
+                <h4 style="color:var(--clr-secondary)">2. 本质分析</h4>
+                <p>依赖公式 h<sub>t</sub>=f(h<sub>t-1</sub>,x<sub>t</sub>) 是瓶颈</p>
+            </div>
+            <div class="card" style="border-left:4px solid var(--clr-success)">
+                <h4 style="color:var(--clr-success)">3. 思维突破</h4>
+                <p>让单词直接“互相交谈”—— 注意力机制</p>
+            </div>
+            <div class="card" style="border-left:4px solid var(--clr-primary-light)">
+                <h4 style="color:var(--clr-primary-light)">4. 下章展望</h4>
+                <p>准备数学推导与矩阵视角</p>
+            </div>
+        </div>
+    </section>
+</main>
+
+<!-- 简易顶部导航（可选加强） -->
+<nav aria-label="章节导航" style="position:fixed;top:0;left:0;width:100%;background:rgba(15,23,42,.9);
+     backdrop-filter:blur(6px);padding:.5rem 1rem;display:flex;gap:1rem;z-index:10">
+    <a href="#scene">开场</a>
+    <a href="#experiments">问题发现</a>
+    <a href="#analysis">本质分析</a>
+    <a href="#solution">突破思路</a>
+    <a href="#next">下一章</a>
+</nav>
+</body>
+</html>

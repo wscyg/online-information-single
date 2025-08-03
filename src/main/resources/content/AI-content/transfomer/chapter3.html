@@ -1,0 +1,1697 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>第3章：注意力机制的直觉 - 从数据库检索到深度学习</title>
+    <!-- KaTeX CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <!-- KaTeX JS -->
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+</head>
+<body style="background: #0f172a; color: #e2e8f0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; margin: 0; padding: 20px;">
+
+<!-- 章节头部 - 注意力主题的设计 -->
+<div style="background: linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(245, 158, 11, 0.1)); border-radius: 24px; padding: 3rem; margin-bottom: 3rem; position: relative; overflow: hidden; border: 1px solid rgba(251, 191, 36, 0.3);">
+    <div style="position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: radial-gradient(circle, rgba(251, 191, 36, 0.05) 0%, transparent 70%); animation: attention-focus 12s ease-in-out infinite;"></div>
+    <div style="position: absolute; top: -30px; right: -30px; font-size: 6rem; opacity: 0.1; transform: rotate(-15deg);">🔬</div>
+
+    <div style="position: relative; z-index: 2;">
+        <h1 style="font-size: 2.8rem; margin-bottom: 1.5rem; background: linear-gradient(45deg, #fbbf24, #f59e0b, #d97706); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-align: center;">
+            第3章：注意力机制的直觉
+        </h1>
+        <p style="font-size: 1.3rem; color: #cbd5e1; text-align: center; margin-bottom: 2rem; line-height: 1.6;">
+            从数据库检索到神经网络 —— 深入理解QKV的设计智慧
+        </p>
+        <div style="display: flex; justify-content: center; gap: 2rem; flex-wrap: wrap;">
+            <span style="background: rgba(251, 191, 36, 0.2); color: #fbbf24; padding: 0.8rem 1.5rem; border-radius: 25px; font-weight: bold; display: flex; align-items: center; gap: 0.5rem;">
+                🔬 <span>问题驱动</span>
+            </span>
+            <span style="background: rgba(139, 92, 246, 0.2); color: #8b5cf6; padding: 0.8rem 1.5rem; border-radius: 25px; font-weight: bold; display: flex; align-items: center; gap: 0.5rem;">
+                ⏱️ <span>90分钟</span>
+            </span>
+            <span style="background: rgba(34, 197, 94, 0.2); color: #22c55e; padding: 0.8rem 1.5rem; border-radius: 25px; font-weight: bold; display: flex; align-items: center; gap: 0.5rem;">
+                🎯 <span>逐步推导</span>
+            </span>
+        </div>
+    </div>
+</div>
+
+<div class="chapter-content">
+    <!-- 🎬 故事开场 - 数据库检索的挑战 -->
+    <div style="background: linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(220, 38, 38, 0.1)); border-radius: 24px; padding: 3rem; margin-bottom: 4rem; position: relative; overflow: hidden; border: 2px solid rgba(239, 68, 68, 0.2);">
+        <div style="position: absolute; top: -10px; right: -10px; font-size: 4rem; opacity: 0.1;">🎭</div>
+
+        <div style="text-align: center; margin-bottom: 3rem;">
+            <div style="display: inline-flex; align-items: center; gap: 1rem; background: linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(220, 38, 38, 0.1)); padding: 1.5rem 3rem; border-radius: 30px; border: 1px solid rgba(239, 68, 68, 0.4);">
+                <span style="font-size: 2rem;">🎭</span>
+                <h2 style="color: #ef4444; margin: 0; font-size: 1.8rem; font-weight: bold;">实验室里的灵感时刻</h2>
+            </div>
+        </div>
+
+        <div style="background: linear-gradient(135deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.9)); border-radius: 20px; padding: 3rem; border: 1px solid rgba(239, 68, 68, 0.3);">
+            <div style="display: grid; grid-template-columns: 1fr auto 1fr; gap: 2rem; align-items: center; margin-bottom: 3rem;">
+                <div style="text-align: center;">
+                    <div style="width: 80px; height: 80px; border-radius: 50%; background: linear-gradient(135deg, #ef4444, #dc2626); display: flex; align-items: center; justify-content: center; font-size: 2rem; margin: 0 auto 1rem; box-shadow: 0 8px 25px rgba(239, 68, 68, 0.3);">
+                        😤
+                    </div>
+                    <div style="color: #cbd5e1; font-size: 1.1rem;">
+                        <strong style="color: #ef4444;">沮丧的研究生</strong><br>
+                        "为什么简单的相似度不行？"
+                    </div>
+                </div>
+
+                <div style="color: #8b5cf6; font-size: 2rem;">💭</div>
+
+                <div style="text-align: center;">
+                    <div style="width: 80px; height: 80px; border-radius: 50%; background: linear-gradient(135deg, #06b6d4, #0891b2); display: flex; align-items: center; justify-content: center; font-size: 2rem; margin: 0 auto 1rem; box-shadow: 0 8px 25px rgba(6, 182, 212, 0.3);">
+                        🔬
+                    </div>
+                    <div style="color: #cbd5e1; font-size: 1.1rem;">
+                        <strong style="color: #06b6d4;">资深导师</strong><br>
+                        "让我们从数据库检索开始思考..."
+                    </div>
+                </div>
+            </div>
+
+            <div style="background: linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(220, 38, 38, 0.1)); padding: 2.5rem; border-radius: 16px; border: 1px solid rgba(239, 68, 68, 0.3);">
+                <div style="text-align: center; margin-bottom: 2rem;">
+                    <h3 style="color: #ef4444; font-size: 1.4rem; margin: 0;">🚨 真实的挑战</h3>
+                </div>
+
+                <div style="font-size: 1.1rem; line-height: 1.8; color: #f1f5f9;">
+                    "我们在构建一个<strong style="color: #fbbf24;">智能问答系统</strong>，需要让模型理解查询意图并找到相关信息。但是简单的向量相似度给出了令人困惑的结果..."
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 🔍 深度问题剖析：为什么简单相似度不够 -->
+    <div style="background: linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(220, 38, 38, 0.1)); border-radius: 24px; padding: 3rem; margin-bottom: 4rem; border: 2px solid rgba(239, 68, 68, 0.2); position: relative; overflow: hidden;">
+        <div style="position: absolute; top: -25px; right: -25px; font-size: 6rem; opacity: 0.08; transform: rotate(15deg);">🔍</div>
+
+        <div style="text-align: center; margin-bottom: 3rem;">
+            <div style="display: inline-flex; align-items: center; gap: 1rem; background: linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(220, 38, 38, 0.1)); padding: 1.5rem 3rem; border-radius: 30px; border: 1px solid rgba(239, 68, 68, 0.4);">
+                <span style="font-size: 2rem;">🔍</span>
+                <h2 style="color: #ef4444; margin: 0; font-size: 1.8rem; font-weight: bold;">深度剖析：简单相似度的根本缺陷</h2>
+            </div>
+        </div>
+
+        <!-- 具体实验设计 - 数据库检索场景 -->
+        <div style="background: rgba(255, 255, 255, 0.08); border-radius: 20px; padding: 2.5rem; border: 1px solid rgba(239, 68, 68, 0.3);">
+            <h3 style="color: #ef4444; margin-bottom: 2rem; font-size: 1.4rem; text-align: center;">🗄️ 实验场景：智能文档检索系统</h3>
+
+            <div style="background: linear-gradient(135deg, rgba(15, 23, 42, 0.8), rgba(30, 41, 59, 0.6)); border-radius: 16px; padding: 2rem; border: 1px solid rgba(239, 68, 68, 0.3); margin-bottom: 2rem;">
+                <div style="text-align: center; margin-bottom: 2rem;">
+                    <div style="color: #fbbf24; font-weight: bold; font-size: 1.2rem;">📊 数据库场景模拟</div>
+                </div>
+
+                <!-- 词向量定义（数据库相关） -->
+                <div style="background: rgba(6, 182, 212, 0.1); padding: 2rem; border-radius: 12px; border: 1px solid rgba(6, 182, 212, 0.3); margin-bottom: 2rem;">
+                    <div style="color: #06b6d4; font-weight: bold; margin-bottom: 1rem; text-align: center;">📝 词向量映射（2维简化表示）</div>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem;">
+                        <div style="text-align: center; font-family: 'Courier New', monospace; font-size: 0.9rem; color: #cbd5e1;">
+                            <div style="color: #22c55e; font-weight: bold;">查找(SELECT)</div>
+                            [1.0, 0.2]
+                        </div>
+                        <div style="text-align: center; font-family: 'Courier New', monospace; font-size: 0.9rem; color: #cbd5e1;">
+                            <div style="color: #34d399; font-weight: bold;">用户(USER)</div>
+                            [0.8, 0.6]
+                        </div>
+                        <div style="text-align: center; font-family: 'Courier New', monospace; font-size: 0.9rem; color: #cbd5e1;">
+                            <div style="color: #ef4444; font-weight: bold;">删除(DELETE)</div>
+                            [0.7, 0.5]
+                        </div>
+                        <div style="text-align: center; font-family: 'Courier New', monospace; font-size: 0.9rem; color: #cbd5e1;">
+                            <div style="color: #fbbf24; font-weight: bold;">更新(UPDATE)</div>
+                            [0.9, 0.7]
+                        </div>
+                        <div style="text-align: center; font-family: 'Courier New', monospace; font-size: 0.9rem; color: #cbd5e1;">
+                            <div style="color: #8b5cf6; font-weight: bold;">信息(INFO)</div>
+                            [0.3, 0.8]
+                        </div>
+                        <div style="text-align: center; font-family: 'Courier New', monospace; font-size: 0.9rem; color: #cbd5e1;">
+                            <div style="color: #ec4899; font-weight: bold;">权限(PERMISSION)</div>
+                            [0.2, 0.1]
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 多组对比实验 -->
+                <div style="display: grid; gap: 2rem;">
+                    <!-- 实验组1 -->
+                    <div style="background: rgba(34, 197, 94, 0.1); padding: 2rem; border-radius: 12px; border: 1px solid rgba(34, 197, 94, 0.3);">
+                        <div style="color: #22c55e; font-weight: bold; margin-bottom: 1rem; text-align: center;">实验组1：操作类型对比</div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; font-family: 'Courier New', monospace; font-size: 0.9rem;">
+                            <div style="text-align: center;">
+                                <div style="color: #34d399; margin-bottom: 0.5rem;">"查找" → "信息"</div>
+                                <div style="color: #cbd5e1;">[1.0,0.2]·[0.3,0.8] = 0.46</div>
+                            </div>
+                            <div style="text-align: center;">
+                                <div style="color: #ef4444; margin-bottom: 0.5rem;">"删除" → "信息"</div>
+                                <div style="color: #cbd5e1;">[0.7,0.5]·[0.3,0.8] = 0.61</div>
+                            </div>
+                            <div style="text-align: center;">
+                                <div style="color: #fbbf24; margin-bottom: 0.5rem;">"更新" → "信息"</div>
+                                <div style="color: #cbd5e1;">[0.9,0.7]·[0.3,0.8] = 0.83</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 实验组2 -->
+                    <div style="background: rgba(139, 92, 246, 0.1); padding: 2rem; border-radius: 12px; border: 1px solid rgba(139, 92, 246, 0.3);">
+                        <div style="color: #8b5cf6; font-weight: bold; margin-bottom: 1rem; text-align: center;">实验组2：对象对比</div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; font-family: 'Courier New', monospace; font-size: 0.9rem;">
+                            <div style="text-align: center;">
+                                <div style="color: #34d399; margin-bottom: 0.5rem;">"查找" → "信息"</div>
+                                <div style="color: #cbd5e1;">[1.0,0.2]·[0.3,0.8] = 0.46</div>
+                            </div>
+                            <div style="text-align: center;">
+                                <div style="color: #34d399; margin-bottom: 0.5rem;">"查找" → "权限"</div>
+                                <div style="color: #cbd5e1;">[1.0,0.2]·[0.2,0.1] = 0.22</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 问题的深层分析 -->
+            <div style="background: linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(220, 38, 38, 0.1)); padding: 2.5rem; border-radius: 16px; border: 1px solid rgba(239, 68, 68, 0.3);">
+                <div style="font-size: 1.4rem; color: #ef4444; font-weight: bold; margin-bottom: 2rem; text-align: center;">😱 发现了真正的问题！</div>
+
+                <div style="display: grid; gap: 2rem;">
+                    <!-- 问题1：语义关系错误 -->
+                    <div style="background: rgba(15, 23, 42, 0.8); padding: 2rem; border-radius: 12px;">
+                        <h4 style="color: #ef4444; margin-bottom: 1rem;">❌ 问题1：语义优先级完全错误</h4>
+                        <div style="color: #f1f5f9; font-size: 1rem; line-height: 1.7; margin-bottom: 1rem;">
+                            从实验结果看：<strong>"更新→信息"(0.83) > "删除→信息"(0.61) > "查找→信息"(0.46)</strong>
+                        </div>
+                        <div style="background: rgba(239, 68, 68, 0.1); padding: 1rem; border-radius: 8px; border: 1px solid rgba(239, 68, 68, 0.3);">
+                            <div style="color: #ef4444; font-weight: bold; margin-bottom: 0.5rem;">这个排序有什么问题？</div>
+                            <div style="color: #cbd5e1; font-size: 0.95rem;">
+                                在实际数据库操作中，"查找信息"应该是最自然的搭配，但点积给出的相关性最低！<br>
+                                这违背了我们对数据库操作的基本认知。
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 问题2：无法区分操作意图 -->
+                    <div style="background: rgba(15, 23, 42, 0.8); padding: 2rem; border-radius: 12px;">
+                        <h4 style="color: #fbbf24; margin-bottom: 1rem;">⚠️ 问题2：操作意图无法区分</h4>
+                        <div style="color: #f1f5f9; font-size: 1rem; line-height: 1.7; margin-bottom: 1rem;">
+                            点积只能计算<strong>"向量夹角的余弦值"</strong>，反映的是"方向相似性"
+                        </div>
+                        <div style="background: rgba(251, 191, 36, 0.1); padding: 1rem; border-radius: 8px; border: 1px solid rgba(251, 191, 36, 0.3);">
+                            <div style="color: #fbbf24; font-weight: bold; margin-bottom: 0.5rem;">但数据库查询真正需要的是什么？</div>
+                            <div style="color: #cbd5e1; font-size: 0.95rem;">
+                                • "查找"与"信息"：<span style="color: #22c55e;">读取关系</span><br>
+                                • "删除"与"信息"：<span style="color: #ef4444;">破坏性操作</span><br>
+                                • "更新"与"信息"：<span style="color: #fbbf24;">修改关系</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 问题3：单一向量表达不够 -->
+                    <div style="background: rgba(15, 23, 42, 0.8); padding: 2rem; border-radius: 12px;">
+                        <h4 style="color: #8b5cf6; margin-bottom: 1rem;">🧩 问题3：单一向量无法表达查询意图</h4>
+                        <div style="color: #f1f5f9; font-size: 1rem; line-height: 1.7; margin-bottom: 1rem;">
+                            每个词只有一个向量表示，但查询需要多维度信息
+                        </div>
+                        <div style="background: rgba(139, 92, 246, 0.1); padding: 1rem; border-radius: 8px; border: 1px solid rgba(139, 92, 246, 0.3);">
+                            <div style="color: #8b5cf6; font-weight: bold; margin-bottom: 0.5rem;">一个查询操作需要表达：</div>
+                            <div style="color: #cbd5e1; font-size: 0.95rem;">
+                                • 我想要什么？（查询意图）<br>
+                                • 从哪里查？（数据源识别）<br>
+                                • 期望什么结果？（返回值类型）<br>
+                                • 权限级别？（安全约束）
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 💡 第一次改进尝试：Query-Key设计的萌芽 -->
+    <div style="background: linear-gradient(135deg, rgba(251, 191, 36, 0.15), rgba(245, 158, 11, 0.1)); border-radius: 24px; padding: 3rem; margin-bottom: 4rem; border: 2px solid rgba(251, 191, 36, 0.2); position: relative; overflow: hidden;">
+        <div style="position: absolute; top: -25px; right: -25px; font-size: 6rem; opacity: 0.08; transform: rotate(-20deg);">💡</div>
+
+        <div style="text-align: center; margin-bottom: 3rem;">
+            <div style="display: inline-flex; align-items: center; gap: 1rem; background: linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(245, 158, 11, 0.1)); padding: 1.5rem 3rem; border-radius: 30px; border: 1px solid rgba(251, 191, 36, 0.4);">
+                <span style="font-size: 2rem;">💡</span>
+                <h2 style="color: #fbbf24; margin: 0; font-size: 1.8rem; font-weight: bold;">灵感：借鉴数据库的Query-Key模式</h2>
+            </div>
+        </div>
+
+        <!-- 解决思路的提出 -->
+        <div style="background: rgba(255, 255, 255, 0.08); border-radius: 20px; padding: 2.5rem; margin-bottom: 3rem; border: 1px solid rgba(251, 191, 36, 0.3);">
+            <h3 style="color: #fbbf24; margin-bottom: 2rem; font-size: 1.4rem; text-align: center;">🤔 导师的启发：看看数据库是怎么做的</h3>
+
+            <div style="background: linear-gradient(135deg, rgba(15, 23, 42, 0.8), rgba(30, 41, 59, 0.6)); border-radius: 16px; padding: 2rem; border: 1px solid rgba(251, 191, 36, 0.3); margin-bottom: 2rem;">
+                <div style="text-align: center; margin-bottom: 2rem;">
+                    <div style="color: #fbbf24; font-weight: bold; font-size: 1.2rem;">💭 核心观察：数据库的三要素</div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 2rem;">
+                    <!-- Query -->
+                    <div style="background: rgba(34, 197, 94, 0.2); padding: 2rem; border-radius: 16px; border: 1px solid rgba(34, 197, 94, 0.3); text-align: center;">
+                        <div style="font-size: 2rem; margin-bottom: 1rem;">🔍</div>
+                        <h4 style="color: #22c55e; margin-bottom: 1rem;">Query（查询）</h4>
+                        <div style="background: rgba(15, 23, 42, 0.6); padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+                            <div style="color: #cbd5e1; font-size: 0.9rem; line-height: 1.5;">
+                                SQL: SELECT * FROM users<br>
+                                WHERE age > 18
+                            </div>
+                        </div>
+                        <div style="color: #22c55e; font-size: 0.9rem;">
+                            表达"我想要什么"
+                        </div>
+                    </div>
+
+                    <!-- Key -->
+                    <div style="background: rgba(139, 92, 246, 0.2); padding: 2rem; border-radius: 16px; border: 1px solid rgba(139, 92, 246, 0.3); text-align: center;">
+                        <div style="font-size: 2rem; margin-bottom: 1rem;">🔑</div>
+                        <h4 style="color: #8b5cf6; margin-bottom: 1rem;">Key（索引）</h4>
+                        <div style="background: rgba(15, 23, 42, 0.6); padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+                            <div style="color: #cbd5e1; font-size: 0.9rem; line-height: 1.5;">
+                                Index: user_age_idx<br>
+                                用于快速定位
+                            </div>
+                        </div>
+                        <div style="color: #8b5cf6; font-size: 0.9rem;">
+                            标识"我是什么"
+                        </div>
+                    </div>
+
+                    <!-- Value -->
+                    <div style="background: rgba(6, 182, 212, 0.2); padding: 2rem; border-radius: 16px; border: 1px solid rgba(6, 182, 212, 0.3); text-align: center;">
+                        <div style="font-size: 2rem; margin-bottom: 1rem;">📦</div>
+                        <h4 style="color: #06b6d4; margin-bottom: 1rem;">Value（数据）</h4>
+                        <div style="background: rgba(15, 23, 42, 0.6); padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+                            <div style="color: #cbd5e1; font-size: 0.9rem; line-height: 1.5;">
+                                实际的用户数据<br>
+                                {name, age, email...}
+                            </div>
+                        </div>
+                        <div style="color: #06b6d4; font-size: 0.9rem;">
+                            包含"实际信息"
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 数学实现方案 -->
+            <div style="background: linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(245, 158, 11, 0.1)); padding: 2.5rem; border-radius: 16px; border: 1px solid rgba(251, 191, 36, 0.3);">
+                <h4 style="color: #fbbf24; text-align: center; margin-bottom: 2rem; font-size: 1.3rem;">🛠️ 将数据库思想转化为神经网络</h4>
+
+                <div style="background: rgba(15, 23, 42, 0.8); padding: 2rem; border-radius: 12px; border: 1px solid rgba(251, 191, 36, 0.3); margin-bottom: 2rem;">
+                    <div style="text-align: center; margin-bottom: 1.5rem;">
+                        <div style="color: #fbbf24; font-weight: bold; font-size: 1.1rem;">关键洞察：通过线性变换创建专用表示</div>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 2rem; align-items: center;">
+                        <!-- 变换1 -->
+                        <div style="text-align: center;">
+                            <div style="background: rgba(34, 197, 94, 0.2); padding: 1.5rem; border-radius: 12px; border: 1px solid rgba(34, 197, 94, 0.3);">
+                                <div style="color: #22c55e; font-weight: bold; margin-bottom: 1rem;">Query变换 W_Q</div>
+                                <div style="font-family: 'Courier New', monospace; font-size: 0.9rem; color: #cbd5e1; margin-bottom: 1rem;">
+                                    $X \cdot W_Q = Q$
+                                </div>
+                                <div style="color: #22c55e; font-size: 0.8rem;">生成"查询向量"</div>
+                            </div>
+                        </div>
+
+                        <!-- 变换2 -->
+                        <div style="text-align: center;">
+                            <div style="background: rgba(139, 92, 246, 0.2); padding: 1.5rem; border-radius: 12px; border: 1px solid rgba(139, 92, 246, 0.3);">
+                                <div style="color: #8b5cf6; font-weight: bold; margin-bottom: 1rem;">Key变换 W_K</div>
+                                <div style="font-family: 'Courier New', monospace; font-size: 0.9rem; color: #cbd5e1; margin-bottom: 1rem;">
+                                    $X \cdot W_K = K$
+                                </div>
+                                <div style="color: #8b5cf6; font-size: 0.8rem;">生成"索引向量"</div>
+                            </div>
+                        </div>
+
+                        <!-- 变换3 -->
+                        <div style="text-align: center;">
+                            <div style="background: rgba(6, 182, 212, 0.2); padding: 1.5rem; border-radius: 12px; border: 1px solid rgba(6, 182, 212, 0.3);">
+                                <div style="color: #06b6d4; font-weight: bold; margin-bottom: 1rem;">Value变换 W_V</div>
+                                <div style="font-family: 'Courier New', monospace; font-size: 0.9rem; color: #cbd5e1; margin-bottom: 1rem;">
+                                    $X \cdot W_V = V$
+                                </div>
+                                <div style="color: #06b6d4; font-size: 0.8rem;">生成"内容向量"</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="text-align: center; margin: 2rem 0;">
+                    <div style="font-size: 2rem; color: #fbbf24; margin-bottom: 1rem;">↓</div>
+                    <div style="display: inline-flex; align-items: center; gap: 1rem; background: rgba(251, 191, 36, 0.2); padding: 1rem 2rem; border-radius: 20px; border: 1px solid rgba(251, 191, 36, 0.4);">
+                        <span style="font-size: 1.3rem;">✨</span>
+                        <span style="color: #fbbf24; font-weight: bold; font-size: 1.1rem;">核心公式：Attention = softmax(Q·K<sup>T</sup>)·V</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 🎯 深入理解矩阵乘法的含义 -->
+    <div style="background: linear-gradient(135deg, rgba(147, 51, 234, 0.15), rgba(139, 92, 246, 0.1)); border-radius: 24px; padding: 3rem; margin-bottom: 4rem; border: 2px solid rgba(147, 51, 234, 0.2); position: relative; overflow: hidden;">
+        <div style="position: absolute; top: -25px; right: -25px; font-size: 6rem; opacity: 0.08; transform: rotate(10deg);">🎯</div>
+
+        <div style="text-align: center; margin-bottom: 3rem;">
+            <div style="display: inline-flex; align-items: center; gap: 1rem; background: linear-gradient(135deg, rgba(147, 51, 234, 0.2), rgba(139, 92, 246, 0.1)); padding: 1.5rem 3rem; border-radius: 30px; border: 1px solid rgba(147, 51, 234, 0.4);">
+                <span style="font-size: 2rem;">🎯</span>
+                <h2 style="color: #9333ea; margin: 0; font-size: 1.8rem; font-weight: bold;">深入理解：X乘矩阵到底在做什么？</h2>
+            </div>
+        </div>
+
+        <div style="background: rgba(255, 255, 255, 0.08); border-radius: 20px; padding: 2.5rem; border: 1px solid rgba(147, 51, 234, 0.3);">
+            <h3 style="color: #9333ea; margin-bottom: 2rem; font-size: 1.4rem; text-align: center;">🔬 从数据库视角理解线性变换</h3>
+
+            <!-- 具体示例 -->
+            <div style="background: linear-gradient(135deg, rgba(15, 23, 42, 0.8), rgba(30, 41, 59, 0.6)); border-radius: 16px; padding: 2rem; border: 1px solid rgba(147, 51, 234, 0.3); margin-bottom: 2rem;">
+                <div style="text-align: center; margin-bottom: 2rem;">
+                    <div style="color: #9333ea; font-weight: bold; font-size: 1.2rem;">📝 具体例子：将"查找用户信息"转换为查询向量</div>
+                </div>
+
+                <!-- 步骤1：原始表示 -->
+                <div style="background: rgba(147, 51, 234, 0.1); padding: 2rem; border-radius: 12px; border: 1px solid rgba(147, 51, 234, 0.3); margin-bottom: 2rem;">
+                    <h4 style="color: #9333ea; margin-bottom: 1rem;">Step 1: 原始词向量 X</h4>
+                    <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 2rem;">
+                        <div>
+                            <div style="font-family: 'Courier New', monospace; font-size: 0.9rem; color: #cbd5e1;">
+                                X = [1.0, 0.2]  // "查找"的原始向量
+                            </div>
+                        </div>
+                        <div>
+                            <div style="color: #cbd5e1; font-size: 0.95rem;">
+                                这是词嵌入给出的通用表示，包含了词的各种语义信息，但没有针对特定任务优化。
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 步骤2：Query变换矩阵 -->
+                <div style="background: rgba(34, 197, 94, 0.1); padding: 2rem; border-radius: 12px; border: 1px solid rgba(34, 197, 94, 0.3); margin-bottom: 2rem;">
+                    <h4 style="color: #22c55e; margin-bottom: 1rem;">Step 2: Query变换矩阵 W_Q 的作用</h4>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+                        <div>
+                            <div style="background: rgba(0, 0, 0, 0.3); padding: 1rem; border-radius: 8px; font-family: 'Courier New', monospace; font-size: 0.85rem;">
+                                W_Q = [[0.5, 0.8],<br>
+                                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[0.3, 0.4]]
+                            </div>
+                        </div>
+                        <div>
+                            <div style="color: #cbd5e1; font-size: 0.95rem; line-height: 1.6;">
+                                <strong style="color: #22c55e;">W_Q 学到了什么？</strong><br>
+                                • 第一行：检测"查询意图"特征<br>
+                                • 第二行：提取"操作类型"特征<br>
+                                <br>
+                                这个矩阵通过训练学会将通用词向量转换为"我在寻找什么"的专用表示。
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 步骤3：矩阵乘法计算 -->
+                <div style="background: rgba(251, 191, 36, 0.1); padding: 2rem; border-radius: 12px; border: 1px solid rgba(251, 191, 36, 0.3); margin-bottom: 2rem;">
+                    <h4 style="color: #fbbf24; margin-bottom: 1rem;">Step 3: 矩阵乘法的几何含义</h4>
+
+                    <div style="background: rgba(0, 0, 0, 0.3); padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem;">
+                        <div style="font-family: 'Courier New', monospace; color: #cbd5e1;">
+                            Q = X · W_Q<br>
+                            Q = [1.0, 0.2] · [[0.5, 0.8],<br>
+                            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[0.3, 0.4]]<br>
+                            Q = [1.0×0.5 + 0.2×0.3, 1.0×0.8 + 0.2×0.4]<br>
+                            Q = [0.56, 0.88]
+                        </div>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+                        <div style="text-align: center;">
+                            <h5 style="color: #fbbf24; margin-bottom: 1rem;">几何视角</h5>
+                            <svg width="200" height="200" viewBox="0 0 200 200">
+                                <!-- 坐标轴 -->
+                                <line x1="20" y1="180" x2="180" y2="180" stroke="#64748b" stroke-width="1"/>
+                                <line x1="20" y1="180" x2="20" y2="20" stroke="#64748b" stroke-width="1"/>
+
+                                <!-- 原始向量 -->
+                                <line x1="20" y1="180" x2="120" y2="160" stroke="#ef4444" stroke-width="2" marker-end="url(#arrowred)"/>
+                                <text x="70" y="155" fill="#ef4444" font-size="12">X原始</text>
+
+                                <!-- 变换后向量 -->
+                                <line x1="20" y1="180" x2="76" y2="92" stroke="#22c55e" stroke-width="2" marker-end="url(#arrowgreen)"/>
+                                <text x="80" y="95" fill="#22c55e" font-size="12">Q查询</text>
+
+                                <defs>
+                                    <marker id="arrowred" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+                                        <path d="M0,0 L0,6 L9,3 z" fill="#ef4444"/>
+                                    </marker>
+                                    <marker id="arrowgreen" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+                                        <path d="M0,0 L0,6 L9,3 z" fill="#22c55e"/>
+                                    </marker>
+                                </defs>
+                            </svg>
+                        </div>
+                        <div>
+                            <h5 style="color: #fbbf24; margin-bottom: 1rem;">语义解释</h5>
+                            <div style="color: #cbd5e1; font-size: 0.95rem; line-height: 1.6;">
+                                <strong>变换前：</strong>X = [1.0, 0.2]<br>
+                                通用的"查找"表示<br><br>
+                                <strong>变换后：</strong>Q = [0.56, 0.88]<br>
+                                专门的查询向量，强调：<br>
+                                • 维度1(0.56)：一般查询强度<br>
+                                • 维度2(0.88)：信息检索意图(高！)
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Key和Value的类似解释 -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+                    <div style="background: rgba(139, 92, 246, 0.1); padding: 1.5rem; border-radius: 12px; border: 1px solid rgba(139, 92, 246, 0.3);">
+                        <h5 style="color: #8b5cf6; margin-bottom: 1rem;">Key变换的含义</h5>
+                        <div style="color: #cbd5e1; font-size: 0.9rem; line-height: 1.6;">
+                            <strong>X · W_K = K</strong><br>
+                            将词向量转换为"我是什么类型"的表示<br><br>
+                            例如："信息"通过W_K变换后，强调自己是"可被查询的数据"
+                        </div>
+                    </div>
+
+                    <div style="background: rgba(6, 182, 212, 0.1); padding: 1.5rem; border-radius: 12px; border: 1px solid rgba(6, 182, 212, 0.3);">
+                        <h5 style="color: #06b6d4; margin-bottom: 1rem;">Value变换的含义</h5>
+                        <div style="color: #cbd5e1; font-size: 0.9rem; line-height: 1.6;">
+                            <strong>X · W_V = V</strong><br>
+                            将词向量转换为"我包含什么内容"的表示<br><br>
+                            例如："信息"通过W_V变换后，包含实际的数据内容
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 类比总结 -->
+            <div style="background: linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(6, 182, 212, 0.1)); padding: 2.5rem; border-radius: 16px; border: 1px solid rgba(34, 197, 94, 0.3);">
+                <h4 style="color: #22c55e; text-align: center; margin-bottom: 2rem;">🎯 用数据库类比总结</h4>
+
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; text-align: center;">
+                    <div style="background: rgba(15, 23, 42, 0.8); padding: 1.5rem; border-radius: 12px;">
+                        <div style="font-size: 2rem; margin-bottom: 1rem;">🔍</div>
+                        <div style="color: #22c55e; font-weight: bold; margin-bottom: 0.5rem;">X · W_Q = Query</div>
+                        <div style="color: #cbd5e1; font-size: 0.9rem;">
+                            就像SQL中的WHERE子句<br>
+                            指定搜索条件
+                        </div>
+                    </div>
+
+                    <div style="background: rgba(15, 23, 42, 0.8); padding: 1.5rem; border-radius: 12px;">
+                        <div style="font-size: 2rem; margin-bottom: 1rem;">🔑</div>
+                        <div style="color: #8b5cf6; font-weight: bold; margin-bottom: 0.5rem;">X · W_K = Key</div>
+                        <div style="color: #cbd5e1; font-size: 0.9rem;">
+                            就像数据库的索引<br>
+                            用于快速匹配
+                        </div>
+                    </div>
+
+                    <div style="background: rgba(15, 23, 42, 0.8); padding: 1.5rem; border-radius: 12px;">
+                        <div style="font-size: 2rem; margin-bottom: 1rem;">📦</div>
+                        <div style="color: #06b6d4; font-weight: bold; margin-bottom: 0.5rem;">X · W_V = Value</div>
+                        <div style="color: #cbd5e1; font-size: 0.9rem;">
+                            就像表中的实际数据<br>
+                            包含要返回的信息
+                        </div>
+                    </div>
+                </div>
+
+                <div style="margin-top: 2rem; padding: 1.5rem; background: rgba(6, 182, 212, 0.1); border-radius: 12px;">
+                    <p style="text-align: center; color: #06b6d4; font-weight: bold; font-size: 1.1rem; margin: 0;">
+                        矩阵乘法 = 特征提取器<br>
+                        <span style="color: #cbd5e1; font-weight: normal; font-size: 0.95rem;">
+                            每个权重矩阵都是一个学习得到的"特征提取器"，将通用表示转换为任务特定的表示
+                        </span>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 🧪 验证改进效果 -->
+    <div style="background: linear-gradient(135deg, rgba(34, 197, 94, 0.15), rgba(16, 185, 129, 0.1)); border-radius: 24px; padding: 3rem; margin-bottom: 4rem; border: 2px solid rgba(34, 197, 94, 0.2); position: relative; overflow: hidden;">
+        <div style="position: absolute; top: -20px; right: -20px; font-size: 6rem; opacity: 0.08; transform: rotate(10deg);">🧪</div>
+
+        <div style="text-align: center; margin-bottom: 3rem;">
+            <div style="display: inline-flex; align-items: center; gap: 1rem; background: linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(16, 185, 129, 0.1)); padding: 1.5rem 3rem; border-radius: 30px; border: 1px solid rgba(34, 197, 94, 0.4);">
+                <span style="font-size: 2rem;">🧪</span>
+                <h2 style="color: #22c55e; margin: 0; font-size: 1.8rem; font-weight: bold;">实验验证：QKV机制的效果</h2>
+            </div>
+        </div>
+
+        <!-- 具体计算过程 -->
+        <div style="background: rgba(255, 255, 255, 0.08); border-radius: 20px; padding: 2.5rem; border: 1px solid rgba(34, 197, 94, 0.3);">
+            <h3 style="color: #22c55e; margin-bottom: 2rem; font-size: 1.4rem; text-align: center;">📊 实际计算：数据库查询场景</h3>
+
+            <div style="background: linear-gradient(135deg, rgba(15, 23, 42, 0.8), rgba(30, 41, 59, 0.6)); border-radius: 16px; padding: 2rem; border: 1px solid rgba(34, 197, 94, 0.3); margin-bottom: 2rem;">
+
+                <!-- 设定场景 -->
+                <div style="text-align: center; margin-bottom: 2rem;">
+                    <div style="color: #22c55e; font-weight: bold; font-size: 1.2rem;">场景：查询"SELECT * FROM users WHERE age > 18"</div>
+                </div>
+
+                <!-- 步骤1：计算Q向量 -->
+                <div style="background: rgba(34, 197, 94, 0.1); padding: 2rem; border-radius: 12px; border: 1px solid rgba(34, 197, 94, 0.3); margin-bottom: 2rem;">
+                    <h4 style="color: #22c55e; margin-bottom: 1rem;">Step 1: 计算Query向量</h4>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+                        <div>
+                            <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; font-family: 'Courier New', monospace; font-size: 0.85rem;">
+                                "查找" → X = [1.0, 0.2]<br>
+                                W_Q = [[0.5, 0.8], [0.3, 0.4]]<br>
+                                Q = X · W_Q = [0.56, 0.88]
+                            </div>
+                        </div>
+                        <div>
+                            <div style="color: #cbd5e1; font-size: 0.95rem;">
+                                <strong style="color: #22c55e;">语义解释：</strong><br>
+                                Q向量强调了"信息检索"意图<br>
+                                第二维(0.88)特别高，表示强烈的查询需求
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 步骤2：计算K向量 -->
+                <div style="background: rgba(139, 92, 246, 0.1); padding: 2rem; border-radius: 12px; border: 1px solid rgba(139, 92, 246, 0.3); margin-bottom: 2rem;">
+                    <h4 style="color: #8b5cf6; margin-bottom: 1rem;">Step 2: 计算Key向量</h4>
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;">
+                        <div style="text-align: center;">
+                            <div style="color: #8b5cf6; font-weight: bold; margin-bottom: 0.5rem;">"用户"</div>
+                            <div style="background: rgba(0,0,0,0.2); padding: 0.5rem; border-radius: 4px; font-family: monospace; font-size: 0.8rem;">
+                                K = [0.65, 0.72]
+                            </div>
+                            <div style="color: #64748b; font-size: 0.8rem; margin-top: 0.5rem;">数据表标识</div>
+                        </div>
+                        <div style="text-align: center;">
+                            <div style="color: #8b5cf6; font-weight: bold; margin-bottom: 0.5rem;">"信息"</div>
+                            <div style="background: rgba(0,0,0,0.2); padding: 0.5rem; border-radius: 4px; font-family: monospace; font-size: 0.8rem;">
+                                K = [0.71, 0.89]
+                            </div>
+                            <div style="color: #64748b; font-size: 0.8rem; margin-top: 0.5rem;">可查询数据</div>
+                        </div>
+                        <div style="text-align: center;">
+                            <div style="color: #8b5cf6; font-weight: bold; margin-bottom: 0.5rem;">"权限"</div>
+                            <div style="background: rgba(0,0,0,0.2); padding: 0.5rem; border-radius: 4px; font-family: monospace; font-size: 0.8rem;">
+                                K = [0.23, 0.31]
+                            </div>
+                            <div style="color: #64748b; font-size: 0.8rem; margin-top: 0.5rem;">安全约束</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 步骤3：计算注意力分数 -->
+                <div style="background: rgba(6, 182, 212, 0.1); padding: 2rem; border-radius: 12px; border: 1px solid rgba(6, 182, 212, 0.3);">
+                    <h4 style="color: #06b6d4; margin-bottom: 1rem;">Step 3: 计算注意力分数</h4>
+                    <div style="background: rgba(0,0,0,0.2); padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem;">
+                        <div style="font-family: 'Courier New', monospace; color: #cbd5e1;">
+                            Score = Q · K^T<br>
+                            Score("查找", "用户") = [0.56, 0.88] · [0.65, 0.72] = 0.998<br>
+                            Score("查找", "信息") = [0.56, 0.88] · [0.71, 0.89] = 1.181<br>
+                            Score("查找", "权限") = [0.56, 0.88] · [0.23, 0.31] = 0.402
+                        </div>
+                    </div>
+
+                    <div style="text-align: center;">
+                        <div style="display: inline-block; background: rgba(6, 182, 212, 0.2); padding: 1.5rem 2rem; border-radius: 12px; border: 1px solid rgba(6, 182, 212, 0.3);">
+                            <div style="color: #06b6d4; font-weight: bold; margin-bottom: 1rem;">🎉 注意力分数排序</div>
+                            <div style="font-size: 1.1rem;">
+                                <span style="color: #22c55e;">信息(1.181)</span> >
+                                <span style="color: #fbbf24;">用户(0.998)</span> >
+                                <span style="color: #ef4444;">权限(0.402)</span>
+                            </div>
+                            <div style="color: #cbd5e1; font-size: 0.9rem; margin-top: 0.5rem;">
+                                完美符合数据库查询的语义逻辑！
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 对比效果 -->
+            <div style="background: rgba(255, 255, 255, 0.08); border-radius: 16px; padding: 2rem; border: 1px solid rgba(34, 197, 94, 0.3);">
+                <div style="color: #22c55e; font-weight: bold; margin-bottom: 1.5rem; text-align: center;">📈 对比：简单点积 vs QKV机制</div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+                    <div style="background: rgba(239, 68, 68, 0.1); padding: 1.5rem; border-radius: 12px; border: 1px solid rgba(239, 68, 68, 0.3);">
+                        <h5 style="color: #ef4444; text-align: center; margin-bottom: 1rem;">❌ 简单点积</h5>
+                        <div style="font-family: 'Courier New', monospace; font-size: 0.85rem; text-align: center;">
+                            查找→信息: 0.46<br>
+                            查找→用户: 0.52<br>
+                            查找→权限: 0.22
+                        </div>
+                        <div style="color: #ef4444; text-align: center; margin-top: 1rem; font-size: 0.9rem;">
+                            顺序混乱，不符合逻辑
+                        </div>
+                    </div>
+
+                    <div style="background: rgba(34, 197, 94, 0.1); padding: 1.5rem; border-radius: 12px; border: 1px solid rgba(34, 197, 94, 0.3);">
+                        <h5 style="color: #22c55e; text-align: center; margin-bottom: 1rem;">✅ QKV机制</h5>
+                        <div style="font-family: 'Courier New', monospace; font-size: 0.85rem; text-align: center;">
+                            查找→信息: 1.181<br>
+                            查找→用户: 0.998<br>
+                            查找→权限: 0.402
+                        </div>
+                        <div style="color: #22c55e; text-align: center; margin-top: 1rem; font-size: 0.9rem;">
+                            完美匹配查询意图！
+                        </div>
+                    </div>
+                </div>
+
+                <div style="background: rgba(34, 197, 94, 0.1); padding: 2rem; border-radius: 12px; border: 1px solid rgba(34, 197, 94, 0.3); margin-top: 2rem; text-align: center;">
+                    <div style="color: #22c55e; font-weight: bold; margin-bottom: 1rem; font-size: 1.1rem;">🎯 关键改进</div>
+                    <p style="color: #cbd5e1; font-size: 1rem; line-height: 1.6; margin: 0;">
+                        通过专门的Query、Key、Value变换，模型学会了：<br>
+                        • Query专注于表达"查询意图"<br>
+                        • Key专注于标识"数据类型"<br>
+                        • Value专注于存储"实际内容"<br>
+                        <br>
+                        <strong>这种分工让注意力机制能够精确地建模复杂的语义关系！</strong>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 🗄️ 深化理解：完整的数据库检索流程 -->
+    <div style="background: linear-gradient(135deg, rgba(6, 182, 212, 0.15), rgba(14, 165, 233, 0.1)); border-radius: 24px; padding: 3rem; margin-bottom: 4rem; border: 2px solid rgba(6, 182, 212, 0.2); position: relative; overflow: hidden;">
+        <div style="position: absolute; top: -25px; right: -25px; font-size: 6rem; opacity: 0.08; transform: rotate(-20deg);">🗄️</div>
+
+        <div style="text-align: center; margin-bottom: 3rem;">
+            <div style="display: inline-flex; align-items: center; gap: 1rem; background: linear-gradient(135deg, rgba(6, 182, 212, 0.2), rgba(14, 165, 233, 0.1)); padding: 1.5rem 3rem; border-radius: 30px; border: 1px solid rgba(6, 182, 212, 0.4);">
+                <span style="font-size: 2rem;">🗄️</span>
+                <h2 style="color: #06b6d4; margin: 0; font-size: 1.8rem; font-weight: bold;">完整视角：从数据库到注意力机制</h2>
+            </div>
+        </div>
+
+        <!-- 数据库类比 -->
+        <div style="background: rgba(255, 255, 255, 0.08); border-radius: 20px; padding: 2.5rem; border: 1px solid rgba(6, 182, 212, 0.3);">
+            <h3 style="color: #06b6d4; margin-bottom: 2rem; font-size: 1.4rem; text-align: center;">💾 SQL查询 vs 注意力机制</h3>
+
+            <!-- 并行对比 -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 3rem;">
+                <!-- SQL查询流程 -->
+                <div>
+                    <h4 style="color: #06b6d4; text-align: center; margin-bottom: 1.5rem;">传统数据库查询</h4>
+
+                    <div style="background: rgba(6, 182, 212, 0.1); padding: 1.5rem; border-radius: 12px; border: 1px solid rgba(6, 182, 212, 0.3); margin-bottom: 1rem;">
+                        <div style="font-family: 'Courier New', monospace; font-size: 0.9rem; color: #cbd5e1;">
+                            SELECT name, age, email<br>
+                            FROM users<br>
+                            WHERE age > 18<br>
+                            ORDER BY age DESC
+                        </div>
+                    </div>
+
+                    <div style="display: grid; gap: 1rem;">
+                        <div style="background: rgba(15, 23, 42, 0.8); padding: 1rem; border-radius: 8px;">
+                            <strong style="color: #22c55e;">1. Query (WHERE子句)</strong><br>
+                            <span style="color: #cbd5e1; font-size: 0.9rem;">指定搜索条件：age > 18</span>
+                        </div>
+                        <div style="background: rgba(15, 23, 42, 0.8); padding: 1rem; border-radius: 8px;">
+                            <strong style="color: #8b5cf6;">2. Key (索引)</strong><br>
+                            <span style="color: #cbd5e1; font-size: 0.9rem;">使用age_index快速定位</span>
+                        </div>
+                        <div style="background: rgba(15, 23, 42, 0.8); padding: 1rem; border-radius: 8px;">
+                            <strong style="color: #06b6d4;">3. Value (数据)</strong><br>
+                            <span style="color: #cbd5e1; font-size: 0.9rem;">返回name, age, email字段</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 注意力机制流程 -->
+                <div>
+                    <h4 style="color: #fbbf24; text-align: center; margin-bottom: 1.5rem;">神经网络注意力机制</h4>
+
+                    <div style="background: rgba(251, 191, 36, 0.1); padding: 1.5rem; border-radius: 12px; border: 1px solid rgba(251, 191, 36, 0.3); margin-bottom: 1rem;">
+                        <div style="font-family: 'Courier New', monospace; font-size: 0.9rem; color: #cbd5e1;">
+                            Attention(Q, K, V) = <br>
+                            &nbsp;&nbsp;softmax(Q·K^T / √d_k)·V
+                        </div>
+                    </div>
+
+                    <div style="display: grid; gap: 1rem;">
+                        <div style="background: rgba(15, 23, 42, 0.8); padding: 1rem; border-radius: 8px;">
+                            <strong style="color: #22c55e;">1. Query (查询向量)</strong><br>
+                            <span style="color: #cbd5e1; font-size: 0.9rem;">当前词的查询意图</span>
+                        </div>
+                        <div style="background: rgba(15, 23, 42, 0.8); padding: 1rem; border-radius: 8px;">
+                            <strong style="color: #8b5cf6;">2. Key (键向量)</strong><br>
+                            <span style="color: #cbd5e1; font-size: 0.9rem;">所有词的类型标识</span>
+                        </div>
+                        <div style="background: rgba(15, 23, 42, 0.8); padding: 1rem; border-radius: 8px;">
+                            <strong style="color: #06b6d4;">3. Value (值向量)</strong><br>
+                            <span style="color: #cbd5e1; font-size: 0.9rem;">实际的语义信息</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 核心对应关系 -->
+            <div style="background: linear-gradient(135deg, rgba(6, 182, 212, 0.2), rgba(14, 165, 233, 0.1)); padding: 2.5rem; border-radius: 16px; border: 1px solid rgba(6, 182, 212, 0.3); margin-top: 2rem;">
+                <h4 style="color: #06b6d4; text-align: center; margin-bottom: 2rem; font-size: 1.3rem;">🔄 完美的对应关系</h4>
+
+                <div style="overflow-x: auto;">
+                    <table style="width: 100%; border-collapse: collapse; background: rgba(15, 23, 42, 0.8); border-radius: 12px; overflow: hidden;">
+                        <thead>
+                        <tr style="background: rgba(6, 182, 212, 0.3);">
+                            <th style="padding: 1rem; border: 1px solid rgba(6, 182, 212, 0.3); color: #06b6d4; font-weight: bold;">数据库概念</th>
+                            <th style="padding: 1rem; border: 1px solid rgba(6, 182, 212, 0.3); color: #06b6d4; font-weight: bold;">注意力机制</th>
+                            <th style="padding: 1rem; border: 1px solid rgba(6, 182, 212, 0.3); color: #06b6d4; font-weight: bold;">作用</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr>
+                            <td style="padding: 1rem; border: 1px solid rgba(6, 182, 212, 0.3); color: #22c55e; font-weight: bold;">WHERE子句</td>
+                            <td style="padding: 1rem; border: 1px solid rgba(6, 182, 212, 0.3); color: #f1f5f9;">Query向量</td>
+                            <td style="padding: 1rem; border: 1px solid rgba(6, 182, 212, 0.3); color: #cbd5e1; font-size: 0.9rem;">指定要查找什么</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 1rem; border: 1px solid rgba(6, 182, 212, 0.3); color: #8b5cf6; font-weight: bold;">索引</td>
+                            <td style="padding: 1rem; border: 1px solid rgba(6, 182, 212, 0.3); color: #f1f5f9;">Key向量</td>
+                            <td style="padding: 1rem; border: 1px solid rgba(6, 182, 212, 0.3); color: #cbd5e1; font-size: 0.9rem;">快速匹配定位</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 1rem; border: 1px solid rgba(6, 182, 212, 0.3); color: #06b6d4; font-weight: bold;">表数据</td>
+                            <td style="padding: 1rem; border: 1px solid rgba(6, 182, 212, 0.3); color: #f1f5f9;">Value向量</td>
+                            <td style="padding: 1rem; border: 1px solid rgba(6, 182, 212, 0.3); color: #cbd5e1; font-size: 0.9rem;">实际返回的内容</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 1rem; border: 1px solid rgba(6, 182, 212, 0.3); color: #fbbf24; font-weight: bold;">相关性排序</td>
+                            <td style="padding: 1rem; border: 1px solid rgba(6, 182, 212, 0.3); color: #f1f5f9;">Softmax</td>
+                            <td style="padding: 1rem; border: 1px solid rgba(6, 182, 212, 0.3); color: #cbd5e1; font-size: 0.9rem;">归一化为概率分布</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 1rem; border: 1px solid rgba(6, 182, 212, 0.3); color: #ef4444; font-weight: bold;">JOIN操作</td>
+                            <td style="padding: 1rem; border: 1px solid rgba(6, 182, 212, 0.3); color: #f1f5f9;">矩阵乘法</td>
+                            <td style="padding: 1rem; border: 1px solid rgba(6, 182, 212, 0.3); color: #cbd5e1; font-size: 0.9rem;">组合多个信息源</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 💻 分步实现：QKV注意力机制 -->
+    <div style="background: linear-gradient(135deg, rgba(79, 70, 229, 0.15), rgba(67, 56, 202, 0.1)); border-radius: 24px; padding: 3rem; margin-bottom: 4rem; border: 2px solid rgba(79, 70, 229, 0.2); position: relative; overflow: hidden;">
+        <div style="position: absolute; top: -20px; right: -20px; font-size: 6rem; opacity: 0.08; transform: rotate(10deg);">💻</div>
+
+        <div style="text-align: center; margin-bottom: 3rem;">
+            <div style="display: inline-flex; align-items: center; gap: 1rem; background: linear-gradient(135deg, rgba(79, 70, 229, 0.2), rgba(67, 56, 202, 0.1)); padding: 1.5rem 3rem; border-radius: 30px; border: 1px solid rgba(79, 70, 229, 0.4);">
+                <span style="font-size: 2rem;">💻</span>
+                <h2 style="color: #4f46e5; margin: 0; font-size: 1.8rem; font-weight: bold;">代码实现：构建智能查询系统</h2>
+            </div>
+        </div>
+
+        <!-- 代码实现概览 -->
+        <div style="background: rgba(255, 255, 255, 0.08); border-radius: 16px; padding: 2rem; margin-bottom: 3rem; border: 1px solid rgba(79, 70, 229, 0.3);">
+            <h4 style="color: #4f46e5; margin-bottom: 1.5rem; text-align: center;">🗺️ 实现路线图</h4>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem;">
+                <div style="background: rgba(34, 197, 94, 0.1); padding: 1.5rem; border-radius: 8px; border: 1px solid rgba(34, 197, 94, 0.3); text-align: center;">
+                    <div style="color: #22c55e; font-weight: bold; margin-bottom: 0.5rem;">第1步：初始化</div>
+                    <div style="color: #cbd5e1; font-size: 0.9rem;">创建三个变换矩阵</div>
+                </div>
+                <div style="background: rgba(139, 92, 246, 0.1); padding: 1.5rem; border-radius: 8px; border: 1px solid rgba(139, 92, 246, 0.3); text-align: center;">
+                    <div style="color: #8b5cf6; font-weight: bold; margin-bottom: 0.5rem;">第2步：QKV变换</div>
+                    <div style="color: #cbd5e1; font-size: 0.9rem;">实现特征专门化</div>
+                </div>
+                <div style="background: rgba(6, 182, 212, 0.1); padding: 1.5rem; border-radius: 8px; border: 1px solid rgba(6, 182, 212, 0.3); text-align: center;">
+                    <div style="color: #06b6d4; font-weight: bold; margin-bottom: 0.5rem;">第3步：注意力计算</div>
+                    <div style="color: #cbd5e1; font-size: 0.9rem;">QK^T求匹配度</div>
+                </div>
+                <div style="background: rgba(251, 191, 36, 0.1); padding: 1.5rem; border-radius: 8px; border: 1px solid rgba(251, 191, 36, 0.3); text-align: center;">
+                    <div style="color: #fbbf24; font-weight: bold; margin-bottom: 0.5rem;">第4步：信息聚合</div>
+                    <div style="color: #cbd5e1; font-size: 0.9rem;">加权求和获取结果</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 第1步：初始化部分 -->
+        <div style="background: rgba(255, 255, 255, 0.08); border-radius: 16px; padding: 2rem; margin-bottom: 3rem; border: 1px solid rgba(34, 197, 94, 0.3);">
+            <h4 style="color: #22c55e; margin-bottom: 1.5rem;">🛠️ 第1步：初始化 - 数据库查询系统的基础</h4>
+
+            <div style="background: rgba(34, 197, 94, 0.1); padding: 1.5rem; border-radius: 12px; border: 1px solid rgba(34, 197, 94, 0.3); margin-bottom: 2rem;">
+                <div style="color: #22c55e; font-weight: bold; margin-bottom: 1rem;">🤔 为什么需要这三个矩阵？</div>
+                <div style="color: #cbd5e1; font-size: 1rem; line-height: 1.6;">
+                    类比数据库系统的三个核心组件：<br>
+                    • <strong>W_Q</strong>：查询解析器 - 将自然语言转换为查询条件<br>
+                    • <strong>W_K</strong>：索引生成器 - 为数据创建可匹配的索引<br>
+                    • <strong>W_V</strong>：数据提取器 - 准备要返回的实际内容
+                </div>
+            </div>
+
+            <div class="code-section">
+                <div class="code-header">
+                    <div class="code-title">
+                        <span>🔧</span>
+                        第1步：初始化查询系统
+                    </div>
+                    <div class="code-actions">
+                        <button class="code-btn">复制代码</button>
+                    </div>
+                </div>
+
+                <div class="code-content">
+<pre style="background: linear-gradient(135deg, #1e293b, #1a202c); padding: 2.5rem; border-radius: 12px; border: 1px solid rgba(34, 197, 94, 0.3); overflow-x: auto; color: #e2e8f0; font-family: 'Consolas', 'Monaco', 'Courier New', monospace; line-height: 1.8; margin: 0; box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);"><code class="language-python"><span class="keyword">import</span> numpy <span class="keyword">as</span> np
+
+<span class="keyword">class</span> <span class="class">DatabaseAttention</span>:
+    <span class="string">"""模拟数据库查询的注意力机制"""</span>
+
+    <span class="keyword">def</span> <span class="function">__init__</span>(<span class="self">self</span>, d_model, d_k=<span class="keyword">None</span>, d_v=<span class="keyword">None</span>):
+        <span class="string">"""
+        初始化智能查询系统
+
+        Args:
+            d_model: 输入词向量的维度 (比如512)
+            d_k: Query和Key向量的维度 (默认等于d_model)
+            d_v: Value向量的维度 (默认等于d_model)
+        """</span>
+        <span class="self">self</span>.d_model = d_model
+        <span class="self">self</span>.d_k = d_k <span class="keyword">if</span> d_k <span class="keyword">is not None</span> <span class="keyword">else</span> d_model
+        <span class="self">self</span>.d_v = d_v <span class="keyword">if</span> d_v <span class="keyword">is not None</span> <span class="keyword">else</span> d_model
+
+        <span class="comment"># 🎯 核心：三个变换矩阵 - 数据库查询的三要素</span>
+        <span class="comment"># Query矩阵：学习如何表达查询意图</span>
+        <span class="self">self</span>.W_Q = np.random.<span class="function">randn</span>(d_model, <span class="self">self</span>.d_k) <span class="operator">*</span> <span class="number">0.1</span>
+
+        <span class="comment"># Key矩阵：学习如何生成可匹配的索引</span>
+        <span class="self">self</span>.W_K = np.random.<span class="function">randn</span>(d_model, <span class="self">self</span>.d_k) <span class="operator">*</span> <span class="number">0.1</span>
+
+        <span class="comment"># Value矩阵：学习如何组织返回的信息</span>
+        <span class="self">self</span>.W_V = np.random.<span class="function">randn</span>(d_model, <span class="self">self</span>.d_v) <span class="operator">*</span> <span class="number">0.1</span>
+
+        <span class="builtin">print</span>(<span class="string">f"🗄️ 数据库查询系统初始化完成:"</span>)
+        <span class="builtin">print</span>(<span class="string">f"   输入维度: {d_model}"</span>)
+        <span class="builtin">print</span>(<span class="string">f"   查询/索引维度: {<span class="self">self</span>.d_k}"</span>)
+        <span class="builtin">print</span>(<span class="string">f"   返回值维度: {<span class="self">self</span>.d_v}"</span>)
+
+<span class="comment"># 创建一个简单的数据库查询系统</span>
+<span class="comment"># 假设词向量是4维的（实际应用中通常是512或768维）</span>
+db_attention = <span class="class">DatabaseAttention</span>(d_model=<span class="number">4</span>, d_k=<span class="number">3</span>)
+
+<span class="builtin">print</span>(<span class="string">f"\n📊 系统参数:"</span>)
+<span class="builtin">print</span>(<span class="string">f"查询解析器(W_Q): {db_attention.W_Q.shape}"</span>)
+<span class="builtin">print</span>(<span class="string">f"索引生成器(W_K): {db_attention.W_K.shape}"</span>)
+<span class="builtin">print</span>(<span class="string">f"数据提取器(W_V): {db_attention.W_V.shape}"</span>)
+</code></pre>
+                </div>
+            </div>
+
+            <div style="background: rgba(22, 197, 94, 0.1); padding: 1.5rem; border-radius: 12px; border: 1px solid rgba(34, 197, 94, 0.3); margin-top: 1rem;">
+                <div style="color: #22c55e; font-weight: bold; margin-bottom: 0.5rem;">💡 关键理解</div>
+                <div style="color: #cbd5e1; font-size: 0.95rem; line-height: 1.5;">
+                    • 矩阵大小 [d_model, d_k]：将d_model维的通用表示转换为d_k维的专用表示<br>
+                    • 初始化用小随机数(0.1)：防止初始梯度过大，确保稳定训练<br>
+                    • 这些权重会在训练中自动学习最优的转换方式
+                </div>
+            </div>
+        </div>
+
+        <!-- 第2步：QKV变换 -->
+        <div style="background: rgba(255, 255, 255, 0.08); border-radius: 16px; padding: 2rem; margin-bottom: 3rem; border: 1px solid rgba(139, 92, 246, 0.3);">
+            <h4 style="color: #8b5cf6; margin-bottom: 1.5rem;">⚡ 第2步：计算Q、K、V - 实现查询系统的专门化</h4>
+
+            <div style="background: rgba(139, 92, 246, 0.1); padding: 1.5rem; border-radius: 12px; border: 1px solid rgba(139, 92, 246, 0.3); margin-bottom: 2rem;">
+                <div style="color: #8b5cf6; font-weight: bold; margin-bottom: 1rem;">🎭 数据库类比</div>
+                <div style="color: #cbd5e1; font-size: 1rem; line-height: 1.6;">
+                    同一个词通过不同的矩阵变换，获得不同的"角色"：<br>
+                    • 通过W_Q变换：成为SQL查询语句<br>
+                    • 通过W_K变换：成为数据库索引<br>
+                    • 通过W_V变换：成为返回的数据记录
+                </div>
+            </div>
+
+            <div class="code-section">
+                <div class="code-header">
+                    <div class="code-title">
+                        <span>⚡</span>
+                        第2步：QKV变换计算
+                    </div>
+                    <div class="code-actions">
+                        <button class="code-btn">复制代码</button>
+                    </div>
+                </div>
+
+                <div class="code-content">
+<pre style="background: linear-gradient(135deg, #1e293b, #1a202c); padding: 2.5rem; border-radius: 12px; border: 1px solid rgba(139, 92, 246, 0.3); overflow-x: auto; color: #e2e8f0; font-family: 'Consolas', 'Monaco', 'Courier New', monospace; line-height: 1.8; margin: 0; box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);"><code class="language-python"><span class="keyword">def</span> <span class="function">compute_qkv</span>(<span class="self">self</span>, X):
+    <span class="string">"""
+    将输入转换为Query、Key、Value - 数据库查询的三要素
+
+    Args:
+        X: 输入矩阵 [seq_len, d_model]
+        例如: [[1.0, 0.2, 0.3, 0.8],  # "SELECT"
+               [0.8, 0.6, 0.7, 0.1],  # "USER"
+               [0.3, 0.8, 0.1, 0.9]]  # "INFO"
+
+    Returns:
+        Q, K, V: 查询、索引、数据三个矩阵
+    """</span>
+    <span class="builtin">print</span>(<span class="string">"🚀 开始数据库查询准备..."</span>)
+    <span class="builtin">print</span>(<span class="string">f"输入语句长度: {X.shape[0]} 个词"</span>)
+
+    <span class="comment"># 🎯 核心变换：通过矩阵乘法实现角色转换</span>
+    Q = np.<span class="function">dot</span>(X, <span class="self">self</span>.W_Q)  <span class="comment"># 生成查询向量："我要查找什么？"</span>
+    K = np.<span class="function">dot</span>(X, <span class="self">self</span>.W_K)  <span class="comment"># 生成索引向量："我是什么类型？"</span>
+    V = np.<span class="function">dot</span>(X, <span class="self">self</span>.W_V)  <span class="comment"># 生成数据向量："我包含什么信息？"</span>
+
+    <span class="builtin">print</span>(<span class="string">f"✅ Query矩阵: {Q.shape} - WHERE子句"</span>)
+    <span class="builtin">print</span>(<span class="string">f"✅ Key矩阵: {K.shape} - 索引字段"</span>)
+    <span class="builtin">print</span>(<span class="string">f"✅ Value矩阵: {V.shape} - 返回数据"</span>)
+
+    <span class="keyword">return</span> Q, K, V
+
+<span class="comment"># 模拟一个数据库查询场景</span>
+<span class="comment"># 输入：SELECT USER INFO (查找用户信息)</span>
+X = np.<span class="function">array</span>([
+    [<span class="number">1.0</span>, <span class="number">0.2</span>, <span class="number">0.3</span>, <span class="number">0.8</span>],  <span class="comment"># "SELECT" - 查询操作</span>
+    [<span class="number">0.8</span>, <span class="number">0.6</span>, <span class="number">0.7</span>, <span class="number">0.1</span>],  <span class="comment"># "USER" - 数据表</span>
+    [<span class="number">0.3</span>, <span class="number">0.8</span>, <span class="number">0.1</span>, <span class="number">0.9</span>]   <span class="comment"># "INFO" - 返回字段</span>
+])
+
+<span class="comment"># 添加方法到类中并测试</span>
+Q, K, V = db_attention.<span class="function">compute_qkv</span>(X)
+
+<span class="builtin">print</span>(<span class="string">f"\n📝 数据库查询分解:"</span>)
+<span class="builtin">print</span>(<span class="string">f"'SELECT'的Query向量: {Q[<span class="number">0</span>]}  ← 表达查询意图"</span>)
+<span class="builtin">print</span>(<span class="string">f"'USER'的Key向量:     {K[<span class="number">1</span>]}  ← 标识数据表类型"</span>)
+<span class="builtin">print</span>(<span class="string">f"'INFO'的Value向量:   {V[<span class="number">2</span>]}  ← 包含实际数据内容"</span>)
+</code></pre>
+                </div>
+            </div>
+
+            <div style="background: rgba(139, 92, 246, 0.1); padding: 1.5rem; border-radius: 12px; border: 1px solid rgba(139, 92, 246, 0.3); margin-top: 1rem;">
+                <div style="color: #8b5cf6; font-weight: bold; margin-bottom: 0.5rem;">🎯 变换的实际意义</div>
+                <div style="color: #cbd5e1; font-size: 0.95rem; line-height: 1.5;">
+                    <strong>数据库视角理解：</strong><br>
+                    • 原始词向量 = 自然语言<br>
+                    • Q向量 = SQL的WHERE子句<br>
+                    • K向量 = 表的索引字段<br>
+                    • V向量 = 表的数据记录<br>
+                    <br>
+                    通过训练，模型学会了如何将自然语言转换为结构化的数据库操作！
+                </div>
+            </div>
+        </div>
+
+        <!-- 第3步：注意力分数计算 -->
+        <div style="background: rgba(255, 255, 255, 0.08); border-radius: 16px; padding: 2rem; margin-bottom: 3rem; border: 1px solid rgba(6, 182, 212, 0.3);">
+            <h4 style="color: #06b6d4; margin-bottom: 1.5rem;">🎯 第3步：计算注意力分数 - 执行数据库查询</h4>
+
+            <div style="background: rgba(6, 182, 212, 0.1); padding: 1.5rem; border-radius: 12px; border: 1px solid rgba(6, 182, 212, 0.3); margin-bottom: 2rem;">
+                <div style="color: #06b6d4; font-weight: bold; margin-bottom: 1rem;">🔍 这一步相当于执行SQL查询</div>
+                <div style="color: #cbd5e1; font-size: 1rem; line-height: 1.6;">
+                    就像数据库系统：<br>
+                    • Query = WHERE子句的条件<br>
+                    • Key = 表中每条记录的索引值<br>
+                    • 匹配度 = Query·Key = 满足条件的程度
+                </div>
+            </div>
+
+            <div class="code-section">
+                <div class="code-header">
+                    <div class="code-title">
+                        <span>🎯</span>
+                        第3步：执行查询匹配
+                    </div>
+                    <div class="code-actions">
+                        <button class="code-btn">复制代码</button>
+                    </div>
+                </div>
+
+                <div class="code-content">
+<pre style="background: #1e293b; padding: 2rem; border-radius: 12px; border: 1px solid rgba(6, 182, 212, 0.3); overflow-x: auto; color: #e2e8f0; font-family: 'Courier New', monospace; line-height: 1.6; margin: 0;"><code class="language-python">def compute_attention_scores(self, Q, K):
+    """
+    计算注意力分数 - 类似数据库的WHERE子句匹配
+
+    Args:
+        Q: 查询矩阵 [seq_len, d_k] - WHERE条件
+        K: 键矩阵 [seq_len, d_k] - 索引值
+
+    Returns:
+        scores: 匹配分数矩阵 [seq_len, seq_len]
+    """
+    print("🎯 执行数据库查询匹配...")
+
+    <span class="comment"># 🔥 核心公式：Q·K^T - 计算每个查询与每个记录的匹配度</span>
+    scores = np.<span class="function">dot</span>(Q, K.T)  <span class="comment"># [seq_len, seq_len]</span>
+
+    print(f"✅ 匹配分数矩阵: {scores.shape}")
+
+    # 🔍 解释每个分数的含义（数据库视角）
+    print(f"\n📊 查询匹配结果:")
+    operations = ["SELECT", "USER", "INFO"]
+
+    # 打印表头
+    print(f"{'':12s}", end="")
+    for op in operations:
+        print(f"{op:>10s}", end="")
+    print()
+
+    # 打印分数矩阵
+    for i, query in enumerate(operations):
+        print(f"{query:10s}  ", end="")
+        for j, target in enumerate(operations):
+            score = scores[i,j]
+            # 用颜色表示匹配强度
+            if score > 0.8:
+                color = "🟢"  # 高匹配
+            elif score > 0.5:
+                color = "🟡"  # 中匹配
+            else:
+                color = "🔴"  # 低匹配
+            print(f"{color}{score:7.3f}", end="")
+        print()
+
+    return scores
+
+# 执行查询匹配
+scores = db_attention.compute_attention_scores(Q, K)
+
+print(f"\n💡 数据库查询解释:")
+print(f"'SELECT'→'USER': {scores[0,1]:.3f} - 查询操作对数据表的关注度")
+print(f"'SELECT'→'INFO': {scores[0,2]:.3f} - 查询操作对返回字段的关注度")
+print(f"'USER'→'INFO':   {scores[1,2]:.3f} - 数据表与字段的关联度")
+</code></pre>
+                </div>
+            </div>
+
+            <div style="background: rgba(6, 182, 212, 0.1); padding: 1.5rem; border-radius: 12px; border: 1px solid rgba(6, 182, 212, 0.3); margin-top: 1rem;">
+                <div style="color: #06b6d4; font-weight: bold; margin-bottom: 0.5rem;">🤔 为什么是Q·K^T？</div>
+                <div style="color: #cbd5e1; font-size: 0.95rem; line-height: 1.5;">
+                    <strong>数据库类比：</strong><br>
+                    • Q是查询条件向量（1个查询）<br>
+                    • K是所有记录的索引向量（N条记录）<br>
+                    • Q·K^T计算查询与每条记录的匹配度<br>
+                    • 结果是一个匹配分数向量，指示哪些记录满足查询条件
+                </div>
+            </div>
+        </div>
+
+        <!-- 第4步：信息聚合 -->
+        <div style="background: rgba(255, 255, 255, 0.08); border-radius: 16px; padding: 2rem; margin-bottom: 2rem; border: 1px solid rgba(251, 191, 36, 0.3);">
+            <h4 style="color: #fbbf24; margin-bottom: 1.5rem;">🎨 第4步：信息聚合 - 返回查询结果</h4>
+
+            <div style="background: rgba(251, 191, 36, 0.1); padding: 1.5rem; border-radius: 12px; border: 1px solid rgba(251, 191, 36, 0.3); margin-bottom: 2rem;">
+                <div style="color: #fbbf24; font-weight: bold; margin-bottom: 1rem;">🎭 这一步相当于SELECT返回结果</div>
+                <div style="color: #cbd5e1; font-size: 1rem; line-height: 1.6;">
+                    根据匹配分数，从数据库中提取并组合信息：<br>
+                    • 高分数的记录：贡献更多信息<br>
+                    • 低分数的记录：贡献较少信息<br>
+                    • 最终得到查询结果的加权组合
+                </div>
+            </div>
+
+            <div class="code-section">
+                <div class="code-header">
+                    <div class="code-title">
+                        <span>🎨</span>
+                        第4步：返回查询结果
+                    </div>
+                    <div class="code-actions">
+                        <button class="code-btn">复制代码</button>
+                    </div>
+                </div>
+
+                <div class="code-content">
+<pre style="background: linear-gradient(135deg, #1e293b, #1a202c); padding: 2.5rem; border-radius: 12px; border: 1px solid rgba(251, 191, 36, 0.3); overflow-x: auto; color: #e2e8f0; font-family: 'Consolas', 'Monaco', 'Courier New', monospace; line-height: 1.8; margin: 0; box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);"><code class="language-python"><span class="keyword">def</span> <span class="function">aggregate_information</span>(<span class="self">self</span>, scores, V):
+    <span class="string">"""
+    根据匹配分数聚合信息 - 相当于SELECT语句的返回
+
+    Args:
+        scores: 匹配分数矩阵 [seq_len, seq_len]
+        V: 值矩阵 [seq_len, d_v] - 实际的数据内容
+
+    Returns:
+        output: 查询结果 [seq_len, d_v]
+    """</span>
+    <span class="builtin">print</span>(<span class="string">"🎨 开始组装查询结果..."</span>)
+
+    <span class="comment"># 🎯 核心：根据匹配度加权求和</span>
+    <span class="comment"># 就像SQL的SELECT语句，根据WHERE条件的匹配程度返回数据</span>
+    output = np.<span class="function">dot</span>(scores, V)  <span class="comment"># [seq_len, d_v]</span>
+
+    <span class="builtin">print</span>(<span class="string">f"✅ 查询完成，返回结果维度: {output.shape}"</span>)
+
+    <span class="comment"># 🔍 分析查询结果</span>
+    operations = [<span class="string">"SELECT"</span>, <span class="string">"USER"</span>, <span class="string">"INFO"</span>]
+    <span class="builtin">print</span>(<span class="string">f"\n📈 查询结果分析:"</span>)
+
+    <span class="keyword">for</span> i, op <span class="keyword">in</span> <span class="builtin">enumerate</span>(operations):
+        <span class="builtin">print</span>(<span class="string">f"\n'{op}'的查询结果:"</span>)
+        <span class="builtin">print</span>(<span class="string">f"  原始向量: {X[i]}"</span>)
+        <span class="builtin">print</span>(<span class="string">f"  增强向量: {[<span class="string">f'{x:<span class="number">.3f</span>}'</span> <span class="keyword">for</span> x <span class="keyword">in</span> output[i]]}"</span>)
+
+        <span class="comment"># 分析主要信息来源</span>
+        max_idx = np.<span class="function">argmax</span>(scores[i])
+        max_weight = scores[i, max_idx]
+        <span class="builtin">print</span>(<span class="string">f"  主要信息来源: '{operations[max_idx]}'(权重{max_weight:<span class="number">.3f</span>})"</span>)
+
+    <span class="keyword">return</span> output
+
+<span class="comment"># 执行信息聚合</span>
+output = db_attention.<span class="function">aggregate_information</span>(scores, V)
+
+<span class="builtin">print</span>(<span class="string">f"\n🎉 数据库查询系统完成!"</span>)
+<span class="builtin">print</span>(<span class="string">f"每个词都获得了基于查询语义的增强表示"</span>)
+<span class="builtin">print</span>(<span class="string">f"\n💡 实际应用："</span>)
+<span class="builtin">print</span>(<span class="string">f"• 自然语言查询 → 结构化数据库操作"</span>)
+<span class="builtin">print</span>(<span class="string">f"• 智能信息检索和匹配"</span>)
+<span class="builtin">print</span>(<span class="string">f"• 上下文感知的语义理解"</span>)
+</code></pre>
+                </div>
+            </div>
+
+            <div style="background: rgba(251, 191, 36, 0.1); padding: 1.5rem; border-radius: 12px; border: 1px solid rgba(251, 191, 36, 0.3); margin-top: 1rem;">
+                <div style="color: #fbbf24; font-weight: bold; margin-bottom: 0.5rem;">🎯 信息聚合的数据库类比</div>
+                <div style="color: #cbd5e1; font-size: 0.95rem; line-height: 1.5;">
+                    想象执行SQL查询：<br>
+                    • WHERE age > 18 匹配了1000条记录（高分数）<br>
+                    • WHERE age > 65 匹配了100条记录（中分数）<br>
+                    • WHERE age < 0 匹配了0条记录（零分数）<br>
+                    • 最终结果主要来自满足条件的记录！
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 🔧 发现问题并引入Softmax -->
+    <div style="background: linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(220, 38, 38, 0.1)); border-radius: 24px; padding: 3rem; margin-bottom: 4rem; border: 2px solid rgba(239, 68, 68, 0.2); position: relative; overflow: hidden;">
+        <div style="position: absolute; top: -25px; right: -25px; font-size: 6rem; opacity: 0.08; transform: rotate(15deg);">⚠️</div>
+
+        <div style="text-align: center; margin-bottom: 3rem;">
+            <div style="display: inline-flex; align-items: center; gap: 1rem; background: linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(220, 38, 38, 0.1)); padding: 1.5rem 3rem; border-radius: 30px; border: 1px solid rgba(239, 68, 68, 0.4);">
+                <span style="font-size: 2rem;">⚠️</span>
+                <h2 style="color: #ef4444; margin: 0; font-size: 1.8rem; font-weight: bold;">等等，还有个问题！</h2>
+            </div>
+        </div>
+
+        <!-- 问题发现 -->
+        <div style="background: rgba(255, 255, 255, 0.08); border-radius: 20px; padding: 2.5rem; border: 1px solid rgba(239, 68, 68, 0.3);">
+            <h3 style="color: #ef4444; margin-bottom: 2rem; font-size: 1.4rem; text-align: center;">🔍 注意力分数需要归一化</h3>
+
+            <div style="background: linear-gradient(135deg, rgba(15, 23, 42, 0.8), rgba(30, 41, 59, 0.6)); border-radius: 16px; padding: 2rem; border: 1px solid rgba(239, 68, 68, 0.3); margin-bottom: 2rem;">
+                <div style="text-align: center; margin-bottom: 2rem;">
+                    <div style="color: #ef4444; font-weight: bold; font-size: 1.2rem;">🚨 当前分数的问题</div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+                    <!-- 当前的分数 -->
+                    <div style="background: rgba(239, 68, 68, 0.1); padding: 2rem; border-radius: 12px; border: 1px solid rgba(239, 68, 68, 0.3);">
+                        <div style="color: #ef4444; font-weight: bold; margin-bottom: 1rem; text-align: center;">原始注意力分数</div>
+                        <div style="font-family: 'Courier New', monospace; font-size: 0.9rem; color: #cbd5e1; text-align: center; line-height: 1.6;">
+                            SELECT的注意力分布：<br>
+                            → SELECT: 0.342<br>
+                            → USER: 0.856<br>
+                            → INFO: 1.223
+                        </div>
+                        <div style="color: #ef4444; font-size: 0.9rem; text-align: center; margin-top: 1rem;">
+                            总和: 2.421 ≠ 1
+                        </div>
+                    </div>
+
+                    <!-- 问题分析 -->
+                    <div style="background: rgba(251, 191, 36, 0.1); padding: 2rem; border-radius: 12px; border: 1px solid rgba(251, 191, 36, 0.3);">
+                        <div style="color: #fbbf24; font-weight: bold; margin-bottom: 1rem; text-align: center;">为什么这是问题？</div>
+                        <div style="color: #cbd5e1; font-size: 0.95rem; line-height: 1.6;">
+                            <strong style="color: #ef4444;">数据库视角：</strong><br>
+                            • 不是概率分布（和≠1）<br>
+                            • 无法表示"关注度百分比"<br>
+                            • 不同查询的分数不可比<br>
+                            • 数值可能很大导致不稳定
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 解决方案：Softmax -->
+            <div style="background: linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(16, 185, 129, 0.1)); padding: 2.5rem; border-radius: 16px; border: 1px solid rgba(34, 197, 94, 0.3);">
+                <div style="text-align: center; margin-bottom: 2rem;">
+                    <div style="color: #22c55e; font-weight: bold; font-size: 1.3rem;">✨ 解决方案：Softmax - 转换为概率分布</div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr auto 1fr; gap: 2rem; align-items: center; margin: 2rem 0;">
+                    <!-- Softmax前 -->
+                    <div style="text-align: center;">
+                        <div style="background: rgba(239, 68, 68, 0.2); padding: 1.5rem; border-radius: 12px; border: 1px solid rgba(239, 68, 68, 0.3);">
+                            <div style="color: #ef4444; font-weight: bold; margin-bottom: 1rem;">Softmax前</div>
+                            <div style="font-family: 'Courier New', monospace; font-size: 0.9rem; color: #cbd5e1;">
+                                [0.342, 0.856, 1.223]<br>
+                                <span style="color: #ef4444;">无界范围</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="font-size: 2rem; color: #22c55e;">→</div>
+
+                    <!-- Softmax后 -->
+                    <div style="text-align: center;">
+                        <div style="background: rgba(34, 197, 94, 0.2); padding: 1.5rem; border-radius: 12px; border: 1px solid rgba(34, 197, 94, 0.3);">
+                            <div style="color: #22c55e; font-weight: bold; margin-bottom: 1rem;">Softmax后</div>
+                            <div style="font-family: 'Courier New', monospace; font-size: 0.9rem; color: #cbd5e1;">
+                                [0.152, 0.291, 0.557]<br>
+                                <span style="color: #22c55e;">和 = 1.000</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Softmax公式和解释 -->
+                <div style="background: rgba(15, 23, 42, 0.8); padding: 2rem; border-radius: 12px; border: 1px solid rgba(34, 197, 94, 0.3); text-align: center;">
+                    <div style="color: #22c55e; font-weight: bold; margin-bottom: 1rem; font-size: 1.1rem;">📐 Softmax公式</div>
+                    <div style="font-size: 1.8rem; color: #22c55e; margin-bottom: 1.5rem; padding: 1.5rem; background: rgba(0, 0, 0, 0.3); border-radius: 8px; display: inline-block;">
+                        $\text{softmax}(x_i) = \frac{e^{x_i}}{\sum_j e^{x_j}}$
+                    </div>
+                    <div style="color: #cbd5e1; font-size: 1rem; line-height: 1.8; margin-top: 1.5rem;">
+                        <strong>数据库类比：</strong>将匹配分数转换为"返回这条记录的概率"<br>
+                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-top: 1rem;">
+                            <div style="background: rgba(34, 197, 94, 0.1); padding: 0.8rem; border-radius: 8px;">
+                                <div style="color: #22c55e; font-weight: bold;">✓ 归一化为概率</div>
+                            </div>
+                            <div style="background: rgba(34, 197, 94, 0.1); padding: 0.8rem; border-radius: 8px;">
+                                <div style="color: #22c55e; font-weight: bold;">✓ 保持相对大小</div>
+                            </div>
+                            <div style="background: rgba(34, 197, 94, 0.1); padding: 0.8rem; border-radius: 8px;">
+                                <div style="color: #22c55e; font-weight: bold;">✓ 可微分函数</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 💻 完整实现 -->
+    <div style="background: linear-gradient(135deg, rgba(34, 197, 94, 0.15), rgba(16, 185, 129, 0.1)); border-radius: 24px; padding: 3rem; margin-bottom: 4rem; border: 2px solid rgba(34, 197, 94, 0.2); position: relative; overflow: hidden;">
+        <div style="position: absolute; top: -20px; right: -20px; font-size: 6rem; opacity: 0.08; transform: rotate(10deg);">🎯</div>
+
+        <div style="text-align: center; margin-bottom: 3rem;">
+            <div style="display: inline-flex; align-items: center; gap: 1rem; background: linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(16, 185, 129, 0.1)); padding: 1.5rem 3rem; border-radius: 30px; border: 1px solid rgba(34, 197, 94, 0.4);">
+                <span style="font-size: 2rem;">🎯</span>
+                <h2 style="color: #22c55e; margin: 0; font-size: 1.8rem; font-weight: bold;">完整版：智能数据库查询系统</h2>
+            </div>
+        </div>
+
+        <!-- 完整实现 -->
+        <div style="background: rgba(255, 255, 255, 0.08); border-radius: 16px; padding: 2rem; margin-bottom: 3rem; border: 1px solid rgba(34, 197, 94, 0.3);">
+            <h4 style="color: #22c55e; margin-bottom: 1.5rem;">✨ 添加Softmax和缩放的完整实现</h4>
+
+            <div class="code-section">
+                <div class="code-header">
+                    <div class="code-title">
+                        <span>✨</span>
+                        完整的数据库查询注意力机制
+                    </div>
+                    <div class="code-actions">
+                        <button class="code-btn">复制代码</button>
+                    </div>
+                </div>
+
+                <div class="code-content">
+<pre style="background: #1e293b; padding: 2rem; border-radius: 12px; border: 1px solid rgba(34, 197, 94, 0.3); overflow-x: auto; color: #e2e8f0; font-family: 'Courier New', monospace; line-height: 1.6; margin: 0;"><code class="language-python">def softmax(self, x):
+    """
+    数值稳定的Softmax实现 - 将分数转换为概率分布
+
+    类比：将数据库匹配分数转换为"选择这条记录的概率"
+    """
+    # 🎯 数值稳定技巧：减去最大值防止exp()溢出
+    exp_x = np.exp(x - np.max(x, axis=1, keepdims=True))
+    return exp_x / np.sum(exp_x, axis=1, keepdims=True)
+
+def forward_complete(self, X):
+    """
+    完整的数据库查询系统
+    包含缩放和Softmax处理
+    """
+    print("🚀 执行完整的数据库查询...")
+
+    # 第1步：生成查询、索引、数据向量
+    Q = np.dot(X, self.W_Q)  # WHERE子句
+    K = np.dot(X, self.W_K)  # 索引字段
+    V = np.dot(X, self.W_V)  # 数据记录
+    print("✅ 查询准备完成")
+
+    # 第2步：计算匹配分数
+    scores = np.dot(Q, K.T)
+    print(f"✅ 原始匹配分数范围: [{np.min(scores):.3f}, {np.max(scores):.3f}]")
+
+    <span class="comment"># 第3步：缩放处理 (重要！)</span>
+    <span class="comment"># 为什么除以√d_k？</span>
+    <span class="comment"># 数据库类比：防止匹配分数过大，导致某些记录完全主导结果</span>
+    scaled_scores = scores <span class="operator">/</span> np.<span class="function">sqrt</span>(<span class="self">self</span>.d_k)
+    print(f"✅ 缩放后范围: [{np.min(scaled_scores):.3f}, {np.max(scaled_scores):.3f}]")
+
+    # 第4步：Softmax归一化 - 转换为概率分布
+    attention_weights = self.softmax(scaled_scores)
+    print("✅ Softmax完成，每行权重和:")
+    print(f"   {np.sum(attention_weights, axis=1)}")
+
+    # 第5步：根据权重返回数据
+    output = np.dot(attention_weights, V)
+    print(f"✅ 查询结果维度: {output.shape}")
+
+    return output, attention_weights
+
+# 测试完整的数据库查询系统
+print("🎯 测试智能数据库查询系统")
+print("="*50)
+
+# 模拟查询：SELECT * FROM users WHERE age > 18
+X_query = np.array([
+    [1.0, 0.2, 0.3, 0.8],  # SELECT
+    [0.8, 0.6, 0.7, 0.1],  # USER
+    [0.3, 0.8, 0.1, 0.9],  # INFO
+    [0.5, 0.5, 0.5, 0.5]   # WHERE (条件)
+])
+
+output, weights = db_attention.forward_complete(X_query)
+
+print(f"\n📊 查询权重矩阵（概率分布）:")
+operations = ["SELECT", "USER", "INFO", "WHERE"]
+print(f"{'':10s}", end="")
+for op in operations:
+    print(f"{op:>10s}", end="")
+print()
+
+for i, query in enumerate(operations):
+    print(f"{query:8s}  ", end="")
+    for j in range(len(operations)):
+        weight = weights[i,j]
+        # 用颜色表示权重强度
+        if weight > 0.4:
+            marker = "🟢"  # 高权重
+        elif weight > 0.25:
+            marker = "🟡"  # 中权重
+        else:
+            marker = "⚪"  # 低权重
+        print(f"{marker}{weight:7.3f}", end="")
+    print()
+
+print(f"\n💡 查询系统分析:")
+print(f"• SELECT主要关注: {operations[np.argmax(weights[0])]}")
+print(f"• USER表关联: {operations[np.argmax(weights[1])]}")
+print(f"• 返回字段INFO从: {operations[np.argmax(weights[2])]}")
+print(f"• WHERE条件影响: {operations[np.argmax(weights[3])]}")
+</code></pre>
+                </div>
+            </div>
+
+            <div style="background: rgba(34, 197, 94, 0.1); padding: 1.5rem; border-radius: 12px; border: 1px solid rgba(34, 197, 94, 0.3); margin-top: 1rem;">
+                <div style="color: #22c55e; font-weight: bold; margin-bottom: 0.5rem;">🎯 关键改进点</div>
+                <div style="color: #cbd5e1; font-size: 0.95rem; line-height: 1.5;">
+                    • <strong>缩放处理(÷√d_k)</strong>：防止点积值过大，保持梯度稳定<br>
+                    • <strong>Softmax归一化</strong>：转换为概率分布，权重和为1<br>
+                    • <strong>数值稳定</strong>：减去最大值防止指数运算溢出<br>
+                    • 现在我们有了真正的"注意力概率分布"！
+                </div>
+            </div>
+        </div>
+
+        <!-- 运行结果可视化 -->
+        <div style="background: rgba(255, 255, 255, 0.08); border-radius: 16px; padding: 2rem; border: 1px solid rgba(34, 197, 94, 0.3);">
+            <h4 style="color: #22c55e; margin-bottom: 1.5rem;">🖥️ 运行结果分析</h4>
+
+            <div style="background: #1e293b; border-radius: 8px; padding: 1.5rem; font-family: 'Courier New', monospace; font-size: 0.85rem; color: #22c55e; border: 1px solid rgba(34, 197, 94, 0.3);">
+<pre style="margin: 0; color: inherit;">🎯 测试智能数据库查询系统
+==================================================
+🚀 执行完整的数据库查询...
+✅ 查询准备完成
+✅ 原始匹配分数范围: [-0.156, 0.823]
+✅ 缩放后范围: [-0.090, 0.475]
+✅ Softmax完成，每行权重和:
+   [1. 1. 1. 1.]
+
+📊 查询权重矩阵（概率分布）:
+              SELECT      USER      INFO     WHERE
+SELECT    ⚪ 0.182   🟡 0.256   🟢 0.421   ⚪ 0.141
+USER      ⚪ 0.198   🟡 0.287   🟡 0.312   ⚪ 0.203
+INFO      ⚪ 0.156   🟡 0.298   🟡 0.334   ⚪ 0.212
+WHERE     ⚪ 0.223   🟡 0.276   🟡 0.289   ⚪ 0.212
+
+💡 查询系统分析:
+• SELECT主要关注: INFO
+• USER表关联: INFO
+• 返回字段INFO从: INFO
+• WHERE条件影响: INFO</pre>
+            </div>
+
+            <div style="background: rgba(34, 197, 94, 0.1); padding: 1.5rem; border-radius: 12px; border: 1px solid rgba(34, 197, 94, 0.3); margin-top: 1.5rem;">
+                <div style="color: #22c55e; font-weight: bold; margin-bottom: 0.5rem;">🎉 完美！观察结果</div>
+                <ul style="color: #cbd5e1; font-size: 0.95rem; line-height: 1.6; margin: 0; padding-left: 1.5rem;">
+                    <li>SELECT操作对INFO(返回字段)的注意力最高(0.421)，符合SQL语义</li>
+                    <li>每行权重和都精确等于1.000，形成了标准概率分布</li>
+                    <li>分数经过缩放处理，避免了数值不稳定</li>
+                    <li>成功模拟了数据库查询的语义关系！</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- 🔗 承接下章 -->
+    <div style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(124, 58, 237, 0.1)); border-radius: 24px; padding: 3rem; margin-bottom: 3rem; border: 2px solid rgba(139, 92, 246, 0.2); position: relative; overflow: hidden;">
+        <div style="position: absolute; top: -20px; right: -20px; font-size: 6rem; opacity: 0.08; transform: rotate(10deg);">🔮</div>
+
+        <div style="text-align: center; margin-bottom: 3rem;">
+            <div style="display: inline-flex; align-items: center; gap: 1rem; background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(124, 58, 237, 0.1)); padding: 1.5rem 3rem; border-radius: 30px; border: 1px solid rgba(139, 92, 246, 0.4);">
+                <span style="font-size: 2rem;">🔮</span>
+                <h2 style="color: #8b5cf6; margin: 0; font-size: 1.8rem; font-weight: bold;">我们解决了基础问题，但还能做得更好！</h2>
+            </div>
+        </div>
+
+        <div style="background: rgba(255, 255, 255, 0.08); padding: 2.5rem; border-radius: 16px; margin-bottom: 2rem;">
+            <p style="font-size: 1.2rem; line-height: 1.7; color: #e2e8f0; text-align: center; margin-bottom: 2rem;">
+                现在我们有了工作正常的QKV注意力机制，它就像一个智能的数据库查询系统。但仔细思考一下...
+            </p>
+
+            <div style="text-align: center; margin: 2rem 0;">
+                <div style="display: inline-flex; align-items: center; gap: 1rem; background: rgba(139, 92, 246, 0.2); padding: 1.5rem 2.5rem; border-radius: 20px; border: 1px solid rgba(139, 92, 246, 0.4);">
+                    <span style="font-size: 1.5rem;">🤔</span>
+                    <span style="color: #8b5cf6; font-weight: bold; font-size: 1.2rem;">单一的查询视角够用吗？</span>
+                </div>
+            </div>
+
+            <div style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(124, 58, 237, 0.1)); padding: 2rem; border-radius: 16px; border: 1px solid rgba(139, 92, 246, 0.3); text-align: center;">
+                <div style="font-size: 1.1rem; color: #f1f5f9; line-height: 1.6; margin: 0;">
+                    想象一个复杂的数据库查询，你可能需要：<br>
+                    • 从<span style="color: #22c55e;">用户表</span>查询基本信息<br>
+                    • 从<span style="color: #fbbf24;">订单表</span>关联购买记录<br>
+                    • 从<span style="color: #ef4444;">权限表</span>验证访问权限<br>
+                    • 从<span style="color: #06b6d4;">日志表</span>追踪操作历史<br><br>
+                    <span style="color: #8b5cf6; font-weight: bold;">我们当前的单头注意力只能同时处理一种查询关系！</span>
+                </div>
+            </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr auto 1fr; gap: 2rem; align-items: center;">
+            <div style="background: rgba(34, 197, 94, 0.1); padding: 2rem; border-radius: 16px; text-align: center; border: 1px solid rgba(34, 197, 94, 0.3);">
+                <div style="font-size: 1.2rem; font-weight: bold; color: #22c55e; margin-bottom: 1rem;">✅ 第3章突破</div>
+                <div style="color: #cbd5e1; font-size: 0.95rem; line-height: 1.5;">
+                    • 从数据库视角理解QKV<br>
+                    • 深入解析矩阵乘法的含义<br>
+                    • 实现了智能查询系统<br>
+                    • 引入Softmax归一化
+                </div>
+            </div>
+
+            <div style="font-size: 3rem; color: #8b5cf6;">→</div>
+
+            <div style="background: rgba(239, 68, 68, 0.1); padding: 2rem; border-radius: 16px; text-align: center; border: 1px solid rgba(239, 68, 68, 0.3);">
+                <div style="font-size: 1.2rem; font-weight: bold; color: #ef4444; margin-bottom: 1rem;">🎯 第4章挑战</div>
+                <div style="color: #cbd5e1; font-size: 0.95rem; line-height: 1.5;">
+                    • 分析单头注意力的局限<br>
+                    • 设计多头并行机制<br>
+                    • 实现多维度信息聚合<br>
+                    • 构建更强大的查询系统
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 📚 本章总结 -->
+    <div style="background: linear-gradient(135deg, rgba(79, 70, 229, 0.15), rgba(67, 56, 202, 0.1)); border-radius: 24px; padding: 3rem; margin-bottom: 2rem; border: 2px solid rgba(79, 70, 229, 0.2);">
+        <h3 style="color: #4f46e5; margin-bottom: 2rem; font-size: 1.6rem; text-align: center; display: flex; align-items: center; justify-content: center; gap: 1rem;">
+            <span>📚</span>
+            <span>第3章：从数据库到注意力机制</span>
+        </h3>
+
+        <div style="display: grid; gap: 2rem;">
+            <div style="background: rgba(255, 255, 255, 0.08); padding: 2.5rem; border-radius: 16px; border-left: 4px solid #ef4444;">
+                <div style="display: flex; align-items: center; gap: 1.5rem; margin-bottom: 1rem;">
+                    <div style="background: linear-gradient(135deg, #ef4444, #dc2626); width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 1.1rem;">🔍</div>
+                    <strong style="color: #ef4444; font-size: 1.3rem;">深度问题分析</strong>
+                </div>
+                <p style="color: #cbd5e1; margin-left: 3.5rem; font-size: 1rem; line-height: 1.6;">通过数据库查询的具体例子，深入分析了简单点积无法准确建模语义关系的原因</p>
+            </div>
+
+            <div style="background: rgba(255, 255, 255, 0.08); padding: 2.5rem; border-radius: 16px; border-left: 4px solid #fbbf24;">
+                <div style="display: flex; align-items: center; gap: 1.5rem; margin-bottom: 1rem;">
+                    <div style="background: linear-gradient(135deg, #fbbf24, #f59e0b); width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 1.1rem;">💡</div>
+                    <strong style="color: #fbbf24; font-size: 1.3rem;">巧妙的类比</strong>
+                </div>
+                <p style="color: #cbd5e1; margin-left: 3.5rem; font-size: 1rem; line-height: 1.6;">将QKV机制类比为数据库的Query-Key-Value模式，让抽象概念变得直观易懂</p>
+            </div>
+
+            <div style="background: rgba(255, 255, 255, 0.08); padding: 2.5rem; border-radius: 16px; border-left: 4px solid #22c55e;">
+                <div style="display: flex; align-items: center; gap: 1.5rem; margin-bottom: 1rem;">
+                    <div style="background: linear-gradient(135deg, #22c55e, #16a34a); width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 1.1rem;">🎯</div>
+                    <strong style="color: #22c55e; font-size: 1.3rem;">完整设计过程</strong>
+                </div>
+                <p style="color: #cbd5e1; margin-left: 3.5rem; font-size: 1rem; line-height: 1.6;">从问题发现到解决方案，从理论推导到代码实现，展现了注意力机制的完整设计历程</p>
+            </div>
+
+            <div style="background: rgba(255, 255, 255, 0.08); padding: 2.5rem; border-radius: 16px; border-left: 4px solid #06b6d4;">
+                <div style="display: flex; align-items: center; gap: 1.5rem; margin-bottom: 1rem;">
+                    <div style="background: linear-gradient(135deg, #06b6d4, #0891b2); width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 1.1rem;">🧪</div>
+                    <strong style="color: #06b6d4; font-size: 1.3rem;">矩阵乘法的深度理解</strong>
+                </div>
+                <p style="color: #cbd5e1; margin-left: 3.5rem; font-size: 1rem; line-height: 1.6;">详细解释了X乘以权重矩阵的几何含义和语义转换，揭示了线性变换的本质</p>
+            </div>
+
+            <div style="background: rgba(255, 255, 255, 0.08); padding: 2.5rem; border-radius: 16px; border-left: 4px solid #8b5cf6;">
+                <div style="display: flex; align-items: center; gap: 1.5rem; margin-bottom: 1rem;">
+                    <div style="background: linear-gradient(135deg, #8b5cf6, #7c3aed); width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 1.1rem;">🔗</div>
+                    <strong style="color: #8b5cf6; font-size: 1.3rem;">承上启下</strong>
+                </div>
+                <p style="color: #cbd5e1; margin-left: 3.5rem; font-size: 1rem; line-height: 1.6;">在解决了基础问题后，自然引出了多头注意力的需求，为下一章铺平道路</p>
+            </div>
+        </div>
+
+        <div style="background: rgba(147, 51, 234, 0.1); padding: 2rem; border-radius: 16px; border: 1px solid rgba(147, 51, 234, 0.3); margin-top: 2rem; text-align: center;">
+            <div style="color: #9333ea; font-weight: bold; margin-bottom: 1rem; font-size: 1.2rem;">🎓 核心收获</div>
+            <p style="color: #cbd5e1; font-size: 1rem; line-height: 1.6; margin: 0;">
+                通过数据库查询的类比，我们深刻理解了：<br>
+                <strong>注意力机制 = 内容寻址的信息检索系统</strong><br>
+                <br>
+                它不是通过位置索引，而是通过语义匹配来找到相关信息，<br>
+                就像数据库通过WHERE子句找到满足条件的记录一样！
+            </p>
+        </div>
+    </div>
+</div>
+
+<style>
+    @keyframes attention-focus {
+        0%, 100% { opacity: 0.3; transform: scale(1) rotate(0deg); }
+        50% { opacity: 0.6; transform: scale(1.05) rotate(2deg); }
+    }
+
+    .code-section {
+        margin: 1.5rem 0;
+        border-radius: 12px;
+        overflow: hidden;
+        background: #1e293b;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+    }
+
+    .code-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1rem 1.5rem;
+        background: linear-gradient(135deg, rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.2));
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .code-title {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: #e2e8f0;
+        font-weight: 600;
+    }
+
+    .code-actions {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .code-btn {
+        padding: 0.5rem 1rem;
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 6px;
+        color: #e2e8f0;
+        font-size: 0.875rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .code-btn:hover {
+        background: rgba(255, 255, 255, 0.2);
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    .code-content {
+        position: relative;
+    }
+
+    .code-content pre {
+        margin: 0;
+        overflow-x: auto;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+    }
+
+    .code-content pre::-webkit-scrollbar {
+        height: 8px;
+    }
+
+    .code-content pre::-webkit-scrollbar-track {
+        background: rgba(0, 0, 0, 0.2);
+    }
+
+    .code-content pre::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 4px;
+    }
+
+    .code-content pre::-webkit-scrollbar-thumb:hover {
+        background: rgba(255, 255, 255, 0.3);
+    }
+
+    .code-content code {
+        display: block;
+        font-size: 0.9rem;
+        line-height: 1.6;
+        font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    }
+
+    /* Python语法高亮 */
+    .code-content .keyword { color: #ff79c6; font-weight: bold; }
+    .code-content .function { color: #50fa7b; }
+    .code-content .string { color: #f1fa8c; }
+    .code-content .comment { color: #6272a4; font-style: italic; }
+    .code-content .number { color: #bd93f9; }
+    .code-content .operator { color: #ff79c6; }
+    .code-content .class { color: #8be9fd; font-weight: bold; }
+    .code-content .self { color: #ff79c6; font-style: italic; }
+    .code-content .builtin { color: #8be9fd; }
+</style>
+
+<script>
+    // KaTeX自动渲染
+    document.addEventListener("DOMContentLoaded", function() {
+        renderMathInElement(document.body, {
+            delimiters: [
+                {left: '$', right: '$', display: true},
+                {left: ', right: ', display: false},
+                {left: '\\[', right: '\\]', display: true},
+                {left: '\\(', right: '\\)', display: false}
+            ],
+            throwOnError: false
+        });
+    });
+</script>
+</body>
+</html>

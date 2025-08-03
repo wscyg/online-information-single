@@ -1,0 +1,1738 @@
+<meta charset="UTF-8">
+<div id="dropout-complete-story">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+        #dropout-complete-story {
+            --primary: #3b82f6;
+            --secondary: #8b5cf6;
+            --success: #22c55e;
+            --warning: #fbbf24;
+            --danger: #ef4444;
+            --info: #06b6d4;
+            --bg-dark: rgba(15, 23, 42, 0.9);
+            --bg-light: rgba(255, 255, 255, 0.05);
+            --text: #cbd5e1;
+            --text-dim: #94a3b8;
+
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
+            color: #e2e8f0;
+            margin: 0;
+            padding: 0;
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        /* 动画 */
+        @keyframes pulse-red { 0%, 100% { background: rgba(239, 68, 68, 0.2); transform: scale(1); } 50% { background: rgba(239, 68, 68, 0.4); transform: scale(1.02); } }
+        @keyframes drop { 0%, 100% { transform: scale(1); } 50% { transform: scale(0.8); } }
+        @keyframes scale-green { 0%, 100% { transform: scale(1); background: rgba(34, 197, 94, 0.2); } 50% { transform: scale(1.1); background: rgba(34, 197, 94, 0.4); } }
+        @keyframes highlight { 0%, 100% { box-shadow: 0 0 0 rgba(59, 130, 246, 0.4); } 50% { box-shadow: 0 0 20px rgba(59, 130, 246, 0.8); } }
+        @keyframes pulse-border { 0%, 100% { border-color: rgba(251, 191, 36, 0.3); } 50% { border-color: rgba(251, 191, 36, 0.6); box-shadow: 0 0 20px rgba(251, 191, 36, 0.4); } }
+        @keyframes check { 0% { background: rgba(251, 191, 36, 0.1); } 100% { background: rgba(34, 197, 94, 0.1); color: var(--success); } }
+
+        /* 基础布局 */
+        .chapter-container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+
+        .chapter-header {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(147, 51, 234, 0.1));
+            border-radius: 24px;
+            padding: 3rem;
+            margin-bottom: 3rem;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            text-align: center;
+        }
+
+        .chapter-header h1 {
+            font-size: 2.8rem;
+            margin-bottom: 1.5rem;
+            background: linear-gradient(45deg, var(--primary), var(--secondary), #9333ea);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .chapter-header p { font-size: 1.3rem; color: var(--text); }
+
+        .solution-section {
+            background: linear-gradient(135deg, var(--bg-dark), rgba(30, 41, 59, 0.6));
+            border-radius: 20px;
+            padding: 2.5rem;
+            margin: 3rem 0;
+            border: 2px solid rgba(59, 130, 246, 0.2);
+            box-shadow: 0 16px 64px rgba(0, 0, 0, 0.3);
+        }
+
+        .section-header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        .section-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1.5rem 3rem;
+            border-radius: 30px;
+            border: 1px solid;
+        }
+
+        /* 通用组件 */
+        .compact-chart, .thinking-process, .thinking-step, .matrix-demo {
+            background: var(--bg-dark);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+        }
+
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin: 1rem 0; }
+        .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; }
+        .grid-auto { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; }
+
+        .mini-chart {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            padding: 1rem;
+            text-align: center;
+            height: 120px;
+        }
+
+        /* 矩阵样式 */
+        .matrix-grid, .mini-matrix {
+            display: inline-grid;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .matrix-grid {
+            gap: 0.4rem;
+            margin: 1rem;
+            padding: 1rem;
+            background: rgba(15, 23, 42, 0.8);
+        }
+
+        .mini-matrix {
+            gap: 0.3rem;
+            padding: 0.8rem;
+            background: rgba(0, 0, 0, 0.3);
+            margin: 0.5rem;
+        }
+
+        /* 必须在同一个元素上同时使用 .mini-matrix/.matrix-grid 和下面的类 */
+        .matrix-4x4 { grid-template-columns: repeat(4, 35px); }
+        .matrix-6x6 { grid-template-columns: repeat(6, 35px); }
+        .matrix-1x4 { grid-template-columns: repeat(4, 35px); }
+
+        .matrix-cell {
+            width: 35px;
+            height: 35px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            font-weight: bold;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+            cursor: pointer;
+        }
+
+        .matrix-demo .matrix-cell { width: 45px; height: 45px; font-size: 0.85rem; }
+        .matrix-demo .matrix-4x4 { grid-template-columns: repeat(4, 45px); }
+        .matrix-demo .matrix-6x6 { grid-template-columns: repeat(6, 45px); }
+        .matrix-demo .matrix-1x4 { grid-template-columns: repeat(4, 45px); }
+        .matrix-cell:hover { transform: scale(1.1); z-index: 10; box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4); }
+
+        /* 矩阵单元格样式 */
+        .cell-normal { background: linear-gradient(135deg, rgba(34, 197, 94, 0.3), rgba(16, 185, 129, 0.2)); border-color: rgba(34, 197, 94, 0.5); color: var(--success); }
+        .cell-overfit { background: linear-gradient(135deg, rgba(239, 68, 68, 0.4), rgba(220, 38, 38, 0.3)); border-color: rgba(239, 68, 68, 0.6); color: #fca5a5; animation: pulse-red 2s infinite; }
+        .cell-weak { background: linear-gradient(135deg, rgba(71, 85, 105, 0.3), rgba(51, 65, 85, 0.2)); border-color: rgba(71, 85, 105, 0.6); color: var(--text-dim); }
+        .cell-dropped { background: linear-gradient(135deg, rgba(239, 68, 68, 0.3), rgba(220, 38, 38, 0.2)); border-color: rgba(239, 68, 68, 0.5); color: var(--danger); animation: drop 3s infinite; }
+        .cell-scaled { background: linear-gradient(135deg, rgba(251, 191, 36, 0.4), rgba(245, 158, 11, 0.3)); border-color: rgba(251, 191, 36, 0.6); color: var(--warning); animation: scale-green 2s infinite; }
+        .cell-mask-1 { background: linear-gradient(135deg, rgba(34, 197, 94, 0.3), rgba(16, 185, 129, 0.2)); border-color: rgba(34, 197, 94, 0.5); color: var(--success); }
+        .cell-mask-0 { background: linear-gradient(135deg, rgba(239, 68, 68, 0.3), rgba(220, 38, 38, 0.2)); border-color: rgba(239, 68, 68, 0.5); color: var(--danger); }
+        .cell-input { background: linear-gradient(135deg, rgba(59, 130, 246, 0.3), rgba(37, 99, 235, 0.2)); border-color: rgba(59, 130, 246, 0.5); color: #60a5fa; }
+        .cell-result { background: linear-gradient(135deg, rgba(251, 191, 36, 0.3), rgba(245, 158, 11, 0.2)); border-color: rgba(251, 191, 36, 0.5); color: var(--warning); }
+        .cell-final { background: linear-gradient(135deg, rgba(139, 92, 246, 0.3), rgba(124, 58, 237, 0.2)); border-color: rgba(139, 92, 246, 0.5); color: var(--secondary); }
+
+        /* 思考泡泡 */
+        .thought-bubble {
+            background: var(--bg-light);
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+            border-left: 4px solid;
+        }
+
+        .thought-observation { border-left-color: var(--info); }
+        .thought-question { border-left-color: var(--warning); }
+        .thought-insight { border-left-color: var(--success); }
+        .thought-solution { border-left-color: var(--secondary); }
+
+        /* 对比项 */
+        .comparison-item {
+            background: var(--bg-light);
+            border-radius: 12px;
+            padding: 1.5rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        /* 数学公式 */
+        .math-formula {
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+            font-family: 'JetBrains Mono', monospace;
+            text-align: center;
+            border: 1px solid rgba(99, 102, 241, 0.3);
+        }
+
+        .formula-step {
+            margin: 0.8rem 0;
+            padding: 0.5rem;
+            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        /* 代码示例 */
+        .code-example {
+            background: linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.9));
+            border: 1px solid rgba(147, 51, 234, 0.3);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+            font-family: 'JetBrains Mono', monospace;
+            overflow-x: auto;
+        }
+
+        .code-example pre { margin: 0; color: #e2e8f0; font-size: 0.9rem; line-height: 1.6; }
+        .code-highlight { background: rgba(59, 130, 246, 0.2); padding: 0.2rem 0.4rem; border-radius: 4px; color: #60a5fa; font-weight: 600; }
+        .code-keyword { color: #c792ea; font-weight: 600; }
+        .code-string { color: #c3e88d; }
+        .code-comment { color: #546e7a; font-style: italic; }
+        .code-function { color: #82aaff; font-weight: 600; }
+        .code-class { color: #ffcb6b; font-weight: 600; }
+
+        /* 信息框 */
+        .box {
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            border: 1px solid;
+        }
+
+        .info-box { background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(37, 99, 235, 0.05)); border-color: rgba(59, 130, 246, 0.3); }
+        .warning-box { background: linear-gradient(135deg, rgba(251, 191, 36, 0.1), rgba(245, 158, 11, 0.05)); border-color: rgba(251, 191, 36, 0.3); }
+        .danger-box { background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(220, 38, 38, 0.05)); border-color: rgba(239, 68, 68, 0.3); }
+        .success-box { background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(16, 185, 129, 0.05)); border-color: rgba(34, 197, 94, 0.3); }
+
+        /* 设计要求 */
+        .requirement-box {
+            background: rgba(251, 191, 36, 0.1);
+            border: 2px solid rgba(251, 191, 36, 0.3);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            animation: pulse-border 3s infinite;
+        }
+
+        .requirement-item {
+            background: var(--bg-light);
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 1rem 0;
+            border-left: 4px solid var(--warning);
+        }
+
+        /* 思考框 */
+        .question-box { background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); }
+        .attempt-box { background: rgba(251, 191, 36, 0.1); border: 1px solid rgba(251, 191, 36, 0.3); }
+        .solution-box { background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.3); }
+        .question-box, .attempt-box, .solution-box { border-radius: 8px; padding: 1.5rem; margin: 1rem 0; }
+
+        /* 步骤样式 */
+        .step-by-step { background: var(--bg-light); border-radius: 8px; padding: 1.5rem; margin: 1rem 0; }
+        .calculation-step { background: rgba(0, 0, 0, 0.2); border-radius: 6px; padding: 1rem; margin: 0.8rem 0; border-left: 3px solid var(--primary); }
+
+        /* 验证框 */
+        .verification-box {
+            background: linear-gradient(135deg, rgba(34, 197, 94, 0.15), rgba(16, 185, 129, 0.1));
+            border: 2px solid rgba(34, 197, 94, 0.4);
+            border-radius: 12px;
+            padding: 2rem;
+            margin: 2rem 0;
+            text-align: center;
+        }
+
+        .verification-item {
+            background: var(--bg-light);
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 1rem 0;
+            animation: check 2s ease-in-out;
+        }
+
+        /* 响应式 */
+        @media (max-width: 768px) {
+            .chapter-container { padding: 1rem; }
+            .chapter-header h1 { font-size: 2rem; }
+            .solution-section { padding: 1.5rem; }
+            .grid-2, .grid-3 { grid-template-columns: 1fr; }
+            .matrix-cell { width: 30px; height: 30px; font-size: 0.7rem; }
+            .matrix-4x4 { grid-template-columns: repeat(4, 30px); }
+            .matrix-6x6 { grid-template-columns: repeat(6, 30px); }
+            .matrix-1x4 { grid-template-columns: repeat(4, 30px); }
+        }
+    </style>
+
+    <div class="chapter-container">
+        <!-- 章节头部 -->
+        <div class="chapter-header">
+            <h1>🎭 Dropout解决过拟合问题</h1>
+            <p>过拟合问题</p>
+        </div>
+
+        <!-- 实验者的困惑 - 改进版 -->
+        <div class="solution-section" style="background: linear-gradient(135deg, rgba(239, 68, 68, 0.05), rgba(251, 191, 36, 0.02)); border-color: rgba(239, 68, 68, 0.3);">
+            <div class="section-header">
+                <div class="section-badge" style="background: linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(220, 38, 38, 0.1)); border-color: rgba(239, 68, 68, 0.4);">
+                    <span style="font-size: 2rem;">😕</span>
+                    <h2 style="color: var(--danger); margin: 0; font-size: 1.8rem; font-weight: bold;">成功后的新困扰</h2>
+                </div>
+            </div>
+
+            <div class="thinking-process" style="background: rgba(15, 23, 42, 0.95);">
+                <div style="text-align: center; margin-bottom: 2rem;">
+                    <div style="display: inline-block; padding: 0.5rem 1.5rem; background: rgba(6, 182, 212, 0.2); border-radius: 20px; border: 1px solid rgba(6, 182, 212, 0.3);">
+                        <span style="color: var(--info); font-weight: bold;">📓 实验记录 - 第9天</span>
+                    </div>
+                </div>
+
+                <div style="background: rgba(255, 255, 255, 0.05); padding: 2rem; border-radius: 12px; border-left: 4px solid var(--info); position: relative;">
+                    <div style="position: absolute; top: -10px; left: 20px; background: rgba(15, 23, 42, 0.95); padding: 0 1rem;">
+                        <span style="color: var(--text-dim); font-size: 0.8rem;">研究员日志</span>
+                    </div>
+
+                    <div style="color: var(--text); font-size: 1.05rem; line-height: 1.8; font-style: italic;">
+                        <p style="margin: 0 0 1rem 0;">
+                            "太棒了！残差连接+层归一化完美解决了梯度问题。<br>
+                            现在12层的Transformer训练非常稳定，梯度范数保持在健康的1.1左右。"
+                        </p>
+
+                        <p style="margin: 0 0 1.5rem 0; color: var(--text-dim);">
+                            "今天我用了一个更大的数据集测试，想看看性能提升..."
+                        </p>
+
+                        <div style="background: rgba(251, 191, 36, 0.1); padding: 1.5rem; border-radius: 8px; border: 1px solid rgba(251, 191, 36, 0.3); margin: 1.5rem 0;">
+                            <strong style="color: var(--warning); display: block; margin-bottom: 1rem;">⚠️ 等等... 这些数字看起来不对劲：</strong>
+
+                            <div class="grid-2" style="gap: 1rem;">
+                                <div style="background: rgba(34, 197, 94, 0.1); padding: 1rem; border-radius: 8px;">
+                                    <div style="color: var(--success); font-weight: bold; margin-bottom: 0.5rem;">✅ 训练集表现</div>
+                                    <div style="color: var(--text); font-size: 0.95rem;">
+                                        • 损失：<strong>0.003</strong> (几乎完美)<br>
+                                        • 准确率：<strong>99.7%</strong> (惊人)
+                                    </div>
+                                </div>
+
+                                <div style="background: rgba(239, 68, 68, 0.1); padding: 1rem; border-radius: 8px;">
+                                    <div style="color: var(--danger); font-weight: bold; margin-bottom: 0.5rem;">❌ 验证集表现</div>
+                                    <div style="color: var(--text); font-size: 0.95rem;">
+                                        • 损失：<strong>2.84</strong> (很高)<br>
+                                        • 准确率：<strong>68.2%</strong> (糟糕)
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <p style="margin: 0; text-align: center;">
+                            <strong style="color: var(--danger); font-size: 1.1rem;">
+                                💭 "发生了什么？模型在训练集上近乎完美，<br>
+                                但在验证集上表现糟糕..."
+                            </strong>
+                        </p>
+                    </div>
+                </div>
+
+                <!-- 添加视觉化对比 -->
+                <div style="margin-top: 2rem; text-align: center;">
+                    <div style="display: inline-flex; gap: 2rem; align-items: center; padding: 1.5rem; background: rgba(0, 0, 0, 0.3); border-radius: 12px;">
+                        <div style="text-align: center;">
+                            <div style="font-size: 3rem; margin-bottom: 0.5rem;">📈</div>
+                            <div style="color: var(--success); font-weight: bold;">训练集</div>
+                            <div style="color: var(--text-dim); font-size: 0.9rem;">近乎完美</div>
+                        </div>
+
+                        <div style="font-size: 2rem; color: var(--text-dim);">VS</div>
+
+                        <div style="text-align: center;">
+                            <div style="font-size: 3rem; margin-bottom: 0.5rem;">📉</div>
+                            <div style="color: var(--danger); font-weight: bold;">验证集</div>
+                            <div style="color: var(--text-dim); font-size: 0.9rem;">表现糟糕</div>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 1rem; color: var(--warning); font-weight: bold; animation: pulse-border 2s infinite;">
+                        ⚡ 这是典型的过拟合现象！
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 深入分析：为什么会过拟合 -->
+        <div style="background: rgba(15, 23, 42, 0.9); padding: 2rem; border-radius: 12px; margin-bottom: 2rem;">
+            <div style="color: #fbbf24; font-weight: bold; margin-bottom: 1.5rem; text-align: center;">🔍 深入分析：问题的本质</div>
+
+            <div style="background: rgba(255, 255, 255, 0.05); padding: 2rem; border-radius: 8px;">
+                <div style="color: #8b5cf6; font-weight: bold; margin-bottom: 1rem;">继续实验观察：</div>
+                <div style="color: #cbd5e1; font-size: 1rem; line-height: 1.8; font-style: italic;">
+                    "让我仔细检查一下模型在做什么...<br><br>
+
+                    我输入了一个训练集中的句子：'I love this movie'<br>
+                    模型输出：'我喜欢这部电影' (完美翻译) ✓<br><br>
+
+                    但当我稍微改变一下：'I really love this movie'<br>
+                    模型输出：'我这部电影' (语法错误，词序混乱) ❌<br><br>
+
+                    <strong style="color: #ef4444;">问题很明显：模型只是在记忆训练数据，而不是真正理解翻译规律！</strong><br><br>
+
+                    这就像一个学生考试时只会背标准答案，遇到稍微变化的题目就不会了..."
+                </div>
+            </div>
+        </div>
+
+        <!-- 过拟合vs泛化对比 -->
+        <div class="overfitting-demo">
+            <div style="color: #fbbf24; font-weight: bold; margin-bottom: 1.5rem; text-align: center;">📊 对比分析：记忆vs理解</div>
+
+            <div class="model-comparison">
+                <!-- 过拟合模型 -->
+                <div class="model-box overfitting-model">
+                    <div style="color: #ef4444; font-weight: bold; margin-bottom: 1rem;">过拟合模型行为</div>
+                    <div style="font-size: 0.9rem; color: #cbd5e1;">
+                        <div style="margin-bottom: 0.5rem;">🧠 学习方式: <span style="color: #ef4444;">死记硬背</span></div>
+                        <div style="margin-bottom: 0.5rem;">📚 对训练数据: <span style="color: #22c55e;">99.7%准确</span></div>
+                        <div style="margin-bottom: 0.5rem;">🔮 对新数据: <span style="color: #ef4444;">68.2%准确</span></div>
+                        <div style="margin-bottom: 0.5rem;">⚖️ 泛化能力: <span style="color: #ef4444;">极差</span></div>
+                        <div>🎯 实际价值: <span style="color: #ef4444;">几乎为零</span></div>
+                    </div>
+                </div>
+
+                <div style="color: #64748b; font-size: 2rem;">VS</div>
+
+                <!-- 理想模型 -->
+                <div class="model-box regularized-model">
+                    <div style="color: #22c55e; font-weight: bold; margin-bottom: 1rem;">理想模型行为</div>
+                    <div style="font-size: 0.9rem; color: #cbd5e1;">
+                        <div style="margin-bottom: 0.5rem;">🧠 学习方式: <span style="color: #22c55e;">理解规律</span></div>
+                        <div style="margin-bottom: 0.5rem;">📚 对训练数据: <span style="color: #22c55e;">92.1%准确</span></div>
+                        <div style="margin-bottom: 0.5rem;">🔮 对新数据: <span style="color: #22c55e;">89.3%准确</span></div>
+                        <div style="margin-bottom: 0.5rem;">⚖️ 泛化能力: <span style="color: #22c55e;">优秀</span></div>
+                        <div>🎯 实际价值: <span style="color: #22c55e;">很高</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="background: rgba(239, 68, 68, 0.1); padding: 1.5rem; border-radius: 8px; margin-top: 2rem;">
+                <div style="color: #ef4444; font-weight: bold; margin-bottom: 0.5rem;">💡 关键发现</div>
+                <div style="color: #cbd5e1; font-size: 0.95rem; line-height: 1.6;">
+                    <strong>过拟合的本质</strong>：模型有足够的容量记住所有训练样本，但失去了泛化能力<br>
+                    <strong>真实影响</strong>：在实际部署中，这样的模型会频繁出错，用户体验极差<br>
+                    <strong>根本原因</strong>：Transformer参数太多，训练数据相对不足，缺乏有效约束
+                </div>
+            </div>
+        </div>
+
+        <!-- 问题根源分析 -->
+        <div style="background: rgba(15, 23, 42, 0.9); padding: 2rem; border-radius: 12px; margin-top: 2rem;">
+            <div style="color: #8b5cf6; font-weight: bold; margin-bottom: 1.5rem; text-align: center;">🤔 问题根源：为什么Transformer特别容易过拟合？</div>
+            <div style="display: grid; gap: 1rem;">
+                <div style="background: rgba(255, 255, 255, 0.05); padding: 1.5rem; border-radius: 8px;">
+                    <div style="color: #ef4444; font-weight: bold; margin-bottom: 0.5rem;">1. 参数数量极大</div>
+                    <div style="color: #cbd5e1; font-size: 0.95rem;">
+                        我们的12层模型有840万参数，但训练数据只有10万句对<br>
+                        <strong>参数/数据比例 = 84:1</strong> - 严重失衡！理论上可以记住每个训练样本
+                    </div>
+                </div>
+
+                <div style="background: rgba(255, 255, 255, 0.05); padding: 1.5rem; border-radius: 8px;">
+                    <div style="color: #fbbf24; font-weight: bold; margin-bottom: 0.5rem;">2. 注意力机制的记忆能力</div>
+                    <div style="color: #cbd5e1; font-size: 0.95rem;">
+                        自注意力可以精确记住token之间的任意复杂关系<br>
+                        即使是训练数据中的噪声模式，模型也会"认真学习"
+                    </div>
+                </div>
+
+                <div style="background: rgba(255, 255, 255, 0.05); padding: 1.5rem; border-radius: 8px;">
+                    <div style="color: #22c55e; font-weight: bold; margin-bottom: 0.5rem;">3. 深层网络的表达能力</div>
+                    <div style="color: #cbd5e1; font-size: 0.95rem;">
+                        12层架构可以学习极其复杂的非线性映射<br>
+                        足以将每个训练样本"硬编码"到模型中
+                    </div>
+                </div>
+
+                <div style="background: rgba(255, 255, 255, 0.05); padding: 1.5rem; border-radius: 8px;">
+                    <div style="color: #06b6d4; font-weight: bold; margin-bottom: 0.5rem;">4. 残差连接的副作用</div>
+                    <div style="color: #cbd5e1; font-size: 0.95rem;">
+                        虽然残差连接解决了梯度问题，但也让信息更容易"穿透"整个网络<br>
+                        使得模型更容易记住输入-输出的直接映射关系
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 第二部分：传统方法的失败 -->
+        <div class="solution-section" style="border-color: var(--warning);">
+            <div class="section-header">
+                <div class="section-badge" style="background: linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(245, 158, 11, 0.1)); border-color: rgba(251, 191, 36, 0.4);">
+                    <span style="font-size: 2rem;">🔧</span>
+                    <h2 style="color: var(--warning); margin: 0; font-size: 1.8rem; font-weight: bold;">传统方法：为什么不行？</h2>
+                </div>
+            </div>
+
+            <!-- L1/L2正则化的矩阵分析 -->
+            <div class="compact-chart">
+                <div style="color: var(--warning); font-weight: bold; margin-bottom: 1.5rem; text-align: center;">
+                    📐 L1/L2正则化的矩阵运算分析
+                </div>
+
+                <div class="grid-2">
+                    <!-- L1正则化 -->
+                    <div>
+                        <div style="color: var(--secondary); font-weight: bold; text-align: center; margin-bottom: 1rem;">L1正则化（Lasso）</div>
+
+                        <div style="text-align: center; margin-bottom: 1rem;">
+                            <div style="color: var(--text-dim); font-size: 0.9rem;">原始权重矩阵</div>
+                            <div class="mini-matrix matrix-4x4">
+                                <div class="matrix-cell cell-normal">0.8</div>
+                                <div class="matrix-cell cell-normal">0.3</div>
+                                <div class="matrix-cell cell-normal">0.6</div>
+                                <div class="matrix-cell cell-normal">0.4</div>
+                                <div class="matrix-cell cell-normal">0.5</div>
+                                <div class="matrix-cell cell-normal">0.9</div>
+                                <div class="matrix-cell cell-normal">0.2</div>
+                                <div class="matrix-cell cell-normal">0.7</div>
+                                <div class="matrix-cell cell-normal">0.4</div>
+                                <div class="matrix-cell cell-normal">0.6</div>
+                                <div class="matrix-cell cell-normal">0.8</div>
+                                <div class="matrix-cell cell-normal">0.3</div>
+                                <div class="matrix-cell cell-normal">0.7</div>
+                                <div class="matrix-cell cell-normal">0.1</div>
+                                <div class="matrix-cell cell-normal">0.5</div>
+                                <div class="matrix-cell cell-normal">0.9</div>
+                            </div>
+                        </div>
+
+                        <div class="math-formula">
+                            <div style="color: var(--secondary);">损失 = 原损失 + λ∑|wᵢⱼ|</div>
+                        </div>
+
+                        <div style="text-align: center; margin-top: 1rem;">
+                            <div style="color: var(--text-dim); font-size: 0.9rem;">L1正则化后</div>
+                            <div class="mini-matrix matrix-4x4">
+                                <div class="matrix-cell cell-weak">0.6</div>
+                                <div class="matrix-cell cell-weak">0.0</div>
+                                <div class="matrix-cell cell-weak">0.4</div>
+                                <div class="matrix-cell cell-weak">0.0</div>
+                                <div class="matrix-cell cell-weak">0.3</div>
+                                <div class="matrix-cell cell-normal">0.7</div>
+                                <div class="matrix-cell cell-weak">0.0</div>
+                                <div class="matrix-cell cell-weak">0.5</div>
+                                <div class="matrix-cell cell-weak">0.0</div>
+                                <div class="matrix-cell cell-weak">0.4</div>
+                                <div class="matrix-cell cell-normal">0.6</div>
+                                <div class="matrix-cell cell-weak">0.0</div>
+                                <div class="matrix-cell cell-weak">0.5</div>
+                                <div class="matrix-cell cell-weak">0.0</div>
+                                <div class="matrix-cell cell-weak">0.3</div>
+                                <div class="matrix-cell cell-normal">0.7</div>
+                            </div>
+                        </div>
+
+                        <div style="color: var(--danger); font-size: 0.9rem; text-align: center; margin-top: 1rem;">
+                            ❌ 问题：永久删除神经元<br>
+                            损害了模型的表达能力
+                        </div>
+                    </div>
+
+                    <!-- L2正则化 -->
+                    <div>
+                        <div style="color: var(--info); font-weight: bold; text-align: center; margin-bottom: 1rem;">L2正则化（Ridge）</div>
+
+                        <div style="text-align: center; margin-bottom: 1rem;">
+                            <div style="color: var(--text-dim); font-size: 0.9rem;">原始权重矩阵</div>
+                            <div class="mini-matrix matrix-4x4">
+                                <div class="matrix-cell cell-normal">0.8</div>
+                                <div class="matrix-cell cell-normal">0.3</div>
+                                <div class="matrix-cell cell-normal">0.6</div>
+                                <div class="matrix-cell cell-normal">0.4</div>
+                                <div class="matrix-cell cell-normal">0.5</div>
+                                <div class="matrix-cell cell-normal">0.9</div>
+                                <div class="matrix-cell cell-normal">0.2</div>
+                                <div class="matrix-cell cell-normal">0.7</div>
+                                <div class="matrix-cell cell-normal">0.4</div>
+                                <div class="matrix-cell cell-normal">0.6</div>
+                                <div class="matrix-cell cell-normal">0.8</div>
+                                <div class="matrix-cell cell-normal">0.3</div>
+                                <div class="matrix-cell cell-normal">0.7</div>
+                                <div class="matrix-cell cell-normal">0.1</div>
+                                <div class="matrix-cell cell-normal">0.5</div>
+                                <div class="matrix-cell cell-normal">0.9</div>
+                            </div>
+                        </div>
+
+                        <div class="math-formula">
+                            <div style="color: var(--info);">损失 = 原损失 + λ∑wᵢⱼ²</div>
+                        </div>
+
+                        <div style="text-align: center; margin-top: 1rem;">
+                            <div style="color: var(--text-dim); font-size: 0.9rem;">L2正则化后</div>
+                            <div class="mini-matrix matrix-4x4">
+                                <div class="matrix-cell cell-weak">0.6</div>
+                                <div class="matrix-cell cell-weak">0.2</div>
+                                <div class="matrix-cell cell-weak">0.4</div>
+                                <div class="matrix-cell cell-weak">0.3</div>
+                                <div class="matrix-cell cell-weak">0.4</div>
+                                <div class="matrix-cell cell-weak">0.7</div>
+                                <div class="matrix-cell cell-weak">0.1</div>
+                                <div class="matrix-cell cell-weak">0.5</div>
+                                <div class="matrix-cell cell-weak">0.3</div>
+                                <div class="matrix-cell cell-weak">0.4</div>
+                                <div class="matrix-cell cell-weak">0.6</div>
+                                <div class="matrix-cell cell-weak">0.2</div>
+                                <div class="matrix-cell cell-weak">0.5</div>
+                                <div class="matrix-cell cell-weak">0.08</div>
+                                <div class="matrix-cell cell-weak">0.4</div>
+                                <div class="matrix-cell cell-weak">0.7</div>
+                            </div>
+                        </div>
+
+                        <div style="color: var(--danger); font-size: 0.9rem; text-align: center; margin-top: 1rem;">
+                            ❌ 问题：一视同仁地缩小<br>
+                            无法解决共适应问题
+                        </div>
+                    </div>
+                </div>
+
+                <div class="box warning-box">
+                    <div style="color: var(--warning); font-weight: bold; margin-bottom: 1rem;">⚠️ 传统方法的根本缺陷</div>
+                    <div style="color: var(--text); font-size: 0.95rem; line-height: 1.6;">
+                        <strong>L1/L2正则化都无法解决核心问题：</strong><br><br>
+                        <strong>1. 静态性：</strong> 在整个训练过程中以固定方式影响权重<br>
+                        <strong>2. 非选择性：</strong> 无法区分重要和不重要的神经元<br>
+                        <strong>3. 共适应：</strong> 最关键的是，<strong style="color: var(--danger);">无法打破神经元之间的固定依赖关系！</strong><br><br>
+                        我们需要一种<strong style="color: var(--success);">动态的、选择性的、能够强制神经元独立工作</strong>的方法...
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 第三部分：从生物启发到算法设计 -->
+        <div class="solution-section" style="border-color: var(--success);">
+            <div class="section-header">
+                <div class="section-badge" style="background: linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(16, 185, 129, 0.1)); border-color: rgba(34, 197, 94, 0.4);">
+                    <span style="font-size: 2rem;">🧠</span>
+                    <h2 style="color: var(--success); margin: 0; font-size: 1.8rem; font-weight: bold;">生物启发：Dropout的思维过程</h2>
+                </div>
+            </div>
+
+            <!-- Hinton的思维过程 -->
+            <div class="thinking-process">
+                <div style="color: var(--success); font-weight: bold; margin-bottom: 1.5rem; text-align: center;">
+                    💭 Hinton教授的思维过程重现
+                </div>
+
+                <div class="thought-bubble thought-observation">
+                    <div style="color: var(--info); font-weight: bold; margin-bottom: 0.5rem;">🔍 生物学观察</div>
+                    <div style="color: var(--text); font-size: 1rem; line-height: 1.8;">
+                        "人脑每天失去约85,000个神经元，但认知功能基本不受影响。为什么人工神经网络不能具有同样的鲁棒性？"
+                    </div>
+                </div>
+
+                <div class="thought-bubble thought-question">
+                    <div style="color: var(--warning); font-weight: bold; margin-bottom: 0.5rem;">❓ 关键疑问</div>
+                    <div style="color: var(--text); font-size: 1rem; line-height: 1.8;">
+                        "大脑的秘密是什么？为什么部分神经元死亡不会导致功能崩塌？<br>
+                        答案：<strong style="color: var(--warning);">冗余性和分布式表示</strong>！重要信息不依赖单个神经元。"
+                    </div>
+                </div>
+
+                <div class="thought-bubble thought-insight">
+                    <div style="color: var(--success); font-weight: bold; margin-bottom: 0.5rem;">💡 核心洞察</div>
+                    <div style="color: var(--text); font-size: 1rem; line-height: 1.8;">
+                        "如果我们在训练过程中<strong style="color: var(--success);">随机'杀死'一些神经元</strong>，强迫网络学会不依赖任何特定的神经元组合会怎样？<br><br>
+                        这样网络就必须学会：<br>
+                        • 让每个神经元都有用<br>
+                        • 不依赖特定的神经元组合<br>
+                        • 具有冗余性和容错能力"
+                    </div>
+                </div>
+
+                <div class="thought-bubble thought-solution">
+                    <div style="color: var(--secondary); font-weight: bold; margin-bottom: 0.5rem;">🎯 解决方案设计</div>
+                    <div style="color: var(--text); font-size: 1rem; line-height: 1.8;">
+                        "但是怎么实现呢？我们需要：<br><br>
+                        <strong>1. 随机性：</strong> 每次训练都随机选择不同的神经元组合<br>
+                        <strong>2. 概率控制：</strong> 用概率p控制丢弃的比例<br>
+                        <strong>3. 期望一致：</strong> 训练和推理时的期望输出要一致<br><br>
+                        <strong style="color: var(--secondary);">这就是Dropout的核心思想！</strong>"
+                    </div>
+                </div>
+            </div>
+
+            <!-- 大脑vs人工神经网络对比 -->
+            <div class="compact-chart">
+                <div style="color: var(--success); font-weight: bold; margin-bottom: 1.5rem; text-align: center;">
+                    🔬 大脑 vs 人工神经网络的鲁棒性对比
+                </div>
+
+                <div class="grid-2">
+                    <div class="comparison-item" style="border: 1px solid rgba(34, 197, 94, 0.3);">
+                        <div style="color: var(--success); font-weight: bold; text-align: center; margin-bottom: 1rem;">🧠 大脑</div>
+                        <div style="color: var(--text); font-size: 0.95rem; line-height: 1.6;">
+                            <strong>现象：</strong><br>
+                            • 神经元持续死亡<br>
+                            • 功能基本稳定<br>
+                            • 具有学习能力<br><br>
+                            <strong>机制：</strong><br>
+                            • 分布式表示<br>
+                            • 功能冗余<br>
+                            • 动态重组<br>
+                            • 可塑性补偿
+                        </div>
+                    </div>
+
+                    <div class="comparison-item" style="border: 1px solid rgba(239, 68, 68, 0.3);">
+                        <div style="color: var(--danger); font-weight: bold; text-align: center; margin-bottom: 1rem;">🤖 传统人工神经网络</div>
+                        <div style="color: var(--text); font-size: 0.95rem; line-height: 1.6;">
+                            <strong>现象：</strong><br>
+                            • 神经元固定不变<br>
+                            • 过度依赖特定组合<br>
+                            • 脆弱，易过拟合<br><br>
+                            <strong>问题：</strong><br>
+                            • 集中式表示<br>
+                            • 缺乏冗余<br>
+                            • 静态结构<br>
+                            • 共适应严重
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 第四部分：设计要求的确立 -->
+        <div class="solution-section" style="border-color: var(--warning);">
+            <div class="section-header">
+                <div class="section-badge" style="background: linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(245, 158, 11, 0.1)); border-color: rgba(251, 191, 36, 0.4);">
+                    <span style="font-size: 2rem;">🎯</span>
+                    <h2 style="color: var(--warning); margin: 0; font-size: 1.8rem; font-weight: bold;">确立设计要求</h2>
+                </div>
+            </div>
+
+            <!-- 从生物观察到设计要求 -->
+            <div style="background: var(--bg-dark); padding: 2rem; border-radius: 12px; margin-bottom: 2rem;">
+                <div style="color: var(--warning); font-weight: bold; margin-bottom: 1.5rem; text-align: center;">
+                    💭 从生物现象到工程要求的转化
+                </div>
+
+                <div style="background: var(--bg-light); padding: 2rem; border-radius: 8px;">
+                    <div style="color: var(--info); font-weight: bold; margin-bottom: 1rem;">生物观察：</div>
+                    <div style="color: var(--text); font-size: 1rem; line-height: 1.8;">
+                        • 大脑每天随机失去约85,000个神经元<br>
+                        • 但认知功能基本不受影响<br>
+                        • 说明大脑具有强大的冗余性和适应性<br><br>
+                        <strong style="color: var(--success);">核心洞察：</strong>随机的神经元失活强迫大脑建立分布式、鲁棒的表示！
+                    </div>
+                </div>
+
+                <div style="text-align: center; margin: 2rem 0; color: var(--warning); font-size: 1.2rem;">
+                    ⬇️ <strong>转化为工程问题</strong> ⬇️
+                </div>
+
+                <div class="requirement-box">
+                    <div style="color: var(--warning); font-weight: bold; margin-bottom: 1.5rem; text-align: center;">
+                        🔧 人工神经网络的设计要求
+                    </div>
+
+                    <div class="requirement-item">
+                        <div style="color: var(--success); font-weight: bold; margin-bottom: 0.5rem;">要求1：随机性</div>
+                        <div style="color: var(--text);">
+                            能够随机选择不同的神经元组合，每次训练都不同，避免固定的依赖关系
+                        </div>
+                    </div>
+
+                    <div class="requirement-item">
+                        <div style="color: var(--primary); font-weight: bold; margin-bottom: 0.5rem;">要求2：概率控制</div>
+                        <div style="color: var(--text);">
+                            能够控制"失活"的程度，太少没效果，太多损害学习，需要一个合适的概率p
+                        </div>
+                    </div>
+
+                    <div class="requirement-item">
+                        <div style="color: var(--secondary); font-weight: bold; margin-bottom: 0.5rem;">要求3：期望一致</div>
+                        <div style="color: var(--text);">
+                            训练时（部分神经元失活）和推理时（全部神经元工作）的期望输出必须一致
+                        </div>
+                    </div>
+                </div>
+
+                <div style="text-align: center; margin-top: 2rem;">
+                    <div style="display: inline-block; background: rgba(239, 68, 68, 0.1); padding: 1rem 2rem; border-radius: 8px; border: 1px solid rgba(239, 68, 68, 0.3);">
+                        <div style="color: var(--danger); font-weight: bold;">❓ 问题：如何用数学方法实现这三个要求？</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 第五部分：逐个解决设计要求 -->
+        <div class="solution-section" style="border-color: var(--success);">
+            <div class="section-header">
+                <div class="section-badge" style="background: linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(16, 185, 129, 0.1)); border-color: rgba(34, 197, 94, 0.4);">
+                    <span style="font-size: 2rem;">🧮</span>
+                    <h2 style="color: var(--success); margin: 0; font-size: 1.8rem; font-weight: bold;">逐个解决：数学方法设计</h2>
+                </div>
+            </div>
+
+            <!-- 解决要求1：随机性 -->
+            <div class="thinking-step">
+                <div style="color: var(--success); font-weight: bold; margin-bottom: 1.5rem; text-align: center;">
+                    🎲 要求1：如何实现随机性？
+                </div>
+
+                <div class="question-box">
+                    <div style="color: var(--danger); font-weight: bold; margin-bottom: 0.5rem;">🤔 问题分析</div>
+                    <div style="color: var(--text);">
+                        我们需要每次训练时随机选择不同的神经元子集。<br>
+                        最简单的随机选择就是：对每个神经元，抛硬币决定要不要它！
+                    </div>
+                </div>
+
+                <div class="attempt-box">
+                    <div style="color: var(--warning); font-weight: bold; margin-bottom: 0.5rem;">💡 数学方案：伯努利分布</div>
+                    <div style="color: var(--text); line-height: 1.8;">
+                        对于每个神经元i，生成一个随机数：<br>
+                        <strong>M[i] ~ Bernoulli(keep_prob)</strong><br><br>
+                        这意味着：<br>
+                        • M[i] = 1 的概率是 keep_prob（保留神经元）<br>
+                        • M[i] = 0 的概率是 1-keep_prob（丢弃神经元）
+                    </div>
+                </div>
+
+                <!-- 伯努利分布详解 -->
+                <div style="background: var(--bg-dark); padding: 2rem; border-radius: 12px; margin: 2rem 0; border: 1px solid rgba(59, 130, 246, 0.3);">
+                    <div style="color: var(--primary); font-weight: bold; margin-bottom: 1.5rem; text-align: center;">
+                        📊 伯努利分布详解
+                    </div>
+
+                    <div class="grid-2">
+                        <!-- 定义和公式 -->
+                        <div>
+                            <div style="color: var(--success); font-weight: bold; margin-bottom: 1rem;">🧮 数学定义</div>
+
+                            <div style="background: rgba(0, 0, 0, 0.3); padding: 1.5rem; border-radius: 8px; margin-bottom: 1rem;">
+                                <div style="color: var(--warning); font-weight: bold; margin-bottom: 0.8rem;">伯努利分布 Bernoulli(p)</div>
+                                <div style="color: var(--text); line-height: 1.8;">
+                                    <strong>定义：</strong>只有两个可能结果的随机试验<br>
+                                    • 成功：X = 1，概率为 p<br>
+                                    • 失败：X = 0，概率为 1-p<br><br>
+                                    <strong>概率质量函数：</strong><br>
+                                    P(X = k) = p^k × (1-p)^(1-k)<br>
+                                    其中 k ∈ {0, 1}<br><br>
+                                    <strong>期望值：</strong> E[X] = p<br>
+                                    <strong>方差：</strong> Var(X) = p(1-p)
+                                </div>
+                            </div>
+
+                            <div style="background: rgba(34, 197, 94, 0.1); padding: 1rem; border-radius: 8px;">
+                                <div style="color: var(--success); font-weight: bold; margin-bottom: 0.5rem;">💡 直观理解</div>
+                                <div style="color: var(--text); font-size: 0.95rem;">
+                                    就像抛硬币：正面(1)概率p，反面(0)概率1-p<br>
+                                    但这个"硬币"可以是不公平的！
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 可视化图形 -->
+                        <div>
+                            <div style="color: var(--secondary); font-weight: bold; margin-bottom: 1rem;">📈 概率分布图</div>
+
+                            <div style="background: rgba(0, 0, 0, 0.3); padding: 1.5rem; border-radius: 8px;">
+                                <div style="text-align: center; margin-bottom: 1rem;">
+                                    <div style="color: var(--warning); font-size: 0.9rem;">Bernoulli(0.7) 的分布</div>
+                                </div>
+
+                                <!-- 简单的条形图 -->
+                                <div style="display: flex; justify-content: center; gap: 3rem; align-items: end; height: 120px;">
+                                    <div style="text-align: center;">
+                                        <div style="width: 60px; height: 36px; background: linear-gradient(to top, #ef4444, #fca5a5); border-radius: 4px 4px 0 0; display: flex; align-items: end; justify-content: center; color: white; font-weight: bold; font-size: 0.9rem;">0.3</div>
+                                        <div style="margin-top: 0.5rem; color: var(--text);">X = 0</div>
+                                        <div style="color: var(--danger); font-size: 0.8rem;">失败</div>
+                                    </div>
+
+                                    <div style="text-align: center;">
+                                        <div style="width: 60px; height: 84px; background: linear-gradient(to top, #22c55e, #86efac); border-radius: 4px 4px 0 0; display: flex; align-items: end; justify-content: center; color: white; font-weight: bold; font-size: 0.9rem;">0.7</div>
+                                        <div style="margin-top: 0.5rem; color: var(--text);">X = 1</div>
+                                        <div style="color: var(--success); font-size: 0.8rem;">成功</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div style="background: rgba(139, 92, 246, 0.1); padding: 1rem; border-radius: 8px; margin-top: 1rem;">
+                                <div style="color: var(--secondary); font-weight: bold; margin-bottom: 0.5rem;">🎯 在Dropout中的应用</div>
+                                <div style="color: var(--text); font-size: 0.95rem;">
+                                    • p = 0.7 → 70%概率保留神经元<br>
+                                    • 1-p = 0.3 → 30%概率丢弃神经元<br>
+                                    • 每个神经元独立"抛硬币"决定去留
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 不同参数的对比 -->
+                    <div style="margin-top: 2rem;">
+                        <div style="color: var(--info); font-weight: bold; margin-bottom: 1rem; text-align: center;">🔄 不同参数的伯努利分布对比</div>
+
+                        <div class="grid-3">
+                            <div style="text-align: center; background: var(--bg-light); padding: 1rem; border-radius: 8px;">
+                                <div style="color: var(--warning); margin-bottom: 0.5rem;">Bernoulli(0.3)</div>
+                                <div style="display: flex; justify-content: center; gap: 1rem; align-items: end; height: 80px;">
+                                    <div style="width: 30px; height: 24px; background: var(--success); border-radius: 2px; display: flex; align-items: end; justify-content: center; color: white; font-size: 0.7rem;">0.3</div>
+                                    <div style="width: 30px; height: 56px; background: var(--danger); border-radius: 2px; display: flex; align-items: end; justify-content: center; color: white; font-size: 0.7rem;">0.7</div>
+                                </div>
+                                <div style="color: var(--text-dim); font-size: 0.8rem; margin-top: 0.5rem;">轻度dropout</div>
+                            </div>
+
+                            <div style="text-align: center; background: var(--bg-light); padding: 1rem; border-radius: 8px;">
+                                <div style="color: var(--warning); margin-bottom: 0.5rem;">Bernoulli(0.5)</div>
+                                <div style="display: flex; justify-content: center; gap: 1rem; align-items: end; height: 80px;">
+                                    <div style="width: 30px; height: 40px; background: var(--success); border-radius: 2px; display: flex; align-items: end; justify-content: center; color: white; font-size: 0.7rem;">0.5</div>
+                                    <div style="width: 30px; height: 40px; background: var(--danger); border-radius: 2px; display: flex; align-items: end; justify-content: center; color: white; font-size: 0.7rem;">0.5</div>
+                                </div>
+                                <div style="color: var(--text-dim); font-size: 0.8rem; margin-top: 0.5rem;">中度dropout</div>
+                            </div>
+
+                            <div style="text-align: center; background: var(--bg-light); padding: 1rem; border-radius: 8px;">
+                                <div style="color: var(--warning); margin-bottom: 0.5rem;">Bernoulli(0.8)</div>
+                                <div style="display: flex; justify-content: center; gap: 1rem; align-items: end; height: 80px;">
+                                    <div style="width: 30px; height: 64px; background: var(--success); border-radius: 2px; display: flex; align-items: end; justify-content: center; color: white; font-size: 0.7rem;">0.8</div>
+                                    <div style="width: 30px; height: 16px; background: var(--danger); border-radius: 2px; display: flex; align-items: end; justify-content: center; color: white; font-size: 0.7rem;">0.2</div>
+                                </div>
+                                <div style="color: var(--text-dim); font-size: 0.8rem; margin-top: 0.5rem;">重度dropout</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="matrix-demo">
+                    <div style="color: var(--success); font-weight: bold; text-align: center; margin-bottom: 1rem;">
+                        实例演示：生成随机掩码矩阵
+                    </div>
+
+                    <div style="text-align: center;">
+                        <div style="color: var(--text); margin-bottom: 1rem;">
+                            假设 keep_prob = 0.7（即dropout_prob = 0.3）
+                        </div>
+
+                        <div style="display: flex; justify-content: center; align-items: center; gap: 2rem; flex-wrap: wrap;">
+                            <div>
+                                <div style="color: var(--warning); margin-bottom: 0.5rem;">第1次训练</div>
+                                <div class="matrix-grid matrix-1x4">
+                                    <div class="matrix-cell cell-mask-1">1</div>
+                                    <div class="matrix-cell cell-mask-0">0</div>
+                                    <div class="matrix-cell cell-mask-1">1</div>
+                                    <div class="matrix-cell cell-mask-1">1</div>
+                                </div>
+                            </div>
+
+                            <div>
+                                <div style="color: var(--warning); margin-bottom: 0.5rem;">第2次训练</div>
+                                <div class="matrix-grid matrix-1x4">
+                                    <div class="matrix-cell cell-mask-1">1</div>
+                                    <div class="matrix-cell cell-mask-1">1</div>
+                                    <div class="matrix-cell cell-mask-0">0</div>
+                                    <div class="matrix-cell cell-mask-1">1</div>
+                                </div>
+                            </div>
+
+                            <div>
+                                <div style="color: var(--warning); margin-bottom: 0.5rem;">第3次训练</div>
+                                <div class="matrix-grid matrix-1x4">
+                                    <div class="matrix-cell cell-mask-0">0</div>
+                                    <div class="matrix-cell cell-mask-1">1</div>
+                                    <div class="matrix-cell cell-mask-1">1</div>
+                                    <div class="matrix-cell cell-mask-0">0</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style="color: var(--success); margin-top: 1rem; font-weight: bold;">
+                            ✅ 随机性实现：每次训练都是不同的神经元组合！
+                        </div>
+                    </div>
+                </div>
+
+                <div class="solution-box">
+                    <div style="color: var(--success); font-weight: bold; margin-bottom: 0.5rem;">✅ 解决方案1：伯努利掩码</div>
+                    <div style="color: var(--text);">
+                        <strong>数学定义：</strong> M[i] ~ Bernoulli(1-p)，其中p是dropout概率<br>
+                        <strong>实现效果：</strong> 每次前向传播都生成不同的随机掩码<br>
+                        <strong>代码实现：</strong> <code>mask = torch.bernoulli(torch.full_like(x, 1-p))</code>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 解决要求2：概率控制 -->
+            <div class="thinking-step">
+                <div style="color: var(--primary); font-weight: bold; margin-bottom: 1.5rem; text-align: center;">
+                    🎛️ 要求2：如何实现概率控制？
+                </div>
+
+                <div class="question-box">
+                    <div style="color: var(--danger); font-weight: bold; margin-bottom: 0.5rem;">🤔 问题分析</div>
+                    <div style="color: var(--text);">
+                        我们需要一个参数来控制"丢弃程度"：<br>
+                        • p = 0：不丢弃任何神经元<br>
+                        • p = 0.5：丢弃一半神经元<br>
+                        • p = 0.9：丢弃90%神经元（可能太激进）
+                    </div>
+                </div>
+
+                <div class="attempt-box">
+                    <div style="color: var(--warning); font-weight: bold; margin-bottom: 0.5rem;">💡 数学方案：参数化的伯努利分布</div>
+                    <div style="color: var(--text); line-height: 1.8;">
+                        引入dropout概率参数 p ∈ [0, 1)：<br>
+                        <strong>M[i] ~ Bernoulli(1-p)</strong><br><br>
+                        这样：<br>
+                        • keep_prob = 1-p（保留概率）<br>
+                        • drop_prob = p（丢弃概率）<br>
+                        • 用户可以灵活调节p来控制dropout强度
+                    </div>
+                </div>
+
+                <div class="matrix-demo">
+                    <div style="color: var(--primary); font-weight: bold; text-align: center; margin-bottom: 1rem;">
+                        不同dropout概率的效果对比
+                    </div>
+
+                    <div class="grid-auto">
+                        <div style="text-align: center;">
+                            <div style="color: var(--text); margin-bottom: 0.5rem;">p = 0.1 (轻度dropout)</div>
+                            <div class="matrix-grid matrix-1x4">
+                                <div class="matrix-cell cell-mask-1">1</div>
+                                <div class="matrix-cell cell-mask-1">1</div>
+                                <div class="matrix-cell cell-mask-1">1</div>
+                                <div class="matrix-cell cell-mask-0">0</div>
+                            </div>
+                            <div style="color: var(--success); font-size: 0.8rem;">保留率：90%</div>
+                        </div>
+
+                        <div style="text-align: center;">
+                            <div style="color: var(--text); margin-bottom: 0.5rem;">p = 0.3 (中度dropout)</div>
+                            <div class="matrix-grid matrix-1x4">
+                                <div class="matrix-cell cell-mask-1">1</div>
+                                <div class="matrix-cell cell-mask-0">0</div>
+                                <div class="matrix-cell cell-mask-1">1</div>
+                                <div class="matrix-cell cell-mask-0">0</div>
+                            </div>
+                            <div style="color: var(--warning); font-size: 0.8rem;">保留率：70%</div>
+                        </div>
+
+                        <div style="text-align: center;">
+                            <div style="color: var(--text); margin-bottom: 0.5rem;">p = 0.5 (重度dropout)</div>
+                            <div class="matrix-grid matrix-1x4">
+                                <div class="matrix-cell cell-mask-0">0</div>
+                                <div class="matrix-cell cell-mask-1">1</div>
+                                <div class="matrix-cell cell-mask-0">0</div>
+                                <div class="matrix-cell cell-mask-0">0</div>
+                            </div>
+                            <div style="color: var(--danger); font-size: 0.8rem;">保留率：50%</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="solution-box">
+                    <div style="color: var(--primary); font-weight: bold; margin-bottom: 0.5rem;">✅ 解决方案2：参数化控制</div>
+                    <div style="color: var(--text);">
+                        <strong>数学定义：</strong> 引入dropout概率参数p，M[i] ~ Bernoulli(1-p)<br>
+                        <strong>实现效果：</strong> 用户可以通过调节p来控制dropout强度<br>
+                        <strong>常用取值：</strong> p ∈ [0.1, 0.5]，根据网络层和任务调整
+                    </div>
+                </div>
+            </div>
+
+            <!-- 解决要求3：期望一致 -->
+            <div class="thinking-step">
+                <div style="color: var(--secondary); font-weight: bold; margin-bottom: 1.5rem; text-align: center;">
+                    ⚖️ 要求3：如何保证期望一致？
+                </div>
+
+                <div class="question-box">
+                    <div style="color: var(--danger); font-weight: bold; margin-bottom: 0.5rem;">🤔 问题分析</div>
+                    <div style="color: var(--text); line-height: 1.8;">
+                        这是最关键的问题！如果我们直接用掩码：<br><br>
+                        <strong>训练时：</strong> Y = X ⊙ M，期望输出 = E[X] × (1-p)<br>
+                        <strong>推理时：</strong> Y = X，期望输出 = E[X]<br><br>
+                        两者不一致！这会导致训练和推理时的性能跳跃。
+                    </div>
+                </div>
+
+                <div class="attempt-box">
+                    <div style="color: var(--warning); font-weight: bold; margin-bottom: 0.5rem;">🧮 数学分析：期望值计算</div>
+                    <div style="color: var(--text); line-height: 1.8;">
+                        让我们计算一下直接应用掩码的期望：<br><br>
+                        设输入神经元值为x，掩码为m：<br>
+                        • E[m] = P(m=1) × 1 + P(m=0) × 0 = (1-p) × 1 + p × 0 = 1-p<br>
+                        • E[x ⊙ m] = E[x] × E[m] = E[x] × (1-p)<br><br>
+                        <strong style="color: var(--danger);">问题：</strong>输出期望被缩小了(1-p)倍！
+                    </div>
+                </div>
+
+                <div class="matrix-demo">
+                    <div style="color: var(--secondary); font-weight: bold; text-align: center; margin-bottom: 1rem;">
+                        具体数值示例：期望值变化
+                    </div>
+
+                    <div style="display: flex; justify-content: center; gap: 3rem; flex-wrap: wrap; align-items: center;">
+                        <div style="text-align: center;">
+                            <div style="color: var(--primary); margin-bottom: 0.5rem;">原始输入 X</div>
+                            <div class="matrix-grid matrix-1x4">
+                                <div class="matrix-cell cell-input">0.8</div>
+                                <div class="matrix-cell cell-input">0.6</div>
+                                <div class="matrix-cell cell-input">0.4</div>
+                                <div class="matrix-cell cell-input">0.2</div>
+                            </div>
+                            <div style="color: var(--text-dim); margin-top: 0.5rem;">
+                                期望值 = 0.5
+                            </div>
+                        </div>
+
+                        <div style="font-size: 1.5rem; color: var(--warning);">×</div>
+
+                        <div style="text-align: center;">
+                            <div style="color: var(--warning); margin-bottom: 0.5rem;">掩码 M (p=0.3)</div>
+                            <div class="matrix-grid matrix-1x4">
+                                <div class="matrix-cell cell-mask-1">1</div>
+                                <div class="matrix-cell cell-mask-0">0</div>
+                                <div class="matrix-cell cell-mask-1">1</div>
+                                <div class="matrix-cell cell-mask-0">0</div>
+                            </div>
+                            <div style="color: var(--text-dim); margin-top: 0.5rem;">
+                                期望值 = 0.7
+                            </div>
+                        </div>
+
+                        <div style="font-size: 1.5rem; color: var(--success);">=</div>
+
+                        <div style="text-align: center;">
+                            <div style="color: var(--danger); margin-bottom: 0.5rem;">结果 X⊙M</div>
+                            <div class="matrix-grid matrix-1x4">
+                                <div class="matrix-cell cell-result">0.8</div>
+                                <div class="matrix-cell cell-result">0.0</div>
+                                <div class="matrix-cell cell-result">0.4</div>
+                                <div class="matrix-cell cell-result">0.0</div>
+                            </div>
+                            <div style="color: var(--danger); margin-top: 0.5rem;">
+                                期望值 = 0.5×0.7 = 0.35
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="text-align: center; margin-top: 1.5rem; padding: 1rem; background: rgba(239, 68, 68, 0.1); border-radius: 8px;">
+                        <div style="color: var(--danger); font-weight: bold;">❌ 期望值从0.5降到了0.35！</div>
+                    </div>
+                </div>
+
+                <div class="attempt-box">
+                    <div style="color: var(--warning); font-weight: bold; margin-bottom: 0.5rem;">💡 解决思路：重新缩放</div>
+                    <div style="color: var(--text); line-height: 1.8;">
+                        既然期望值被缩小了(1-p)倍，那我们就把结果放大(1-p)倍来补偿：<br><br>
+                        <strong>新的定义：</strong> Y = (X ⊙ M) / (1-p)<br><br>
+                        让我们验证期望值：<br>
+                        E[Y] = E[(X ⊙ M) / (1-p)] = E[X ⊙ M] / (1-p) = E[X] × (1-p) / (1-p) = E[X]<br><br>
+                        <strong style="color: var(--success);">完美！期望值保持不变！</strong>
+                    </div>
+                </div>
+
+                <div class="matrix-demo">
+                    <div style="color: var(--secondary); font-weight: bold; text-align: center; margin-bottom: 1rem;">
+                        重新缩放后的期望值验证
+                    </div>
+
+                    <div style="display: flex; justify-content: center; gap: 2rem; flex-wrap: wrap; align-items: center;">
+                        <div style="text-align: center;">
+                            <div style="color: var(--danger); margin-bottom: 0.5rem;">掩码结果 X⊙M</div>
+                            <div class="matrix-grid matrix-1x4">
+                                <div class="matrix-cell cell-result">0.8</div>
+                                <div class="matrix-cell cell-result">0.0</div>
+                                <div class="matrix-cell cell-result">0.4</div>
+                                <div class="matrix-cell cell-result">0.0</div>
+                            </div>
+                            <div style="color: var(--text-dim); margin-top: 0.5rem;">
+                                期望值 = 0.35
+                            </div>
+                        </div>
+
+                        <div style="font-size: 1.5rem; color: var(--secondary);">÷ 0.7 =</div>
+
+                        <div style="text-align: center;">
+                            <div style="color: var(--success); margin-bottom: 0.5rem;">最终结果 Y</div>
+                            <div class="matrix-grid matrix-1x4">
+                                <div class="matrix-cell cell-final">1.14</div>
+                                <div class="matrix-cell cell-final">0.00</div>
+                                <div class="matrix-cell cell-final">0.57</div>
+                                <div class="matrix-cell cell-final">0.00</div>
+                            </div>
+                            <div style="color: var(--success); margin-top: 0.5rem;">
+                                期望值 = 0.35÷0.7 = 0.5
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="text-align: center; margin-top: 1.5rem; padding: 1rem; background: rgba(34, 197, 94, 0.1); border-radius: 8px;">
+                        <div style="color: var(--success); font-weight: bold;">✅ 期望值恢复到原来的0.5！</div>
+                    </div>
+                </div>
+
+                <div class="solution-box">
+                    <div style="color: var(--secondary); font-weight: bold; margin-bottom: 0.5rem;">✅ 解决方案3：重新缩放</div>
+                    <div style="color: var(--text);">
+                        <strong>数学定义：</strong> Y = (X ⊙ M) / (1-p)<br>
+                        <strong>期望验证：</strong> E[Y] = E[X]（训练和推理时期望一致）<br>
+                        <strong>实现效果：</strong> 保留的神经元被适当放大，补偿丢弃神经元的影响
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 第六部分：完整的矩阵运算过程 -->
+        <div class="solution-section" style="border-color: var(--primary);">
+            <div class="section-header">
+                <div class="section-badge" style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(37, 99, 235, 0.1)); border-color: rgba(59, 130, 246, 0.4);">
+                    <span style="font-size: 2rem;">🧮</span>
+                    <h2 style="color: var(--primary); margin: 0; font-size: 1.8rem; font-weight: bold;">Dropout的数学实现</h2>
+                </div>
+            </div>
+
+            <!-- 具体的矩阵运算步骤 -->
+            <div class="compact-chart">
+                <div style="color: var(--primary); font-weight: bold; margin-bottom: 1.5rem; text-align: center;">
+                    📐 Dropout的完整矩阵运算过程
+                </div>
+
+                <div class="grid-auto">
+                    <!-- 步骤1：原始激活值 -->
+                    <div style="text-align: center;">
+                        <div style="color: var(--success); font-weight: bold; margin-bottom: 1rem;">步骤1：原始激活值 X</div>
+                        <div class="mini-matrix matrix-4x4">
+                            <div class="matrix-cell cell-normal">0.8</div>
+                            <div class="matrix-cell cell-normal">0.6</div>
+                            <div class="matrix-cell cell-normal">0.9</div>
+                            <div class="matrix-cell cell-normal">0.3</div>
+                            <div class="matrix-cell cell-normal">0.7</div>
+                            <div class="matrix-cell cell-normal">0.4</div>
+                            <div class="matrix-cell cell-normal">0.5</div>
+                            <div class="matrix-cell cell-normal">0.8</div>
+                            <div class="matrix-cell cell-normal">0.6</div>
+                            <div class="matrix-cell cell-normal">0.9</div>
+                            <div class="matrix-cell cell-normal">0.2</div>
+                            <div class="matrix-cell cell-normal">0.7</div>
+                            <div class="matrix-cell cell-normal">0.5</div>
+                            <div class="matrix-cell cell-normal">0.3</div>
+                            <div class="matrix-cell cell-normal">0.8</div>
+                            <div class="matrix-cell cell-normal">0.6</div>
+                        </div>
+                        <div style="color: var(--text-dim); font-size: 0.8rem; margin-top: 0.5rem;">神经元激活值</div>
+                    </div>
+
+                    <!-- 步骤2：生成掩码 -->
+                    <div style="text-align: center;">
+                        <div style="color: var(--warning); font-weight: bold; margin-bottom: 1rem;">步骤2：生成掩码 M</div>
+                        <div class="mini-matrix matrix-4x4">
+                            <div class="matrix-cell cell-mask-1">1</div>
+                            <div class="matrix-cell cell-mask-0">0</div>
+                            <div class="matrix-cell cell-mask-1">1</div>
+                            <div class="matrix-cell cell-mask-1">1</div>
+                            <div class="matrix-cell cell-mask-1">1</div>
+                            <div class="matrix-cell cell-mask-1">1</div>
+                            <div class="matrix-cell cell-mask-0">0</div>
+                            <div class="matrix-cell cell-mask-1">1</div>
+                            <div class="matrix-cell cell-mask-0">0</div>
+                            <div class="matrix-cell cell-mask-1">1</div>
+                            <div class="matrix-cell cell-mask-1">1</div>
+                            <div class="matrix-cell cell-mask-0">0</div>
+                            <div class="matrix-cell cell-mask-1">1</div>
+                            <div class="matrix-cell cell-mask-0">0</div>
+                            <div class="matrix-cell cell-mask-1">1</div>
+                            <div class="matrix-cell cell-mask-1">1</div>
+                        </div>
+                        <div style="color: var(--text-dim); font-size: 0.8rem; margin-top: 0.5rem;">
+                            M ~ Bernoulli(0.7)<br>
+                            p=0.3 (30%丢弃率)
+                        </div>
+                    </div>
+
+                    <!-- 步骤3：应用掩码 -->
+                    <div style="text-align: center;">
+                        <div style="color: var(--danger); font-weight: bold; margin-bottom: 1rem;">步骤3：X ⊙ M</div>
+                        <div class="mini-matrix matrix-4x4">
+                            <div class="matrix-cell cell-dropped">0.8</div>
+                            <div class="matrix-cell cell-dropped">0.0</div>
+                            <div class="matrix-cell cell-dropped">0.9</div>
+                            <div class="matrix-cell cell-dropped">0.3</div>
+                            <div class="matrix-cell cell-dropped">0.7</div>
+                            <div class="matrix-cell cell-dropped">0.4</div>
+                            <div class="matrix-cell cell-dropped">0.0</div>
+                            <div class="matrix-cell cell-dropped">0.8</div>
+                            <div class="matrix-cell cell-dropped">0.0</div>
+                            <div class="matrix-cell cell-dropped">0.9</div>
+                            <div class="matrix-cell cell-dropped">0.2</div>
+                            <div class="matrix-cell cell-dropped">0.0</div>
+                            <div class="matrix-cell cell-dropped">0.5</div>
+                            <div class="matrix-cell cell-dropped">0.0</div>
+                            <div class="matrix-cell cell-dropped">0.8</div>
+                            <div class="matrix-cell cell-dropped">0.6</div>
+                        </div>
+                        <div style="color: var(--text-dim); font-size: 0.8rem; margin-top: 0.5rem;">
+                            元素级乘法<br>
+                            部分神经元被"杀死"
+                        </div>
+                    </div>
+
+                    <!-- 步骤4：重新缩放 -->
+                    <div style="text-align: center;">
+                        <div style="color: var(--secondary); font-weight: bold; margin-bottom: 1rem;">步骤4：(X ⊙ M)/(1-p)</div>
+                        <div class="mini-matrix matrix-4x4">
+                            <div class="matrix-cell cell-scaled">1.14</div>
+                            <div class="matrix-cell cell-scaled">0.00</div>
+                            <div class="matrix-cell cell-scaled">1.29</div>
+                            <div class="matrix-cell cell-scaled">0.43</div>
+                            <div class="matrix-cell cell-scaled">1.00</div>
+                            <div class="matrix-cell cell-scaled">0.57</div>
+                            <div class="matrix-cell cell-scaled">0.00</div>
+                            <div class="matrix-cell cell-scaled">1.14</div>
+                            <div class="matrix-cell cell-scaled">0.00</div>
+                            <div class="matrix-cell cell-scaled">1.29</div>
+                            <div class="matrix-cell cell-scaled">0.29</div>
+                            <div class="matrix-cell cell-scaled">0.00</div>
+                            <div class="matrix-cell cell-scaled">0.71</div>
+                            <div class="matrix-cell cell-scaled">0.00</div>
+                            <div class="matrix-cell cell-scaled">1.14</div>
+                            <div class="matrix-cell cell-scaled">0.86</div>
+                        </div>
+                        <div style="color: var(--text-dim); font-size: 0.8rem; margin-top: 0.5rem;">
+                            除以(1-0.3)=0.7<br>
+                            保持期望值不变
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 数学公式详解 -->
+                <div class="math-formula">
+                    <div style="color: var(--primary); font-weight: bold; margin-bottom: 1rem;">完整的Dropout数学定义</div>
+
+                    <div class="formula-step">
+                        <div style="color: var(--success);">输入：</div>
+                        <div style="color: var(--text);">X ∈ ℝ^(batch_size × features)，dropout概率 p ∈ [0,1)</div>
+                    </div>
+
+                    <div class="formula-step">
+                        <div style="color: var(--warning);">生成掩码：</div>
+                        <div style="color: var(--text);">M[i] ~ Bernoulli(1-p)，即每个元素以(1-p)概率为1，p概率为0</div>
+                    </div>
+
+                    <div class="formula-step">
+                        <div style="color: var(--danger);">应用掩码：</div>
+                        <div style="color: var(--text);">Y_masked = X ⊙ M （⊙表示元素级乘法）</div>
+                    </div>
+
+                    <div class="formula-step">
+                        <div style="color: var(--secondary);">重新缩放：</div>
+                        <div style="color: var(--text);">Y_final = Y_masked / (1-p)</div>
+                    </div>
+
+                    <div class="formula-step">
+                        <div style="color: var(--info);">期望值验证：</div>
+                        <div style="color: var(--success);">E[Y_final] = E[X ⊙ M] / (1-p) = E[X] × E[M] / (1-p) = E[X] × (1-p) / (1-p) = E[X] ✓</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 为什么要除以(1-p)？ -->
+            <div class="box info-box">
+                <div style="color: var(--primary); font-weight: bold; margin-bottom: 1rem;">💡 为什么要除以(1-p)？</div>
+                <div style="color: var(--text); font-size: 0.95rem; line-height: 1.6;">
+                    <strong>问题：</strong>如果不缩放，训练时和推理时的期望输出会不一致<br><br>
+                    <strong>训练时：</strong>只有(1-p)比例的神经元工作，输出期望是原来的(1-p)倍<br>
+                    <strong>推理时：</strong>所有神经元都工作，输出期望是原来的1倍<br><br>
+                    <strong>解决：</strong>训练时除以(1-p)，让训练和推理的期望保持一致<br>
+                    这样模型在两种模式间切换时不会有性能跳跃！
+                </div>
+            </div>
+
+            <!-- 代码实现 -->
+            <div class="code-example">
+                <pre><code><span class="code-keyword">def</span> <span class="code-function">dropout</span>(x, p=0.3, training=True):
+    <span class="code-string">"""
+    Dropout的完整实现
+
+    Args:
+        x: 输入张量 [batch_size, features]
+        p: dropout概率 (丢弃概率)
+        training: 是否训练模式
+
+    Returns:
+        output: dropout后的输出
+    """</span>
+
+    <span class="code-keyword">if</span> <span class="code-keyword">not</span> training:
+        <span class="code-comment"># 推理模式：直接返回原始输入</span>
+        <span class="code-keyword">return</span> x
+
+    <span class="code-comment"># 训练模式：应用dropout</span>
+
+    <span class="code-comment"># 步骤1：生成伯努利掩码</span>
+    keep_prob = 1.0 - p
+    <span class="code-highlight">mask = torch.bernoulli(torch.full_like(x, keep_prob))</span>
+
+    <span class="code-comment"># 步骤2：应用掩码并缩放</span>
+    <span class="code-highlight">output = (x * mask) / keep_prob</span>
+
+    <span class="code-keyword">return</span> output
+
+<span class="code-comment"># 使用示例</span>
+x = torch.tensor([[0.8, 0.6, 0.9, 0.3],
+                  [0.7, 0.4, 0.5, 0.8]])
+
+<span class="code-comment"># 训练模式</span>
+dropped = dropout(x, p=0.3, training=True)
+<span class="code-comment"># 输出：部分元素为0，其他元素被放大</span>
+
+<span class="code-comment"># 推理模式</span>
+normal = dropout(x, p=0.3, training=False)
+<span class="code-comment"># 输出：与原始输入相同</span></code></pre>
+            </div>
+        </div>
+
+        <!-- 第七部分：Transformer中的应用 -->
+        <div class="solution-section" style="border-color: var(--secondary);">
+            <div class="section-header">
+                <div class="section-badge" style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(124, 58, 237, 0.1)); border-color: rgba(139, 92, 246, 0.4);">
+                    <span style="font-size: 2rem;">🚀</span>
+                    <h2 style="color: var(--secondary); margin: 0; font-size: 1.8rem; font-weight: bold;">Transformer中的完美应用</h2>
+                </div>
+            </div>
+
+            <!-- Transformer中的四个Dropout位置 -->
+            <div class="compact-chart">
+                <div style="color: var(--secondary); font-weight: bold; margin-bottom: 1.5rem; text-align: center;">
+                    🎯 Dropout在Transformer中的四个关键位置
+                </div>
+
+                <div class="grid-auto">
+                    <div style="background: rgba(6, 182, 212, 0.1); padding: 1.5rem; border-radius: 12px; border: 1px solid rgba(6, 182, 212, 0.3);">
+                        <div style="color: var(--info); font-weight: bold; margin-bottom: 0.8rem;">🚪 1. 嵌入层Dropout</div>
+                        <div style="color: var(--text); font-size: 0.95rem; line-height: 1.6;">
+                            <strong>位置：</strong>Token嵌入 + 位置嵌入之后<br>
+                            <strong>作用：</strong>增强输入鲁棒性<br>
+                            <strong>概率：</strong>通常0.1（10%）<br>
+                            <strong>矩阵：</strong>[batch, seq_len, d_model]
+                        </div>
+                    </div>
+
+                    <div style="background: rgba(251, 191, 36, 0.1); padding: 1.5rem; border-radius: 12px; border: 1px solid rgba(251, 191, 36, 0.3);">
+                        <div style="color: var(--warning); font-weight: bold; margin-bottom: 0.8rem;">👁️ 2. 注意力Dropout</div>
+                        <div style="color: var(--text); font-size: 0.95rem; line-height: 1.6;">
+                            <strong>位置：</strong>注意力权重矩阵<br>
+                            <strong>作用：</strong>防止注意力过度集中<br>
+                            <strong>概率：</strong>通常0.1（10%）<br>
+                            <strong>矩阵：</strong>[batch, heads, seq_len, seq_len]
+                        </div>
+                    </div>
+
+                    <div style="background: rgba(34, 197, 94, 0.1); padding: 1.5rem; border-radius: 12px; border: 1px solid rgba(34, 197, 94, 0.3);">
+                        <div style="color: var(--success); font-weight: bold; margin-bottom: 0.8rem;">🧠 3. 前馈网络Dropout</div>
+                        <div style="color: var(--text); font-size: 0.95rem; line-height: 1.6;">
+                            <strong>位置：</strong>ReLU激活后<br>
+                            <strong>作用：</strong>正则化最大参数组件<br>
+                            <strong>概率：</strong>通常0.1-0.3（10%-30%）<br>
+                            <strong>矩阵：</strong>[batch, seq_len, d_ff]
+                        </div>
+                    </div>
+
+                    <div style="background: rgba(139, 92, 246, 0.1); padding: 1.5rem; border-radius: 12px; border: 1px solid rgba(139, 92, 246, 0.3);">
+                        <div style="color: var(--secondary); font-weight: bold; margin-bottom: 0.8rem;">🔗 4. 残差连接Dropout</div>
+                        <div style="color: var(--text); font-size: 0.95rem; line-height: 1.6;">
+                            <strong>位置：</strong>残差连接前<br>
+                            <strong>作用：</strong>正则化子层输出<br>
+                            <strong>概率：</strong>通常0.1（10%）<br>
+                            <strong>矩阵：</strong>[batch, seq_len, d_model]
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 最终效果展示 -->
+            <div class="box success-box">
+                <div style="color: var(--success); font-weight: bold; margin-bottom: 1rem;">🎉 Dropout的惊人效果</div>
+                <div style="color: var(--text); font-size: 1rem; line-height: 1.8;">
+                    <strong>应用Dropout后的改善：</strong><br><br>
+
+                    <div class="grid-2">
+                        <div>
+                            <strong style="color: var(--danger);">Dropout前：</strong><br>
+                            • 训练集准确率：99.8%<br>
+                            • 验证集准确率：65.3%<br>
+                            • 泛化差距：34.5%<br>
+                            • 神经元利用率：30%
+                        </div>
+                        <div>
+                            <strong style="color: var(--success);">Dropout后：</strong><br>
+                            • 训练集准确率：92.1%<br>
+                            • 验证集准确率：89.3%<br>
+                            • 泛化差距：2.8%<br>
+                            • 神经元利用率：85%
+                        </div>
+                    </div>
+
+                    <br><strong>核心改变：</strong><br>
+                    • 过拟合程度降低了 <strong style="color: var(--success);">92%</strong><br>
+                    • 验证集性能提升了 <strong style="color: var(--success);">37%</strong><br>
+                    • 神经元利用率提升了 <strong style="color: var(--success);">183%</strong><br>
+                    • 模型变得更加鲁棒和稳定
+                </div>
+            </div>
+
+            <!-- 完整的Transformer代码 -->
+            <div class="code-example">
+                <pre><code><span class="code-keyword">class</span> <span class="code-class">TransformerWithDropout</span>(nn.Module):
+    <span class="code-keyword">def</span> <span class="code-function">__init__</span>(self, vocab_size, d_model, n_heads, n_layers, d_ff, dropout=0.1):
+        super().__init__()
+
+        <span class="code-comment"># 嵌入层</span>
+        self.token_embedding = nn.Embedding(vocab_size, d_model)
+        self.pos_embedding = nn.Embedding(max_len, d_model)
+
+        <span class="code-comment"># 🚪 第1个Dropout：嵌入层</span>
+        <span class="code-highlight">self.embedding_dropout = nn.Dropout(dropout)</span>
+
+        self.layers = nn.ModuleList([
+            TransformerLayer(d_model, n_heads, d_ff, dropout)
+            <span class="code-keyword">for</span> _ <span class="code-keyword">in</span> range(n_layers)
+        ])
+
+        self.ln_f = nn.LayerNorm(d_model)
+        self.head = nn.Linear(d_model, vocab_size)
+
+    <span class="code-keyword">def</span> <span class="code-function">forward</span>(self, x):
+        <span class="code-comment"># 计算嵌入</span>
+        token_emb = self.token_embedding(x)
+        pos_emb = self.pos_embedding(torch.arange(x.size(1)))
+        embeddings = token_emb + pos_emb
+
+        <span class="code-comment"># 🚪 应用嵌入层Dropout</span>
+        <span class="code-highlight">x = self.embedding_dropout(embeddings)</span>
+
+        <span class="code-comment"># 通过所有Transformer层</span>
+        <span class="code-keyword">for</span> layer <span class="code-keyword">in</span> self.layers:
+            x = layer(x)
+
+        <span class="code-keyword">return</span> self.head(self.ln_f(x))
+
+<span class="code-keyword">class</span> <span class="code-class">MultiHeadAttention</span>(nn.Module):
+    <span class="code-keyword">def</span> <span class="code-function">__init__</span>(self, d_model, n_heads, dropout=0.1):
+        super().__init__()
+        <span class="code-comment"># ... 其他初始化代码 ...</span>
+
+        <span class="code-comment"># 👁️ 第2个Dropout：注意力权重</span>
+        <span class="code-highlight">self.attention_dropout = nn.Dropout(dropout)</span>
+        <span class="code-highlight">self.output_dropout = nn.Dropout(dropout)</span>
+
+    <span class="code-keyword">def</span> <span class="code-function">forward</span>(self, x):
+        <span class="code-comment"># ... 计算Q,K,V ...</span>
+
+        <span class="code-comment"># 计算注意力权重</span>
+        attention_weights = F.softmax(scores, dim=-1)
+
+        <span class="code-comment"># 👁️ 对注意力权重应用Dropout</span>
+        <span class="code-highlight">attention_weights = self.attention_dropout(attention_weights)</span>
+
+        <span class="code-comment"># ... 计算输出 ...</span>
+        <span class="code-highlight">output = self.output_dropout(output)</span>
+        <span class="code-keyword">return</span> output
+
+<span class="code-keyword">class</span> <span class="code-class">FeedForward</span>(nn.Module):
+    <span class="code-keyword">def</span> <span class="code-function">__init__</span>(self, d_model, d_ff, dropout=0.1):
+        super().__init__()
+        self.linear1 = nn.Linear(d_model, d_ff)
+        self.linear2 = nn.Linear(d_ff, d_model)
+
+        <span class="code-comment"># 🧠 第3个Dropout：前馈网络</span>
+        <span class="code-highlight">self.dropout = nn.Dropout(dropout)</span>
+        self.activation = nn.ReLU()
+
+    <span class="code-keyword">def</span> <span class="code-function">forward</span>(self, x):
+        x = self.activation(self.linear1(x))
+
+        <span class="code-comment"># 🧠 在激活后应用Dropout</span>
+        <span class="code-highlight">x = self.dropout(x)</span>
+
+        <span class="code-keyword">return</span> self.linear2(x)
+
+<span class="code-keyword">class</span> <span class="code-class">TransformerLayer</span>(nn.Module):
+    <span class="code-keyword">def</span> <span class="code-function">__init__</span>(self, d_model, n_heads, d_ff, dropout=0.1):
+        super().__init__()
+        self.self_attention = MultiHeadAttention(d_model, n_heads, dropout)
+        self.feed_forward = FeedForward(d_model, d_ff, dropout)
+        self.norm1 = nn.LayerNorm(d_model)
+        self.norm2 = nn.LayerNorm(d_model)
+
+        <span class="code-comment"># 🔗 第4个Dropout：残差连接</span>
+        <span class="code-highlight">self.dropout1 = nn.Dropout(dropout)</span>
+        <span class="code-highlight">self.dropout2 = nn.Dropout(dropout)</span>
+
+    <span class="code-keyword">def</span> <span class="code-function">forward</span>(self, x):
+        <span class="code-comment"># 自注意力 + 残差连接</span>
+        attn_output = self.self_attention(x)
+        <span class="code-highlight">x = self.norm1(x + self.dropout1(attn_output))</span>
+
+        <span class="code-comment"># 前馈网络 + 残差连接</span>
+        ff_output = self.feed_forward(x)
+        <span class="code-highlight">x = self.norm2(x + self.dropout2(ff_output))</span>
+
+        <span class="code-keyword">return</span> x</code></pre>
+            </div>
+        </div>
+
+        <!-- 总结 -->
+        <div class="solution-section" style="border-color: var(--info); background: linear-gradient(135deg, rgba(6, 182, 212, 0.1), rgba(14, 165, 233, 0.05));">
+            <div class="section-header">
+                <div class="section-badge" style="background: linear-gradient(135deg, rgba(6, 182, 212, 0.2), rgba(14, 165, 233, 0.1)); border-color: rgba(6, 182, 212, 0.4);">
+                    <span style="font-size: 2rem;">🌟</span>
+                    <h2 style="color: var(--info); margin: 0; font-size: 1.8rem; font-weight: bold;">Dropout的深层意义</h2>
+                </div>
+            </div>
+
+            <div style="background: rgba(255, 255, 255, 0.08); padding: 2.5rem; border-radius: 16px;">
+                <div style="color: var(--info); font-weight: bold; margin-bottom: 2rem; text-align: center; font-size: 1.3rem;">
+                    🎭 从生物启发到算法突破的完整故事
+                </div>
+
+                <div class="grid-2">
+                    <div style="background: rgba(15, 23, 42, 0.8); padding: 2rem; border-radius: 12px;">
+                        <h4 style="color: var(--success); margin-bottom: 1rem; text-align: center;">🧠 生物学智慧</h4>
+                        <div style="color: var(--text); font-size: 1rem; line-height: 1.8;">
+                            • 大脑具有惊人的鲁棒性<br>
+                            • 神经元死亡不影响认知<br>
+                            • 分布式表示和冗余机制<br>
+                            • 动态重组和可塑性补偿
+                        </div>
+                    </div>
+
+                    <div style="background: rgba(15, 23, 42, 0.8); padding: 2rem; border-radius: 12px;">
+                        <h4 style="color: var(--primary); margin-bottom: 1rem; text-align: center;">🤖 AI算法创新</h4>
+                        <div style="color: var(--text); font-size: 1rem; line-height: 1.8;">
+                            • 随机神经元失活机制<br>
+                            • 强制网络学会冗余表示<br>
+                            • 打破神经元共适应<br>
+                            • 期望值保持数学保证
+                        </div>
+                    </div>
+                </div>
+
+                <div style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(124, 58, 237, 0.1)); padding: 2rem; border-radius: 16px; border: 1px solid rgba(139, 92, 246, 0.3); margin-top: 2rem; text-align: center;">
+                    <div style="color: var(--secondary); font-weight: bold; margin-bottom: 1rem; font-size: 1.2rem;">
+                        💡 Dropout的核心哲学
+                    </div>
+                    <div style="color: #f1f5f9; font-size: 1rem; line-height: 1.6;">
+                        Dropout教会我们：<strong style="color: var(--warning);">"通过不完美来达到更好的完美"</strong><br><br>
+
+                        • 适度的随机性带来更强的确定性<br>
+                        • 暂时的"遗忘"换来持久的"记忆"<br>
+                        • 局部的"破坏"造就整体的"鲁棒"<br><br>
+
+                        这种矛盾统一的智慧，正是现代AI能够处理复杂现实世界问题的关键！<br><br>
+
+                        <strong style="color: var(--secondary); font-size: 1.1rem;">
+                            从生物观察到数学实现，Dropout完美诠释了科学发现的魅力！
+                        </strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 导航 -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 3rem; padding: 2rem; background: rgba(255, 255, 255, 0.05); border-radius: 12px; backdrop-filter: blur(10px);">
+            <button style="padding: 0.8rem 1.5rem; background: linear-gradient(45deg, var(--success), #16a34a); color: white; border: none; border-radius: 8px; cursor: pointer; text-decoration: none; transition: all 0.3s ease; font-weight: bold; display: flex; align-items: center; gap: 0.5rem;" onclick="window.history.back()">
+                ← 上一章
+            </button>
+
+            <div style="text-align: center; color: var(--text);">
+                <strong>Dropout完整解析</strong><br>
+                <span>从过拟合问题到生物启发解决方案</span>
+            </div>
+
+            <button style="padding: 0.8rem 1.5rem; background: linear-gradient(45deg, var(--primary), var(--secondary)); color: white; border: none; border-radius: 8px; cursor: pointer; text-decoration: none; transition: all 0.3s ease; font-weight: bold; display: flex; align-items: center; gap: 0.5rem;" onclick="window.location.href='#next-chapter'">
+                下一章 →
+            </button>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🎭 Dropout完整解析已加载完成！');
+            console.log('🧠 体验从生物启发到数学实现的完整思维过程');
+
+            // 添加矩阵悬停效果
+            const matrixCells = document.querySelectorAll('#dropout-complete-story .matrix-cell');
+            matrixCells.forEach(cell => {
+                cell.addEventListener('mouseenter', function() {
+                    this.style.transform = 'scale(1.1)';
+                    this.style.zIndex = '10';
+                });
+
+                cell.addEventListener('mouseleave', function() {
+                    this.style.transform = 'scale(1)';
+                    this.style.zIndex = 'auto';
+                });
+            });
+
+            // 需求框动画
+            const requirementItems = document.querySelectorAll('#dropout-complete-story .requirement-item');
+            requirementItems.forEach((item, index) => {
+                setTimeout(() => {
+                    item.style.animation = 'pulse-border 2s ease-in-out';
+                }, index * 300);
+            });
+
+            // 验证项动画
+            const verificationItems = document.querySelectorAll('#dropout-complete-story .verification-item');
+            verificationItems.forEach((item, index) => {
+                setTimeout(() => {
+                    item.style.animation = 'check 2s ease-in-out';
+                }, index * 500 + 1000);
+            });
+
+            // 入场动画
+            const sections = document.querySelectorAll('#dropout-complete-story .solution-section');
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.style.opacity = '1';
+                        entry.target.style.transform = 'translateY(0)';
+                    }
+                });
+            }, { threshold: 0.1 });
+
+            sections.forEach(section => {
+                section.style.opacity = '0';
+                section.style.transform = 'translateY(30px)';
+                section.style.transition = 'all 0.8s cubic-bezier(0.4, 0, 0.2, 1)';
+                observer.observe(section);
+            });
+        });
+    </script>
+</div>

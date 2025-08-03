@@ -1,0 +1,1022 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>第6章：首个Transformer问题分析</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
+            color: #e2e8f0;
+            margin: 0;
+            padding: 0;
+            line-height: 1.6;
+        }
+
+        /* 动画效果 */
+        @keyframes warning-pulse {
+            0%, 100% {
+                background: rgba(239, 68, 68, 0.1);
+                border-color: rgba(239, 68, 68, 0.3);
+            }
+            50% {
+                background: rgba(239, 68, 68, 0.2);
+                border-color: rgba(239, 68, 68, 0.5);
+            }
+        }
+
+        @keyframes loss-spike {
+            0% { height: 40%; background: linear-gradient(to top, rgba(34, 197, 94, 0.6), rgba(34, 197, 94, 0.9)); }
+            50% { height: 85%; background: linear-gradient(to top, rgba(239, 68, 68, 0.6), rgba(239, 68, 68, 0.9)); }
+            100% { height: 40%; background: linear-gradient(to top, rgba(34, 197, 94, 0.6), rgba(34, 197, 94, 0.9)); }
+        }
+
+        @keyframes gradient-shift {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+
+        /* 容器样式 */
+        .chapter-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        /* 章节头部 */
+        .chapter-header {
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(220, 38, 38, 0.1));
+            border-radius: 24px;
+            padding: 3rem;
+            margin-bottom: 3rem;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            text-align: center;
+        }
+
+        .chapter-header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(239, 68, 68, 0.1) 0%, transparent 70%);
+            animation: gradient-shift 20s ease-in-out infinite;
+        }
+
+        .chapter-header h1 {
+            font-size: 2.8rem;
+            margin-bottom: 1.5rem;
+            background: linear-gradient(45deg, #ef4444, #dc2626, #b91c1c);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            position: relative;
+            z-index: 2;
+        }
+
+        .chapter-header p {
+            font-size: 1.3rem;
+            color: #cbd5e1;
+            margin-bottom: 2rem;
+            position: relative;
+            z-index: 2;
+        }
+
+        .meta-tags {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            flex-wrap: wrap;
+            position: relative;
+            z-index: 2;
+        }
+
+        .meta-tag {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+            padding: 0.8rem 1.5rem;
+            border-radius: 25px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            border: 1px solid rgba(239, 68, 68, 0.4);
+        }
+
+        /* 主要区块样式 */
+        .analysis-section {
+            background: linear-gradient(135deg, rgba(15, 23, 42, 0.8), rgba(30, 41, 59, 0.6));
+            border-radius: 20px;
+            padding: 2.5rem;
+            margin: 3rem 0;
+            border: 2px solid rgba(139, 92, 246, 0.2);
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 16px 64px rgba(0, 0, 0, 0.3);
+        }
+
+        /* 问题发现区块 */
+        .problem-discovery {
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(220, 38, 38, 0.1));
+            border: 2px solid rgba(239, 68, 68, 0.3);
+            border-radius: 20px;
+            padding: 2.5rem;
+            margin: 2rem 0;
+            position: relative;
+            animation: warning-pulse 4s infinite;
+        }
+
+        .problem-title {
+            color: #ef4444;
+            font-weight: bold;
+            font-size: 1.4rem;
+            margin-bottom: 1.5rem;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+        }
+
+        /* 实验结果可视化 */
+        .experiment-result {
+            background: linear-gradient(135deg, rgba(15, 23, 42, 0.9), rgba(30, 41, 59, 0.8));
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 1.5rem 0;
+            border: 2px solid rgba(6, 182, 212, 0.3);
+        }
+
+        .experiment-title {
+            color: #06b6d4;
+            font-weight: bold;
+            margin-bottom: 1.5rem;
+            font-size: 1.2rem;
+            text-align: center;
+        }
+
+        /* 损失函数图表 */
+        .loss-chart {
+            background: rgba(15, 23, 42, 0.8);
+            border-radius: 12px;
+            padding: 1.5rem;
+            border: 1px solid rgba(139, 92, 246, 0.3);
+            position: relative;
+            height: 200px;
+            overflow: hidden;
+        }
+
+        .chart-container {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            height: 150px;
+            padding: 1rem;
+            background: rgba(30, 41, 59, 0.6);
+            border-radius: 8px;
+            position: relative;
+        }
+
+        .loss-bar {
+            width: 12px;
+            background: linear-gradient(to top, rgba(34, 197, 94, 0.6), rgba(34, 197, 94, 0.9));
+            border-radius: 2px;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .loss-bar.unstable {
+            animation: loss-spike 2s infinite;
+        }
+
+        .loss-bar:hover {
+            transform: scale(1.1);
+            background: linear-gradient(to top, rgba(239, 68, 68, 0.6), rgba(239, 68, 68, 0.9));
+        }
+
+        /* 对比表格 */
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: rgba(15, 23, 42, 0.8);
+            border-radius: 12px;
+            overflow: hidden;
+            margin: 1.5rem 0;
+        }
+
+        .comparison-table th {
+            background: rgba(139, 92, 246, 0.3);
+            color: #8b5cf6;
+            padding: 1rem;
+            font-weight: bold;
+            border: 1px solid rgba(139, 92, 246, 0.3);
+        }
+
+        .comparison-table td {
+            padding: 1rem;
+            border: 1px solid rgba(71, 85, 105, 0.3);
+            color: #cbd5e1;
+            text-align: center;
+        }
+
+        .comparison-table .good {
+            background: rgba(34, 197, 94, 0.1);
+            color: #22c55e;
+        }
+
+        .comparison-table .bad {
+            background: rgba(239, 68, 68, 0.1);
+            color: #ef4444;
+        }
+
+        .comparison-table .warning {
+            background: rgba(251, 191, 36, 0.1);
+            color: #fbbf24;
+        }
+
+        /* 思考过程样式 */
+        .thinking-process {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(124, 58, 237, 0.1));
+            border: 2px solid rgba(139, 92, 246, 0.3);
+            border-radius: 20px;
+            padding: 2.5rem;
+            margin: 2rem 0;
+        }
+
+        .thinking-title {
+            color: #8b5cf6;
+            font-weight: bold;
+            font-size: 1.4rem;
+            margin-bottom: 1.5rem;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+        }
+
+        /* 解决方案探索 */
+        .solution-exploration {
+            background: linear-gradient(135deg, rgba(34, 197, 94, 0.15), rgba(16, 185, 129, 0.1));
+            border: 2px solid rgba(34, 197, 94, 0.3);
+            border-radius: 20px;
+            padding: 2.5rem;
+            margin: 2rem 0;
+        }
+
+        .solution-title {
+            color: #22c55e;
+            font-weight: bold;
+            font-size: 1.4rem;
+            margin-bottom: 1.5rem;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .chapter-container {
+                padding: 1rem;
+            }
+
+            .chapter-header h1 {
+                font-size: 2rem;
+            }
+
+            .meta-tags {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .analysis-section {
+                padding: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="chapter-container">
+    <!-- 章节头部 -->
+    <div class="chapter-header">
+        <h1>第6章：第一版的问题分析</h1>
+        <p>从实验中发现问题，用科学的方法寻找解决之道</p>
+        <div class="meta-tags">
+            <span class="meta-tag">
+                ⚠️ <span>问题发现</span>
+            </span>
+            <span class="meta-tag">
+                ⏱️ <span>60分钟</span>
+            </span>
+            <span class="meta-tag">
+                🔬 <span>实验分析</span>
+            </span>
+        </div>
+    </div>
+
+    <!-- 🎬 故事开场 - 测试时刻 -->
+    <div class="analysis-section" style="border-color: #fbbf24;">
+        <div style="text-align: center; margin-bottom: 3rem;">
+            <div style="display: inline-flex; align-items: center; gap: 1rem; background: linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(245, 158, 11, 0.1)); padding: 1.5rem 3rem; border-radius: 30px; border: 1px solid rgba(251, 191, 36, 0.4);">
+                <span style="font-size: 2rem;">🎬</span>
+                <h2 style="color: #fbbf24; margin: 0; font-size: 1.8rem; font-weight: bold;">一周后，激动人心的测试时刻</h2>
+            </div>
+        </div>
+
+        <div style="background: linear-gradient(135deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.9)); border-radius: 20px; padding: 3rem; border: 1px solid rgba(251, 191, 36, 0.3);">
+            <div style="display: grid; grid-template-columns: 1fr auto 1fr; gap: 2rem; align-items: center; margin-bottom: 3rem;">
+                <div style="text-align: center;">
+                    <div style="width: 80px; height: 80px; border-radius: 50%; background: linear-gradient(135deg, #22c55e, #16a34a); display: flex; align-items: center; justify-content: center; font-size: 2rem; margin: 0 auto 1rem; box-shadow: 0 8px 25px rgba(34, 197, 94, 0.3);">
+                        😄
+                    </div>
+                    <div style="color: #cbd5e1; font-size: 1.1rem;">
+                        <strong style="color: #22c55e;">兴奋的研究生</strong><br>
+                        "终于要看到成果了！"
+                    </div>
+                </div>
+
+                <div style="color: #fbbf24; font-size: 2rem;">💻</div>
+
+                <div style="text-align: center;">
+                    <div style="width: 80px; height: 80px; border-radius: 50%; background: linear-gradient(135deg, #06b6d4, #0891b2); display: flex; align-items: center; justify-content: center; font-size: 2rem; margin: 0 auto 1rem; box-shadow: 0 8px 25px rgba(6, 182, 212, 0.3);">
+                        🔬
+                    </div>
+                    <div style="color: #cbd5e1; font-size: 1.1rem;">
+                        <strong style="color: #06b6d4;">谨慎的导师</strong><br>
+                        "让我们系统地测试一下..."
+                    </div>
+                </div>
+            </div>
+
+            <div style="background: linear-gradient(135deg, rgba(22, 197, 94, 0.15), rgba(16, 185, 129, 0.1)); padding: 2.5rem; border-radius: 16px; border: 1px solid rgba(34, 197, 94, 0.3);">
+                <div style="text-align: center; margin-bottom: 2rem;">
+                    <h3 style="color: #22c55e; font-size: 1.4rem; margin: 0;">🚀 我们要测试什么？</h3>
+                </div>
+
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem;">
+                    <div style="background: rgba(255, 255, 255, 0.05); padding: 1.5rem; border-radius: 12px; text-align: center; border: 1px solid rgba(34, 197, 94, 0.2);">
+                        <div style="font-size: 1.5rem; margin-bottom: 1rem;">📊</div>
+                        <h4 style="color: #22c55e; margin-bottom: 0.5rem;">训练稳定性</h4>
+                        <p style="color: #cbd5e1; font-size: 0.9rem; margin: 0;">能否稳定收敛？</p>
+                    </div>
+
+                    <div style="background: rgba(255, 255, 255, 0.05); padding: 1.5rem; border-radius: 12px; text-align: center; border: 1px solid rgba(34, 197, 94, 0.2);">
+                        <div style="font-size: 1.5rem; margin-bottom: 1rem;">🎯</div>
+                        <h4 style="color: #22c55e; margin-bottom: 0.5rem;">准确性</h4>
+                        <p style="color: #cbd5e1; font-size: 0.9rem; margin: 0;">翻译质量如何？</p>
+                    </div>
+
+                    <div style="background: rgba(255, 255, 255, 0.05); padding: 1.5rem; border-radius: 12px; text-align: center; border: 1px solid rgba(34, 197, 94, 0.2);">
+                        <div style="font-size: 1.5rem; margin-bottom: 1rem;">⚡</div>
+                        <h4 style="color: #22c55e; margin-bottom: 0.5rem;">训练速度</h4>
+                        <p style="color: #cbd5e1; font-size: 0.9rem; margin: 0;">比RNN快多少？</p>
+                    </div>
+
+                    <div style="background: rgba(255, 255, 255, 0.05); padding: 1.5rem; border-radius: 12px; text-align: center; border: 1px solid rgba(34, 197, 94, 0.2);">
+                        <div style="font-size: 1.5rem; margin-bottom: 1rem;">🔍</div>
+                        <h4 style="color: #22c55e; margin-bottom: 0.5rem;">长序列处理</h4>
+                        <p style="color: #cbd5e1; font-size: 0.9rem; margin: 0;">能处理长句子吗？</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 🔥 第一个震惊：训练不稳定 -->
+    <div class="problem-discovery">
+        <div class="problem-title">
+            <span>🔥</span>
+            <span>第一个震惊：训练过程像过山车一样！</span>
+        </div>
+
+        <div class="experiment-result">
+            <div class="experiment-title">🧪 实验1：机器翻译任务训练过程</div>
+
+            <!-- 训练配置 -->
+            <div style="background: rgba(6, 182, 212, 0.1); padding: 1.5rem; border-radius: 12px; border: 1px solid rgba(6, 182, 212, 0.3); margin-bottom: 2rem;">
+                <div style="color: #06b6d4; font-weight: bold; margin-bottom: 1rem;">📋 实验设置</div>
+                <div style="color: #cbd5e1; font-size: 0.95rem; line-height: 1.6;">
+                    • <strong>任务</strong>：英文→中文机器翻译<br>
+                    • <strong>数据集</strong>：10万对句子<br>
+                    • <strong>模型</strong>：我们的简单Transformer（6层，8头，512维）<br>
+                    • <strong>训练</strong>：Adam优化器，学习率0.001
+                </div>
+            </div>
+
+            <!-- 损失函数曲线 -->
+            <div style="margin: 2rem 0;">
+                <div style="color: #ef4444; font-weight: bold; margin-bottom: 1rem; text-align: center;">📈 训练损失曲线 - 看到问题了吗？</div>
+
+                <div class="loss-chart">
+                    <div style="color: #cbd5e1; font-size: 0.9rem; margin-bottom: 1rem;">Loss值（越低越好）</div>
+                    <div class="chart-container">
+                        <!-- 训练步骤的损失值 -->
+                        <div class="loss-bar" style="height: 60%;"></div>
+                        <div class="loss-bar" style="height: 45%;"></div>
+                        <div class="loss-bar" style="height: 30%;"></div>
+                        <div class="loss-bar unstable" style="height: 75%;"></div>
+                        <div class="loss-bar unstable" style="height: 25%;"></div>
+                        <div class="loss-bar unstable" style="height: 80%;"></div>
+                        <div class="loss-bar unstable" style="height: 35%;"></div>
+                        <div class="loss-bar unstable" style="height: 85%;"></div>
+                        <div class="loss-bar unstable" style="height: 20%;"></div>
+                        <div class="loss-bar unstable" style="height: 90%;"></div>
+                        <div class="loss-bar unstable" style="height: 40%;"></div>
+                        <div class="loss-bar unstable" style="height: 95%;"></div>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: #64748b; margin-top: 0.5rem;">
+                        <span>0</span>
+                        <span>1000</span>
+                        <span>2000</span>
+                        <span>3000</span>
+                        <span>4000</span>
+                        <span>5000</span>
+                        <span>训练步数</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 具体观察到的现象 -->
+            <div style="background: rgba(239, 68, 68, 0.1); padding: 2rem; border-radius: 12px; border: 1px solid rgba(239, 68, 68, 0.3);">
+                <div style="color: #ef4444; font-weight: bold; margin-bottom: 1rem;">😱 观察到的现象：</div>
+                <div style="color: #cbd5e1; font-size: 1rem; line-height: 1.8;">
+                    • <strong style="color: #ef4444;">突然跳跃</strong>：第500步，loss从2.1突然跳到8.9！<br>
+                    • <strong style="color: #ef4444;">训练停滞</strong>：第1200步，梯度接近0，训练几乎停止<br>
+                    • <strong style="color: #ef4444;">剧烈震荡</strong>：loss在1.5-6.2之间反复震荡<br>
+                    • <strong style="color: #ef4444;">完全崩溃</strong>：第3000步后，输出全是乱码
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 🤔 分析第一个问题 -->
+    <div class="thinking-process">
+        <div class="thinking-title">
+            <span>🤔</span>
+            <span>分析：为什么训练这么不稳定？</span>
+        </div>
+
+        <div style="background: rgba(255, 255, 255, 0.08); padding: 2rem; border-radius: 16px;">
+            <div style="color: #8b5cf6; font-weight: bold; margin-bottom: 1.5rem; text-align: center;">🔍 我们一步步分析现象背后的原因</div>
+
+            <div style="display: grid; gap: 2rem;">
+                <!-- 现象1分析 -->
+                <div style="background: rgba(15, 23, 42, 0.9); padding: 2rem; border-radius: 12px; border-left: 4px solid #ef4444;">
+                    <h4 style="color: #ef4444; margin-bottom: 1rem;">❓ 现象：梯度突然变得很大</h4>
+                    <div style="color: #cbd5e1; font-size: 0.95rem; line-height: 1.6; margin-bottom: 1rem;">
+                        在深层网络中，梯度从输出层反向传播到输入层时，会经过多次矩阵乘法。<br>
+                        如果每层的梯度都稍微大于1，比如1.1，那么：<br>
+                        第6层：1.1⁶ ≈ 1.77<br>
+                        第12层：1.1¹² ≈ 3.14<br>
+                        越深层，梯度越大！
+                    </div>
+                    <div style="background: rgba(239, 68, 68, 0.1); padding: 1rem; border-radius: 8px; border: 1px solid rgba(239, 68, 68, 0.3);">
+                        <strong style="color: #ef4444;">问题根源</strong>：深层网络的梯度会指数级放大！
+                    </div>
+                </div>
+
+                <!-- 现象2分析 -->
+                <div style="background: rgba(15, 23, 42, 0.9); padding: 2rem; border-radius: 12px; border-left: 4px solid #fbbf24;">
+                    <h4 style="color: #fbbf24; margin-bottom: 1rem;">❓ 现象：梯度突然变得很小</h4>
+                    <div style="color: #cbd5e1; font-size: 0.95rem; line-height: 1.6; margin-bottom: 1rem;">
+                        相反，如果每层的梯度都稍微小于1，比如0.9，那么：<br>
+                        第6层：0.9⁶ ≈ 0.53<br>
+                        第12层：0.9¹² ≈ 0.28<br>
+                        越深层，梯度越小，最后接近0！
+                    </div>
+                    <div style="background: rgba(251, 191, 36, 0.1); padding: 1rem; border-radius: 8px; border: 1px solid rgba(251, 191, 36, 0.3);">
+                        <strong style="color: #fbbf24;">问题根源</strong>：深层网络的梯度也会指数级缩小！
+                    </div>
+                </div>
+
+                <!-- 现象3分析 -->
+                <div style="background: rgba(15, 23, 42, 0.9); padding: 2rem; border-radius: 12px; border-left: 4px solid #8b5cf6;">
+                    <h4 style="color: #8b5cf6; margin-bottom: 1rem;">❓ 现象：激活值分布越来越极端</h4>
+                    <div style="color: #cbd5e1; font-size: 0.95rem; line-height: 1.6; margin-bottom: 1rem;">
+                        我们观察了每一层的激活值分布：<br>
+                        第1层：均值=0.1，标准差=0.8<br>
+                        第3层：均值=0.5，标准差=2.1<br>
+                        第6层：均值=1.2，标准差=8.9 ← 分布严重偏移！
+                    </div>
+                    <div style="background: rgba(139, 92, 246, 0.1); padding: 1rem; border-radius: 8px; border: 1px solid rgba(139, 92, 246, 0.3);">
+                        <strong style="color: #8b5cf6;">问题根源</strong>：每层的数据分布在不断变化，训练不稳定！
+                    </div>
+                </div>
+            </div>
+
+            <div style="background: rgba(239, 68, 68, 0.1); padding: 2rem; border-radius: 12px; border: 1px solid rgba(239, 68, 68, 0.3); margin-top: 2rem; text-align: center;">
+                <div style="color: #ef4444; font-weight: bold; margin-bottom: 1rem; font-size: 1.1rem;">🎯 核心问题识别</div>
+                <div style="color: #cbd5e1; font-size: 1rem; line-height: 1.6;">
+                    <strong style="color: #fbbf24;">深层网络训练的两大难题</strong>：<br>
+                    1. 梯度传播不稳定（爆炸或消失）<br>
+                    2. 数据分布在各层间不断变化
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 🎯 第二个发现：深层网络的悖论 -->
+    <div class="problem-discovery">
+        <div class="problem-title">
+            <span>🎯</span>
+            <span>第二个发现：越深的网络反而越笨？</span>
+        </div>
+
+        <div class="experiment-result">
+            <div class="experiment-title">🧪 实验2：不同深度的性能对比</div>
+
+            <!-- 对比表格 -->
+            <table class="comparison-table">
+                <thead>
+                <tr>
+                    <th>网络深度</th>
+                    <th>训练Loss</th>
+                    <th>验证准确率</th>
+                    <th>收敛速度</th>
+                    <th>训练稳定性</th>
+                    <th>结果</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr>
+                    <td>2层</td>
+                    <td class="good">1.8</td>
+                    <td class="good">76.2%</td>
+                    <td class="good">很快</td>
+                    <td class="good">稳定</td>
+                    <td class="good">✅ 正常</td>
+                </tr>
+                <tr>
+                    <td>4层</td>
+                    <td class="warning">2.3</td>
+                    <td class="warning">71.8%</td>
+                    <td class="warning">中等</td>
+                    <td class="warning">轻微震荡</td>
+                    <td class="warning">⚠️ 开始有问题</td>
+                </tr>
+                <tr>
+                    <td>6层</td>
+                    <td class="bad">3.7</td>
+                    <td class="bad">63.1%</td>
+                    <td class="bad">很慢</td>
+                    <td class="bad">严重不稳定</td>
+                    <td class="bad">❌ 训练困难</td>
+                </tr>
+                <tr>
+                    <td>8层</td>
+                    <td class="bad">发散</td>
+                    <td class="bad">45.2%</td>
+                    <td class="bad">无法收敛</td>
+                    <td class="bad">完全崩溃</td>
+                    <td class="bad">💥 彻底失败</td>
+                </tr>
+                </tbody>
+            </table>
+
+            <div style="background: rgba(239, 68, 68, 0.1); padding: 2rem; border-radius: 12px; border: 1px solid rgba(239, 68, 68, 0.3); margin-top: 2rem;">
+                <div style="color: #ef4444; font-weight: bold; margin-bottom: 1rem;">💔 令人沮丧的发现：</div>
+                <div style="color: #cbd5e1; font-size: 1rem; line-height: 1.8; text-align: center;">
+                    <strong style="color: #fbbf24;">理论上</strong>：更深的网络应该有更强的表达能力<br>
+                    <strong style="color: #ef4444;">现实中</strong>：更深的网络反而更难训练，性能更差！<br><br>
+                    <span style="color: #8b5cf6; font-style: italic;">"这里一定有什么问题..."</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 🤔 分析第二个问题 -->
+    <div class="thinking-process">
+        <div class="thinking-title">
+            <span>🤔</span>
+            <span>思考：如何让深层网络变得可训练？</span>
+        </div>
+
+        <div style="background: rgba(255, 255, 255, 0.08); padding: 2rem; border-radius: 16px;">
+            <div style="color: #8b5cf6; font-weight: bold; margin-bottom: 1.5rem; text-align: center;">💡 我们需要什么样的解决方案？</div>
+
+            <div style="display: grid; gap: 2rem;">
+                <!-- 思考1 -->
+                <div style="background: rgba(15, 23, 42, 0.9); padding: 2rem; border-radius: 12px;">
+                    <h4 style="color: #22c55e; margin-bottom: 1rem;">💭 想法1：能否让信息"跳过"某些层？</h4>
+                    <div style="color: #cbd5e1; font-size: 0.95rem; line-height: 1.6;">
+                        如果我们能让信息有"捷径"，直接从浅层传到深层，会不会好一些？<br>
+                        就像高速公路的立交桥，让信息不用经过每一个"红绿灯"。
+                    </div>
+                </div>
+
+                <!-- 思考2 -->
+                <div style="background: rgba(15, 23, 42, 0.9); padding: 2rem; border-radius: 12px;">
+                    <h4 style="color: #22c55e; margin-bottom: 1rem;">💭 想法2：能否让每层的数据分布保持稳定？</h4>
+                    <div style="color: #cbd5e1; font-size: 0.95rem; line-height: 1.6;">
+                        既然问题是每层的数据分布都在变化，那我们能不能在每层都做一些"标准化"，<br>
+                        让数据分布保持相对稳定？
+                    </div>
+                </div>
+
+                <!-- 思考3 -->
+                <div style="background: rgba(15, 23, 42, 0.9); padding: 2rem; border-radius: 12px;">
+                    <h4 style="color: #22c55e; margin-bottom: 1rem;">💭 想法3：改变网络的初始化方式？</h4>
+                    <div style="color: #cbd5e1; font-size: 0.95rem; line-height: 1.6;">
+                        也许是我们的权重初始化有问题？如果我们能让初始权重更合理，<br>
+                        梯度就不会那么容易爆炸或消失？
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 📍 第三个问题：位置信息混乱 -->
+    <div class="problem-discovery">
+        <div class="problem-title">
+            <span>📍</span>
+            <span>第三个问题：模型完全不懂词序！</span>
+        </div>
+
+        <div class="experiment-result">
+            <div class="experiment-title">🧪 实验3：位置敏感性测试</div>
+
+            <!-- 测试案例 -->
+            <div style="background: rgba(15, 23, 42, 0.9); padding: 2rem; border-radius: 12px; border: 1px solid rgba(239, 68, 68, 0.3);">
+                <div style="color: #ef4444; font-weight: bold; margin-bottom: 1.5rem; text-align: center;">😱 震惊的测试结果</div>
+
+                <div style="display: grid; gap: 2rem;">
+                    <!-- 测试1 -->
+                    <div style="background: rgba(255, 255, 255, 0.05); padding: 1.5rem; border-radius: 8px;">
+                        <div style="color: #06b6d4; font-weight: bold; margin-bottom: 1rem;">测试1：词序打乱</div>
+                        <div style="display: grid; grid-template-columns: 1fr auto 1fr; gap: 1rem; align-items: center;">
+                            <div style="text-align: center;">
+                                <div style="color: #22c55e; font-weight: bold; margin-bottom: 0.5rem;">原句</div>
+                                <div style="background: rgba(34, 197, 94, 0.1); padding: 1rem; border-radius: 8px; border: 1px solid rgba(34, 197, 94, 0.3);">
+                                    "The cat sits on the mat"
+                                </div>
+                            </div>
+                            <div style="color: #fbbf24; font-size: 1.5rem;">→</div>
+                            <div style="text-align: center;">
+                                <div style="color: #8b5cf6; font-weight: bold; margin-bottom: 0.5rem;">翻译</div>
+                                <div style="background: rgba(139, 92, 246, 0.1); padding: 1rem; border-radius: 8px; border: 1px solid rgba(139, 92, 246, 0.3);">
+                                    "猫坐在垫子上"
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: 1fr auto 1fr; gap: 1rem; align-items: center; margin-top: 1rem;">
+                            <div style="text-align: center;">
+                                <div style="color: #ef4444; font-weight: bold; margin-bottom: 0.5rem;">打乱词序</div>
+                                <div style="background: rgba(239, 68, 68, 0.1); padding: 1rem; border-radius: 8px; border: 1px solid rgba(239, 68, 68, 0.3);">
+                                    "mat the on sits cat The"
+                                </div>
+                            </div>
+                            <div style="color: #fbbf24; font-size: 1.5rem;">→</div>
+                            <div style="text-align: center;">
+                                <div style="color: #8b5cf6; font-weight: bold; margin-bottom: 0.5rem;">翻译结果</div>
+                                <div style="background: rgba(139, 92, 246, 0.1); padding: 1rem; border-radius: 8px; border: 1px solid rgba(139, 92, 246, 0.3);">
+                                    "猫坐在垫子上" ← 几乎相同！
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 测试2 -->
+                    <div style="background: rgba(255, 255, 255, 0.05); padding: 1.5rem; border-radius: 8px;">
+                        <div style="color: #06b6d4; font-weight: bold; margin-bottom: 1rem;">测试2：语义差异巨大的句子</div>
+                        <div style="display: grid; gap: 1rem;">
+                            <div style="display: grid; grid-template-columns: 1fr auto 1fr; gap: 1rem; align-items: center;">
+                                <div style="background: rgba(34, 197, 94, 0.1); padding: 1rem; border-radius: 8px; border: 1px solid rgba(34, 197, 94, 0.3); text-align: center;">
+                                    "狗咬了人"
+                                </div>
+                                <div style="color: #22c55e; font-size: 1.5rem;">✅</div>
+                                <div style="background: rgba(139, 92, 246, 0.1); padding: 1rem; border-radius: 8px; border: 1px solid rgba(139, 92, 246, 0.3); text-align: center;">
+                                    "Dog bit man"
+                                </div>
+                            </div>
+
+                            <div style="display: grid; grid-template-columns: 1fr auto 1fr; gap: 1rem; align-items: center;">
+                                <div style="background: rgba(239, 68, 68, 0.1); padding: 1rem; border-radius: 8px; border: 1px solid rgba(239, 68, 68, 0.3); text-align: center;">
+                                    "人咬了狗"
+                                </div>
+                                <div style="color: #ef4444; font-size: 1.5rem;">❌</div>
+                                <div style="background: rgba(139, 92, 246, 0.1); padding: 1rem; border-radius: 8px; border: 1px solid rgba(139, 92, 246, 0.3); text-align: center;">
+                                    "Dog bit man" ← 完全错误！
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="background: rgba(239, 68, 68, 0.1); padding: 2rem; border-radius: 12px; border: 1px solid rgba(239, 68, 68, 0.3); margin-top: 2rem; text-align: center;">
+                    <div style="color: #ef4444; font-weight: bold; margin-bottom: 1rem; font-size: 1.1rem;">🤯 现象：模型对词序完全不敏感！</div>
+                    <div style="color: #cbd5e1; font-size: 1rem; line-height: 1.6;">
+                        我们的Transformer把句子当成了"词汇袋"，完全忽略了词的顺序信息！
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 🤔 分析第三个问题 -->
+    <div class="thinking-process">
+        <div class="thinking-title">
+            <span>🤔</span>
+            <span>分析：为什么模型不知道词的位置？</span>
+        </div>
+
+        <div style="background: rgba(255, 255, 255, 0.08); padding: 2rem; border-radius: 16px;">
+            <div style="color: #8b5cf6; font-weight: bold; margin-bottom: 1.5rem; text-align: center;">🔍 深入分析注意力机制的工作原理</div>
+
+            <div style="background: rgba(15, 23, 42, 0.9); padding: 2rem; border-radius: 12px; margin-bottom: 2rem;">
+                <h4 style="color: #fbbf24; margin-bottom: 1rem;">🧠 注意力机制只看内容，不看位置</h4>
+                <div style="color: #cbd5e1; font-size: 0.95rem; line-height: 1.6; margin-bottom: 1rem;">
+                    当计算注意力权重时，我们只使用了词的内容特征：<br>
+                    <code style="background: rgba(255,255,255,0.1); padding: 0.2rem 0.5rem; border-radius: 4px;">attention(cat, sits) = similarity(cat_embedding, sits_embedding)</code>
+                </div>
+                <div style="background: rgba(251, 191, 36, 0.1); padding: 1rem; border-radius: 8px; border: 1px solid rgba(251, 191, 36, 0.3);">
+                    <strong style="color: #fbbf24;">关键发现</strong>：计算相似度时，没有考虑词在句子中的位置！
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+                <div style="background: rgba(15, 23, 42, 0.9); padding: 1.5rem; border-radius: 12px;">
+                    <h5 style="color: #ef4444; margin-bottom: 0.5rem;">❌ 当前情况</h5>
+                    <div style="color: #cbd5e1; font-size: 0.9rem;">
+                        "cat" 在位置1和位置5<br>
+                        对模型来说是完全一样的
+                    </div>
+                </div>
+                <div style="background: rgba(15, 23, 42, 0.9); padding: 1.5rem; border-radius: 12px;">
+                    <h5 style="color: #22c55e; margin-bottom: 0.5rem;">✅ 理想情况</h5>
+                    <div style="color: #cbd5e1; font-size: 0.9rem;">
+                        "cat" 在不同位置<br>
+                        应该有不同的表示
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 💡 开始寻找解决方案 -->
+    <div class="solution-exploration">
+        <div class="solution-title">
+            <span>💡</span>
+            <span>头脑风暴：如何给模型注入位置信息？</span>
+        </div>
+
+        <div style="background: rgba(255, 255, 255, 0.08); padding: 2rem; border-radius: 16px;">
+            <div style="color: #22c55e; font-weight: bold; margin-bottom: 1.5rem; text-align: center;">🚀 创造性思考时间</div>
+
+            <div style="display: grid; gap: 2rem;">
+                <!-- 方案1 -->
+                <div style="background: rgba(15, 23, 42, 0.9); padding: 2rem; border-radius: 12px; border-left: 4px solid #06b6d4;">
+                    <h4 style="color: #06b6d4; margin-bottom: 1rem;">🎯 方案1：给每个位置一个独特的"ID"</h4>
+                    <div style="color: #cbd5e1; font-size: 0.95rem; line-height: 1.6; margin-bottom: 1rem;">
+                        就像座位号一样，位置1的词加上"位置1"的标记，位置2的词加上"位置2"的标记...<br>
+                        这样同一个词在不同位置就有了不同的特征。
+                    </div>
+                    <div style="background: rgba(6, 182, 212, 0.1); padding: 1rem; border-radius: 8px;">
+                        <strong style="color: #06b6d4;">实现思路</strong>：为每个位置创建唯一的向量，添加到词嵌入中
+                    </div>
+                </div>
+
+                <!-- 方案2 -->
+                <div style="background: rgba(15, 23, 42, 0.9); padding: 2rem; border-radius: 12px; border-left: 4px solid #8b5cf6;">
+                    <h4 style="color: #8b5cf6; margin-bottom: 1rem;">🎯 方案2：使用数学函数编码位置</h4>
+                    <div style="color: #cbd5e1; font-size: 0.95rem; line-height: 1.6; margin-bottom: 1rem;">
+                        用数学函数（比如三角函数）为每个位置生成特殊的编码，<br>
+                        这样位置信息就融入到了数学模式中。
+                    </div>
+                    <div style="background: rgba(139, 92, 246, 0.1); padding: 1rem; border-radius: 8px;">
+                        <strong style="color: #8b5cf6;">实现思路</strong>：使用sin/cos函数为每个位置生成独特但有规律的编码
+                    </div>
+                </div>
+
+                <!-- 方案3 -->
+                <div style="background: rgba(15, 23, 42, 0.9); padding: 2rem; border-radius: 12px; border-left: 4px solid #22c55e;">
+                    <h4 style="color: #22c55e; margin-bottom: 1rem;">🎯 方案3：让模型自己学习位置</h4>
+                    <div style="color: #cbd5e1; font-size: 0.95rem; line-height: 1.6; margin-bottom: 1rem;">
+                        为每个位置创建可学习的向量，让模型在训练过程中<br>
+                        自己学会如何表示不同的位置。
+                    </div>
+                    <div style="background: rgba(34, 197, 94, 0.1); padding: 1rem; border-radius: 8px;">
+                        <strong style="color: #22c55e;">实现思路</strong>：创建位置嵌入层，像词嵌入一样可以训练
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 🔧 第四个问题：表达能力 -->
+    <div class="problem-discovery">
+        <div class="problem-title">
+            <span>🔧</span>
+            <span>第四个问题：模型太"简单"了！</span>
+        </div>
+
+        <div style="background: rgba(15, 23, 42, 0.9); padding: 2rem; border-radius: 12px; border: 1px solid rgba(239, 68, 68, 0.3);">
+            <div style="color: #ef4444; font-weight: bold; margin-bottom: 1.5rem; text-align: center;">📊 模型能力测试结果</div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+                <!-- 问题表现 -->
+                <div style="background: rgba(255, 255, 255, 0.05); padding: 1.5rem; border-radius: 8px;">
+                    <h4 style="color: #ef4444; margin-bottom: 1rem;">❌ 观察到的问题</h4>
+                    <ul style="color: #cbd5e1; font-size: 0.95rem; line-height: 1.6;">
+                        <li>所有句子的表示都很相似</li>
+                        <li>无法区分复杂的语义关系</li>
+                        <li>对语法结构不敏感</li>
+                        <li>表达能力明显不足</li>
+                    </ul>
+                </div>
+
+                <!-- 根本原因 -->
+                <div style="background: rgba(255, 255, 255, 0.05); padding: 1.5rem; border-radius: 8px;">
+                    <h4 style="color: #fbbf24; margin-bottom: 1rem;">🤔 可能的原因</h4>
+                    <ul style="color: #cbd5e1; font-size: 0.95rem; line-height: 1.6;">
+                        <li>只有线性变换（矩阵乘法）</li>
+                        <li>缺少非线性激活函数</li>
+                        <li>信息处理路径单一</li>
+                        <li>模型容量可能不足</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 🤔 分析第四个问题 -->
+    <div class="thinking-process">
+        <div class="thinking-title">
+            <span>🤔</span>
+            <span>思考：如何增强模型的表达能力？</span>
+        </div>
+
+        <div style="background: rgba(255, 255, 255, 0.08); padding: 2rem; border-radius: 16px;">
+            <div style="color: #8b5cf6; font-weight: bold; margin-bottom: 1.5rem; text-align: center;">💭 我们需要什么样的"增强"？</div>
+
+            <div style="display: grid; gap: 2rem;">
+                <!-- 思考1 -->
+                <div style="background: rgba(15, 23, 42, 0.9); padding: 2rem; border-radius: 12px;">
+                    <h4 style="color: #22c55e; margin-bottom: 1rem;">💡 想法1：添加非线性变换</h4>
+                    <div style="color: #cbd5e1; font-size: 0.95rem; line-height: 1.6;">
+                        现在我们只有线性变换（矩阵乘法），如果加入非线性函数（如ReLU），<br>
+                        模型就能学习更复杂的模式。就像从只能画直线变成能画曲线。
+                    </div>
+                </div>
+
+                <!-- 思考2 -->
+                <div style="background: rgba(15, 23, 42, 0.9); padding: 2rem; border-radius: 12px;">
+                    <h4 style="color: #22c55e; margin-bottom: 1rem;">💡 想法2：增加信息处理的"深度"</h4>
+                    <div style="color: #cbd5e1; font-size: 0.95rem; line-height: 1.6;">
+                        在注意力机制之外，再加一层专门的信息处理模块，<br>
+                        让每个词的表示能被进一步"精炼"和"丰富"。
+                    </div>
+                </div>
+
+                <!-- 思考3 -->
+                <div style="background: rgba(15, 23, 42, 0.9); padding: 2rem; border-radius: 12px;">
+                    <h4 style="color: #22c55e; margin-bottom: 1rem;">💡 想法3：让模型容量自适应</h4>
+                    <div style="color: #cbd5e1; font-size: 0.95rem; line-height: 1.6;">
+                        设计一个能够"扩展"的结构，先把特征向量放大到更高维度进行处理，<br>
+                        然后再压缩回原来的维度，增加处理的"空间"。
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 📝 本章总结与展望 -->
+    <div class="analysis-section" style="border-color: #22c55e; background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(16, 185, 129, 0.05));">
+        <div style="text-align: center; margin-bottom: 3rem;">
+            <div style="display: inline-flex; align-items: center; gap: 1rem; background: linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(16, 185, 129, 0.1)); padding: 1.5rem 3rem; border-radius: 30px; border: 1px solid rgba(34, 197, 94, 0.4);">
+                <span style="font-size: 2rem;">📝</span>
+                <h2 style="color: #22c55e; margin: 0; font-size: 1.8rem; font-weight: bold;">从问题到解决方案的科学之路</h2>
+            </div>
+        </div>
+
+        <div style="background: rgba(255, 255, 255, 0.08); padding: 2.5rem; border-radius: 16px;">
+            <div style="text-align: center; margin-bottom: 2rem;">
+                <div style="color: #22c55e; font-size: 1.4rem; font-weight: bold; margin-bottom: 1rem;">🎯 我们发现了什么？</div>
+                <div style="color: #cbd5e1; font-size: 1.1rem; line-height: 1.7;">
+                    通过系统的实验和分析，我们不仅发现了四个核心问题，<br>
+                    更重要的是掌握了<strong style="color: #22c55e;">科学解决问题的方法</strong>！
+                </div>
+            </div>
+
+            <div style="display: grid; gap: 1.5rem;">
+                <!-- 发现1 -->
+                <div style="background: rgba(15, 23, 42, 0.8); padding: 2rem; border-radius: 12px; border-left: 4px solid #ef4444;">
+                    <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+                        <div style="background: linear-gradient(135deg, #ef4444, #dc2626); width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 0.9rem;">1</div>
+                        <strong style="color: #ef4444; font-size: 1.2rem;">深层网络训练不稳定</strong>
+                    </div>
+                    <p style="color: #cbd5e1; margin-left: 2.5rem; font-size: 1rem; line-height: 1.6;">
+                        发现了梯度爆炸/消失问题，思考了信息"捷径"和数据分布标准化的解决思路
+                    </p>
+                </div>
+
+                <!-- 发现2 -->
+                <div style="background: rgba(15, 23, 42, 0.8); padding: 2rem; border-radius: 12px; border-left: 4px solid #fbbf24;">
+                    <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+                        <div style="background: linear-gradient(135deg, #fbbf24, #f59e0b); width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 0.9rem;">2</div>
+                        <strong style="color: #fbbf24; font-size: 1.2rem;">位置信息完全缺失</strong>
+                    </div>
+                    <p style="color: #cbd5e1; margin-left: 2.5rem; font-size: 1rem; line-height: 1.6;">
+                        理解了注意力机制的局限性，提出了三种位置编码的创新思路
+                    </p>
+                </div>
+
+                <!-- 发现3 -->
+                <div style="background: rgba(15, 23, 42, 0.8); padding: 2rem; border-radius: 12px; border-left: 4px solid #22c55e;">
+                    <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+                        <div style="background: linear-gradient(135deg, #22c55e, #16a34a); width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 0.9rem;">3</div>
+                        <strong style="color: #22c55e; font-size: 1.2rem;">模型表达能力不足</strong>
+                    </div>
+                    <p style="color: #cbd5e1; margin-left: 2.5rem; font-size: 1rem; line-height: 1.6;">
+                        识别了线性变换的局限，构思了非线性处理和容量扩展的方案
+                    </p>
+                </div>
+
+                <!-- 发现4 -->
+                <div style="background: rgba(15, 23, 42, 0.8); padding: 2rem; border-radius: 12px; border-left: 4px solid #8b5cf6;">
+                    <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+                        <div style="background: linear-gradient(135deg, #8b5cf6, #7c3aed); width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 0.9rem;">4</div>
+                        <strong style="color: #8b5cf6; font-size: 1.2rem;">科学研究方法</strong>
+                    </div>
+                    <p style="color: #cbd5e1; margin-left: 2.5rem; font-size: 1rem; line-height: 1.6;">
+                        学会了从现象→分析→假设→解决方案的完整科学研究流程
+                    </p>
+                </div>
+            </div>
+
+            <!-- 下一步计划 -->
+            <div style="background: linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(16, 185, 129, 0.1)); padding: 2rem; border-radius: 16px; border: 1px solid rgba(34, 197, 94, 0.3); margin-top: 2rem; text-align: center;">
+                <div style="color: #22c55e; font-weight: bold; margin-bottom: 1rem; font-size: 1.2rem;">
+                    🚀 下一步：从创意到实现
+                </div>
+                <div style="color: #f1f5f9; font-size: 1rem; line-height: 1.6;">
+                    现在我们有了很多解决问题的创意想法！<br>
+                    接下来的章节中，我们将把这些想法一一变成现实，<br>
+                    看看哪些真正有效，哪些需要改进。<br><br>
+                    <span style="color: #fbbf24; font-weight: bold;">这就是研究的乐趣：从问题到解决方案的创造之旅！</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 导航 -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 3rem; padding: 2rem; background: rgba(255, 255, 255, 0.05); border-radius: 12px; backdrop-filter: blur(10px);">
+        <button style="padding: 0.8rem 1.5rem; background: linear-gradient(45deg, #8b5cf6, #7c3aed); color: white; border: none; border-radius: 8px; cursor: pointer; text-decoration: none; transition: all 0.3s ease; font-weight: bold; display: flex; align-items: center; gap: 0.5rem;" onclick="window.history.back()">
+            ← 第5章：极简版Transformer诞生
+        </button>
+
+        <div style="text-align: center; color: #cbd5e1;">
+            <strong>第6章：第一版的问题分析</strong><br>
+            <span>科学地发现问题，创造性地思考解决方案</span>
+        </div>
+
+        <button style="padding: 0.8rem 1.5rem; background: linear-gradient(45deg, #22c55e, #16a34a); color: white; border: none; border-radius: 8px; cursor: pointer; text-decoration: none; transition: all 0.3s ease; font-weight: bold; display: flex; align-items: center; gap: 0.5rem;" onclick="window.location.href='#chapter-7'">
+            第7章：让训练变稳定 →
+        </button>
+    </div>
+</div>
+
+<script>
+    // 添加交互效果
+    document.addEventListener('DOMContentLoaded', function() {
+        // 损失曲线动画
+        const lossBars = document.querySelectorAll('.loss-bar');
+        lossBars.forEach((bar, index) => {
+            setTimeout(() => {
+                bar.style.opacity = '1';
+                bar.style.transform = 'scaleY(1)';
+            }, index * 100);
+        });
+
+        // 响应式表格
+        const tables = document.querySelectorAll('.comparison-table');
+        tables.forEach(table => {
+            const wrapper = document.createElement('div');
+            wrapper.style.overflowX = 'auto';
+            table.parentNode.insertBefore(wrapper, table);
+            wrapper.appendChild(table);
+        });
+
+        // 添加点击效果
+        const sections = document.querySelectorAll('.problem-discovery, .thinking-process, .solution-exploration');
+        sections.forEach(section => {
+            section.addEventListener('click', function() {
+                this.style.transform = 'scale(1.02)';
+                setTimeout(() => {
+                    this.style.transform = 'scale(1)';
+                }, 200);
+            });
+        });
+    });
+</script>
+</body>
+</html>

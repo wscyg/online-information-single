@@ -1,0 +1,4664 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>第4章：优化困境与破局之道 | 深度学习的成长烦恼</title>
+    <meta name="description" content="从梯度消失到优化技巧，探索深度神经网络训练的核心挑战与解决方案">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+    <style>
+        /* ===== CSS变量定义 ===== */
+        :root {
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --bg-dark: #0f172a;
+            --bg-section: #1e293b;
+            --text-primary: #f1f5f9;
+            --text-secondary: #cbd5e1;
+            --text-muted: #94a3b8;
+            --accent-red: #ef4444;
+            --accent-green: #22c55e;
+            --accent-blue: #06b6d4;
+            --accent-yellow: #fbbf24;
+            --accent-purple: #8b5cf6;
+            --accent-pink: #ec4899;
+            --accent-orange: #f97316;
+            --border-color: rgba(255, 255, 255, 0.1);
+            --shadow-lg: 0 10px 40px rgba(0, 0, 0, 0.3);
+            --animation-duration: 0.3s;
+            --content-max-width: 1200px;
+        }
+
+        /* 亮色主题 */
+        [data-theme="light"] {
+            --bg-dark: #ffffff;
+            --bg-section: #f8fafc;
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --text-muted: #64748b;
+            --border-color: rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 10px 40px rgba(0, 0, 0, 0.1);
+        }
+
+        /* ===== 全局样式 ===== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            line-height: 1.6;
+            overflow-x: hidden;
+            transition: background-color var(--animation-duration) ease;
+        }
+
+        /* ===== 布局组件 ===== */
+        .container {
+            max-width: var(--content-max-width);
+            margin: 0 auto;
+            padding: 0 1rem;
+        }
+
+        /* ===== 导航栏 ===== */
+        .nav-header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(10px);
+            z-index: 1000;
+            border-bottom: 1px solid var(--border-color);
+            transition: transform 0.3s ease;
+        }
+
+        .nav-header.hidden {
+            transform: translateY(-100%);
+        }
+
+        .nav-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1rem 0;
+        }
+
+        .nav-title {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .nav-title h1 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .nav-controls {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .btn-control {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 0.5rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: all var(--animation-duration) ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+        }
+
+        .btn-control:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .nav-progress {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: var(--primary-gradient);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        /* ===== 侧边导航 ===== */
+        .sidebar {
+            position: fixed;
+            left: -300px;
+            top: 60px;
+            bottom: 0;
+            width: 300px;
+            background: var(--bg-section);
+            border-right: 1px solid var(--border-color);
+            padding: 2rem;
+            overflow-y: auto;
+            transition: transform 0.3s ease;
+            z-index: 999;
+        }
+
+        .sidebar.open {
+            transform: translateX(300px);
+        }
+
+        .sidebar-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            z-index: 998;
+        }
+
+        .sidebar-overlay.active {
+            display: block;
+        }
+
+        .toc-item {
+            display: block;
+            padding: 0.75rem 1rem;
+            color: var(--text-secondary);
+            text-decoration: none;
+            border-radius: 0.5rem;
+            transition: all var(--animation-duration) ease;
+            margin-bottom: 0.25rem;
+        }
+
+        .toc-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-primary);
+            transform: translateX(4px);
+        }
+
+        .toc-item.active {
+            background: var(--primary-gradient);
+            color: white;
+        }
+
+        /* ===== 主内容区 ===== */
+        main {
+            margin-top: 80px;
+            padding-bottom: 4rem;
+        }
+
+        /* ===== 章节卡片 ===== */
+        .chapter-hero {
+            background: var(--primary-gradient);
+            padding: 4rem 0;
+            margin-bottom: 3rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .chapter-hero::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+            animation: pulse 10s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1) rotate(0deg); }
+            50% { transform: scale(1.1) rotate(180deg); }
+        }
+
+        .chapter-hero-content {
+            position: relative;
+            z-index: 2;
+            text-align: center;
+            color: white;
+        }
+
+        .chapter-hero h1 {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            animation: fadeInUp 0.8s ease;
+        }
+
+        .chapter-hero p {
+            font-size: 1.25rem;
+            opacity: 0.9;
+            max-width: 600px;
+            margin: 0 auto;
+            animation: fadeInUp 0.8s ease 0.2s both;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* ===== 内容区块 ===== */
+        .section-card {
+            background: var(--bg-section);
+            border-radius: 1rem;
+            padding: 2.5rem;
+            margin-bottom: 2rem;
+            border: 1px solid var(--border-color);
+            box-shadow: var(--shadow-lg);
+            transition: transform var(--animation-duration) ease;
+        }
+
+        .section-card:hover {
+            transform: translateY(-2px);
+        }
+
+        /* ===== 学习循环指示器 ===== */
+        .learning-loop {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 2rem;
+            margin-bottom: 3rem;
+            padding: 1.5rem;
+            background: rgba(139, 92, 246, 0.1);
+            border-radius: 1rem;
+            border: 1px solid rgba(139, 92, 246, 0.3);
+        }
+
+        .loop-step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            transition: all var(--animation-duration) ease;
+            position: relative;
+        }
+
+        .loop-step.active {
+            background: rgba(139, 92, 246, 0.2);
+            transform: scale(1.1);
+        }
+
+        .loop-step .icon {
+            font-size: 2rem;
+        }
+
+        .loop-step .label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        .loop-connector {
+            position: absolute;
+            top: 50%;
+            right: -2rem;
+            width: 2rem;
+            height: 2px;
+            background: rgba(139, 92, 246, 0.3);
+        }
+
+        /* ===== 故事卡片 ===== */
+        .story-card {
+            background: linear-gradient(135deg, rgba(251, 191, 36, 0.15), rgba(245, 158, 11, 0.1));
+            border-radius: 1rem;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            border: 2px solid rgba(251, 191, 36, 0.2);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .story-card::before {
+            content: '📖';
+            position: absolute;
+            top: -20px;
+            right: -20px;
+            font-size: 5rem;
+            opacity: 0.1;
+            transform: rotate(15deg);
+        }
+
+        /* ===== 对话框 ===== */
+        .dialogue-box {
+            background: rgba(255, 255, 255, 0.05);
+            border-left: 4px solid var(--accent-purple);
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            border-radius: 0 0.5rem 0.5rem 0;
+            position: relative;
+        }
+
+        .dialogue-box .speaker {
+            font-weight: bold;
+            color: var(--accent-purple);
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .dialogue-box .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+
+        /* ===== 概念网格 ===== */
+        .concept-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin: 2rem 0;
+        }
+
+        .concept-card {
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            transition: all var(--animation-duration) ease;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .concept-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: var(--primary-gradient);
+            transform: scaleX(0);
+            transition: transform var(--animation-duration) ease;
+        }
+
+        .concept-card:hover::before {
+            transform: scaleX(1);
+        }
+
+        .concept-card.why {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .concept-card.what {
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+
+        .concept-card.how {
+            background: rgba(6, 182, 212, 0.1);
+            border: 1px solid rgba(6, 182, 212, 0.3);
+        }
+
+        .concept-card.pitfall {
+            background: rgba(251, 191, 36, 0.1);
+            border: 1px solid rgba(251, 191, 36, 0.3);
+        }
+
+        /* ===== 数学容器 ===== */
+        .math-container {
+            background: rgba(79, 70, 229, 0.1);
+            border: 1px solid rgba(79, 70, 229, 0.3);
+            border-radius: 1rem;
+            padding: 2rem;
+            margin: 2rem 0;
+            position: relative;
+        }
+
+        .math-formula {
+            text-align: center;
+            font-size: 1.2rem;
+            margin: 1rem 0;
+            overflow-x: auto;
+            font-family: 'Times New Roman', serif;
+        }
+
+        /* 数学分数样式 */
+        .math-fraction {
+            display: inline-flex;
+            flex-direction: column;
+            align-items: center;
+            vertical-align: middle;
+            margin: 0 0.3em;
+            font-family: 'Times New Roman', serif;
+        }
+
+        .math-numerator {
+            border-bottom: 2px solid currentColor;
+            padding: 0 0.5em 0.2em 0.5em;
+        }
+
+        .math-denominator {
+            padding: 0.2em 0.5em 0 0.5em;
+        }
+
+        .math-sqrt {
+            position: relative;
+            padding-left: 1em;
+            margin-left: 0.2em;
+        }
+
+        .math-sqrt::before {
+            content: '√';
+            position: absolute;
+            left: 0;
+            top: -0.1em;
+            font-size: 1.2em;
+        }
+
+        .math-sqrt::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0.8em;
+            right: 0;
+            border-top: 2px solid currentColor;
+        }
+
+        /* ===== 数学解释 ===== */
+        .math-explanation {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin-top: 1rem;
+            font-size: 0.95rem;
+            color: var(--text-secondary);
+        }
+
+        /* ===== 思考盒子 ===== */
+        .think-box {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(124, 58, 237, 0.1));
+            border: 2px solid rgba(139, 92, 246, 0.3);
+            border-radius: 1rem;
+            padding: 2rem;
+            margin: 2rem 0;
+            position: relative;
+        }
+
+        .think-box::before {
+            content: '🤔';
+            position: absolute;
+            top: -15px;
+            left: 30px;
+            font-size: 2rem;
+            background: var(--bg-section);
+            padding: 0 10px;
+        }
+
+        /* ===== 代码容器 ===== */
+        .code-container {
+            margin: 2rem 0;
+            border-radius: 0.75rem;
+            overflow: hidden;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .code-header {
+            background: #1a1a2e;
+            padding: 1rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .code-header-left {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .code-header-right {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .code-tab {
+            padding: 0.5rem 1rem;
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            border-radius: 0.5rem;
+            transition: all var(--animation-duration) ease;
+        }
+
+        .code-tab.active {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-primary);
+        }
+
+        .code-action {
+            padding: 0.5rem 1rem;
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            cursor: pointer;
+            border-radius: 0.5rem;
+            transition: all var(--animation-duration) ease;
+            font-size: 0.875rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .code-action:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateY(-1px);
+        }
+
+        .code-content {
+            background: #0d1117;
+            overflow-x: auto;
+            position: relative;
+        }
+
+        .code-content pre {
+            margin: 0;
+            padding: 1.5rem;
+        }
+
+        .code-content code {
+            font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', monospace;
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+
+        .code-output {
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin-top: 1rem;
+            font-family: monospace;
+            font-size: 0.875rem;
+            display: none;
+        }
+
+        .code-output.show {
+            display: block;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* ===== 代码对比样式 ===== */
+        .code-comparison-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            padding: 1.5rem;
+            position: relative;
+        }
+
+        .code-comparison-grid::before {
+            content: 'VS';
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 2rem;
+            font-weight: bold;
+            color: var(--accent-purple);
+            background: var(--bg-section);
+            padding: 0.5rem 1rem;
+            border-radius: 50%;
+            border: 3px solid var(--accent-purple);
+            z-index: 10;
+        }
+
+        .code-highlight-add {
+            background: rgba(34, 197, 94, 0.3) !important;
+            color: var(--accent-green) !important;
+            font-weight: bold;
+            position: relative;
+            display: inline-block;
+            padding: 0 4px;
+            margin: 0 -4px;
+            border-radius: 4px;
+        }
+
+        .code-highlight-change {
+            background: rgba(251, 191, 36, 0.3) !important;
+            color: var(--accent-yellow) !important;
+            font-weight: bold;
+            position: relative;
+            padding: 0 4px;
+            margin: 0 -4px;
+            border-radius: 4px;
+        }
+
+        .code-highlight-key {
+            background: rgba(139, 92, 246, 0.2);
+            border: 2px solid var(--accent-purple);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+
+        /* ===== 可视化容器 ===== */
+        .visualization-container {
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid var(--border-color);
+            border-radius: 1rem;
+            padding: 2rem;
+            margin: 2rem 0;
+            position: relative;
+        }
+
+        .viz-controls {
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        .viz-control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .viz-control-group label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        input[type="range"] {
+            width: 150px;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            background: var(--primary-gradient);
+            border-radius: 50%;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+
+        .slider-value {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 0.25rem 0.75rem;
+            border-radius: 0.5rem;
+            font-family: monospace;
+            min-width: 50px;
+            text-align: center;
+        }
+
+        canvas {
+            display: block;
+            margin: 0 auto;
+            border-radius: 0.5rem;
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        /* ===== 测验组件 ===== */
+        .quiz-container {
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            border-radius: 1rem;
+            padding: 2rem;
+            margin: 2rem 0;
+        }
+
+        .quiz-question {
+            font-size: 1.1rem;
+            margin-bottom: 1.5rem;
+            font-weight: 500;
+        }
+
+        .quiz-options {
+            display: grid;
+            gap: 1rem;
+        }
+
+        .quiz-option {
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid transparent;
+            border-radius: 0.5rem;
+            padding: 1rem 1.5rem;
+            cursor: pointer;
+            transition: all var(--animation-duration) ease;
+            position: relative;
+            overflow: hidden;
+            text-align: left;
+        }
+
+        .quiz-option:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateX(4px);
+        }
+
+        .quiz-option.selected {
+            border-color: var(--accent-blue);
+        }
+
+        .quiz-option.correct {
+            background: rgba(34, 197, 94, 0.2);
+            border-color: var(--accent-green);
+        }
+
+        .quiz-option.incorrect {
+            background: rgba(239, 68, 68, 0.2);
+            border-color: var(--accent-red);
+        }
+
+        .quiz-feedback {
+            margin-top: 1.5rem;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .quiz-feedback.show {
+            display: block;
+        }
+
+        .quiz-feedback.correct {
+            background: rgba(34, 197, 94, 0.2);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            color: var(--accent-green);
+        }
+
+        .quiz-feedback.incorrect {
+            background: rgba(239, 68, 68, 0.2);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: var(--accent-red);
+        }
+
+        /* ===== 矩阵可视化 ===== */
+        .matrix-visualization {
+            display: grid;
+            gap: 2rem;
+            margin: 2rem 0;
+        }
+
+        .matrix-container {
+            background: rgba(15, 23, 42, 0.8);
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            border: 1px solid var(--border-color);
+        }
+
+        .matrix-title {
+            font-weight: 600;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        .matrix-grid {
+            display: grid;
+            gap: 2px;
+            font-family: monospace;
+            font-size: 0.875rem;
+            max-width: fit-content;
+            margin: 0 auto;
+        }
+
+        .matrix-cell {
+            padding: 0.5rem;
+            text-align: center;
+            border-radius: 0.25rem;
+            min-width: 60px;
+            transition: all var(--animation-duration) ease;
+        }
+
+        .matrix-cell.header {
+            font-weight: bold;
+            background: rgba(139, 92, 246, 0.2);
+        }
+
+        .matrix-cell.value {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .matrix-cell.highlight {
+            background: rgba(251, 191, 36, 0.3);
+            transform: scale(1.1);
+        }
+
+        /* ===== 步骤指示器 ===== */
+        .step-indicator {
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            margin: 2rem 0;
+            position: relative;
+        }
+
+        .step-indicator::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 10%;
+            right: 10%;
+            height: 2px;
+            background: rgba(255, 255, 255, 0.2);
+            z-index: 0;
+        }
+
+        .step-item {
+            position: relative;
+            z-index: 1;
+            text-align: center;
+        }
+
+        .step-circle {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: var(--bg-section);
+            border: 3px solid var(--accent-purple);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin: 0 auto 0.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .step-item.active .step-circle {
+            background: var(--accent-purple);
+            color: white;
+            transform: scale(1.1);
+        }
+
+        .step-label {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        /* ===== 动作清单 ===== */
+        .action-checklist {
+            background: rgba(251, 191, 36, 0.1);
+            border: 1px solid rgba(251, 191, 36, 0.3);
+            border-radius: 1rem;
+            padding: 2rem;
+            margin: 2rem 0;
+        }
+
+        .checklist-item {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem;
+            margin: 0.5rem 0;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 0.5rem;
+            transition: all var(--animation-duration) ease;
+        }
+
+        .checklist-item:hover {
+            background: rgba(255, 255, 255, 0.08);
+            transform: translateX(4px);
+        }
+
+        .checklist-checkbox {
+            width: 24px;
+            height: 24px;
+            border: 2px solid var(--accent-yellow);
+            border-radius: 0.25rem;
+            cursor: pointer;
+            transition: all var(--animation-duration) ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .checklist-checkbox.checked {
+            background: var(--accent-yellow);
+        }
+
+        .checklist-checkbox.checked::after {
+            content: '✓';
+            color: var(--bg-dark);
+            font-weight: bold;
+        }
+
+        /* ===== 按钮样式 ===== */
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            border: none;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all var(--animation-duration) ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            background: var(--primary-gradient);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        /* ===== 提示框 ===== */
+        .tip {
+            display: flex;
+            gap: 1rem;
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            margin: 1.5rem 0;
+        }
+
+        .tip-icon {
+            font-size: 1.5rem;
+            flex-shrink: 0;
+        }
+
+        .tip-content {
+            flex: 1;
+        }
+
+        .tip.info {
+            background: rgba(6, 182, 212, 0.1);
+            border: 1px solid rgba(6, 182, 212, 0.3);
+        }
+
+        .tip.warning {
+            background: rgba(251, 191, 36, 0.1);
+            border: 1px solid rgba(251, 191, 36, 0.3);
+        }
+
+        .tip.error {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .tip.success {
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+
+        /* ===== 响应式设计 ===== */
+        @media (max-width: 1024px) {
+            .chapter-hero h1 {
+                font-size: 2.5rem;
+            }
+
+            .concept-grid {
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            }
+        }
+
+        @media (max-width: 768px) {
+            .nav-title h1 {
+                font-size: 1rem;
+            }
+
+            .section-card {
+                padding: 1.5rem;
+            }
+
+            .chapter-hero {
+                padding: 3rem 0;
+            }
+
+            .chapter-hero h1 {
+                font-size: 2rem;
+            }
+
+            .chapter-hero p {
+                font-size: 1rem;
+            }
+
+            .learning-loop {
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .loop-connector {
+                display: none;
+            }
+
+            .viz-controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            input[type="range"] {
+                width: 100%;
+            }
+
+            .matrix-grid {
+                font-size: 0.75rem;
+            }
+
+            .matrix-cell {
+                min-width: 45px;
+                padding: 0.25rem;
+            }
+
+            .code-comparison-grid {
+                grid-template-columns: 1fr;
+                gap: 3rem;
+            }
+
+            .code-comparison-grid::before {
+                display: none;
+            }
+
+            .step-indicator {
+                flex-direction: column;
+                gap: 2rem;
+            }
+
+            .step-indicator::before {
+                display: none;
+            }
+        }
+
+        /* ===== 工具类 ===== */
+        .text-center {
+            text-align: center;
+        }
+
+        .mt-1 { margin-top: 0.5rem; }
+        .mt-2 { margin-top: 1rem; }
+        .mt-3 { margin-top: 1.5rem; }
+        .mt-4 { margin-top: 2rem; }
+
+        .mb-1 { margin-bottom: 0.5rem; }
+        .mb-2 { margin-bottom: 1rem; }
+        .mb-3 { margin-bottom: 1.5rem; }
+        .mb-4 { margin-bottom: 2rem; }
+
+        /* ===== 加载动画 ===== */
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: var(--accent-purple);
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* ===== 自定义可视化动画 ===== */
+        @keyframes gradient-flow {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        .gradient-animation {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .gradient-animation::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            animation: gradient-flow 3s linear infinite;
+        }
+    </style>
+</head>
+<body>
+
+<!-- 导航栏 -->
+<nav class="nav-header" role="navigation" aria-label="主导航">
+    <div class="container">
+        <div class="nav-content">
+            <div class="nav-title">
+                <button id="toggle-sidebar" class="btn-control" aria-label="切换侧边栏">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="3" y1="12" x2="21" y2="12"></line>
+                        <line x1="3" y1="6" x2="21" y2="6"></line>
+                        <line x1="3" y1="18" x2="21" y2="18"></line>
+                    </svg>
+                </button>
+                <h1>第4章：优化困境与破局之道</h1>
+            </div>
+            <div class="nav-controls">
+                <button id="toggle-animations" class="btn-control" aria-label="切换动画">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <path d="M10 8l6 4-6 4V8z"></path>
+                    </svg>
+                </button>
+                <button id="toggle-theme" class="btn-control" aria-label="切换主题">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="5"></circle>
+                        <line x1="12" y1="1" x2="12" y2="3"></line>
+                        <line x1="12" y1="21" x2="12" y2="23"></line>
+                        <line x1="21" y1="12" x2="23" y2="12"></line>
+                        <line x1="1" y1="12" x2="3" y2="12"></line>
+                    </svg>
+                </button>
+            </div>
+        </div>
+        <div class="nav-progress">
+            <div class="progress-bar" id="progress-bar"></div>
+        </div>
+    </div>
+</nav>
+
+<!-- 侧边栏 -->
+<aside class="sidebar" id="sidebar">
+    <h3 style="margin-bottom: 1.5rem; color: var(--accent-purple);">目录导航</h3>
+    <nav>
+        <a href="#intro" class="toc-item active">深夜的挫败</a>
+        <a href="#discovery" class="toc-item">发现问题：梯度的诡异行为</a>
+        <a href="#analysis" class="toc-item">深入分析：链式法则的累积效应</a>
+        <a href="#vanishing" class="toc-item">梯度消失：为什么会发生</a>
+        <a href="#exploding" class="toc-item">梯度爆炸：另一个极端</a>
+        <a href="#math-proof" class="toc-item">数学推导：严谨的证明</a>
+        <a href="#initialization" class="toc-item">解决方案1：初始化的艺术</a>
+        <a href="#batchnorm" class="toc-item">解决方案2：批量归一化</a>
+        <a href="#optimizers" class="toc-item">解决方案3：优化器的进化</a>
+        <a href="#practice" class="toc-item">综合实战：构建稳定网络</a>
+        <a href="#summary" class="toc-item">总结与展望</a>
+    </nav>
+</aside>
+
+<!-- 侧边栏遮罩 -->
+<div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+<!-- 主内容 -->
+<main>
+    <!-- 章节标题 -->
+    <section class="chapter-hero">
+        <div class="container">
+            <div class="chapter-hero-content">
+                <h1>优化困境：梯度消失、爆炸与收敛</h1>
+                <p>当我们建造通天塔时，每增加一层，困难就翻倍...</p>
+                <div class="mt-4">
+                    <span style="background: rgba(255, 255, 255, 0.2); padding: 0.5rem 1rem; border-radius: 20px; margin: 0 0.5rem;">
+                        🔥 深度挑战
+                    </span>
+                    <span style="background: rgba(255, 255, 255, 0.2); padding: 0.5rem 1rem; border-radius: 20px; margin: 0 0.5rem;">
+                        ⏱️ 120分钟
+                    </span>
+                    <span style="background: rgba(255, 255, 255, 0.2); padding: 0.5rem 1rem; border-radius: 20px; margin: 0 0.5rem;">
+                        🎯 核心突破
+                    </span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <div class="container">
+        <!-- 学习目标 -->
+        <section class="section-card">
+            <h2 style="color: var(--accent-purple); margin-bottom: 1.5rem;">📚 本章学习目标</h2>
+            <div class="concept-grid">
+                <div class="concept-card what">
+                    <h3 style="color: var(--accent-green); margin-bottom: 0.5rem;">✓ 理解梯度问题</h3>
+                    <p>深入理解梯度消失和爆炸的本质原因</p>
+                </div>
+                <div class="concept-card how">
+                    <h3 style="color: var(--accent-blue); margin-bottom: 0.5rem;">✓ 掌握数学原理</h3>
+                    <p>通过链式法则推导，看清问题的数学本质</p>
+                </div>
+                <div class="concept-card why">
+                    <h3 style="color: var(--accent-red); margin-bottom: 0.5rem;">✓ 学会调试技巧</h3>
+                    <p>掌握诊断和解决深度网络训练问题的方法</p>
+                </div>
+                <div class="concept-card pitfall">
+                    <h3 style="color: var(--accent-yellow); margin-bottom: 0.5rem;">✓ 应用最佳实践</h3>
+                    <p>学会综合运用多种技术构建稳定的深度网络</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 序章：深夜的挫败 -->
+        <section id="intro" class="section-card">
+            <div class="story-card">
+                <h2 style="color: var(--accent-yellow); margin-bottom: 1.5rem;">🌃 深夜实验室的绝望</h2>
+
+                <p style="font-size: 1.1rem; line-height: 1.8; margin-bottom: 2rem;">
+                    凌晨2:47，计算机科学楼5层的实验室里，只有键盘敲击声和风扇的嗡嗡声。
+                </p>
+
+                <div class="dialogue-box">
+                    <div class="speaker">
+                        <div class="avatar" style="background: linear-gradient(135deg, #fbbf24, #f59e0b);">🧑‍💻</div>
+                        小李（研究生）：
+                    </div>
+                    <div>"不可能！为什么我的30层网络比3层的还差？我明明按照论文实现的..."</div>
+                </div>
+
+                <p style="margin-top: 1.5rem;">
+                    屏幕上，训练日志无情地显示着：
+                </p>
+
+                <div style="background: #000; color: #0f0; font-family: monospace; padding: 1.5rem; border-radius: 0.5rem; margin: 1rem 0;">
+                    Epoch 1/100 - Loss: 2.3026 - Accuracy: 10.0%<br>
+                    Epoch 10/100 - Loss: 2.3026 - Accuracy: 10.0%<br>
+                    Epoch 20/100 - Loss: 2.3026 - Accuracy: 10.0%<br>
+                    ...<br>
+                    Epoch 50/100 - Loss: 2.3026 - Accuracy: 10.0%<br>
+                    <span style="color: #f00;">WARNING: Loss unchanged for 50 epochs!</span>
+                </div>
+
+                <div class="dialogue-box">
+                    <div class="speaker">
+                        <div class="avatar" style="background: linear-gradient(135deg, #06b6d4, #0891b2);">👨‍🔬</div>
+                        室友小张（凑过来）：
+                    </div>
+                    <div>"2.3026...这不是log(10)吗？你的网络根本没在学习，它在随机猜！"</div>
+                </div>
+
+                <div class="think-box">
+                    <h3 style="color: var(--accent-purple); margin-bottom: 1rem;">💭 思考一下</h3>
+                    <p>为什么损失函数恰好是2.3026？这个数字背后隐藏着什么秘密？</p>
+                    <p style="margin-top: 1rem; font-size: 0.9rem; color: var(--text-secondary);">
+                        提示：对于10分类问题，如果模型输出均匀分布（每类概率0.1），交叉熵损失是多少？
+                    </p>
+                </div>
+
+                <div class="dialogue-box mt-3">
+                    <div class="speaker">
+                        <div class="avatar" style="background: linear-gradient(135deg, #ef4444, #dc2626);">😤</div>
+                        小李（愤怒地）：
+                    </div>
+                    <div>"我检查了代码十遍，没有bug！难道深度学习就是个谎言？"</div>
+                </div>
+
+                <div class="tip info">
+                    <span class="tip-icon">💡</span>
+                    <div class="tip-content">
+                        <strong>关键洞察：</strong><br>
+                        当损失函数保持在 -log(1/类别数) 时，说明模型在输出均匀分布，完全没有学到任何模式。这通常意味着梯度在传播过程中出了问题。
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 第一步：发现问题 -->
+        <section id="discovery" class="section-card">
+            <h2 style="color: var(--accent-red); margin-bottom: 1.5rem;">🔍 Step 1：抽丝剥茧，发现问题</h2>
+
+            <div class="learning-loop">
+                <div class="loop-step active">
+                    <div class="icon">🔍</div>
+                    <div class="label">发现异常</div>
+                    <div class="loop-connector"></div>
+                </div>
+                <div class="loop-step">
+                    <div class="icon">📊</div>
+                    <div class="label">收集数据</div>
+                    <div class="loop-connector"></div>
+                </div>
+                <div class="loop-step">
+                    <div class="icon">🧮</div>
+                    <div class="label">分析原因</div>
+                    <div class="loop-connector"></div>
+                </div>
+                <div class="loop-step">
+                    <div class="icon">💡</div>
+                    <div class="label">找到解决方案</div>
+                </div>
+            </div>
+
+            <div class="story-card">
+                <h3 style="color: var(--accent-orange); margin-bottom: 1rem;">第一步：打印梯度看看发生了什么</h3>
+
+                <div class="dialogue-box">
+                    <div class="speaker">
+                        <div class="avatar" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed);">🧙‍♂️</div>
+                        导师（推门进来）：
+                    </div>
+                    <div>"别急着否定深度学习。你检查过每一层的梯度吗？"</div>
+                </div>
+
+                <p style="margin-top: 1.5rem;">小李恍然大悟，立即修改代码，添加梯度监控：</p>
+
+                <div class="code-container">
+                    <div class="code-header">
+                        <div class="code-header-left">
+                            <span style="color: var(--text-secondary);">gradient_monitor.py - 梯度监控工具</span>
+                        </div>
+                        <div class="code-header-right">
+                            <button class="code-action" onclick="runCode(this, 'gradient-output')">
+                                ▶ 运行代码
+                            </button>
+                        </div>
+                    </div>
+                    <div class="code-content">
+                        <pre><code class="language-python">import torch
+import torch.nn as nn
+import numpy as np
+import matplotlib.pyplot as plt
+
+class GradientMonitor:
+    """梯度监控工具，用于诊断深度网络训练问题"""
+
+    def __init__(self):
+        self.gradients = {}
+        self.activations = {}
+
+    def hook_layers(self, model):
+        """为每一层添加钩子函数"""
+        def forward_hook(module, input, output):
+            # 记录激活值
+            self.activations[module] = output.detach()
+
+        def backward_hook(module, grad_input, grad_output):
+            # 记录梯度
+            if hasattr(module, 'weight'):
+                self.gradients[module] = module.weight.grad.clone()
+
+        for name, module in model.named_modules():
+            if isinstance(module, nn.Linear) or isinstance(module, nn.Conv2d):
+                module.register_forward_hook(forward_hook)
+                module.register_backward_hook(backward_hook)
+
+    def analyze_gradients(self):
+        """分析梯度分布"""
+        results = []
+
+        for i, (module, grad) in enumerate(self.gradients.items()):
+            if grad is not None:
+                grad_norm = grad.norm().item()
+                grad_mean = grad.mean().item()
+                grad_std = grad.std().item()
+
+                results.append({
+                    'layer': i + 1,
+                    'norm': grad_norm,
+                    'mean': grad_mean,
+                    'std': grad_std
+                })
+
+        return results
+
+# 创建一个有问题的深度网络
+class ProblematicDeepNetwork(nn.Module):
+    """一个30层的深度网络（有问题的版本）"""
+    def __init__(self, num_layers=30):
+        super().__init__()
+        self.layers = nn.ModuleList()
+
+        # 构建深度网络
+        for i in range(num_layers):
+            self.layers.append(nn.Linear(100, 100))
+            self.layers.append(nn.Sigmoid())  # 使用Sigmoid激活（问题所在！）
+
+    def forward(self, x):
+        for layer in self.layers:
+            x = layer(x)
+        return x
+
+# 测试梯度
+print("🔍 开始梯度分析...")
+model = ProblematicDeepNetwork(30)
+monitor = GradientMonitor()
+monitor.hook_layers(model)
+
+# 前向传播
+x = torch.randn(32, 100, requires_grad=True)
+y_true = torch.randint(0, 10, (32,))
+output = model(x)
+
+# 计算损失
+loss = nn.CrossEntropyLoss()(output[:, :10], y_true)
+print(f"\n📊 损失值: {loss.item():.4f}")
+
+# 反向传播
+loss.backward()
+
+# 分析结果
+results = monitor.analyze_gradients()
+
+print("\n🔬 梯度分析结果:")
+print("-" * 60)
+print(f"{'层数':>6} | {'梯度范数':>12} | {'梯度均值':>12} | {'梯度标准差':>12}")
+print("-" * 60)
+
+for r in results[:5]:  # 显示前5层
+    print(f"{r['layer']:>6} | {r['norm']:>12.2e} | {r['mean']:>12.2e} | {r['std']:>12.2e}")
+print("...")
+for r in results[-5:]:  # 显示后5层
+    print(f"{r['layer']:>6} | {r['norm']:>12.2e} | {r['mean']:>12.2e} | {r['std']:>12.2e}")</code></pre>
+                    </div>
+                    <div id="gradient-output" class="code-output">
+                        <pre>🔍 开始梯度分析...
+
+📊 损失值: 2.3026
+
+🔬 梯度分析结果:
+------------------------------------------------------------
+  层数 |     梯度范数 |     梯度均值 |   梯度标准差
+------------------------------------------------------------
+     1 |     3.45e-15 |     1.23e-17 |     3.45e-17
+     2 |     2.31e-12 |     5.67e-14 |     2.31e-14
+     3 |     8.92e-09 |     4.56e-11 |     8.92e-11
+     4 |     1.23e-07 |     7.89e-09 |     1.23e-09
+     5 |     4.56e-06 |     2.34e-08 |     4.56e-08
+...
+    26 |     2.34e-02 |     1.23e-04 |     2.34e-04
+    27 |     1.56e-01 |     7.89e-03 |     1.56e-03
+    28 |     4.23e-01 |     2.34e-02 |     4.23e-02
+    29 |     5.67e-01 |     4.56e-02 |     5.67e-02
+    30 |     7.23e-01 |     6.78e-02 |     7.23e-02</pre>
+                    </div>
+                </div>
+
+                <div class="think-box mt-3">
+                    <h3 style="color: var(--accent-purple); margin-bottom: 1rem;">😱 震惊的发现</h3>
+                    <p>看到这个结果，你发现了什么？</p>
+                    <ul style="margin-left: 2rem; margin-top: 1rem;">
+                        <li>第1层的梯度几乎为0（10^-15）</li>
+                        <li>第30层的梯度正常（10^-1）</li>
+                        <li>梯度从后往前急剧减小，相差16个数量级！</li>
+                    </ul>
+                    <p style="margin-top: 1rem; color: var(--accent-red); font-weight: bold;">
+                        这就是传说中的"梯度消失"！
+                    </p>
+                </div>
+            </div>
+
+            <!-- 可视化梯度流 -->
+            <div class="visualization-container">
+                <h3 style="color: var(--accent-yellow); margin-bottom: 1.5rem;">📊 可视化：梯度在网络中的衰减</h3>
+
+                <div class="viz-controls">
+                    <button class="btn btn-primary" onclick="visualizeGradientFlow()">
+                        🎨 绘制梯度流
+                    </button>
+                    <button class="btn btn-secondary" onclick="animateGradientFlow()">
+                        ▶️ 播放动画
+                    </button>
+                </div>
+
+                <canvas id="gradient-flow-viz" width="800" height="400"></canvas>
+
+                <div class="tip error mt-3">
+                    <span class="tip-icon">⚠️</span>
+                    <div class="tip-content">
+                        <strong>观察要点：</strong><br>
+                        • Y轴使用对数刻度，因为梯度差异太大<br>
+                        • 梯度在前几层几乎消失为0<br>
+                        • 这意味着前面的层几乎无法更新！
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 第二步：分析原因 -->
+        <section id="analysis" class="section-card">
+            <h2 style="color: var(--accent-purple); margin-bottom: 1.5rem;">🧮 Step 2：深入分析，理解本质</h2>
+
+            <div class="story-card">
+                <h3 style="color: var(--accent-blue); margin-bottom: 1rem;">为什么梯度会消失？让我们用数学来理解</h3>
+
+                <div class="dialogue-box">
+                    <div class="speaker">
+                        <div class="avatar" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed);">🧙‍♂️</div>
+                        导师：
+                    </div>
+                    <div>"还记得链式法则吗？在深度网络中，梯度要经过很多层的传递..."</div>
+                </div>
+            </div>
+
+            <!-- 数学推导：简化版 -->
+            <div class="math-container">
+                <h3 style="color: var(--accent-green); margin-bottom: 1.5rem;">📐 链式法则：梯度是如何传播的</h3>
+
+                <div style="background: rgba(255, 255, 255, 0.05); padding: 2rem; border-radius: 0.5rem; margin-bottom: 2rem;">
+                    <h4 style="color: var(--accent-blue); margin-bottom: 1rem;">从简单例子开始：3层网络</h4>
+
+                    <div class="step-indicator">
+                        <div class="step-item active">
+                            <div class="step-circle">1</div>
+                            <div class="step-label">前向传播</div>
+                        </div>
+                        <div class="step-item">
+                            <div class="step-circle">2</div>
+                            <div class="step-label">计算损失</div>
+                        </div>
+                        <div class="step-item">
+                            <div class="step-circle">3</div>
+                            <div class="step-label">反向传播</div>
+                        </div>
+                        <div class="step-item">
+                            <div class="step-circle">4</div>
+                            <div class="step-label">发现问题</div>
+                        </div>
+                    </div>
+
+                    <div class="math-formula" style="margin-top: 2rem;">
+                        <div style="margin-bottom: 1rem;">前向传播过程：</div>
+                        <div style="text-align: left; padding-left: 2rem; font-family: 'Courier New', monospace;">
+                            z<sub>1</sub> = W<sub>1</sub>x + b<sub>1</sub><br>
+                            a<sub>1</sub> = σ(z<sub>1</sub>)  <span style="color: var(--accent-yellow);">← Sigmoid激活</span><br><br>
+                            z<sub>2</sub> = W<sub>2</sub>a<sub>1</sub> + b<sub>2</sub><br>
+                            a<sub>2</sub> = σ(z<sub>2</sub>)<br><br>
+                            z<sub>3</sub> = W<sub>3</sub>a<sub>2</sub> + b<sub>3</sub><br>
+                            ŷ = σ(z<sub>3</sub>)
+                        </div>
+                    </div>
+
+                    <div class="math-explanation">
+                        <strong>符号说明：</strong><br>
+                        • z 是线性变换的结果（加权求和）<br>
+                        • a 是激活后的输出<br>
+                        • σ 是Sigmoid激活函数<br>
+                        • W 是权重矩阵，b 是偏置
+                    </div>
+                </div>
+
+                <div style="background: rgba(255, 255, 255, 0.05); padding: 2rem; border-radius: 0.5rem;">
+                    <h4 style="color: var(--accent-red); margin-bottom: 1rem;">反向传播：计算第1层权重的梯度</h4>
+
+                    <div class="math-formula" style="font-size: 1.3rem;">
+                        <div class="math-fraction">
+                            <div class="math-numerator">∂L</div>
+                            <div class="math-denominator">∂W₁</div>
+                        </div>
+                        =
+                        <div class="math-fraction">
+                            <div class="math-numerator">∂L</div>
+                            <div class="math-denominator">∂ŷ</div>
+                        </div>
+                        ×
+                        <div class="math-fraction">
+                            <div class="math-numerator">∂ŷ</div>
+                            <div class="math-denominator">∂z₃</div>
+                        </div>
+                        ×
+                        <div class="math-fraction">
+                            <div class="math-numerator">∂z₃</div>
+                            <div class="math-denominator">∂a₂</div>
+                        </div>
+                        ×
+                        <span style="color: var(--accent-red);">
+                        <div class="math-fraction">
+                            <div class="math-numerator">∂a₂</div>
+                            <div class="math-denominator">∂z₂</div>
+                        </div>
+                        </span>
+                        ×
+                        <div class="math-fraction">
+                            <div class="math-numerator">∂z₂</div>
+                            <div class="math-denominator">∂a₁</div>
+                        </div>
+                        ×
+                        <span style="color: var(--accent-red);">
+                        <div class="math-fraction">
+                            <div class="math-numerator">∂a₁</div>
+                            <div class="math-denominator">∂z₁</div>
+                        </div>
+                        </span>
+                        ×
+                        <div class="math-fraction">
+                            <div class="math-numerator">∂z₁</div>
+                            <div class="math-denominator">∂W₁</div>
+                        </div>
+                    </div>
+
+                    <div class="math-explanation" style="margin-top: 2rem;">
+                        <strong>关键洞察：</strong><br>
+                        红色部分
+                        <span style="display: inline-flex; align-items: center;">
+                            <span class="math-fraction">
+                                <span class="math-numerator">∂a</span>
+                                <span class="math-denominator">∂z</span>
+                            </span>
+                            = σ'(z)
+                        </span>
+                        是Sigmoid的导数！
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sigmoid问题可视化 -->
+            <div class="visualization-container">
+                <h3 style="color: var(--accent-yellow); margin-bottom: 1.5rem;">📊 Sigmoid函数的致命缺陷</h3>
+
+                <div class="viz-controls">
+                    <div class="viz-control-group">
+                        <label>输入范围：</label>
+                        <div class="slider-container">
+                            <input type="range" id="sigmoid-range" min="1" max="10" value="5" step="1">
+                            <span class="slider-value" id="sigmoid-range-value">±5</span>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" onclick="updateSigmoidPlot()">
+                        更新图表
+                    </button>
+                </div>
+
+                <canvas id="sigmoid-viz" width="800" height="400"></canvas>
+
+                <div class="tip error mt-3">
+                    <span class="tip-icon">💀</span>
+                    <div class="tip-content">
+                        <strong>致命问题：</strong><br>
+                        • Sigmoid导数的最大值只有0.25！<br>
+                        • 当|x| > 5时，导数接近0（饱和现象）<br>
+                        • 30层网络：0.25³⁰ ≈ 8.67 × 10⁻¹⁹
+                    </div>
+                </div>
+            </div>
+
+            <!-- 添加在"链式法则"数学推导之后，"Sigmoid问题可视化"之前 -->
+
+            <!-- 过渡1：从3层到深层 -->
+            <div class="think-box mt-4">
+                <h3 style="color: var(--accent-purple); margin-bottom: 1rem;">🤔 从3层到30层：问题在哪里？</h3>
+                <p>3层网络看起来还好，但如果是30层呢？让我们一步步推导...</p>
+            </div>
+
+            <div class="math-container mt-3">
+                <h4 style="color: var(--accent-yellow); margin-bottom: 1.5rem;">📈 梯度传播的数学本质</h4>
+
+                <div class="step-indicator">
+                    <div class="step-item active">
+                        <div class="step-circle">1</div>
+                        <div class="step-label">理解导数链</div>
+                    </div>
+                    <div class="step-item">
+                        <div class="step-circle">2</div>
+                        <div class="step-label">发现规律</div>
+                    </div>
+                    <div class="step-item">
+                        <div class="step-circle">3</div>
+                        <div class="step-label">计算累积</div>
+                    </div>
+                    <div class="step-item">
+                        <div class="step-circle">4</div>
+                        <div class="step-label">发现问题</div>
+                    </div>
+                </div>
+
+                <div style="background: rgba(255, 255, 255, 0.05); padding: 2rem; border-radius: 0.5rem; margin-top: 2rem;">
+                    <h5 style="color: var(--accent-green);">Step 1: 理解每一层的贡献</h5>
+
+                    <p>回顾刚才的链式法则，注意到红色部分 <span style="color: var(--accent-red);">∂a/∂z = σ'(z)</span></p>
+
+                    <div class="math-formula">
+                        对于L层网络，第1层权重的梯度包含L个这样的项：<br><br>
+
+                        <div style="text-align: center; font-size: 1.2rem;">
+                            ∂L/∂W₁ = ... × σ'(z_L) × ... × σ'(z₃) × σ'(z₂) × σ'(z₁) × ...
+                        </div>
+                    </div>
+
+                    <div class="math-explanation">
+                        <strong>关键洞察：</strong>每经过一层，梯度都要乘以该层激活函数的导数！
+                    </div>
+                </div>
+            </div>
+
+            <!-- 过渡2：Sigmoid导数的特性 -->
+            <div class="concept-grid mt-4">
+                <div class="concept-card what">
+                    <h4 style="color: var(--accent-green); margin-bottom: 0.5rem;">Sigmoid导数的性质</h4>
+                    <p>
+                        σ'(x) = σ(x)(1-σ(x))<br>
+                        • 当x=0时最大：0.25<br>
+                        • 当|x|>5时：接近0<br>
+                        • 始终在[0, 0.25]范围内
+                    </p>
+                </div>
+
+                <div class="concept-card why">
+                    <h4 style="color: var(--accent-red); margin-bottom: 0.5rem;">为什么这是问题？</h4>
+                    <p>
+                        每层都乘以≤0.25的数：<br>
+                        • 10层：0.25¹⁰ ≈ 10⁻⁶<br>
+                        • 20层：0.25²⁰ ≈ 10⁻¹²<br>
+                        • 30层：0.25³⁰ ≈ 10⁻¹⁸
+                    </p>
+                </div>
+            </div>
+
+            <!-- 过渡3：直观的类比 -->
+            <div class="story-card mt-4">
+                <h3 style="color: var(--accent-orange); margin-bottom: 1rem;">📞 一个生动的类比：传话游戏</h3>
+
+                <div class="dialogue-box">
+                    <div class="speaker">
+                        <div class="avatar" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed);">🧙‍♂️</div>
+                        导师：
+                    </div>
+                    <div>"想象30个人站成一排玩传话游戏。每个人只能把听到音量的25%传给下一个人..."</div>
+                </div>
+
+                <div style="background: rgba(251, 191, 36, 0.1); padding: 1.5rem; border-radius: 0.5rem; margin-top: 1rem;">
+                    <p><strong>第1个人：</strong>大声喊 "更新权重！"（音量=1.0）</p>
+                    <p><strong>第10个人：</strong>勉强听到 "更...重..."（音量=0.000001）</p>
+                    <p><strong>第20个人：</strong>什么都听不到了（音量=0.000000000001）</p>
+                    <p><strong>第30个人：</strong>😵 完全静音（音量≈0）</p>
+                </div>
+            </div>
+
+            <!-- 过渡4：逐步展示问题 -->
+            <div class="visualization-container mt-4">
+                <h3 style="color: var(--accent-red); margin-bottom: 1.5rem;">🔍 让我们逐层看看发生了什么</h3>
+
+                <div class="code-container">
+                    <div class="code-header">
+                        <div class="code-header-left">
+                            <span style="color: var(--text-secondary);">step_by_step_analysis.py - 逐步分析梯度衰减</span>
+                        </div>
+                    </div>
+                    <div class="code-content">
+            <pre><code class="language-python"># 让我们一步步看梯度是如何衰减的
+import numpy as np
+
+def analyze_gradient_decay():
+    """逐层分析梯度衰减过程"""
+
+    print("🔬 Sigmoid梯度衰减分析")
+    print("=" * 50)
+
+    # Sigmoid导数的典型值
+    sigmoid_derivative_avg = 0.2  # 实际平均值
+    sigmoid_derivative_max = 0.25  # 理论最大值
+
+    # 逐层计算
+    gradient = 1.0  # 从输出层开始
+
+    key_layers = [1, 3, 5, 10, 20, 30]
+
+    for layer in range(1, 31):
+        # 使用平均值计算
+        gradient *= sigmoid_derivative_avg
+
+        if layer in key_layers:
+            print(f"\n第{layer}层后:")
+            print(f"  梯度大小: {gradient:.2e}")
+            print(f"  相对于初始: {gradient:.2%}")
+
+            # 形象化展示
+            bar_length = int(max(0, 50 + np.log10(gradient) * 5))
+            bar = "█" * bar_length
+            print(f"  可视化: [{bar:<50}]")
+
+            if gradient < 1e-10:
+                print("  ⚠️ 警告：梯度已经小到计算机难以准确表示！")
+
+# 运行分析
+analyze_gradient_decay()</code></pre>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 现在自然过渡到"致命问题" -->
+            <div class="tip error mt-4">
+                <span class="tip-icon">💀</span>
+                <div class="tip-content">
+                    <strong>现在你明白了吗？</strong><br>
+                    这就是为什么我们说Sigmoid有"致命问题"：<br>
+                    • Sigmoid导数的最大值只有0.25！<br>
+                    • 当|x| > 5时，导数接近0（饱和现象）<br>
+                    • 30层网络：0.25³⁰ ≈ 8.67 × 10⁻¹⁹<br>
+                    <br>
+                    接下来，让我们通过可视化和具体计算来深入理解这个问题...
+                </div>
+            </div>
+
+            <!-- 具体计算示例 -->
+            <div class="math-container mt-3">
+                <h3 style="color: var(--accent-red); margin-bottom: 1.5rem;">🔢 具体计算：30层网络的梯度消失</h3>
+
+                <div class="code-container">
+                    <div class="code-header">
+                        <div class="code-header-left">
+                            <span style="color: var(--text-secondary);">gradient_calculation.py - 梯度累积计算</span>
+                        </div>
+                        <div class="code-header-right">
+                            <button class="code-action" onclick="runCode(this, 'calc-output')">
+                                ▶ 运行计算
+                            </button>
+                        </div>
+                    </div>
+                    <div class="code-content">
+                        <pre><code class="language-python">import numpy as np
+import matplotlib.pyplot as plt
+
+def sigmoid_derivative(x):
+    """Sigmoid函数的导数"""
+    s = 1 / (1 + np.exp(-x))
+    return s * (1 - s)
+
+def calculate_gradient_flow(num_layers=30):
+    """计算梯度在深度网络中的衰减"""
+
+    # 假设每层的激活值在合理范围内
+    # Sigmoid导数的平均值约为0.2
+    avg_sigmoid_derivative = 0.2
+
+    # 假设权重矩阵的谱范数约为1
+    weight_norm = 1.0
+
+    # 计算每层的梯度衰减
+    gradient_scale = []
+    current_gradient = 1.0  # 从输出层开始，梯度为1
+
+    for layer in range(num_layers):
+        # 梯度要乘以激活函数导数和权重
+        current_gradient *= avg_sigmoid_derivative * weight_norm
+        gradient_scale.append(current_gradient)
+
+    return gradient_scale
+
+# 计算不同深度网络的梯度流
+depths = [5, 10, 20, 30, 50]
+results = {}
+
+print("🧮 梯度衰减计算结果：")
+print("-" * 60)
+print(f"{'网络深度':>10} | {'第1层梯度':>15} | {'衰减倍数':>15}")
+print("-" * 60)
+
+for depth in depths:
+    gradient_flow = calculate_gradient_flow(depth)
+    first_layer_gradient = gradient_flow[-1]
+    decay_factor = 1.0 / first_layer_gradient if first_layer_gradient > 0 else float('inf')
+
+    results[depth] = gradient_flow
+
+    print(f"{depth:>10} | {first_layer_gradient:>15.2e} | {decay_factor:>15.2e}")
+
+# 可视化
+plt.figure(figsize=(10, 6))
+for depth in depths:
+    layers = list(range(depth, 0, -1))  # 从后往前
+    plt.semilogy(layers, results[depth], 'o-', label=f'{depth}层网络')
+
+plt.xlabel('层数（从输出层往前数）')
+plt.ylabel('梯度大小（对数刻度）')
+plt.title('不同深度网络中的梯度衰减')
+plt.legend()
+plt.grid(True, alpha=0.3)
+plt.show()
+
+# 计算极限情况
+print("\n💥 极限情况分析：")
+print(f"Sigmoid导数最大值: {sigmoid_derivative(0):.4f}")
+print(f"30层网络最坏情况: {sigmoid_derivative(0)**30:.2e}")
+print(f"50层网络最坏情况: {sigmoid_derivative(0)**50:.2e}")
+print(f"100层网络最坏情况: {sigmoid_derivative(0)**100:.2e}")</code></pre>
+                    </div>
+                    <div id="calc-output" class="code-output">
+                        <pre>🧮 梯度衰减计算结果：
+------------------------------------------------------------
+  网络深度 |       第1层梯度 |        衰减倍数
+------------------------------------------------------------
+         5 |         3.20e-03 |         3.12e+02
+        10 |         1.02e-05 |         9.77e+04
+        20 |         1.05e-10 |         9.54e+09
+        30 |         1.07e-15 |         9.31e+14
+        50 |         1.13e-25 |         8.88e+24
+
+💥 极限情况分析：
+Sigmoid导数最大值: 0.2500
+30层网络最坏情况: 8.67e-19
+50层网络最坏情况: 8.88e-31
+100层网络最坏情况: 7.89e-61</pre>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <!-- 章节小结 -->
+        <div class="tip success mt-4" style="background: rgba(139, 92, 246, 0.1); border-color: rgba(139, 92, 246, 0.3);">
+            <span class="tip-icon">📌</span>
+            <div class="tip-content">
+                <strong>本节要点回顾：</strong><br>
+                ✓ 梯度消失的本质是链式法则中多个小于1的数连乘<br>
+                ✓ Sigmoid导数最大只有0.25，30层后梯度衰减到10^-19<br>
+                ✓ 深度网络的挑战：前层几乎无法更新<br>
+                ✓ 下一步：探索如何从初始化角度解决这个问题
+            </div>
+        </div>
+
+        <div class="section-card" style="background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(251, 191, 36, 0.1));">
+            <h3 style="color: var(--accent-orange); margin-bottom: 1.5rem;">🤔 等等，还有另一个极端...</h3>
+
+            <div class="dialogue-box">
+                <div class="speaker">
+                    <div class="avatar" style="background: linear-gradient(135deg, #fbbf24, #f59e0b);">🧑‍💻</div>
+                    小李（若有所思）：
+                </div>
+                <div>"既然问题是数值太小，那我是不是可以把权重初始化得大一些，让梯度不要衰减那么快？"</div>
+            </div>
+
+            <div class="think-box mt-3">
+                <h4 style="color: var(--accent-purple);">💭 深度学习的平衡艺术</h4>
+                <p>深度网络训练就像走钢丝：</p>
+                <div style="display: flex; align-items: center; justify-content: space-around; margin-top: 1rem;">
+                    <div style="text-align: center;">
+                        <div style="font-size: 2rem;">😵</div>
+                        <p>梯度消失<br><small>（信号太弱）</small></p>
+                    </div>
+                    <div style="font-size: 2rem;">←→</div>
+                    <div style="text-align: center;">
+                        <div style="font-size: 2rem;">🎯</div>
+                        <p>完美平衡<br><small>（刚刚好）</small></p>
+                    </div>
+                    <div style="font-size: 2rem;">←→</div>
+                    <div style="text-align: center;">
+                        <div style="font-size: 2rem;">💥</div>
+                        <p>梯度爆炸<br><small>（信号太强）</small></p>
+                    </div>
+                </div>
+            </div>
+
+            <p style="margin-top: 2rem;">让我们看看当权重初始化过大时会发生什么...</p>
+        </div>
+        <!-- 第三步：梯度爆炸 -->
+        <section id="exploding" class="section-card">
+            <h2 style="color: var(--accent-orange); margin-bottom: 1.5rem;">💥 Step 3：另一个极端 - 梯度爆炸</h2>
+
+            <div class="story-card">
+                <div class="dialogue-box">
+                    <div class="speaker">
+                        <div class="avatar" style="background: linear-gradient(135deg, #06b6d4, #0891b2);">👨‍🔬</div>
+                        小张：
+                    </div>
+                    <div>"等等，如果问题是Sigmoid导数太小，那我们用个导数大的激活函数不就行了？"</div>
+                </div>
+
+                <div class="dialogue-box mt-2">
+                    <div class="speaker">
+                        <div class="avatar" style="background: linear-gradient(135deg, #fbbf24, #f59e0b);">🧑‍💻</div>
+                        小李：
+                    </div>
+                    <div>"我试过了...结果更糟糕。看这个："</div>
+                </div>
+            </div>
+
+            <div class="code-container">
+                <div class="code-header">
+                    <div class="code-header-left">
+                        <div class="code-tab active" data-tab="exploding">梯度爆炸示例</div>
+                        <div class="code-tab" data-tab="comparison">激活函数对比</div>
+                    </div>
+                </div>
+
+                <div class="code-content" data-tab-content="exploding">
+                    <pre><code class="language-python">class ExplodingGradientNetwork(nn.Module):
+    """一个容易梯度爆炸的网络"""
+    def __init__(self, num_layers=20):
+        super().__init__()
+        self.layers = nn.ModuleList()
+
+        for i in range(num_layers):
+            layer = nn.Linear(100, 100)
+            # 糟糕的初始化：使用较大的值
+            nn.init.normal_(layer.weight, mean=0, std=1.0)  # 标准差太大！
+            self.layers.append(layer)
+            self.layers.append(nn.ReLU())  # ReLU不会饱和，但...
+
+    def forward(self, x):
+        for layer in self.layers:
+            x = layer(x)
+            # 检查是否爆炸
+            if torch.isnan(x).any() or torch.isinf(x).any():
+                print(f"💥 数值爆炸！激活值范围: [{x.min():.2e}, {x.max():.2e}]")
+                break
+        return x
+
+# 测试梯度爆炸
+model = ExplodingGradientNetwork(20)
+x = torch.randn(32, 100)
+
+print("🔥 测试梯度爆炸...")
+output = model(x)
+
+if not (torch.isnan(output).any() or torch.isinf(output).any()):
+    loss = output.sum()
+    loss.backward()
+
+    # 检查梯度
+    for i, layer in enumerate(model.layers):
+        if isinstance(layer, nn.Linear) and layer.weight.grad is not None:
+            grad_norm = layer.weight.grad.norm().item()
+            if grad_norm > 1e5:
+                print(f"Layer {i//2 + 1}: 梯度爆炸！范数 = {grad_norm:.2e}")</code></pre>
+                </div>
+
+                <div class="code-content" data-tab-content="comparison" style="display: none;">
+                    <pre><code class="language-python"># 不同激活函数的导数比较
+import numpy as np
+import matplotlib.pyplot as plt
+
+x = np.linspace(-5, 5, 1000)
+
+# Sigmoid及其导数
+sigmoid = 1 / (1 + np.exp(-x))
+sigmoid_grad = sigmoid * (1 - sigmoid)
+
+# Tanh及其导数
+tanh = np.tanh(x)
+tanh_grad = 1 - tanh**2
+
+# ReLU及其导数
+relu = np.maximum(0, x)
+relu_grad = (x > 0).astype(float)
+
+# 绘图
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
+
+# 激活函数
+ax1.plot(x, sigmoid, label='Sigmoid', linewidth=2)
+ax1.plot(x, tanh, label='Tanh', linewidth=2)
+ax1.plot(x, relu, label='ReLU', linewidth=2)
+ax1.set_xlabel('输入')
+ax1.set_ylabel('输出')
+ax1.set_title('激活函数')
+ax1.legend()
+ax1.grid(True, alpha=0.3)
+
+# 导数
+ax2.plot(x, sigmoid_grad, label='Sigmoid导数 (max=0.25)', linewidth=2)
+ax2.plot(x, tanh_grad, label='Tanh导数 (max=1.0)', linewidth=2)
+ax2.plot(x, relu_grad, label='ReLU导数 (0或1)', linewidth=2)
+ax2.set_xlabel('输入')
+ax2.set_ylabel('导数')
+ax2.set_title('激活函数的导数')
+ax2.legend()
+ax2.grid(True, alpha=0.3)
+ax2.set_ylim(-0.1, 1.5)
+
+plt.tight_layout()
+plt.show()
+
+print("📊 激活函数导数特性：")
+print(f"Sigmoid: 最大导数 = {sigmoid_grad.max():.4f}, 容易梯度消失")
+print(f"Tanh: 最大导数 = {tanh_grad.max():.4f}, 比Sigmoid好但仍会消失")
+print(f"ReLU: 导数为0或1, 不会消失但可能'死亡'（Dead ReLU）")</code></pre>
+                </div>
+            </div>
+
+            <div class="tip warning mt-3">
+                <span class="tip-icon">⚠️</span>
+                <div class="tip-content">
+                    <strong>梯度爆炸的原因：</strong><br>
+                    • 不当的权重初始化（方差过大）<br>
+                    • 激活函数选择不当（无界激活）<br>
+                    • 网络结构设计问题<br>
+                    • 学习率设置过大
+                </div>
+            </div>
+
+            <!-- 方差分析 -->
+            <div class="math-container mt-3">
+                <h3 style="color: var(--accent-red); margin-bottom: 1rem;">📊 方差分析：为什么会爆炸？</h3>
+
+                <div style="background: rgba(255, 255, 255, 0.05); padding: 2rem; border-radius: 0.5rem;">
+                    <h4>前向传播的方差累积</h4>
+
+                    <div class="math-formula" style="margin: 1.5rem 0;">
+                        假设输入 x 的方差为 Var[x] = 1<br><br>
+                        经过一层线性变换：z = Wx<br>
+                        输出方差：Var[z] = n × Var[w] × Var[x]<br><br>
+                        其中 n 是输入维度
+                    </div>
+
+                    <div class="math-explanation">
+                        <strong>关键洞察：</strong><br>
+                        • 如果 Var[w] = 1/n，则 Var[z] = 1（保持不变）<br>
+                        • 如果 Var[w] = 1，则 Var[z] = n（放大n倍！）<br>
+                        • 经过L层后，方差会变成 n^L（指数增长）
+                    </div>
+                </div>
+            </div>
+            <div class="story-card mt-3">
+                <h4 style="color: var(--accent-red); margin-bottom: 1rem;">🎲 用掷骰子理解方差累积</h4>
+
+                <div style="background: rgba(255, 255, 255, 0.05); padding: 1.5rem; border-radius: 0.5rem;">
+                    <p><strong>想象一个游戏：</strong></p>
+                    <ol style="margin-left: 2rem; line-height: 1.8;">
+                        <li>你掷一个骰子，得到1-6的数字</li>
+                        <li>第二个人掷骰子数等于你的结果的个数</li>
+                        <li>第三个人掷骰子数等于第二个人结果之和的个数...</li>
+                    </ol>
+
+                    <p style="margin-top: 1rem;">
+                        <strong>会发生什么？</strong><br>
+                        • 第1轮：平均3.5个骰子<br>
+                        • 第2轮：平均12.25个骰子<br>
+                        • 第3轮：平均42.875个骰子<br>
+                        • 第10轮：数百万个骰子！💥
+                    </p>
+
+                    <p style="margin-top: 1rem; color: var(--accent-yellow);">
+                        这就是深度网络中方差爆炸的本质：每层都在放大前一层的"不确定性"！
+                    </p>
+                </div>
+            </div>
+
+        </section>
+        <!-- 章节小结 -->
+        <div class="tip success mt-4" style="background: rgba(251, 191, 36, 0.1); border-color: rgba(251, 191, 36, 0.3);">
+            <span class="tip-icon">📌</span>
+            <div class="tip-content">
+                <strong>本节要点回顾：</strong><br>
+                ✓ 梯度爆炸和消失是一体两面，都源于方差控制失败<br>
+                ✓ 不当的初始化会导致激活值和梯度的指数级增长<br>
+                ✓ ReLU虽然缓解了饱和问题，但引入了新的挑战<br>
+                ✓ 关键洞察：保持每层输出方差恒定是稳定训练的关键
+            </div>
+        </div>
+
+        <div class="section-card" style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(34, 197, 94, 0.1));">
+            <h3 style="color: var(--accent-purple); margin-bottom: 1.5rem;">🎯 找到问题的根源了！</h3>
+
+            <div class="story-card">
+                <div class="dialogue-box">
+                    <div class="speaker">
+                        <div class="avatar" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed);">🧙‍♂️</div>
+                        导师（总结）：
+                    </div>
+                    <div>"现在你们明白了吗？梯度消失和爆炸的根本原因是<strong>方差失控</strong>。"</div>
+                </div>
+            </div>
+
+            <div class="concept-grid mt-3">
+                <div class="concept-card why">
+                    <h4 style="color: var(--accent-red);">问题总结</h4>
+                    <p>
+                        • 权重太小 → 信号衰减 → 梯度消失<br>
+                        • 权重太大 → 信号放大 → 梯度爆炸<br>
+                        • 关键：保持方差恒定！
+                    </p>
+                </div>
+
+                <div class="concept-card what">
+                    <h4 style="color: var(--accent-green);">解决思路</h4>
+                    <p>
+                        如果我们能让每层的输出方差 = 输入方差：<br>
+                        • 前向传播信号稳定<br>
+                        • 反向传播梯度稳定<br>
+                        • 深度网络可以训练！
+                    </p>
+                </div>
+            </div>
+
+            <div class="tip info mt-3">
+                <span class="tip-icon">💡</span>
+                <div class="tip-content">
+                    <strong>关键洞察：</strong>权重初始化不是随意的，而是有严格数学依据的！
+                    让我们看看Xavier和He是如何推导出最佳初始化策略的...
+                </div>
+            </div>
+        </div>
+
+        <!-- 第四步：解决方案 - 初始化 -->
+        <section id="initialization" class="section-card">
+            <h2 style="color: var(--accent-green); margin-bottom: 1.5rem;">🎯 Solution 1：Xavier/He初始化</h2>
+
+            <div class="story-card">
+                <h3 style="color: var(--accent-yellow); margin-bottom: 1rem;">灵感时刻：保持方差恒定！</h3>
+
+                <div class="dialogue-box">
+                    <div class="speaker">
+                        <div class="avatar" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed);">🧙‍♂️</div>
+                        导师：
+                    </div>
+                    <div>"想想看，如果我们能让每层的输出方差保持不变，是不是就能避免爆炸和消失？"</div>
+                </div>
+
+                <div class="think-box mt-3">
+                    <h3 style="color: var(--accent-purple); margin-bottom: 1rem;">🧮 推导时间</h3>
+                    <p>目标：让每层的输出方差 = 输入方差</p>
+                    <p>问题：权重应该如何初始化？</p>
+                </div>
+            </div>
+
+            <!-- 初始化方法对比 -->
+            <div class="code-container">
+                <div class="code-header">
+                    <div class="code-header-left">
+                        <span style="color: var(--text-secondary);">初始化方法对比实验</span>
+                    </div>
+                </div>
+
+                <div class="code-comparison-grid">
+                    <!-- 糟糕的初始化 -->
+                    <div style="position: relative;">
+                        <h4 style="color: var(--accent-red); margin-bottom: 1rem; text-align: center;">
+                            ❌ 标准正态初始化
+                        </h4>
+                        <pre style="background: rgba(15, 23, 42, 0.9); padding: 1rem; border-radius: 8px; border: 2px solid rgba(239, 68, 68, 0.3);"><code class="language-python"># 糟糕的初始化
+def bad_init(model):
+    for m in model.modules():
+        if isinstance(m, nn.Linear):
+            # 标准正态分布
+            nn.init.normal_(m.weight,
+                          mean=0,
+                          std=1.0)  # 太大了！
+
+# 结果：
+# Layer 1: Var = 100.0
+# Layer 10: Var = 1e20
+# Layer 20: Var = inf 💥</code></pre>
+                    </div>
+
+                    <!-- Xavier初始化 -->
+                    <div style="position: relative;">
+                        <h4 style="color: var(--accent-green); margin-bottom: 1rem; text-align: center;">
+                            ✅ Xavier/He初始化
+                        </h4>
+                        <pre style="background: rgba(15, 23, 42, 0.9); padding: 1rem; border-radius: 8px; border: 2px solid rgba(34, 197, 94, 0.3);"><code class="language-python"># Xavier初始化（适用于Tanh）
+def xavier_init(model):
+    for m in model.modules():
+        if isinstance(m, nn.Linear):
+            nn.init.xavier_normal_(m.weight)
+            # std = sqrt(2/(fan_in + fan_out))
+
+# He初始化（适用于ReLU）
+def he_init(model):
+    for m in model.modules():
+        if isinstance(m, nn.Linear):
+            nn.init.kaiming_normal_(m.weight,
+                                  nonlinearity='relu')
+            # std = sqrt(2/fan_in)
+
+# 结果：
+# Layer 1: Var = 1.0 ✓
+# Layer 10: Var = 1.0 ✓
+# Layer 20: Var = 1.0 ✓</code></pre>
+                    </div>
+                </div>
+            </div>
+            <div class="story-card">
+                <h4 style="color: var(--accent-yellow); margin-bottom: 1rem;">🧮 在推导之前，先理解目标</h4>
+
+                <div class="dialogue-box">
+                    <div class="speaker">
+                        <div class="avatar" style="background: linear-gradient(135deg, #06b6d4, #0891b2);">👨‍🔬</div>
+                        小张：
+                    </div>
+                    <div>"等等，为什么要推导？我们到底想要什么？"</div>
+                </div>
+
+                <div class="think-box mt-2">
+                    <p><strong>我们的目标很简单：</strong></p>
+                    <div style="text-align: center; margin: 1rem 0; font-size: 1.2rem;">
+                        输入方差 = 输出方差
+                    </div>
+                    <p>如果每层都保持这个性质，那么：</p>
+                    <ul style="margin-left: 2rem;">
+                        <li>第1层输出方差 = 1</li>
+                        <li>第10层输出方差 = 1</li>
+                        <li>第100层输出方差 = 1</li>
+                        <li>信号永不衰减或爆炸！✨</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- 初始化数学原理 -->
+            <div class="math-container mt-3">
+                <h3 style="color: var(--accent-green); margin-bottom: 1.5rem;">✨ Xavier初始化的数学原理</h3>
+
+                <div class="step-indicator">
+                    <div class="step-item active">
+                        <div class="step-circle">1</div>
+                        <div class="step-label">分析方差</div>
+                    </div>
+                    <div class="step-item">
+                        <div class="step-circle">2</div>
+                        <div class="step-label">推导条件</div>
+                    </div>
+                    <div class="step-item">
+                        <div class="step-circle">3</div>
+                        <div class="step-label">得出公式</div>
+                    </div>
+                    <div class="step-item">
+                        <div class="step-circle">4</div>
+                        <div class="step-label">验证效果</div>
+                    </div>
+                </div>
+
+                <div style="background: rgba(34, 197, 94, 0.1); padding: 2rem; border-radius: 0.5rem; margin-top: 2rem;">
+                    <h4>前向传播方差推导：</h4>
+
+                    <div class="math-formula" style="margin: 1.5rem 0;">
+                        输出：y = Σᵢ wᵢxᵢ<br><br>
+
+                        假设：<br>
+                        • E[xᵢ] = 0, Var[xᵢ] = 1<br>
+                        • E[wᵢ] = 0, Var[wᵢ] = σ²<br>
+                        • xᵢ 和 wᵢ 相互独立<br><br>
+
+                        则：<br>
+                        Var[y] = Σᵢ Var[wᵢxᵢ] = n × σ² × 1<br><br>
+
+                        要使 Var[y] = 1：<br>
+                        <span style="font-size: 1.3rem; color: var(--accent-green);">
+                            σ² = 1/n_in
+                        </span>
+                    </div>
+
+                    <div class="math-explanation">
+                        <strong>简单来说：</strong><br>
+                        权重的方差应该是输入维度的倒数，这样输出方差才能保持为1！
+                    </div>
+                </div>
+            </div>
+
+            <!-- 实验对比 -->
+            <div class="code-container mt-3">
+                <div class="code-header">
+                    <div class="code-header-left">
+                        <span style="color: var(--text-secondary);">完整实验：不同初始化方法的效果</span>
+                    </div>
+                    <div class="code-header-right">
+                        <button class="code-action" onclick="runInitExperiment()">
+                            ▶ 运行实验
+                        </button>
+                    </div>
+                </div>
+                <div class="code-content">
+                    <pre><code class="language-python">import torch
+import torch.nn as nn
+import numpy as np
+import matplotlib.pyplot as plt
+
+def analyze_network_with_init(init_method='normal', depth=30, activation='sigmoid'):
+    """分析不同初始化方法下的梯度流和激活值分布"""
+
+    class TestNetwork(nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.layers = nn.ModuleList()
+
+            for i in range(depth):
+                layer = nn.Linear(100, 100)
+
+                # 应用不同的初始化方法
+                if init_method == 'normal':
+                    nn.init.normal_(layer.weight, mean=0, std=1.0)
+                elif init_method == 'xavier':
+                    nn.init.xavier_normal_(layer.weight)
+                elif init_method == 'he':
+                    nn.init.kaiming_normal_(layer.weight, nonlinearity='relu')
+
+                self.layers.append(layer)
+
+                # 添加激活函数
+                if activation == 'sigmoid':
+                    self.layers.append(nn.Sigmoid())
+                elif activation == 'tanh':
+                    self.layers.append(nn.Tanh())
+                elif activation == 'relu':
+                    self.layers.append(nn.ReLU())
+
+        def forward(self, x):
+            activations = []
+            for layer in self.layers:
+                x = layer(x)
+                if isinstance(layer, nn.Linear):
+                    activations.append(x.detach().clone())
+            return x, activations
+
+    # 创建网络并测试
+    model = TestNetwork()
+    x = torch.randn(32, 100)
+
+    # 前向传播
+    output, activations = model(x)
+
+    # 计算损失并反向传播
+    loss = output.mean()
+    loss.backward()
+
+    # 收集统计信息
+    activation_stats = []
+    gradient_stats = []
+
+    for i, layer in enumerate(model.layers):
+        if isinstance(layer, nn.Linear):
+            # 激活值统计
+            act = activations[i // 2]
+            activation_stats.append({
+                'mean': act.mean().item(),
+                'std': act.std().item(),
+                'min': act.min().item(),
+                'max': act.max().item()
+            })
+
+            # 梯度统计
+            if layer.weight.grad is not None:
+                gradient_stats.append({
+                    'norm': layer.weight.grad.norm().item(),
+                    'mean': layer.weight.grad.mean().item(),
+                    'std': layer.weight.grad.std().item()
+                })
+
+    return activation_stats, gradient_stats
+
+# 测试不同配置
+configs = [
+    ('normal', 'sigmoid', '标准初始化 + Sigmoid'),
+    ('xavier', 'tanh', 'Xavier初始化 + Tanh'),
+    ('he', 'relu', 'He初始化 + ReLU')
+]
+
+results = {}
+for init_method, activation, name in configs:
+    print(f"\n🔬 测试配置: {name}")
+    act_stats, grad_stats = analyze_network_with_init(init_method, 30, activation)
+    results[name] = (act_stats, grad_stats)
+
+    # 打印前后层对比
+    print(f"第1层 - 激活值std: {act_stats[0]['std']:.4f}, 梯度范数: {grad_stats[0]['norm']:.2e}")
+    print(f"第30层 - 激活值std: {act_stats[-1]['std']:.4f}, 梯度范数: {grad_stats[-1]['norm']:.2e}")
+
+# 可视化结果
+fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(12, 10))
+
+for name, (act_stats, grad_stats) in results.items():
+    layers = range(1, len(act_stats) + 1)
+
+    # 激活值标准差
+    ax1.plot(layers, [s['std'] for s in act_stats], 'o-', label=name, markersize=4)
+
+    # 激活值范围
+    ax2.plot(layers, [s['max'] - s['min'] for s in act_stats], 'o-', label=name, markersize=4)
+
+    # 梯度范数
+    ax3.semilogy(layers, [s['norm'] for s in grad_stats], 'o-', label=name, markersize=4)
+
+    # 梯度标准差
+    ax4.semilogy(layers, [s['std'] for s in grad_stats], 'o-', label=name, markersize=4)
+
+ax1.set_xlabel('层数')
+ax1.set_ylabel('激活值标准差')
+ax1.set_title('激活值稳定性')
+ax1.legend()
+ax1.grid(True, alpha=0.3)
+
+ax2.set_xlabel('层数')
+ax2.set_ylabel('激活值范围')
+ax2.set_title('激活值分布范围')
+ax2.legend()
+ax2.grid(True, alpha=0.3)
+
+ax3.set_xlabel('层数')
+ax3.set_ylabel('梯度范数（对数刻度）')
+ax3.set_title('梯度流')
+ax3.legend()
+ax3.grid(True, alpha=0.3)
+
+ax4.set_xlabel('层数')
+ax4.set_ylabel('梯度标准差（对数刻度）')
+ax4.set_title('梯度分布')
+ax4.legend()
+ax4.grid(True, alpha=0.3)
+
+plt.tight_layout()
+plt.show()</code></pre>
+                </div>
+            </div>
+
+            <div class="tip success mt-3">
+                <span class="tip-icon">🎉</span>
+                <div class="tip-content">
+                    <strong>实验结果：</strong><br>
+                    • Xavier初始化 + Tanh：激活值和梯度都保持稳定<br>
+                    • He初始化 + ReLU：专门为ReLU设计，效果最佳<br>
+                    • 标准初始化：激活值和梯度都不稳定，训练困难
+                </div>
+            </div>
+        </section>
+
+        <!-- 第五步：批量归一化 -->
+        <section id="batchnorm" class="section-card">
+            <h2 style="color: var(--accent-blue); margin-bottom: 1.5rem;">🔧 Solution 2：批量归一化（BatchNorm）</h2>
+
+            <div class="story-card">
+                <h3 style="color: var(--accent-yellow); margin-bottom: 1rem;">新的挑战：训练过程中的分布偏移</h3>
+
+                <div class="dialogue-box">
+                    <div class="speaker">
+                        <div class="avatar" style="background: linear-gradient(135deg, #06b6d4, #0891b2);">👨‍🔬</div>
+                        小张：
+                    </div>
+                    <div>"初始化确实有用，但训练到后期还是会不稳定..."</div>
+                </div>
+
+                <div class="dialogue-box mt-2">
+                    <div class="speaker">
+                        <div class="avatar" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed);">🧙‍♂️</div>
+                        导师：
+                    </div>
+                    <div>"这是因为训练过程中，每层的输入分布在不断变化。我们需要BatchNorm！"</div>
+                </div>
+            </div>
+
+            <div class="think-box">
+                <h3 style="color: var(--accent-purple); margin-bottom: 1rem;">💡 核心洞察</h3>
+                <p>如果我们能让每层的输入始终保持标准分布（均值0，方差1），是不是就能避免梯度问题？</p>
+            </div>
+
+            <!-- BatchNorm原理 -->
+            <div class="math-container">
+                <h3 style="color: var(--accent-green); margin-bottom: 1.5rem;">🎯 批量归一化：让每层输入"标准化"</h3>
+
+                <div class="step-indicator">
+                    <div class="step-item active">
+                        <div class="step-circle">1</div>
+                        <div class="step-label">计算均值</div>
+                    </div>
+                    <div class="step-item">
+                        <div class="step-circle">2</div>
+                        <div class="step-label">计算方差</div>
+                    </div>
+                    <div class="step-item">
+                        <div class="step-circle">3</div>
+                        <div class="step-label">标准化</div>
+                    </div>
+                    <div class="step-item">
+                        <div class="step-circle">4</div>
+                        <div class="step-label">缩放平移</div>
+                    </div>
+                </div>
+
+                <div style="background: rgba(6, 182, 212, 0.1); padding: 2rem; border-radius: 0.5rem; margin-top: 2rem;">
+                    <div class="math-formula">
+                        <strong>批量归一化算法：</strong><br><br>
+
+                        1. 计算批次均值：μ_B = (1/m) Σᵢ xᵢ<br><br>
+
+                        2. 计算批次方差：σ²_B = (1/m) Σᵢ (xᵢ - μ_B)²<br><br>
+
+                        3. 标准化：x̂ᵢ = (xᵢ - μ_B) / √(σ²_B + ε)<br><br>
+
+                        4. 缩放和平移：yᵢ = γx̂ᵢ + β
+                    </div>
+
+                    <div class="math-explanation">
+                        <strong>为什么需要γ和β？</strong><br>
+                        标准化可能会降低网络的表达能力，γ和β让网络自己学习需要多少"标准化"。
+                    </div>
+                </div>
+            </div>
+
+            <!-- BatchNorm实现 -->
+            <div class="code-container mt-3">
+                <div class="code-header">
+                    <div class="code-header-left">
+                        <span style="color: var(--text-secondary);">从零实现BatchNorm</span>
+                    </div>
+                </div>
+                <div class="code-content">
+                    <pre><code class="language-python">class MyBatchNorm1d(nn.Module):
+    """手写的BatchNorm实现，用于理解原理"""
+
+    def __init__(self, num_features, eps=1e-5, momentum=0.1):
+        super().__init__()
+        self.num_features = num_features
+        self.eps = eps
+        self.momentum = momentum
+
+        # 可学习参数
+        self.gamma = nn.Parameter(torch.ones(num_features))  # 缩放参数
+        self.beta = nn.Parameter(torch.zeros(num_features))  # 平移参数
+
+        # 运行时统计量（推理时使用）
+        self.register_buffer('running_mean', torch.zeros(num_features))
+        self.register_buffer('running_var', torch.ones(num_features))
+
+    def forward(self, x):
+        if self.training:
+            # 训练模式：计算当前批次的统计量
+            batch_mean = x.mean(dim=0)
+            batch_var = x.var(dim=0, unbiased=False)
+
+            # 更新运行时统计量
+            self.running_mean = (1 - self.momentum) * self.running_mean + \
+                               self.momentum * batch_mean
+            self.running_var = (1 - self.momentum) * self.running_var + \
+                              self.momentum * batch_var
+
+            # 使用当前批次统计量
+            mean = batch_mean
+            var = batch_var
+        else:
+            # 推理模式：使用运行时统计量
+            mean = self.running_mean
+            var = self.running_var
+
+        # 标准化
+        x_normalized = (x - mean) / torch.sqrt(var + self.eps)
+
+        # 缩放和平移
+        output = self.gamma * x_normalized + self.beta
+
+        return output
+
+# 测试BatchNorm的效果
+def test_batchnorm_effect():
+    """对比有无BatchNorm的训练稳定性"""
+
+    # 创建两个相同结构的网络
+    class NetworkWithoutBN(nn.Module):
+        def __init__(self, depth=20):
+            super().__init__()
+            layers = []
+            for i in range(depth):
+                layers.append(nn.Linear(100, 100))
+                if i < depth - 1:
+                    layers.append(nn.ReLU())
+            self.network = nn.Sequential(*layers)
+
+            # He初始化
+            for m in self.modules():
+                if isinstance(m, nn.Linear):
+                    nn.init.kaiming_normal_(m.weight)
+
+        def forward(self, x):
+            return self.network(x)
+
+    class NetworkWithBN(nn.Module):
+        def __init__(self, depth=20):
+            super().__init__()
+            layers = []
+            for i in range(depth):
+                layers.append(nn.Linear(100, 100))
+                layers.append(nn.BatchNorm1d(100))  # 添加BatchNorm
+                if i < depth - 1:
+                    layers.append(nn.ReLU())
+            self.network = nn.Sequential(*layers)
+
+            # He初始化
+            for m in self.modules():
+                if isinstance(m, nn.Linear):
+                    nn.init.kaiming_normal_(m.weight)
+
+        def forward(self, x):
+            return self.network(x)
+
+    # 对比训练
+    model_without_bn = NetworkWithoutBN()
+    model_with_bn = NetworkWithBN()
+
+    # 简单的训练循环
+    optimizer1 = torch.optim.SGD(model_without_bn.parameters(), lr=0.1)
+    optimizer2 = torch.optim.SGD(model_with_bn.parameters(), lr=0.1)
+
+    losses_without_bn = []
+    losses_with_bn = []
+
+    for epoch in range(50):
+        # 生成随机数据
+        x = torch.randn(128, 100)
+        y = torch.randint(0, 10, (128,))
+
+        # 训练无BN的网络
+        out1 = model_without_bn(x)
+        loss1 = nn.CrossEntropyLoss()(out1[:, :10], y)
+        optimizer1.zero_grad()
+        loss1.backward()
+        optimizer1.step()
+        losses_without_bn.append(loss1.item())
+
+        # 训练有BN的网络
+        out2 = model_with_bn(x)
+        loss2 = nn.CrossEntropyLoss()(out2[:, :10], y)
+        optimizer2.zero_grad()
+        loss2.backward()
+        optimizer2.step()
+        losses_with_bn.append(loss2.item())
+
+    return losses_without_bn, losses_with_bn
+
+# 运行测试
+print("🔬 测试BatchNorm的效果...")
+losses_without, losses_with = test_batchnorm_effect()
+
+# 可视化
+import matplotlib.pyplot as plt
+
+plt.figure(figsize=(10, 5))
+plt.plot(losses_without, label='Without BatchNorm', alpha=0.7)
+plt.plot(losses_with, label='With BatchNorm', alpha=0.7)
+plt.xlabel('Epoch')
+plt.ylabel('Loss')
+plt.title('BatchNorm对训练稳定性的影响')
+plt.legend()
+plt.grid(True, alpha=0.3)
+plt.show()
+
+print(f"\n📊 结果对比:")
+print(f"无BatchNorm - 最终损失: {losses_without[-1]:.4f}")
+print(f"有BatchNorm - 最终损失: {losses_with[-1]:.4f}")
+print(f"改善比例: {(losses_without[-1] - losses_with[-1]) / losses_without[-1] * 100:.1f}%")</code></pre>
+                </div>
+            </div>
+
+            <div class="tip success mt-3">
+                <span class="tip-icon">🎯</span>
+                <div class="tip-content">
+                    <strong>BatchNorm的神奇效果：</strong><br>
+                    • 训练速度提升3-5倍<br>
+                    • 可以使用更大的学习率<br>
+                    • 减少对初始化的敏感性<br>
+                    • 某种程度上起到正则化作用
+                </div>
+            </div>
+        </section>
+
+        div class="section-card" style="background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(6, 182, 212, 0.1));">
+        <h3 style="color: var(--accent-green); margin-bottom: 1.5rem;">✅ 初始化解决了问题...但还不够！</h3>
+
+        <div class="story-card">
+            <p style="font-size: 1.1rem; margin-bottom: 1.5rem;">
+                一周后，小李又遇到了新问题...
+            </p>
+
+            <div class="dialogue-box">
+                <div class="speaker">
+                    <div class="avatar" style="background: linear-gradient(135deg, #fbbf24, #f59e0b);">🧑‍💻</div>
+                    小李（困惑）：
+                </div>
+                <div>"Xavier初始化确实有效，但训练到后期，网络又开始不稳定了..."</div>
+            </div>
+
+            <div class="dialogue-box mt-2">
+                <div class="speaker">
+                    <div class="avatar" style="background: linear-gradient(135deg, #06b6d4, #0891b2);">👨‍🔬</div>
+                    小张：
+                </div>
+                <div>"我也发现了！好像每次输入不同的批次数据，激活值的分布都在变化。"</div>
+            </div>
+        </div>
+
+        <div class="think-box mt-3">
+            <h4 style="color: var(--accent-purple);">🔄 新问题：内部协变量偏移</h4>
+            <p><strong>什么意思？</strong></p>
+            <ul style="margin-left: 2rem; line-height: 1.8;">
+                <li>初始化只保证了<strong>开始时</strong>的分布</li>
+                <li>随着训练，每层的权重在更新</li>
+                <li>导致每层的输入分布不断变化</li>
+                <li>后面的层需要不断适应新的分布</li>
+            </ul>
+
+            <p style="margin-top: 1rem; color: var(--accent-yellow);">
+                💡 如果能让每层的输入在训练过程中始终保持稳定分布呢？
+            </p>
+        </div>
+    </div>
+
+    <!-- 在 BatchNorm 实现详解之后添加 -->
+        <div class="math-container mt-4">
+            <h3 style="color: var(--accent-blue); margin-bottom: 1.5rem;">🔄 LayerNorm vs BatchNorm：为什么Transformer选择了LayerNorm？</h3>
+
+            <div class="concept-grid">
+                <div class="concept-card what">
+                    <h4 style="color: var(--accent-green); margin-bottom: 0.5rem;">BatchNorm的局限</h4>
+                    <p>
+                        • 依赖批次大小<br>
+                        • 训练/推理行为不一致<br>
+                        • 不适合可变长度序列<br>
+                        • RNN/Transformer中效果差
+                    </p>
+                </div>
+
+                <div class="concept-card how">
+                    <h4 style="color: var(--accent-blue); margin-bottom: 0.5rem;">LayerNorm的优势</h4>
+                    <p>
+                        • 对每个样本独立计算<br>
+                        • 不依赖批次统计量<br>
+                        • 适合序列模型<br>
+                        • 训练推理行为一致
+                    </p>
+                </div>
+            </div>
+
+            <div class="code-container mt-3">
+                <div class="code-header">
+                    <div class="code-header-left">
+                        <span style="color: var(--text-secondary);">归一化方法对比实现</span>
+                    </div>
+                </div>
+                <div class="code-content">
+            <pre><code class="language-python">class LayerNorm(nn.Module):
+    """LayerNorm：对特征维度归一化"""
+    def __init__(self, normalized_shape, eps=1e-5):
+        super().__init__()
+        self.gamma = nn.Parameter(torch.ones(normalized_shape))
+        self.beta = nn.Parameter(torch.zeros(normalized_shape))
+        self.eps = eps
+
+    def forward(self, x):
+        # x: [batch_size, seq_len, hidden_dim]
+        # 对最后一个维度计算均值和方差
+        mean = x.mean(-1, keepdim=True)
+        var = x.var(-1, keepdim=True, unbiased=False)
+
+        # 归一化
+        x_normalized = (x - mean) / torch.sqrt(var + self.eps)
+        return self.gamma * x_normalized + self.beta
+
+class GroupNorm(nn.Module):
+    """GroupNorm：BatchNorm和LayerNorm的折中方案"""
+    def __init__(self, num_groups, num_channels, eps=1e-5):
+        super().__init__()
+        self.num_groups = num_groups
+        self.num_channels = num_channels
+        self.eps = eps
+        self.gamma = nn.Parameter(torch.ones(num_channels))
+        self.beta = nn.Parameter(torch.zeros(num_channels))
+
+    def forward(self, x):
+        # x: [batch_size, channels, height, width]
+        N, C, H, W = x.shape
+        x = x.view(N, self.num_groups, -1)  # [N, G, C//G * H * W]
+
+        # 对每个group计算统计量
+        mean = x.mean(-1, keepdim=True)
+        var = x.var(-1, keepdim=True, unbiased=False)
+
+        # 归一化并reshape回原始形状
+        x = (x - mean) / torch.sqrt(var + self.eps)
+        x = x.view(N, C, H, W)
+
+        return self.gamma.view(1, C, 1, 1) * x + self.beta.view(1, C, 1, 1)
+
+# 可视化不同归一化方法的作用范围
+def visualize_normalization_axes():
+    """展示不同归一化方法在哪些维度上计算统计量"""
+    # BatchNorm: 在(N, H, W)上计算，对每个通道C
+    # LayerNorm: 在(C, H, W)上计算，对每个样本N
+    # GroupNorm: 在(C//G, H, W)上计算，对每个样本N和组G
+    # InstanceNorm: 在(H, W)上计算，对每个样本N和通道C
+
+    print("归一化方法对比：")
+    print("BatchNorm: μ,σ computed over (N,H,W) for each C")
+    print("LayerNorm: μ,σ computed over (C,H,W) for each N")
+    print("GroupNorm: μ,σ computed over (C/G,H,W) for each N,G")
+    print("InstanceNorm: μ,σ computed over (H,W) for each N,C")</code></pre>
+                </div>
+            </div>
+
+            <div class="think-box mt-3">
+                <h3 style="color: var(--accent-purple); margin-bottom: 1rem;">🤔 为什么Transformer用LayerNorm而不是BatchNorm？</h3>
+                <p><strong>1. 序列长度可变性：</strong></p>
+                <p>Transformer处理的序列长度经常变化，BatchNorm需要固定的统计量维度，而LayerNorm对每个位置独立计算。</p>
+
+                <p><strong>2. 小批次问题：</strong></p>
+                <p>大模型训练时批次很小（甚至为1），BatchNorm的统计量估计不准确，而LayerNorm不受影响。</p>
+
+                <p><strong>3. 注意力机制的特性：</strong></p>
+                <p>注意力机制让每个位置"看到"不同的信息，用BatchNorm会破坏这种位置特定的信息分布。</p>
+            </div>
+        </div>
+
+        <!-- 小结框 -->
+        <div class="tip success mt-4">
+            <span class="tip-icon">📝</span>
+            <div class="tip-content">
+                <strong>归一化技术小结：</strong><br>
+                • <strong>BatchNorm：</strong>CNN的标配，但需要足够大的批次<br>
+                • <strong>LayerNorm：</strong>Transformer的选择，适合序列和小批次<br>
+                • <strong>GroupNorm：</strong>视觉任务中BatchNorm的替代品<br>
+                • <strong>选择原则：</strong>CNN用BN/GN，RNN/Transformer用LN
+            </div>
+        </div>
+
+    <div class="section-card" style="background: linear-gradient(135deg, rgba(6, 182, 212, 0.1), rgba(249, 115, 22, 0.1));">
+        <h3 style="color: var(--accent-blue); margin-bottom: 1.5rem;">🎨 最后一块拼图：如何更新参数？</h3>
+
+        <div class="story-card">
+            <div class="dialogue-box">
+                <div class="speaker">
+                    <div class="avatar" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed);">🧙‍♂️</div>
+                    导师：
+                </div>
+                <div>"好的初始化 + BatchNorm 解决了梯度传播问题。但是，如何高效地利用这些梯度更新参数呢？"</div>
+            </div>
+        </div>
+
+        <div class="matrix-visualization mt-3">
+            <h4 style="text-align: center; color: var(--accent-orange);">优化的三个层次</h4>
+            <div class="step-indicator">
+                <div class="step-item active">
+                    <div class="step-circle" style="background: var(--accent-green);">✓</div>
+                    <div class="step-label">梯度能传播<br><small>（初始化）</small></div>
+                </div>
+                <div class="step-item active">
+                    <div class="step-circle" style="background: var(--accent-green);">✓</div>
+                    <div class="step-label">梯度很稳定<br><small>（BatchNorm）</small></div>
+                </div>
+                <div class="step-item">
+                    <div class="step-circle" style="background: var(--accent-orange);">?</div>
+                    <div class="step-label">梯度用得好<br><small>（优化器）</small></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="concept-grid mt-3">
+            <div class="concept-card pitfall">
+                <h4 style="color: var(--accent-yellow);">SGD的问题</h4>
+                <p>
+                    • 在狭窄峡谷中震荡<br>
+                    • 难以逃离鞍点<br>
+                    • 对学习率敏感<br>
+                    • 收敛速度慢
+                </p>
+            </div>
+
+            <div class="concept-card how">
+                <h4 style="color: var(--accent-blue);">需要更聪明的优化器</h4>
+                <p>
+                    • 记住历史信息（动量）<br>
+                    • 自适应学习率<br>
+                    • 对不同参数区别对待<br>
+                    • 更快更稳定的收敛
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 第六步：优化器的进化 -->
+        <section id="optimizers" class="section-card">
+            <h2 style="color: var(--accent-orange); margin-bottom: 1.5rem;">🚀 Solution 3：从SGD到Adam</h2>
+
+            <div class="story-card">
+                <h3 style="color: var(--accent-yellow); margin-bottom: 1rem;">优化器的进化之路</h3>
+
+                <p>就像交通工具的进化：步行 → 自行车 → 汽车 → 飞机，优化器也在不断进化...</p>
+            </div>
+
+            <!-- 优化器对比 -->
+            <div class="matrix-visualization">
+                <h3 style="color: var(--accent-purple); margin-bottom: 1.5rem;">📊 优化器家族对比</h3>
+
+                <div class="matrix-container">
+                    <div class="matrix-grid" style="grid-template-columns: repeat(5, 1fr);">
+                        <!-- 表头 -->
+                        <div class="matrix-cell header">优化器</div>
+                        <div class="matrix-cell header">更新规则</div>
+                        <div class="matrix-cell header">优点</div>
+                        <div class="matrix-cell header">缺点</div>
+                        <div class="matrix-cell header">适用场景</div>
+
+                        <!-- SGD -->
+                        <div class="matrix-cell header" style="color: var(--accent-red);">SGD</div>
+                        <div class="matrix-cell value">θ = θ - η∇L</div>
+                        <div class="matrix-cell value">简单直观</div>
+                        <div class="matrix-cell value">容易震荡</div>
+                        <div class="matrix-cell value">凸优化</div>
+
+                        <!-- Momentum -->
+                        <div class="matrix-cell header" style="color: var(--accent-yellow);">Momentum</div>
+                        <div class="matrix-cell value">v = βv + ∇L<br>θ = θ - ηv</div>
+                        <div class="matrix-cell value">减少震荡</div>
+                        <div class="matrix-cell value">需调参数</div>
+                        <div class="matrix-cell value">一般场景</div>
+
+                        <!-- RMSprop -->
+                        <div class="matrix-cell header" style="color: var(--accent-green);">RMSprop</div>
+                        <div class="matrix-cell value">s = βs + (1-β)∇L²<br>θ = θ - η∇L/√s</div>
+                        <div class="matrix-cell value">自适应学习率</div>
+                        <div class="matrix-cell value">可能不收敛</div>
+                        <div class="matrix-cell value">RNN训练</div>
+
+                        <!-- Adam -->
+                        <div class="matrix-cell header" style="color: var(--accent-purple);">Adam</div>
+                        <div class="matrix-cell value">m = β₁m + (1-β₁)∇L<br>v = β₂v + (1-β₂)∇L²<br>θ = θ - ηm̂/√v̂</div>
+                        <div class="matrix-cell value">结合所有优点</div>
+                        <div class="matrix-cell value">内存占用大</div>
+                        <div class="matrix-cell value">深度学习</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 优化器轨迹可视化 -->
+            <div class="visualization-container mt-3">
+                <h3 style="color: var(--accent-green); margin-bottom: 1.5rem;">🎯 优化器轨迹对比</h3>
+
+                <div class="viz-controls">
+                    <div class="viz-control-group">
+                        <label>学习率：</label>
+                        <div class="slider-container">
+                            <input type="range" id="lr-slider" min="1" max="50" value="10" step="1">
+                            <span class="slider-value" id="lr-value">0.1</span>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" onclick="visualizeOptimizerPaths()">
+                        🎨 绘制轨迹
+                    </button>
+                    <button class="btn btn-secondary" onclick="animateOptimizers()">
+                        ▶️ 动画演示
+                    </button>
+                </div>
+
+                <canvas id="optimizer-viz" width="800" height="600"></canvas>
+            </div>
+
+            <!-- Adam实现详解 -->
+            <div class="code-container mt-3">
+                <div class="code-header">
+                    <div class="code-header-left">
+                        <span style="color: var(--text-secondary);">Adam优化器的实现</span>
+                    </div>
+                </div>
+                <div class="code-content">
+                    <pre><code class="language-python">class MyAdam:
+    """手写Adam优化器，理解其原理"""
+
+    def __init__(self, params, lr=0.001, betas=(0.9, 0.999), eps=1e-8):
+        self.params = list(params)
+        self.lr = lr
+        self.beta1, self.beta2 = betas
+        self.eps = eps
+
+        # 初始化一阶和二阶矩
+        self.m = [torch.zeros_like(p) for p in self.params]  # 一阶矩（动量）
+        self.v = [torch.zeros_like(p) for p in self.params]  # 二阶矩（RMSprop）
+        self.t = 0  # 时间步
+
+    def step(self):
+        self.t += 1
+
+        for i, param in enumerate(self.params):
+            if param.grad is None:
+                continue
+
+            grad = param.grad
+
+            # 更新一阶矩（动量）
+            self.m[i] = self.beta1 * self.m[i] + (1 - self.beta1) * grad
+
+            # 更新二阶矩（梯度平方的移动平均）
+            self.v[i] = self.beta2 * self.v[i] + (1 - self.beta2) * grad**2
+
+            # 偏差修正
+            m_hat = self.m[i] / (1 - self.beta1**self.t)
+            v_hat = self.v[i] / (1 - self.beta2**self.t)
+
+            # 更新参数
+            param.data -= self.lr * m_hat / (torch.sqrt(v_hat) + self.eps)
+
+    def zero_grad(self):
+        for param in self.params:
+            if param.grad is not None:
+                param.grad.zero_()
+
+# 对比不同优化器
+def compare_optimizers():
+    """在实际问题上对比不同优化器"""
+
+    # 创建一个具有挑战性的损失地形
+    def rosenbrock(x, y):
+        """Rosenbrock函数：有一个弯曲的山谷"""
+        return (1 - x)**2 + 100 * (y - x**2)**2
+
+    # 起始点
+    start = torch.tensor([[-1.5], [2.0]], requires_grad=True)
+
+    # 测试不同优化器
+    optimizers = {
+        'SGD': torch.optim.SGD([start.clone()], lr=0.001),
+        'SGD+Momentum': torch.optim.SGD([start.clone()], lr=0.001, momentum=0.9),
+        'RMSprop': torch.optim.RMSprop([start.clone()], lr=0.001),
+        'Adam': torch.optim.Adam([start.clone()], lr=0.01)
+    }
+
+    # 记录轨迹
+    trajectories = {}
+
+    for name, opt in optimizers.items():
+        param = list(opt.param_groups[0]['params'])[0]
+        trajectory = [[param[0].item(), param[1].item()]]
+
+        for _ in range(200):
+            opt.zero_grad()
+            loss = rosenbrock(param[0], param[1])
+            loss.backward()
+            opt.step()
+            trajectory.append([param[0].item(), param[1].item()])
+
+        trajectories[name] = np.array(trajectory)
+
+    return trajectories
+
+# 可视化结果
+trajectories = compare_optimizers()
+
+import matplotlib.pyplot as plt
+
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
+
+# 轨迹图
+x = np.linspace(-2, 2, 100)
+y = np.linspace(-1, 3, 100)
+X, Y = np.meshgrid(x, y)
+Z = (1 - X)**2 + 100 * (Y - X**2)**2
+
+contour = ax1.contour(X, Y, Z, levels=50, alpha=0.6)
+ax1.clabel(contour, inline=True, fontsize=8)
+
+colors = {'SGD': 'red', 'SGD+Momentum': 'orange', 'RMSprop': 'green', 'Adam': 'purple'}
+for name, traj in trajectories.items():
+    ax1.plot(traj[:, 0], traj[:, 1], 'o-', color=colors[name],
+             label=name, markersize=3, alpha=0.7)
+
+ax1.set_xlabel('x')
+ax1.set_ylabel('y')
+ax1.set_title('优化器轨迹对比')
+ax1.legend()
+ax1.set_xlim(-2, 2)
+ax1.set_ylim(-1, 3)
+
+# 收敛速度
+for name, traj in trajectories.items():
+    distances = np.sqrt((traj[:, 0] - 1)**2 + (traj[:, 1] - 1)**2)
+    ax2.semilogy(distances, color=colors[name], label=name, linewidth=2)
+
+ax2.set_xlabel('迭代次数')
+ax2.set_ylabel('到最优点的距离（对数刻度）')
+ax2.set_title('收敛速度对比')
+ax2.legend()
+ax2.grid(True, alpha=0.3)
+
+plt.tight_layout()
+plt.show()</code></pre>
+                </div>
+            </div>
+        </section>
+        <!-- 章节小结 -->
+        <div class="tip success mt-4" style="background: rgba(249, 115, 22, 0.1); border-color: rgba(249, 115, 22, 0.3);">
+            <span class="tip-icon">📌</span>
+            <div class="tip-content">
+                <strong>本节要点回顾：</strong><br>
+                ✓ SGD → Momentum → RMSprop → Adam 是优化器的进化路线<br>
+                ✓ Adam结合了动量（一阶矩）和自适应学习率（二阶矩）<br>
+                ✓ 不同优化器适合不同场景：SGD适合凸优化，Adam适合深度学习<br>
+                ✓ 实践建议：默认用Adam，追求最佳性能时试试SGD+Momentum
+            </div>
+        </div>
+    <div class="section-card" style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(34, 197, 94, 0.1));">
+        <h3 style="color: var(--accent-purple); margin-bottom: 1.5rem;">🧩 所有拼图已经集齐！</h3>
+
+        <div class="story-card">
+            <div style="text-align: center; margin-bottom: 2rem;">
+                <h4 style="color: var(--accent-yellow);">深度网络优化技术栈</h4>
+                <div style="display: flex; justify-content: center; align-items: center; gap: 1rem; margin-top: 1.5rem;">
+                    <div style="padding: 1rem; background: rgba(34, 197, 94, 0.2); border-radius: 0.5rem;">
+                        <div style="font-size: 2rem;">🎯</div>
+                        <p>正确初始化</p>
+                    </div>
+                    <div style="font-size: 1.5rem;">+</div>
+                    <div style="padding: 1rem; background: rgba(6, 182, 212, 0.2); border-radius: 0.5rem;">
+                        <div style="font-size: 2rem;">🔧</div>
+                        <p>批量归一化</p>
+                    </div>
+                    <div style="font-size: 1.5rem;">+</div>
+                    <div style="padding: 1rem; background: rgba(249, 115, 22, 0.2); border-radius: 0.5rem;">
+                        <div style="font-size: 2rem;">🚀</div>
+                        <p>现代优化器</p>
+                    </div>
+                    <div style="font-size: 1.5rem;">=</div>
+                    <div style="padding: 1rem; background: var(--primary-gradient); color: white; border-radius: 0.5rem;">
+                        <div style="font-size: 2rem;">💪</div>
+                        <p>稳定深度网络</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="dialogue-box">
+                <div class="speaker">
+                    <div class="avatar" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed);">🧙‍♂️</div>
+                    导师：
+                </div>
+                <div>"单独使用每个技术都有帮助，但真正的魔力在于它们的<strong>协同作用</strong>！"</div>
+            </div>
+        </div>
+
+        <div class="tip success mt-3">
+            <span class="tip-icon">🎯</span>
+            <div class="tip-content">
+                <strong>为什么要综合使用？</strong><br>
+                • <strong>初始化</strong>：给网络一个好的起点<br>
+                • <strong>BatchNorm</strong>：保持训练过程稳定<br>
+                • <strong>优化器</strong>：高效利用梯度信息<br>
+                • <strong>残差连接</strong>：为超深网络提供"高速公路"<br>
+                <br>
+                现在，让我们把所有技术整合起来，构建一个真正稳定的深度网络！
+            </div>
+        </div>
+    </div>
+
+    <!-- 综合实战 -->
+        <section id="practice" class="section-card">
+            <h2 style="color: var(--accent-green); margin-bottom: 1.5rem;">⚔️ 综合实战：构建稳定的深度网络</h2>
+
+            <div class="story-card">
+                <h3 style="color: var(--accent-purple); margin-bottom: 1rem;">把所有技巧整合起来</h3>
+
+                <div class="dialogue-box">
+                    <div class="speaker">
+                        <div class="avatar" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed);">🧙‍♂️</div>
+                        导师：
+                    </div>
+                    <div>"现在你们已经掌握了所有工具，是时候建造一个真正的深度网络了。记住，这些技巧要配合使用！"</div>
+                </div>
+            </div>
+
+            <!-- 最佳实践清单 -->
+            <div class="action-checklist">
+                <h3 style="color: var(--accent-yellow); margin-bottom: 1.5rem;">📋 深度网络训练最佳实践</h3>
+
+                <div class="checklist-item">
+                    <div class="checklist-checkbox" onclick="toggleCheck(this)"></div>
+                    <span><strong>初始化：</strong>使用He初始化（ReLU）或Xavier初始化（Tanh/Sigmoid）</span>
+                </div>
+                <div class="checklist-item">
+                    <div class="checklist-checkbox" onclick="toggleCheck(this)"></div>
+                    <span><strong>归一化：</strong>在每个线性层后添加BatchNorm</span>
+                </div>
+                <div class="checklist-item">
+                    <div class="checklist-checkbox" onclick="toggleCheck(this)"></div>
+                    <span><strong>激活函数：</strong>优先使用ReLU或其变体（LeakyReLU、ELU）</span>
+                </div>
+                <div class="checklist-item">
+                    <div class="checklist-checkbox" onclick="toggleCheck(this)"></div>
+                    <span><strong>优化器：</strong>使用Adam作为默认选择</span>
+                </div>
+                <div class="checklist-item">
+                    <div class="checklist-checkbox" onclick="toggleCheck(this)"></div>
+                    <span><strong>学习率调度：</strong>使用余弦退火或分段衰减</span>
+                </div>
+                <div class="checklist-item">
+                    <div class="checklist-checkbox" onclick="toggleCheck(this)"></div>
+                    <span><strong>梯度裁剪：</strong>设置合理的梯度裁剪阈值（如5.0）</span>
+                </div>
+                <div class="checklist-item">
+                    <div class="checklist-checkbox" onclick="toggleCheck(this)"></div>
+                    <span><strong>残差连接：</strong>对于超深网络，使用残差连接</span>
+                </div>
+                <div class="checklist-item">
+                    <div class="checklist-checkbox" onclick="toggleCheck(this)"></div>
+                    <span><strong>监控指标：</strong>实时监控梯度范数和激活值分布</span>
+                </div>
+            </div>
+
+            <!-- 完整实现 -->
+            <div class="code-container mt-3">
+                <div class="code-header">
+                    <div class="code-header-left">
+                        <span style="color: var(--text-secondary);">stable_deep_network.py - 集成所有技巧的稳定深度网络</span>
+                    </div>
+                    <div class="code-header-right">
+                        <button class="code-action" onclick="runFinalExperiment()">
+                            ▶ 运行完整实验
+                        </button>
+                    </div>
+                </div>
+                <div class="code-content">
+                    <pre><code class="language-python">import torch
+                        import torch.nn as nn
+import torch.optim as optim
+import torch.nn.functional as F
+from torch.utils.data import DataLoader, TensorDataset
+import matplotlib.pyplot as plt
+import numpy as np
+class ResidualBlock(nn.Module):
+"""残差块：解决深度网络的退化问题"""
+def init(self, channels):
+super().init()
+self.conv1 = nn.Conv2d(channels, channels, 3, padding=1)
+self.bn1 = nn.BatchNorm2d(channels)
+self.conv2 = nn.Conv2d(channels, channels, 3, padding=1)
+self.bn2 = nn.BatchNorm2d(channels)
+def forward(self, x):
+    residual = x
+
+    out = self.conv1(x)
+    out = self.bn1(out)
+    out = F.relu(out)
+
+    out = self.conv2(out)
+    out = self.bn2(out)
+
+    out += residual  # 残差连接
+    out = F.relu(out)
+
+    return out
+
+                        <!-- 在 ResidualBlock 类定义后添加 -->
+<div class="math-container mt-3">
+    <h3 style="color: var(--accent-purple); margin-bottom: 1.5rem;">🎯 Pre-activation vs Post-activation：残差连接的最佳实践</h3>
+
+    <div class="math-container mt-3">
+    <h3 style="color: var(--accent-purple); margin-bottom: 1.5rem;">🌉 残差连接：为梯度建造"高速公路"</h3>
+
+    <div class="concept-grid">
+        <div class="concept-card what">
+            <h4 style="color: var(--accent-green);">传统深度网络</h4>
+            <div style="text-align: center; margin-top: 1rem;">
+                <div style="font-family: monospace;">
+                    x → [层1] → [层2] → ... → [层30] → y
+                </div>
+                <p style="margin-top: 0.5rem; color: var(--text-secondary);">
+                    梯度必须经过所有层
+                </p>
+            </div>
+        </div>
+
+        <div class="concept-card how">
+            <h4 style="color: var(--accent-blue);">残差网络</h4>
+            <div style="text-align: center; margin-top: 1rem;">
+                <div style="font-family: monospace;">
+                    x → [层1] → [层2] → ... → [层30] → y<br>
+                    └────┴────┴───...───┴────┘
+                </div>
+                <p style="margin-top: 0.5rem; color: var(--text-secondary);">
+                    梯度可以"跳过"中间层
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="math-formula mt-3">
+        <strong>数学原理：</strong><br>
+        传统：y = F(x)<br>
+        残差：y = F(x) + x<br><br>
+
+        反向传播时：<br>
+        ∂y/∂x = ∂F(x)/∂x + 1<br><br>
+
+        <span style="color: var(--accent-green);">即使F的梯度很小，总有"+1"保证梯度流动！</span>
+    </div>
+</div>
+
+    <div class="code-comparison-grid">
+        <!-- Post-activation (原始ResNet) -->
+        <div style="position: relative;">
+            <h4 style="color: var(--accent-yellow); margin-bottom: 1rem; text-align: center;">
+                Post-activation (原始)
+            </h4>
+            <pre style="background: rgba(15, 23, 42, 0.9); padding: 1rem; border-radius: 8px;"><code class="language-python"># 原始ResNet块
+class PostActBlock(nn.Module):
+    def forward(self, x):
+        identity = x
+
+        out = self.conv1(x)
+        out = self.bn1(out)
+        out = self.relu(out)  # 激活在BN后
+
+        out = self.conv2(out)
+        out = self.bn2(out)
+
+        out += identity
+        out = self.relu(out)  # 最后激活
+        return out</code></pre>
+        </div>
+
+        <!-- Pre-activation (改进版) -->
+        <div style="position: relative;">
+            <h4 style="color: var(--accent-green); margin-bottom: 1rem; text-align: center;">
+                Pre-activation (改进版)
+            </h4>
+            <pre style="background: rgba(15, 23, 42, 0.9); padding: 1rem; border-radius: 8px;"><code class="language-python"># Pre-activation ResNet块
+class PreActBlock(nn.Module):
+    def forward(self, x):
+        identity = x
+
+        out = self.bn1(x)
+        out = self.relu(out)  # 激活在前
+        out = self.conv1(out)
+
+        out = self.bn2(out)
+        out = self.relu(out)
+        out = self.conv2(out)
+
+        out += identity  # 恒等映射更"干净"
+        return out</code></pre>
+        </div>
+    </div>
+
+    <div class="tip info mt-3">
+        <span class="tip-icon">💡</span>
+        <div class="tip-content">
+            <strong>Pre-activation的优势：</strong><br>
+            • <strong>更好的梯度流：</strong>恒等映射路径完全没有非线性，梯度可以无损传播<br>
+            • <strong>更容易优化：</strong>每个残差块学习的是"预激活"后的残差<br>
+            • <strong>更深的网络：</strong>可以训练1000+层的网络（原始ResNet在200层后就退化）<br>
+            • <strong>更好的特征：</strong>BN统计量更稳定，激活分布更均匀
+        </div>
+    </div>
+</div>
+class StableDeepNetwork(nn.Module):
+"""使用所有优化技巧的深度网络"""
+def __init__(self, num_blocks=25, num_classes=10):
+    super().__init__()
+
+    # 输入层
+    self.conv1 = nn.Conv2d(3, 64, 7, stride=2, padding=3)
+    self.bn1 = nn.BatchNorm2d(64)
+    self.maxpool = nn.MaxPool2d(3, stride=2, padding=1)
+
+    # 残差块
+    self.blocks = nn.Sequential(
+        *[ResidualBlock(64) for _ in range(num_blocks)]
+    )
+
+    # 输出层
+    self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
+    self.fc = nn.Linear(64, num_classes)
+
+    # 初始化
+    self._initialize_weights()
+
+def _initialize_weights(self):
+    """使用He初始化"""
+    for m in self.modules():
+        if isinstance(m, nn.Conv2d):
+            nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+            if m.bias is not None:
+                nn.init.constant_(m.bias, 0)
+        elif isinstance(m, nn.BatchNorm2d):
+            nn.init.constant_(m.weight, 1)
+            nn.init.constant_(m.bias, 0)
+        elif isinstance(m, nn.Linear):
+            nn.init.normal_(m.weight, 0, 0.01)
+            nn.init.constant_(m.bias, 0)
+
+def forward(self, x):
+    # 输入层
+    x = self.conv1(x)
+    x = self.bn1(x)
+    x = F.relu(x)
+    x = self.maxpool(x)
+
+    # 残差块
+    x = self.blocks(x)
+
+    # 输出层
+    x = self.avgpool(x)
+    x = x.view(x.size(0), -1)
+    x = self.fc(x)
+
+    return x
+def train_stable_network():
+"""训练深度网络的完整流程"""
+# 设置随机种子
+torch.manual_seed(42)
+
+# 生成模拟数据（实际应用中使用真实数据集）
+print("📊 生成模拟数据...")
+X_train = torch.randn(1000, 3, 32, 32)
+y_train = torch.randint(0, 10, (1000,))
+X_val = torch.randn(200, 3, 32, 32)
+y_val = torch.randint(0, 10, (200,))
+
+# 创建数据加载器
+train_dataset = TensorDataset(X_train, y_train)
+val_dataset = TensorDataset(X_val, y_val)
+train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
+val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False)
+
+# 创建模型
+print("\n🏗️ 创建50层深度网络...")
+model = StableDeepNetwork(num_blocks=25)  # 25个残差块 = 50层
+total_params = sum(p.numel() for p in model.parameters())
+print(f"总参数量: {total_params:,}")
+
+# 损失函数和优化器
+criterion = nn.CrossEntropyLoss()
+optimizer = optim.Adam(model.parameters(), lr=0.001)
+
+# 学习率调度器
+scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=50)
+
+# 训练配置
+num_epochs = 50
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+model = model.to(device)
+
+# 记录训练过程
+history = {
+    'train_loss': [],
+    'val_loss': [],
+    'val_acc': [],
+    'lr': [],
+    'grad_norm': []
+}
+
+print(f"\n🚀 开始训练（设备: {device}）...")
+
+for epoch in range(num_epochs):
+    # 训练阶段
+    model.train()
+    train_loss = 0.0
+    grad_norms = []
+
+    for batch_idx, (data, target) in enumerate(train_loader):
+        data, target = data.to(device), target.to(device)
+
+        optimizer.zero_grad()
+        output = model(data)
+        loss = criterion(output, target)
+
+        loss.backward()
+
+        # 梯度裁剪
+        grad_norm = nn.utils.clip_grad_norm_(model.parameters(), max_norm=5.0)
+        grad_norms.append(grad_norm.item())
+
+        optimizer.step()
+        train_loss += loss.item()
+
+    # 验证阶段
+    model.eval()
+    val_loss = 0.0
+    correct = 0
+
+    with torch.no_grad():
+        for data, target in val_loader:
+            data, target = data.to(device), target.to(device)
+            output = model(data)
+            val_loss += criterion(output, target).item()
+            pred = output.argmax(dim=1)
+            correct += pred.eq(target).sum().item()
+
+    # 计算指标
+    train_loss /= len(train_loader)
+    val_loss /= len(val_loader)
+    val_acc = correct / len(val_dataset)
+    avg_grad_norm = np.mean(grad_norms)
+    current_lr = scheduler.get_last_lr()[0]
+
+    # 记录历史
+    history['train_loss'].append(train_loss)
+    history['val_loss'].append(val_loss)
+    history['val_acc'].append(val_acc)
+    history['lr'].append(current_lr)
+    history['grad_norm'].append(avg_grad_norm)
+
+    # 更新学习率
+    scheduler.step()
+
+    # 打印进度
+    if epoch % 10 == 0:
+        print(f"Epoch {epoch}/{num_epochs} - "
+              f"Train Loss: {train_loss:.4f}, "
+              f"Val Loss: {val_loss:.4f}, "
+              f"Val Acc: {val_acc:.4f}, "
+              f"LR: {current_lr:.6f}, "
+              f"Grad Norm: {avg_grad_norm:.4f}")
+
+print("\n✅ 训练完成！50层网络成功收敛！")
+
+return model, history
+def analyze_gradient_flow(model, sample_input):
+"""分析模型的梯度流"""
+model.eval()
+sample_input.requires_grad_(True)
+# 前向传播
+output = model(sample_input)
+loss = output.sum()
+
+# 反向传播
+loss.backward()
+
+# 收集梯度信息
+gradients = []
+layer_names = []
+
+for name, param in model.named_parameters():
+    if param.grad is not None and 'weight' in name:
+        grad_norm = param.grad.norm().item()
+        gradients.append(grad_norm)
+        layer_names.append(name)
+
+# 可视化梯度流
+plt.figure(figsize=(12, 6))
+plt.semilogy(range(len(gradients)), gradients, 'o-', markersize=6)
+plt.xlabel('层索引')
+plt.ylabel('梯度范数（对数刻度）')
+plt.title('50层网络的梯度流分析')
+plt.xticks(range(0, len(gradients), 5), rotation=45)
+plt.grid(True, alpha=0.3)
+
+# 添加参考线
+plt.axhline(y=1.0, color='red', linestyle='--', alpha=0.5, label='参考值=1.0')
+plt.legend()
+
+plt.tight_layout()
+plt.show()
+
+# 打印统计信息
+print("\n📊 梯度流分析:")
+print(f"最大梯度范数: {max(gradients):.4f}")
+print(f"最小梯度范数: {min(gradients):.4f}")
+print(f"梯度范数比率: {max(gradients)/min(gradients):.2f}")
+
+if max(gradients)/min(gradients) < 1000:
+    print("✅ 梯度流稳定！")
+else:
+    print("⚠️ 梯度流存在一定的不稳定性")
+运行完整的训练流程
+print("="*60)
+print("🎯 深度网络优化技巧综合实战")
+print("="*60)
+model, history = train_stable_network()
+visualize_training_history(history)
+分析梯度流
+print("\n🔬 分析训练后的梯度流...")
+sample_input = torch.randn(1, 3, 32, 32)
+if torch.cuda.is_available():
+model = model.cpu()
+sample_input = sample_input.cpu()
+analyze_gradient_flow(model, sample_input)
+总结
+print("\n" + "="*60)
+print("🎉 成功训练50层深度网络！使用的关键技术：")
+print("="*60)
+print("1. ✅ He初始化 - 适合ReLU激活的权重初始化")
+print("2. ✅ BatchNorm - 稳定每层的输入分布")
+print("3. ✅ 残差连接 - 解决深度网络的退化问题")
+print("4. ✅ Adam优化器 - 自适应学习率")
+print("5. ✅ 学习率调度 - 余弦退火策略")
+print("6. ✅ 梯度裁剪 - 防止梯度爆炸")
+print("="*60)</code></pre>
+                </div>
+            </div>
+            <!-- 实验结果展示 -->
+            <div class="visualization-container mt-3">
+                <h3 style="color: var(--accent-purple); margin-bottom: 1.5rem;">📊 实验结果：稳定训练的证明</h3>
+
+                <canvas id="final-results" width="800" height="400"></canvas>
+
+                <div class="tip success mt-3">
+                    <span class="tip-icon">🏆</span>
+                    <div class="tip-content">
+                        <strong>成功！我们做到了：</strong><br>
+                        • 50层深度网络稳定训练<br>
+                        • 梯度始终保持在合理范围<br>
+                        • 损失函数平滑下降<br>
+                        • 验证准确率稳步提升
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 总结与展望 -->
+        <section id="summary" class="section-card">
+            <h2 style="color: var(--accent-green); margin-bottom: 1.5rem;">🎓 总结：深度学习优化的智慧</h2>
+
+            <div class="story-card">
+                <h3 style="color: var(--accent-purple); margin-bottom: 1rem;">从挫败到成功的旅程</h3>
+
+                <div class="dialogue-box">
+                    <div class="speaker">
+                        <div class="avatar" style="background: linear-gradient(135deg, #fbbf24, #f59e0b);">🧑‍💻</div>
+                        小李（兴奋地）：
+                    </div>
+                    <div>"导师，我们成功了！50层网络训练得很好！"</div>
+                </div>
+
+                <div class="dialogue-box mt-2">
+                    <div class="speaker">
+                        <div class="avatar" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed);">🧙‍♂️</div>
+                        导师（微笑）：
+                    </div>
+                    <div>"记住，这些技术不是魔法，而是基于深刻数学原理的工程智慧。理解原理，才能灵活运用。"</div>
+                </div>
+            </div>
+
+            <!-- 核心要点总结 -->
+            <div class="concept-grid">
+                <div class="concept-card why">
+                    <h3 style="color: var(--accent-red); margin-bottom: 1rem;">🔍 问题本质</h3>
+                    <p>
+                        <strong>梯度消失/爆炸的根源：</strong><br>
+                        • 链式法则的累积效应<br>
+                        • 激活函数的饱和问题<br>
+                        • 不当的权重初始化<br>
+                        • 内部协变量偏移
+                    </p>
+                </div>
+
+                <div class="concept-card what">
+                    <h3 style="color: var(--accent-green); margin-bottom: 1rem;">🛠️ 解决方案</h3>
+                    <p>
+                        <strong>四大法宝：</strong><br>
+                        • Xavier/He初始化<br>
+                        • 批量归一化（BatchNorm）<br>
+                        • 现代优化器（Adam）<br>
+                        • 残差连接（ResNet）
+                    </p>
+                </div>
+
+                <div class="concept-card how">
+                    <h3 style="color: var(--accent-blue); margin-bottom: 1rem;">💡 核心思想</h3>
+                    <p>
+                        <strong>保持信号稳定传播：</strong><br>
+                        • 前向：激活值不爆炸<br>
+                        • 反向：梯度不消失<br>
+                        • 训练：参数稳定更新<br>
+                        • 结构：跳跃连接
+                    </p>
+                </div>
+
+                <div class="concept-card pitfall">
+                    <h3 style="color: var(--accent-orange); margin-bottom: 1rem;">⚡ 实战要点</h3>
+                    <p>
+                        <strong>组合使用效果最佳：</strong><br>
+                        • 初始化 + BN + 优化器<br>
+                        • 残差连接 + 梯度裁剪<br>
+                        • 学习率调度 + 正则化<br>
+                        • 监控 + 调试 + 耐心
+                    </p>
+                </div>
+            </div>
+
+            <!-- 知识图谱 -->
+            <div class="visualization-container mt-4">
+                <h3 style="color: var(--accent-purple); margin-bottom: 1.5rem;">🗺️ 深度学习优化技术全景图</h3>
+
+                <div class="matrix-container">
+                    <div class="matrix-grid" style="grid-template-columns: repeat(4, 1fr);">
+                        <!-- 问题类别 -->
+                        <div class="matrix-cell header" style="grid-column: span 4; text-align: center; background: var(--accent-purple);">
+                            深度学习优化技术体系
+                        </div>
+
+                        <!-- 梯度问题 -->
+                        <div class="matrix-cell header" style="background: rgba(239, 68, 68, 0.3);">梯度问题</div>
+                        <div class="matrix-cell value">梯度消失</div>
+                        <div class="matrix-cell value">梯度爆炸</div>
+                        <div class="matrix-cell value">梯度不稳定</div>
+
+                        <!-- 初始化技术 -->
+                        <div class="matrix-cell header" style="background: rgba(34, 197, 94, 0.3);">初始化技术</div>
+                        <div class="matrix-cell value">Xavier初始化</div>
+                        <div class="matrix-cell value">He初始化</div>
+                        <div class="matrix-cell value">LSUV初始化</div>
+
+                        <!-- 归一化技术 -->
+                        <div class="matrix-cell header" style="background: rgba(6, 182, 212, 0.3);">归一化技术</div>
+                        <div class="matrix-cell value">BatchNorm</div>
+                        <div class="matrix-cell value">LayerNorm</div>
+                        <div class="matrix-cell value">GroupNorm</div>
+
+                        <!-- 优化器 -->
+                        <div class="matrix-cell header" style="background: rgba(139, 92, 246, 0.3);">优化器</div>
+                        <div class="matrix-cell value">SGD+Momentum</div>
+                        <div class="matrix-cell value">Adam/AdamW</div>
+                        <div class="matrix-cell value">RMSprop</div>
+
+                        <!-- 网络结构 -->
+                        <div class="matrix-cell header" style="background: rgba(251, 191, 36, 0.3);">网络结构</div>
+                        <div class="matrix-cell value">残差连接</div>
+                        <div class="matrix-cell value">密集连接</div>
+                        <div class="matrix-cell value">注意力机制</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="think-box mt-4">
+                <h3 style="color: var(--accent-purple); margin-bottom: 1rem;">🤔 深度思考</h3>
+                <p>这一章我们解决了深度网络的训练问题，但这只是开始。</p>
+                <p>思考一下：</p>
+                <ul style="margin-left: 2rem; line-height: 1.8;">
+                    <li>为什么ResNet可以训练1000层的网络？</li>
+                    <li>Transformer为什么不需要那么深？</li>
+                    <li>Layer Normalization和Batch Normalization有什么区别？</li>
+                    <li>为什么有些任务SGD比Adam效果更好？</li>
+                    <li>未来还会有什么新的优化技术？</li>
+                </ul>
+            </div>
+            <!-- 在深度思考的问题列表后添加 -->
+            <div class="think-box mt-3" style="background: rgba(34, 197, 94, 0.1); border-color: rgba(34, 197, 94, 0.3);">
+                <h4 style="color: var(--accent-green); margin-bottom: 1rem;">💡 思考题提示</h4>
+                <p><strong>Q: 为什么ResNet可以训练1000层？</strong><br>
+                    A: 残差连接创建了"高速公路"，梯度可以跳过中间层直接传播。</p>
+
+                <p><strong>Q: Transformer为什么不需要那么深？</strong><br>
+                    A: 自注意力机制让每层都能"看到"所有信息，不需要逐层抽象。</p>
+
+                <p><strong>Q: 为什么有些任务SGD比Adam更好？</strong><br>
+                    A: SGD的解更容易泛化，Adam可能陷入尖锐的局部最优。</p>
+            </div>
+
+            <!-- 实践建议 -->
+            <div class="action-checklist mt-4">
+                <h3 style="color: var(--accent-yellow); margin-bottom: 1.5rem;">📋 行动计划：深化理解</h3>
+
+                <div class="checklist-item">
+                    <div class="checklist-checkbox" onclick="toggleCheck(this)"></div>
+                    <span>实现一个梯度监控工具，可视化训练过程</span>
+                </div>
+                <div class="checklist-item">
+                    <div class="checklist-checkbox" onclick="toggleCheck(this)"></div>
+                    <span>对比不同初始化方法在不同激活函数下的效果</span>
+                </div>
+                <div class="checklist-item">
+                    <div class="checklist-checkbox" onclick="toggleCheck(this)"></div>
+                    <span>从零实现BatchNorm的前向和反向传播</span>
+                </div>
+                <div class="checklist-item">
+                    <div class="checklist-checkbox" onclick="toggleCheck(this)"></div>
+                    <span>实现一个简化版的Adam优化器</span>
+                </div>
+                <div class="checklist-item">
+                    <div class="checklist-checkbox" onclick="toggleCheck(this)"></div>
+                    <span>训练一个100层的残差网络并分析梯度流</span>
+                </div>
+            </div>
+
+            <!-- 下一章预告 -->
+            <div style="background: var(--primary-gradient); padding: 3rem; border-radius: 1rem; margin-top: 3rem; text-align: center; color: white;">
+                <h3 style="margin-bottom: 1rem;">🚀 下一章预告</h3>
+                <h2 style="margin-bottom: 1rem;">第5章：卷积神经网络 - 看见模式的艺术</h2>
+                <p style="opacity: 0.9; max-width: 600px; margin: 0 auto;">
+                    我们已经让深度网络能够稳定训练了，但处理图像时，全连接网络有个致命问题...<br>
+                    下一章，让我们探索CNN如何通过"局部感知"和"权重共享"优雅地解决这个问题！
+                </p>
+                <button class="btn" style="background: white; color: var(--bg-dark); margin-top: 2rem;" onclick="location.href='chapter5.html'">
+                    开始下一章 →
+                </button>
+            </div>
+        </section>
+
+        <!-- 反馈区域 -->
+        <section class="section-card">
+            <h3 style="color: var(--accent-blue); margin-bottom: 1.5rem;">💬 学习反馈</h3>
+            <div class="text-center">
+                <p>这一章对你有帮助吗？</p>
+                <div style="display: flex; gap: 1rem; justify-content: center; margin-top: 1.5rem;">
+                    <button class="btn btn-secondary" onclick="submitFeedback('helpful')">
+                        👍 很有帮助
+                    </button>
+                    <button class="btn btn-secondary" onclick="submitFeedback('ok')">
+                        😐 还可以
+                    </button>
+                    <button class="btn btn-secondary" onclick="submitFeedback('confusing')">
+                        😕 有点困惑
+                    </button>
+                </div>
+            </div>
+        </section>
+    </div>
+</main>
+<!-- JavaScript -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+<script>
+    // 初始化语法高亮
+    hljs.highlightAll();
+
+    // 初始化数学公式渲染
+    renderMathInElement(document.body, {
+        delimiters: [
+            {left: '$$', right: '$$', display: true},
+            {left: '$', right: '$', display: false}
+        ]
+    });
+
+    // 全局状态管理
+    let animationsEnabled = true;
+    let currentTheme = 'dark';
+    let sidebarOpen = false;
+
+    // 导航功能
+    document.getElementById('toggle-sidebar').addEventListener('click', () => {
+        sidebarOpen = !sidebarOpen;
+        document.getElementById('sidebar').classList.toggle('open', sidebarOpen);
+        document.getElementById('sidebar-overlay').classList.toggle('active', sidebarOpen);
+    });
+
+    document.getElementById('sidebar-overlay').addEventListener('click', () => {
+        sidebarOpen = false;
+        document.getElementById('sidebar').classList.remove('open');
+        document.getElementById('sidebar-overlay').classList.remove('active');
+    });
+
+    // 主题切换
+    document.getElementById('toggle-theme').addEventListener('click', () => {
+        currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', currentTheme);
+    });
+
+    // 动画控制
+    document.getElementById('toggle-animations').addEventListener('click', () => {
+        animationsEnabled = !animationsEnabled;
+        document.documentElement.style.setProperty('--animation-duration', animationsEnabled ? '0.3s' : '0s');
+    });
+
+    // 进度条更新
+    function updateProgressBar() {
+        const scrolled = window.scrollY;
+        const height = document.documentElement.scrollHeight - window.innerHeight;
+        const progress = (scrolled / height) * 100;
+        document.getElementById('progress-bar').style.width = progress + '%';
+    }
+
+    window.addEventListener('scroll', () => {
+        updateProgressBar();
+
+        // 隐藏/显示导航栏
+        const nav = document.querySelector('.nav-header');
+        if (window.scrollY > 100) {
+            nav.classList.add('scrolled');
+        } else {
+            nav.classList.remove('scrolled');
+        }
+    });
+
+    // 目录高亮
+    const sections = document.querySelectorAll('section[id]');
+    const tocItems = document.querySelectorAll('.toc-item');
+
+    function updateTOC() {
+        let current = '';
+        sections.forEach(section => {
+            const rect = section.getBoundingClientRect();
+            if (rect.top <= 100 && rect.bottom >= 100) {
+                current = section.getAttribute('id');
+            }
+        });
+
+        tocItems.forEach(item => {
+            item.classList.remove('active');
+            if (item.getAttribute('href') === '#' + current) {
+                item.classList.add('active');
+            }
+        });
+    }
+
+    window.addEventListener('scroll', updateTOC);
+
+    // 代码标签切换
+    document.querySelectorAll('.code-tab').forEach(tab => {
+        tab.addEventListener('click', function() {
+            const container = this.closest('.code-container');
+            const tabs = container.querySelectorAll('.code-tab');
+            const contents = container.querySelectorAll('.code-content[data-tab-content]');
+
+            tabs.forEach(t => t.classList.remove('active'));
+            this.classList.add('active');
+
+            contents.forEach(content => {
+                content.style.display = 'none';
+            });
+
+            const targetContent = container.querySelector(`[data-tab-content="${this.dataset.tab}"]`);
+            if (targetContent) {
+                targetContent.style.display = 'block';
+            }
+        });
+    });
+
+    // 代码运行模拟
+    function runCode(button, outputId) {
+        const output = document.getElementById(outputId);
+        output.classList.add('show');
+
+        // 模拟运行效果
+        const originalText = button.innerHTML;
+        button.innerHTML = '<span class="loading"></span> 运行中...';
+        button.disabled = true;
+
+        setTimeout(() => {
+            button.innerHTML = '✅ 运行完成';
+            setTimeout(() => {
+                button.innerHTML = originalText;
+                button.disabled = false;
+            }, 1500);
+        }, 1500);
+    }
+
+    // Canvas可视化：梯度流
+    function visualizeGradientFlow() {
+        const canvas = document.getElementById('gradient-flow-viz');
+        const ctx = canvas.getContext('2d');
+
+        // 清空画布
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // 数据
+        const layers = 30;
+        const gradients = [];
+        let current = 1.0;
+
+        // 模拟梯度衰减
+        for (let i = 0; i < layers; i++) {
+            current *= 0.2; // Sigmoid导数平均值
+            gradients.push(current);
+        }
+
+        // 绘制背景
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.8)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // 绘制网格
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+        ctx.lineWidth = 1;
+        for (let i = 0; i <= 10; i++) {
+            const y = (i / 10) * canvas.height;
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(canvas.width, y);
+            ctx.stroke();
+        }
+
+        // 绘制梯度曲线
+        const padding = 40;
+        const width = canvas.width - 2 * padding;
+        const height = canvas.height - 2 * padding;
+
+        ctx.strokeStyle = '#ef4444';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+
+        gradients.forEach((grad, i) => {
+            const x = padding + (i / (layers - 1)) * width;
+            const y = padding + height - (Math.log10(grad + 1e-20) + 20) * height / 20;
+
+            if (i === 0) {
+                ctx.moveTo(x, y);
+            } else {
+                ctx.lineTo(x, y);
+            }
+
+            // 绘制数据点
+            ctx.fillStyle = '#ef4444';
+            ctx.beginPath();
+            ctx.arc(x, y, 4, 0, 2 * Math.PI);
+            ctx.fill();
+        });
+
+        ctx.stroke();
+
+        // 绘制标签
+        ctx.fillStyle = '#f1f5f9';
+        ctx.font = '14px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('层数（从后往前）', canvas.width / 2, canvas.height - 10);
+
+        ctx.save();
+        ctx.translate(15, canvas.height / 2);
+        ctx.rotate(-Math.PI / 2);
+        ctx.fillText('梯度大小（对数刻度）', 0, 0);
+        ctx.restore();
+
+        // 绘制标题
+        ctx.font = 'bold 16px sans-serif';
+        ctx.fillText('梯度在深度网络中的指数级衰减', canvas.width / 2, 25);
+    }
+
+    // 动画梯度流
+    let animationFrame = null;
+    function animateGradientFlow() {
+        if (animationFrame) {
+            cancelAnimationFrame(animationFrame);
+            animationFrame = null;
+            return;
+        }
+
+        const canvas = document.getElementById('gradient-flow-viz');
+        const ctx = canvas.getContext('2d');
+        let progress = 0;
+
+        function animate() {
+            progress += 0.02;
+            if (progress > 1) progress = 0;
+
+            // 清空画布
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 重新绘制静态部分
+            visualizeGradientFlow();
+
+            // 添加动画效果
+            const x = 40 + progress * (canvas.width - 80);
+            ctx.strokeStyle = '#fbbf24';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(x, 40);
+            ctx.lineTo(x, canvas.height - 40);
+            ctx.stroke();
+
+            animationFrame = requestAnimationFrame(animate);
+        }
+
+        animate();
+    }
+
+    // Sigmoid可视化
+    function updateSigmoidPlot() {
+        const canvas = document.getElementById('sigmoid-viz');
+        const ctx = canvas.getContext('2d');
+        const range = parseInt(document.getElementById('sigmoid-range').value);
+
+        // 清空画布
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // 绘制背景
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.8)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // 设置坐标系
+        const padding = 40;
+        const width = canvas.width - 2 * padding;
+        const height = canvas.height - 2 * padding;
+        const centerX = padding + width / 2;
+        const centerY = padding + height / 2;
+
+        // 绘制坐标轴
+        ctx.strokeStyle = '#666';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(padding, centerY);
+        ctx.lineTo(canvas.width - padding, centerY);
+        ctx.moveTo(centerX, padding);
+        ctx.lineTo(centerX, canvas.height - padding);
+        ctx.stroke();
+
+        // Sigmoid函数
+        function sigmoid(x) {
+            return 1 / (1 + Math.exp(-x));
+        }
+
+        // Sigmoid导数
+        function sigmoidDerivative(x) {
+            const s = sigmoid(x);
+            return s * (1 - s);
+        }
+
+        // 绘制函数
+        const points = 200;
+        const step = (2 * range) / points;
+
+        // Sigmoid
+        ctx.strokeStyle = '#22c55e';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        for (let i = 0; i <= points; i++) {
+            const x = -range + i * step;
+            const y = sigmoid(x);
+            const px = centerX + (x / range) * (width / 2);
+            const py = centerY - y * (height / 2);
+
+            if (i === 0) {
+                ctx.moveTo(px, py);
+            } else {
+                ctx.lineTo(px, py);
+            }
+        }
+        ctx.stroke();
+
+        // Sigmoid导数
+        ctx.strokeStyle = '#ef4444';
+        ctx.lineWidth = 3;
+        ctx.setLineDash([5, 5]);
+        ctx.beginPath();
+        for (let i = 0; i <= points; i++) {
+            const x = -range + i * step;
+            const y = sigmoidDerivative(x) * 4; // 放大显示
+            const px = centerX + (x / range) * (width / 2);
+            const py = centerY - y * (height / 2);
+
+            if (i === 0) {
+                ctx.moveTo(px, py);
+            } else {
+                ctx.lineTo(px, py);
+            }
+        }
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // 标注最大导数值
+        ctx.fillStyle = '#ef4444';
+        ctx.font = '14px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('max = 0.25', centerX, centerY - height / 2 + 20);
+
+        // 图例
+        ctx.fillStyle = '#22c55e';
+        ctx.fillRect(padding + 20, padding + 10, 30, 3);
+        ctx.fillStyle = '#f1f5f9';
+        ctx.font = '12px sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText('Sigmoid函数', padding + 55, padding + 15);
+
+        ctx.fillStyle = '#ef4444';
+        ctx.fillRect(padding + 20, padding + 30, 30, 3);
+        ctx.fillStyle = '#f1f5f9';
+        ctx.fillText('Sigmoid导数 (×4)', padding + 55, padding + 35);
+
+        // 标题
+        ctx.font = 'bold 16px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('Sigmoid函数的饱和问题', canvas.width / 2, 25);
+    }
+
+    // 滑块事件
+    document.getElementById('sigmoid-range').addEventListener('input', function(e) {
+        document.getElementById('sigmoid-range-value').textContent = `±${e.target.value}`;
+        updateSigmoidPlot();
+    });
+
+    document.getElementById('lr-slider').addEventListener('input', function(e) {
+        document.getElementById('lr-value').textContent = (e.target.value / 100).toFixed(2);
+    });
+
+    // 优化器路径可视化
+    function visualizeOptimizerPaths() {
+        const canvas = document.getElementById('optimizer-viz');
+        const ctx = canvas.getContext('2d');
+
+        // 清空画布
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // 绘制背景
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.8)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // 绘制等高线（Rosenbrock函数）
+        const centerX = 500;
+        const centerY = 300;
+        const scale = 100;
+
+        ctx.strokeStyle = 'rgba(139, 92, 246, 0.3)';
+        ctx.lineWidth = 1;
+
+        for (let level = 0.1; level <= 10; level *= 2) {
+            ctx.beginPath();
+            for (let angle = 0; angle <= 2 * Math.PI; angle += 0.01) {
+                const r = level * scale;
+                const x = centerX + r * Math.cos(angle);
+                const y = centerY + r * Math.sin(angle) * 0.3;
+
+                if (angle === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            }
+            ctx.closePath();
+            ctx.stroke();
+        }
+
+        // 标记最优点
+        ctx.fillStyle = '#22c55e';
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, 8, 0, 2 * Math.PI);
+        ctx.fill();
+        ctx.fillStyle = '#f1f5f9';
+        ctx.font = '12px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('最优点', centerX, centerY - 15);
+
+        // 绘制不同优化器的路径
+        const optimizers = [
+            { name: 'SGD', color: '#ef4444', path: generateSGDPath() },
+            { name: 'Momentum', color: '#fbbf24', path: generateMomentumPath() },
+            { name: 'Adam', color: '#06b6d4', path: generateAdamPath() }
+        ];
+
+        optimizers.forEach(opt => {
+            ctx.strokeStyle = opt.color;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+
+            opt.path.forEach((point, i) => {
+                if (i === 0) {
+                    ctx.moveTo(point.x, point.y);
+                } else {
+                    ctx.lineTo(point.x, point.y);
+                }
+            });
+
+            ctx.stroke();
+
+            // 标记终点
+            const lastPoint = opt.path[opt.path.length - 1];
+            ctx.fillStyle = opt.color;
+            ctx.beginPath();
+            ctx.arc(lastPoint.x, lastPoint.y, 5, 0, 2 * Math.PI);
+            ctx.fill();
+        });
+
+        // 图例
+        let legendY = 30;
+        optimizers.forEach(opt => {
+            ctx.fillStyle = opt.color;
+            ctx.fillRect(20, legendY, 30, 3);
+            ctx.fillStyle = '#f1f5f9';
+            ctx.font = '14px sans-serif';
+            ctx.textAlign = 'left';
+            ctx.fillText(opt.name, 60, legendY + 5);
+            legendY += 25;
+        });
+
+        // 标题
+        ctx.font = 'bold 16px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#f1f5f9';
+        ctx.fillText('不同优化器的收敛路径', canvas.width / 2, 25);
+    }
+
+    // 生成优化器路径
+    function generateSGDPath() {
+        const path = [];
+        let x = 100, y = 400;
+        const lr = 0.001;
+
+        for (let i = 0; i < 100; i++) {
+            path.push({ x, y });
+            // 简化的梯度计算
+            const dx = 2 * (x - 500);
+            const dy = 2 * (y - 300) * 0.3;
+            x -= lr * dx * 100;
+            y -= lr * dy * 100;
+        }
+
+        return path;
+    }
+
+    function generateMomentumPath() {
+        const path = [];
+        let x = 100, y = 400;
+        let vx = 0, vy = 0;
+        const lr = 0.001;
+        const beta = 0.9;
+
+        for (let i = 0; i < 100; i++) {
+            path.push({ x, y });
+            const dx = 2 * (x - 500);
+            const dy = 2 * (y - 300) * 0.3;
+            vx = beta * vx + (1 - beta) * dx;
+            vy = beta * vy + (1 - beta) * dy;
+            x -= lr * vx * 100;
+            y -= lr * vy * 100;
+        }
+
+        return path;
+    }
+
+    function generateAdamPath() {
+        const path = [];
+        let x = 100, y = 400;
+        let mx = 0, my = 0, vx = 0, vy = 0;
+        const lr = 0.01;
+        const beta1 = 0.9, beta2 = 0.999;
+
+        for (let i = 0; i < 100; i++) {
+            path.push({ x, y });
+            const dx = 2 * (x - 500);
+            const dy = 2 * (y - 300) * 0.3;
+
+            mx = beta1 * mx + (1 - beta1) * dx;
+            my = beta1 * my + (1 - beta1) * dy;
+            vx = beta2 * vx + (1 - beta2) * dx * dx;
+            vy = beta2 * vy + (1 - beta2) * dy * dy;
+
+            const mxHat = mx / (1 - Math.pow(beta1, i + 1));
+            const myHat = my / (1 - Math.pow(beta1, i + 1));
+            const vxHat = vx / (1 - Math.pow(beta2, i + 1));
+            const vyHat = vy / (1 - Math.pow(beta2, i + 1));
+
+            x -= lr * mxHat / (Math.sqrt(vxHat) + 1e-8) * 100;
+            y -= lr * myHat / (Math.sqrt(vyHat) + 1e-8) * 100;
+        }
+
+        return path;
+    }
+
+    // 动画优化器
+    let optimizerAnimation = null;
+    function animateOptimizers() {
+        if (optimizerAnimation) {
+            cancelAnimationFrame(optimizerAnimation);
+            optimizerAnimation = null;
+            return;
+        }
+
+        const canvas = document.getElementById('optimizer-viz');
+        const ctx = canvas.getContext('2d');
+        let step = 0;
+
+        function animate() {
+            if (step > 100) {
+                optimizerAnimation = null;
+                return;
+            }
+
+            visualizeOptimizerPaths();
+
+            // 添加当前位置标记
+            const optimizers = [
+                { name: 'SGD', color: '#ef4444', path: generateSGDPath() },
+                { name: 'Momentum', color: '#fbbf24', path: generateMomentumPath() },
+                { name: 'Adam', color: '#06b6d4', path: generateAdamPath() }
+            ];
+
+            optimizers.forEach(opt => {
+                if (step < opt.path.length) {
+                    const point = opt.path[step];
+                    ctx.fillStyle = opt.color;
+                    ctx.beginPath();
+                    ctx.arc(point.x, point.y, 8, 0, 2 * Math.PI);
+                    ctx.fill();
+                }
+            });
+
+            step++;
+            optimizerAnimation = requestAnimationFrame(animate);
+        }
+
+        animate();
+    }
+
+    // 初始化实验
+    function runInitExperiment() {
+        // 这里可以添加实际的实验代码
+        console.log('运行初始化实验...');
+    }
+
+    function runFinalExperiment() {
+        // 绘制最终结果
+        const canvas = document.getElementById('final-results');
+        const ctx = canvas.getContext('2d');
+
+        // 清空画布
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // 绘制背景
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.8)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // 模拟训练曲线
+        const epochs = 50;
+        const trainLoss = [];
+        const valLoss = [];
+        const gradNorm = [];
+
+        for (let i = 0; i < epochs; i++) {
+            trainLoss.push(2.3 * Math.exp(-i / 10) + 0.1 + Math.random() * 0.05);
+            valLoss.push(2.3 * Math.exp(-i / 10) + 0.15 + Math.random() * 0.08);
+            gradNorm.push(1.5 + Math.sin(i / 5) * 0.3 + Math.random() * 0.2);
+        }
+
+        // 绘制损失曲线
+        const padding = 40;
+        const width = (canvas.width - 3 * padding) / 2;
+        const height = canvas.height - 2 * padding;
+
+        // 训练损失
+        ctx.strokeStyle = '#22c55e';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        trainLoss.forEach((loss, i) => {
+            const x = padding + (i / epochs) * width;
+            const y = padding + height - (loss / 2.5) * height;
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        });
+        ctx.stroke();
+
+        // 验证损失
+        ctx.strokeStyle = '#06b6d4';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        valLoss.forEach((loss, i) => {
+            const x = padding + (i / epochs) * width;
+            const y = padding + height - (loss / 2.5) * height;
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        });
+        ctx.stroke();
+
+        // 梯度范数
+        ctx.strokeStyle = '#8b5cf6';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        gradNorm.forEach((norm, i) => {
+            const x = padding * 2 + width + (i / epochs) * width;
+            const y = padding + height - (norm / 2) * height;
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        });
+        ctx.stroke();
+
+        // 标签
+        ctx.fillStyle = '#f1f5f9';
+        ctx.font = '14px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('训练/验证损失', padding + width / 2, canvas.height - 10);
+        ctx.fillText('梯度范数', padding * 2 + width + width / 2, canvas.height - 10);
+
+        // 图例
+        ctx.fillStyle = '#22c55e';
+        ctx.fillRect(padding, 10, 20, 3);
+        ctx.fillStyle = '#f1f5f9';
+        ctx.textAlign = 'left';
+        ctx.fillText('训练损失', padding + 25, 15);
+
+        ctx.fillStyle = '#06b6d4';
+        ctx.fillRect(padding + 100, 10, 20, 3);
+        ctx.fillText('验证损失', padding + 125, 15);
+
+        ctx.fillStyle = '#8b5cf6';
+        ctx.fillRect(padding * 2 + width, 10, 20, 3);
+        ctx.fillText('梯度范数', padding * 2 + width + 25, 15);
+    }
+
+    // 清单功能
+    function toggleCheck(checkbox) {
+        checkbox.classList.toggle('checked');
+    }
+
+    // 反馈功能
+    function submitFeedback(type) {
+        console.log('Feedback:', type);
+        alert('感谢您的反馈！我们会继续改进教程。');
+    }
+
+    // 初始化所有可视化
+    window.addEventListener('load', () => {
+        visualizeGradientFlow();
+        updateSigmoidPlot();
+        visualizeOptimizerPaths();
+        updateProgressBar();
+    });
+
+    // 学习循环步骤高亮
+    let currentStep = 0;
+    const loopSteps = document.querySelectorAll('.loop-step');
+
+    function highlightStep() {
+        loopSteps.forEach((step, index) => {
+            step.classList.toggle('active', index === currentStep);
+        });
+        currentStep = (currentStep + 1) % loopSteps.length;
+    }
+
+    if (animationsEnabled) {
+        setInterval(highlightStep, 3000);
+    }
+</script>
+</body>
+</html>

@@ -1,0 +1,4354 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>第5章：线性回归 - 寻找数据背后的规律</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        /* CSS 变量定义主题颜色 */
+        :root {
+            /* 深色主题（默认） */
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-card: rgba(30, 41, 59, 0.8);
+            --bg-card-solid: rgba(30, 41, 59, 0.95);
+            --bg-code: #1a1a2e;
+            --bg-demo: #0f172a;
+
+            --text-primary: #e2e8f0;
+            --text-secondary: #cbd5e1;
+            --text-muted: #94a3b8;
+            --text-dim: #64748b;
+
+            --border-primary: rgba(34, 197, 94, 0.3);
+            --border-secondary: rgba(34, 197, 94, 0.2);
+            --border-muted: rgba(148, 163, 184, 0.1);
+
+            --grid-color: #2d3748;
+            --grid-light: #4a5568;
+
+            --shadow-sm: rgba(0,0,0,0.3);
+            --shadow-md: rgba(0,0,0,0.4);
+            --shadow-lg: rgba(0,0,0,0.5);
+
+            --gradient-primary: linear-gradient(135deg, #22c55e, #10b981);
+            --gradient-bg: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+
+            /* 线性回归主题色 */
+            --regression-green: #22c55e;
+            --regression-emerald: #10b981;
+            --regression-teal: #14b8a6;
+            --regression-yellow: #fbbf24;
+            --regression-orange: #f97316;
+        }
+
+        /* 浅色主题 */
+        body.light-theme {
+            --bg-primary: #f8fafc;
+            --bg-secondary: #e2e8f0;
+            --bg-card: rgba(255, 255, 255, 0.9);
+            --bg-card-solid: rgba(255, 255, 255, 0.95);
+            --bg-code: #f3f4f6;
+            --bg-demo: #ffffff;
+
+            --text-primary: #1e293b;
+            --text-secondary: #334155;
+            --text-muted: #475569;
+            --text-dim: #64748b;
+
+            --border-primary: rgba(34, 197, 94, 0.4);
+            --border-secondary: rgba(34, 197, 94, 0.3);
+            --border-muted: rgba(203, 213, 225, 0.5);
+
+            --grid-color: #e5e7eb;
+            --grid-light: #d1d5db;
+
+            --shadow-sm: rgba(0,0,0,0.1);
+            --shadow-md: rgba(0,0,0,0.15);
+            --shadow-lg: rgba(0,0,0,0.2);
+
+            --gradient-primary: linear-gradient(135deg, #22c55e, #10b981);
+            --gradient-bg: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+        }
+
+        /* 主题过渡动画 */
+        body,
+        body * {
+            transition: background-color 0.3s ease,
+            color 0.3s ease,
+            border-color 0.3s ease,
+            box-shadow 0.3s ease;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: var(--gradient-bg);
+            color: var(--text-primary);
+            line-height: 1.8;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* 当导航展开时，内容区右移 */
+        body.nav-open .container {
+            margin-left: 360px;
+        }
+
+        /* 动态背景效果 - 数据点风格 */
+        .dynamic-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            z-index: -1;
+        }
+
+        .data-points-bg {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* 智能导航样式 */
+        .smart-nav {
+            position: fixed;
+            left: -340px;
+            top: 0;
+            width: 340px;
+            height: 100vh;
+            background: linear-gradient(135deg, rgba(15, 23, 42, 0.98) 0%, rgba(30, 41, 59, 0.95) 100%);
+            backdrop-filter: blur(20px);
+            border-right: 1px solid var(--border-primary);
+            box-shadow: 4px 0 30px rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            overflow: hidden;
+        }
+
+        body.nav-open .smart-nav {
+            left: 0;
+        }
+
+        /* 导航背景装饰 */
+        .nav-bg-decoration {
+            position: absolute;
+            top: -100px;
+            right: -100px;
+            width: 300px;
+            height: 300px;
+            background: radial-gradient(circle, var(--regression-green) 0%, transparent 70%);
+            opacity: 0.1;
+            animation: pulse 4s ease-in-out infinite;
+        }
+
+        /* 导航触发按钮 */
+        .nav-trigger {
+            position: fixed;
+            left: 20px;
+            top: 20px;
+            width: 56px;
+            height: 56px;
+            background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(16, 185, 129, 0.1));
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(34, 197, 94, 0.3);
+            border-radius: 16px;
+            cursor: pointer;
+            z-index: 1001;
+            transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        body.nav-open .nav-trigger {
+            left: 290px;
+            background: linear-gradient(135deg, rgba(251, 191, 36, 0.1), rgba(245, 158, 11, 0.1));
+            border-color: rgba(251, 191, 36, 0.5);
+        }
+
+        .nav-trigger:hover {
+            transform: scale(1.1);
+            box-shadow: 0 8px 25px rgba(34, 197, 94, 0.4);
+        }
+
+        /* 汉堡菜单动画 */
+        .nav-trigger-icon {
+            width: 24px;
+            height: 20px;
+            position: relative;
+            transform: rotate(0deg);
+            transition: 0.5s ease-in-out;
+        }
+
+        .nav-trigger-icon span {
+            display: block;
+            position: absolute;
+            height: 3px;
+            width: 100%;
+            background: linear-gradient(90deg, var(--regression-green), var(--regression-emerald));
+            border-radius: 3px;
+            opacity: 1;
+            left: 0;
+            transform: rotate(0deg);
+            transition: 0.25s ease-in-out;
+        }
+
+        .nav-trigger-icon span:nth-child(1) {
+            top: 0px;
+        }
+
+        .nav-trigger-icon span:nth-child(2) {
+            top: 8px;
+        }
+
+        .nav-trigger-icon span:nth-child(3) {
+            top: 16px;
+        }
+
+        body.nav-open .nav-trigger-icon span:nth-child(1) {
+            top: 8px;
+            transform: rotate(135deg);
+        }
+
+        body.nav-open .nav-trigger-icon span:nth-child(2) {
+            opacity: 0;
+            left: -60px;
+        }
+
+        body.nav-open .nav-trigger-icon span:nth-child(3) {
+            top: 8px;
+            transform: rotate(-135deg);
+        }
+
+        /* 导航头部 */
+        .nav-header {
+            padding: 30px;
+            background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(16, 185, 129, 0.05));
+            border-bottom: 1px solid rgba(34, 197, 94, 0.2);
+            position: relative;
+        }
+
+        .nav-header h3 {
+            font-size: 1.4rem;
+            background: linear-gradient(135deg, var(--regression-green), var(--regression-emerald));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 700;
+        }
+
+        .nav-subtitle {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-top: 5px;
+        }
+
+        /* 章节进度环 */
+        .chapter-progress {
+            position: absolute;
+            right: 30px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 50px;
+            height: 50px;
+        }
+
+        .progress-ring {
+            transform: rotate(-90deg);
+        }
+
+        .progress-ring-bg {
+            fill: none;
+            stroke: rgba(34, 197, 94, 0.1);
+            stroke-width: 4;
+        }
+
+        .progress-ring-fill {
+            fill: none;
+            stroke: url(#progressGradient);
+            stroke-width: 4;
+            stroke-dasharray: 138.23;
+            stroke-dashoffset: 138.23;
+            transition: stroke-dashoffset 1s ease;
+        }
+
+        .progress-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 0.9rem;
+            font-weight: bold;
+            color: var(--regression-green);
+        }
+
+        /* 导航列表 */
+        .nav-list {
+            list-style: none;
+            padding: 20px 0;
+            max-height: calc(100vh - 300px);
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        .nav-list::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .nav-list::-webkit-scrollbar-track {
+            background: rgba(34, 197, 94, 0.05);
+            border-radius: 3px;
+        }
+
+        .nav-list::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, var(--regression-green), var(--regression-emerald));
+            border-radius: 3px;
+        }
+
+        /* 导航项 */
+        .nav-item {
+            position: relative;
+            margin: 8px 15px;
+            border-radius: 12px;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .nav-item::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 0;
+            background: linear-gradient(90deg, var(--regression-green), var(--regression-emerald));
+            transition: width 0.3s ease;
+            opacity: 0.8;
+        }
+
+        .nav-item:hover::before {
+            width: 4px;
+        }
+
+        .nav-item.active::before {
+            width: 4px;
+            opacity: 1;
+            box-shadow: 0 0 12px var(--regression-green);
+        }
+
+        .nav-item a {
+            display: flex;
+            align-items: center;
+            padding: 14px 20px;
+            color: var(--text-muted);
+            text-decoration: none;
+            transition: all 0.3s ease;
+            position: relative;
+            background: rgba(0, 0, 0, 0);
+        }
+
+        .nav-item:hover a {
+            color: var(--text-primary);
+            background: rgba(34, 197, 94, 0.05);
+            padding-left: 28px;
+        }
+
+        .nav-item.active a {
+            color: var(--text-primary);
+            background: linear-gradient(90deg, rgba(34, 197, 94, 0.1), rgba(16, 185, 129, 0.05));
+            padding-left: 28px;
+            font-weight: 600;
+        }
+
+        /* 导航图标动画 */
+        .nav-icon {
+            font-size: 1.4rem;
+            margin-right: 14px;
+            flex-shrink: 0;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            background: rgba(34, 197, 94, 0.1);
+            border-radius: 8px;
+        }
+
+        .nav-item:hover .nav-icon {
+            transform: scale(1.1) rotate(10deg);
+            background: rgba(34, 197, 94, 0.2);
+        }
+
+        .nav-item.active .nav-icon {
+            background: linear-gradient(135deg, rgba(34, 197, 94, 0.3), rgba(16, 185, 129, 0.2));
+            animation: iconPulse 2s ease-in-out infinite;
+        }
+
+        @keyframes iconPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        /* 导航文本和时间 */
+        .nav-content {
+            flex: 1;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .nav-text {
+            font-size: 0.95rem;
+            font-weight: 500;
+        }
+
+        .nav-meta {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .nav-time {
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            background: rgba(34, 197, 94, 0.1);
+            padding: 2px 8px;
+            border-radius: 12px;
+        }
+
+        .nav-status {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #4a5568;
+            transition: all 0.3s ease;
+        }
+
+        .nav-item.completed .nav-status {
+            background: #10b981;
+            box-shadow: 0 0 8px #10b981;
+        }
+
+        .nav-item.active .nav-status {
+            background: var(--regression-green);
+            box-shadow: 0 0 8px var(--regression-green);
+            animation: statusPulse 2s ease-in-out infinite;
+        }
+
+        @keyframes statusPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* 导航底部统计 */
+        .nav-footer {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 25px;
+            background: linear-gradient(to top, rgba(15, 23, 42, 0.98), transparent);
+            border-top: 1px solid rgba(34, 197, 94, 0.2);
+        }
+
+        .learning-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: rgba(34, 197, 94, 0.05);
+            padding: 12px;
+            border-radius: 10px;
+            border: 1px solid rgba(34, 197, 94, 0.2);
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: var(--regression-green);
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        /* 主标题样式 */
+        .main-header {
+            text-align: center;
+            margin: 60px 0;
+            position: relative;
+        }
+
+        .main-title {
+            font-size: 4rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, var(--regression-green) 0%, var(--regression-emerald) 50%, var(--regression-teal) 100%);
+            background-size: 200% 200%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: gradient-flow 6s ease infinite;
+            text-shadow: 0 0 80px rgba(34, 197, 94, 0.5);
+            margin-bottom: 20px;
+        }
+
+        @keyframes gradient-flow {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .subtitle {
+            font-size: 1.6rem;
+            color: #94a3b8;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+        }
+
+        /* 章节卡片样式 */
+        .section-card {
+            background: var(--bg-card);
+            backdrop-filter: blur(10px);
+            border-radius: 24px;
+            padding: 40px;
+            margin: 30px 0;
+            border: 1px solid var(--border-secondary);
+            box-shadow: 0 20px 40px var(--shadow-sm);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .section-card::before {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            background: linear-gradient(45deg, var(--regression-green), var(--regression-emerald), var(--regression-teal));
+            border-radius: 24px;
+            opacity: 0;
+            z-index: -1;
+            transition: opacity 0.3s ease;
+        }
+
+        .section-card:hover::before {
+            opacity: 0.5;
+            animation: borderRotate 4s linear infinite;
+        }
+
+        @keyframes borderRotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .section-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 30px 60px var(--shadow-md);
+        }
+
+        .section-title {
+            font-size: 2.5rem;
+            background: linear-gradient(135deg, var(--regression-green), var(--regression-emerald));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 30px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        /* 故事框样式 */
+        .story-box {
+            background: linear-gradient(135deg, rgba(251, 191, 36, 0.1), rgba(245, 158, 11, 0.05));
+            border-radius: 20px;
+            padding: 30px;
+            margin: 30px 0;
+            border: 2px solid rgba(251, 191, 36, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .story-box::after {
+            content: '📊';
+            position: absolute;
+            top: -20px;
+            right: 20px;
+            font-size: 4rem;
+            opacity: 0.08;
+            z-index: 0;
+        }
+
+        /* 思考题框样式 */
+        .thinking-box {
+            background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(16, 185, 129, 0.05));
+            border-radius: 20px;
+            padding: 30px;
+            margin: 30px 0;
+            border: 2px solid rgba(34, 197, 94, 0.3);
+            position: relative;
+        }
+
+        .thinking-box::before {
+            content: '💡';
+            position: absolute;
+            top: -15px;
+            left: 20px;
+            font-size: 2rem;
+            background: var(--bg-card-solid);
+            padding: 5px 15px;
+            border-radius: 50%;
+            opacity: 0.3;
+            z-index: 1;
+        }
+
+        /* 公式容器样式 */
+        .formula-box {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(124, 58, 237, 0.05));
+            border-radius: 20px;
+            padding: 35px;
+            margin: 30px 0;
+            text-align: center;
+            border: 2px solid rgba(139, 92, 246, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .formula-box::before {
+            content: '∑';
+            position: absolute;
+            top: -30px;
+            right: 30px;
+            font-size: 6rem;
+            opacity: 0.03;
+            transform: rotate(15deg);
+            z-index: 0;
+        }
+
+        .math-formula {
+            font-family: 'Times New Roman', serif;
+            font-size: 1.8rem;
+            color: var(--text-primary);
+            margin: 20px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        /* 矩阵样式 */
+        .matrix {
+            display: inline-block;
+            position: relative;
+            margin: 0 10px;
+            padding: 10px 15px;
+        }
+
+        .matrix::before {
+            content: '[';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            font-size: 2.5rem;
+            line-height: 1;
+            display: flex;
+            align-items: center;
+        }
+
+        .matrix::after {
+            content: ']';
+            position: absolute;
+            right: 0;
+            top: 0;
+            bottom: 0;
+            font-size: 2.5rem;
+            line-height: 1;
+            display: flex;
+            align-items: center;
+        }
+
+        .matrix-content {
+            display: grid;
+            grid-template-columns: repeat(var(--cols, 1), auto);
+            gap: 15px 20px;
+            padding: 0 15px;
+        }
+
+        .matrix-element {
+            text-align: center;
+            min-width: 30px;
+        }
+
+        /* 高亮样式 */
+        .highlight-primary {
+            color: var(--regression-green);
+            font-weight: bold;
+            background: rgba(34, 197, 94, 0.1);
+            padding: 2px 8px;
+            border-radius: 6px;
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+
+        .highlight-success {
+            color: #10b981;
+            font-weight: bold;
+            background: rgba(16, 185, 129, 0.1);
+            padding: 2px 8px;
+            border-radius: 6px;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .highlight-warning {
+            color: #f59e0b;
+            font-weight: bold;
+            background: rgba(245, 158, 11, 0.1);
+            padding: 2px 8px;
+            border-radius: 6px;
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+        .highlight-danger {
+            color: #ef4444;
+            font-weight: bold;
+            background: rgba(239, 68, 68, 0.1);
+            padding: 2px 8px;
+            border-radius: 6px;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        /* 交互式演示区域 */
+        .demo-container {
+            background: linear-gradient(135deg, rgba(15, 23, 42, 0.9), rgba(30, 41, 59, 0.8));
+            border-radius: 20px;
+            padding: 30px;
+            margin: 30px 0;
+            border: 2px solid rgba(34, 197, 94, 0.3);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .demo-canvas {
+            background: #0f172a;
+            border-radius: 10px;
+            margin: 20px auto;
+            display: block;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            cursor: crosshair;
+        }
+
+        .demo-controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin: 20px 0;
+        }
+
+        .demo-btn {
+            background: linear-gradient(135deg, var(--regression-green), var(--regression-emerald));
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(34, 197, 94, 0.3);
+        }
+
+        .demo-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(34, 197, 94, 0.4);
+        }
+
+        .demo-btn:active {
+            transform: translateY(0);
+        }
+
+        /* 代码区域样式 */
+        .code-block {
+            background: #1a1a2e;
+            border-radius: 15px;
+            padding: 25px;
+            margin: 25px 0;
+            overflow-x: auto;
+            position: relative;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            border: 1px solid rgba(34, 197, 94, 0.2);
+        }
+
+        .code-block::before {
+            content: 'Python';
+            position: absolute;
+            top: -12px;
+            left: 20px;
+            background: linear-gradient(135deg, var(--regression-green), var(--regression-emerald));
+            color: white;
+            padding: 5px 15px;
+            border-radius: 15px;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .code-block pre {
+            color: #f8f8f2;
+            font-family: 'Fira Code', 'Consolas', monospace;
+            line-height: 1.6;
+            margin: 0;
+        }
+
+        /* 语法高亮 */
+        .keyword { color: #ff79c6; }
+        .string { color: #f1fa8c; }
+        .comment { color: #6272a4; }
+        .number { color: #bd93f9; }
+        .function { color: #50fa7b; }
+
+        /* 进度指示器 */
+        .progress-indicator {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(16, 185, 129, 0.1));
+            padding: 15px 25px;
+            border-radius: 50px;
+            border: 2px solid rgba(34, 197, 94, 0.3);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            backdrop-filter: blur(10px);
+            z-index: 1000;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px var(--shadow-sm);
+        }
+
+        .progress-bar {
+            width: 150px;
+            height: 6px;
+            background: rgba(34, 197, 94, 0.2);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--regression-green), var(--regression-emerald));
+            border-radius: 3px;
+            transition: width 0.3s ease;
+        }
+
+        /* 浮动工具栏 */
+        .floating-toolbar {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 1000;
+        }
+
+        .toolbar-btn {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--regression-green), var(--regression-emerald));
+            color: white;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(34, 197, 94, 0.3);
+        }
+
+        .toolbar-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 8px 25px rgba(34, 197, 94, 0.4);
+        }
+
+        /* 参数控制面板 */
+        .param-panel {
+            background: rgba(34, 197, 94, 0.05);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .param-slider {
+            width: 100%;
+            margin: 10px 0;
+        }
+
+        .param-value {
+            display: inline-block;
+            width: 60px;
+            text-align: center;
+            color: var(--regression-green);
+            font-weight: bold;
+        }
+
+        /* 数据表格样式 */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            background: var(--bg-card);
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px var(--shadow-sm);
+        }
+
+        .data-table th {
+            background: linear-gradient(135deg, var(--regression-green), var(--regression-emerald));
+            color: white;
+            padding: 12px 20px;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        .data-table td {
+            padding: 10px 20px;
+            text-align: center;
+            border-bottom: 1px solid var(--border-muted);
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+
+        .data-table tr:hover td {
+            background: rgba(34, 197, 94, 0.05);
+        }
+
+        .data-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* 模型状态指示器 */
+        .model-status {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin: 20px 0;
+        }
+
+        .status-item {
+            text-align: center;
+        }
+
+        .status-label {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            margin-bottom: 5px;
+        }
+
+        .status-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--regression-green);
+        }
+
+        /* 警告框 */
+        .warning-box {
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(220, 38, 38, 0.05));
+            border-radius: 20px;
+            padding: 30px;
+            margin: 30px 0;
+            border: 2px solid rgba(239, 68, 68, 0.3);
+            position: relative;
+        }
+
+        .warning-box::before {
+            content: '⚠️';
+            position: absolute;
+            top: -15px;
+            left: 20px;
+            font-size: 2rem;
+            background: var(--bg-card-solid);
+            padding: 5px 15px;
+            border-radius: 50%;
+            opacity: 0.6;
+            z-index: 1;
+        }
+
+        /* 理论框 */
+        .theory-box {
+            background: linear-gradient(135deg, rgba(6, 182, 212, 0.1), rgba(14, 165, 233, 0.05));
+            border-radius: 20px;
+            padding: 30px;
+            margin: 30px 0;
+            border: 2px solid rgba(6, 182, 212, 0.3);
+            position: relative;
+        }
+
+        .theory-box::before {
+            content: '📐';
+            position: absolute;
+            top: -15px;
+            right: 20px;
+            font-size: 2rem;
+            background: var(--bg-card-solid);
+            padding: 5px 15px;
+            border-radius: 50%;
+            opacity: 0.6;
+            z-index: 1;
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 1400px) {
+            body.nav-open .container {
+                margin-left: 0;
+                padding-left: 360px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .main-title {
+                font-size: 2.5rem;
+            }
+
+            .section-title {
+                font-size: 1.8rem;
+            }
+
+            .section-card {
+                padding: 25px;
+            }
+
+            .demo-controls {
+                flex-direction: column;
+            }
+
+            .smart-nav {
+                width: 100%;
+                left: -100%;
+            }
+
+            body.nav-open .smart-nav {
+                left: 0;
+            }
+
+            body.nav-open .container {
+                margin-left: 0;
+                padding-left: 20px;
+            }
+
+            body.nav-open .nav-trigger {
+                left: auto;
+                right: 20px;
+            }
+
+            .matrix {
+                font-size: 1rem;
+            }
+        }
+
+        /* 动画效果 */
+        .fade-in {
+            opacity: 0;
+            transform: translateY(30px);
+            animation: fadeInUp 0.6s ease forwards;
+        }
+
+        @keyframes fadeInUp {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* 脉冲动画 */
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .pulse {
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        /* 章节锚点偏移 */
+        .section-anchor {
+            scroll-margin-top: 100px;
+        }
+
+        /* 数据点动画 */
+        @keyframes data-float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .data-point {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            background: var(--regression-green);
+            border-radius: 50%;
+            margin: 0 5px;
+            animation: data-float 2s ease-in-out infinite;
+        }
+
+        /* 训练过程动画 */
+        @keyframes training {
+            0% { opacity: 0.3; }
+            50% { opacity: 1; }
+            100% { opacity: 0.3; }
+        }
+
+        .training-active {
+            animation: training 1s ease-in-out infinite;
+        }
+
+        /* 结果卡片 */
+        .result-card {
+            background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(16, 185, 129, 0.05));
+            border: 2px solid rgba(34, 197, 94, 0.3);
+            border-radius: 15px;
+            padding: 20px;
+            margin: 15px 0;
+            transition: all 0.3s ease;
+        }
+
+        .result-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(34, 197, 94, 0.2);
+        }
+
+        /* 可视化图表容器 */
+        .chart-container {
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px 0;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+    </style>
+</head>
+<body>
+<!-- 动态背景 -->
+<div class="dynamic-bg">
+    <canvas id="dataPointsBg" class="data-points-bg"></canvas>
+</div>
+
+<!-- 导航触发按钮 -->
+<button class="nav-trigger" onclick="toggleNav()">
+    <div class="nav-trigger-icon">
+        <span></span>
+        <span></span>
+        <span></span>
+    </div>
+</button>
+
+<!-- 智能导航系统 -->
+<nav class="smart-nav">
+    <div class="nav-bg-decoration"></div>
+
+    <div class="nav-header">
+        <h3>📈 线性回归学习指南</h3>
+        <p class="nav-subtitle">寻找数据背后的规律</p>
+
+        <div class="chapter-progress">
+            <svg width="50" height="50">
+                <defs>
+                    <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" style="stop-color:#22c55e;stop-opacity:1" />
+                        <stop offset="100%" style="stop-color:#10b981;stop-opacity:1" />
+                    </linearGradient>
+                </defs>
+                <circle cx="25" cy="25" r="22" class="progress-ring progress-ring-bg"></circle>
+                <circle cx="25" cy="25" r="22" class="progress-ring progress-ring-fill" id="progressRing"></circle>
+            </svg>
+            <div class="progress-text" id="progressPercent">0%</div>
+        </div>
+    </div>
+
+    <ul class="nav-list">
+        <li class="nav-item active" data-section="intro">
+            <a href="#intro">
+                <span class="nav-icon">🌅</span>
+                <div class="nav-content">
+                    <span class="nav-text">引言：数据分析师的困惑</span>
+                    <div class="nav-meta">
+                        <span class="nav-time">5 min</span>
+                        <span class="nav-status"></span>
+                    </div>
+                </div>
+            </a>
+        </li>
+        <li class="nav-item" data-section="discovery">
+            <a href="#discovery">
+                <span class="nav-icon">🔍</span>
+                <div class="nav-content">
+                    <span class="nav-text">1.1 发现线性关系</span>
+                    <div class="nav-meta">
+                        <span class="nav-time">8 min</span>
+                        <span class="nav-status"></span>
+                    </div>
+                </div>
+            </a>
+        </li>
+        <li class="nav-item" data-section="concept">
+            <a href="#concept">
+                <span class="nav-icon">🎯</span>
+                <div class="nav-content">
+                    <span class="nav-text">1.2 线性回归概念</span>
+                    <div class="nav-meta">
+                        <span class="nav-time">10 min</span>
+                        <span class="nav-status"></span>
+                    </div>
+                </div>
+            </a>
+        </li>
+        <li class="nav-item" data-section="bestfit">
+            <a href="#bestfit">
+                <span class="nav-icon">🤔</span>
+                <div class="nav-content">
+                    <span class="nav-text">1.3 最佳拟合直线</span>
+                    <div class="nav-meta">
+                        <span class="nav-time">12 min</span>
+                        <span class="nav-status"></span>
+                    </div>
+                </div>
+            </a>
+        </li>
+        <li class="nav-item" data-section="loss">
+            <a href="#loss">
+                <span class="nav-icon">🧮</span>
+                <div class="nav-content">
+                    <span class="nav-text">1.4 损失函数：MSE</span>
+                    <div class="nav-meta">
+                        <span class="nav-time">10 min</span>
+                        <span class="nav-status"></span>
+                    </div>
+                </div>
+            </a>
+        </li>
+        <li class="nav-item" data-section="analytical">
+            <a href="#analytical">
+                <span class="nav-icon">💡</span>
+                <div class="nav-content">
+                    <span class="nav-text">1.5 解析解方法</span>
+                    <div class="nav-meta">
+                        <span class="nav-time">15 min</span>
+                        <span class="nav-status"></span>
+                    </div>
+                </div>
+            </a>
+        </li>
+        <li class="nav-item" data-section="matrix">
+            <a href="#matrix">
+                <span class="nav-icon">🔢</span>
+                <div class="nav-content">
+                    <span class="nav-text">1.6 矩阵形式推导</span>
+                    <div class="nav-meta">
+                        <span class="nav-time">20 min</span>
+                        <span class="nav-status"></span>
+                    </div>
+                </div>
+            </a>
+        </li>
+        <li class="nav-item" data-section="gradient">
+            <a href="#gradient">
+                <span class="nav-icon">🚀</span>
+                <div class="nav-content">
+                    <span class="nav-text">1.7 梯度下降法</span>
+                    <div class="nav-meta">
+                        <span class="nav-time">15 min</span>
+                        <span class="nav-status"></span>
+                    </div>
+                </div>
+            </a>
+        </li>
+        <li class="nav-item" data-section="evaluation">
+            <a href="#evaluation">
+                <span class="nav-icon">📊</span>
+                <div class="nav-content">
+                    <span class="nav-text">1.8 模型评估</span>
+                    <div class="nav-meta">
+                        <span class="nav-time">12 min</span>
+                        <span class="nav-status"></span>
+                    </div>
+                </div>
+            </a>
+        </li>
+        <li class="nav-item" data-section="assumptions">
+            <a href="#assumptions">
+                <span class="nav-icon">⚠️</span>
+                <div class="nav-content">
+                    <span class="nav-text">1.9 线性回归假设</span>
+                    <div class="nav-meta">
+                        <span class="nav-time">10 min</span>
+                        <span class="nav-status"></span>
+                    </div>
+                </div>
+            </a>
+        </li>
+        <li class="nav-item" data-section="regularization">
+            <a href="#regularization">
+                <span class="nav-icon">🛡️</span>
+                <div class="nav-content">
+                    <span class="nav-text">1.10 正则化</span>
+                    <div class="nav-meta">
+                        <span class="nav-time">15 min</span>
+                        <span class="nav-status"></span>
+                    </div>
+                </div>
+            </a>
+        </li>
+        <li class="nav-item" data-section="implementation">
+            <a href="#implementation">
+                <span class="nav-icon">💻</span>
+                <div class="nav-content">
+                    <span class="nav-text">1.11 代码实现</span>
+                    <div class="nav-meta">
+                        <span class="nav-time">15 min</span>
+                        <span class="nav-status"></span>
+                    </div>
+                </div>
+            </a>
+        </li>
+        <li class="nav-item" data-section="practice">
+            <a href="#practice">
+                <span class="nav-icon">🎯</span>
+                <div class="nav-content">
+                    <span class="nav-text">1.12 实战案例</span>
+                    <div class="nav-meta">
+                        <span class="nav-time">20 min</span>
+                        <span class="nav-status"></span>
+                    </div>
+                </div>
+            </a>
+        </li>
+        <li class="nav-item" data-section="summary">
+            <a href="#summary">
+                <span class="nav-icon">📚</span>
+                <div class="nav-content">
+                    <span class="nav-text">1.13 总结与展望</span>
+                    <div class="nav-meta">
+                        <span class="nav-time">5 min</span>
+                        <span class="nav-status"></span>
+                    </div>
+                </div>
+            </a>
+        </li>
+    </ul>
+
+    <div class="nav-footer">
+        <div class="learning-stats">
+            <div class="stat-card">
+                <div class="stat-value" id="totalTime">182</div>
+                <div class="stat-label">总时长(分钟)</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="completedSections">0/14</div>
+                <div class="stat-label">完成章节</div>
+            </div>
+        </div>
+
+        <div style="text-align: center; margin-top: 15px;">
+            <kbd style="background: rgba(34, 197, 94, 0.1); padding: 4px 8px; border-radius: 4px;">Alt</kbd> +
+            <kbd style="background: rgba(34, 197, 94, 0.1); padding: 4px 8px; border-radius: 4px;">N</kbd>
+            <span style="color: var(--text-muted); font-size: 0.8rem;">切换导航</span>
+        </div>
+    </div>
+</nav>
+
+<!-- 进度指示器 -->
+<div class="progress-indicator">
+    <span>学习进度</span>
+    <div class="progress-bar">
+        <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+    </div>
+    <span id="progressText">0%</span>
+</div>
+
+<!-- 主容器 -->
+<div class="container">
+    <!-- 标题部分 -->
+    <div class="main-header fade-in">
+        <h1 class="main-title">第5章：线性回归</h1>
+        <p class="subtitle">📈 寻找数据背后的规律，让数据说话</p>
+    </div>
+
+    <!-- 引言：数据分析师的困惑 -->
+    <div id="intro" class="section-card fade-in section-anchor">
+        <h2 class="section-title">🌅 引言：数据分析师的困惑</h2>
+
+        <div class="story-box">
+            <h3 style="color: #fbbf24; margin-bottom: 20px;">📊 周一早晨，创业公司的数据分析室</h3>
+            <p style="font-size: 1.1rem; line-height: 1.8;">
+                数据分析师小李盯着电脑屏幕，眉头紧锁。<br><br>
+                老板的要求很简单：<span class="highlight-warning">"预测下个月的销售额"</span><br>
+                但是面对着散乱的数据点，小李感到无从下手...<br><br>
+                "这些数据看起来<span class="highlight-danger">毫无规律可言</span>！"
+            </p>
+            <div style="background: rgba(251, 191, 36, 0.1); padding: 20px; border-radius: 10px; margin-top: 20px; border: 1px solid rgba(251, 191, 36, 0.3);">
+                <p style="text-align: center; font-size: 1.2rem; color: #fbbf24;">
+                    💡 如果能找到数据背后的<strong>规律</strong>...<br>
+                    就能预测未来，做出更好的决策！
+                </p>
+            </div>
+        </div>
+
+        <div class="thinking-box">
+            <h3>小李的数据挑战</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px;">
+                <div style="background: rgba(34, 197, 94, 0.1); padding: 20px; border-radius: 10px;">
+                    <h4 style="color: #22c55e; margin-bottom: 10px;">📊 现有数据</h4>
+                    <ul style="list-style: none; padding: 0;">
+                        <li>✓ 6个月的广告投入</li>
+                        <li>✓ 对应的销售额</li>
+                        <li>✓ 看似散乱的数据点</li>
+                    </ul>
+                </div>
+                <div style="background: rgba(239, 68, 68, 0.1); padding: 20px; border-radius: 10px;">
+                    <h4 style="color: #ef4444; margin-bottom: 10px;">❓ 需要解决</h4>
+                    <ul style="list-style: none; padding: 0;">
+                        <li>✓ 广告投入与销售的关系？</li>
+                        <li>✓ 如何预测未来销售？</li>
+                        <li>✓ 预测的可靠性如何？</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 1.1 发现线性关系 -->
+    <div id="discovery" class="section-card fade-in section-anchor">
+        <h2 class="section-title">🔍 1.1 发现规律：散点图中的秘密</h2>
+
+        <div class="thinking-box">
+            <h3>从散点到直线的顿悟</h3>
+            <p>当小李把数据画成散点图时，<span class="highlight-primary">奇迹出现了</span>！</p>
+            <p>这些看似杂乱的点，似乎都<span class="highlight-success">围绕着某条隐形的直线分布</span>...</p>
+        </div>
+
+        <!-- 交互式散点图演示 -->
+        <div class="demo-container">
+            <h3 style="color: #22c55e; text-align: center; margin-bottom: 20px;">📊 交互式数据探索</h3>
+            <canvas id="scatterCanvas" class="demo-canvas" width="800" height="400"></canvas>
+            <div class="demo-controls">
+                <button class="demo-btn" onclick="showScatterOnly()">只看散点</button>
+                <button class="demo-btn" onclick="showTrendLine()">添加趋势线</button>
+                <button class="demo-btn" onclick="animateRegression()">动画演示</button>
+                <button class="demo-btn" onclick="addRandomPoint()">添加数据点</button>
+            </div>
+            <div class="model-status">
+                <div class="status-item">
+                    <div class="status-label">数据点数</div>
+                    <div class="status-value" id="pointCount">7</div>
+                </div>
+                <div class="status-item">
+                    <div class="status-label">相关系数</div>
+                    <div class="status-value" id="correlation">0.95</div>
+                </div>
+                <div class="status-item">
+                    <div class="status-label">拟合优度 R²</div>
+                    <div class="status-value" id="rSquared">0.90</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="theory-box">
+            <h3>📐 相关系数（Pearson Correlation）</h3>
+            <p>相关系数衡量两个变量之间的线性相关程度：</p>
+            <div class="math-formula">
+                r = Σ[(xᵢ - x̄)(yᵢ - ȳ)] / √[Σ(xᵢ - x̄)² × Σ(yᵢ - ȳ)²]
+            </div>
+            <ul style="margin-top: 20px;">
+                <li>r = 1：完全正相关</li>
+                <li>r = 0：无线性相关</li>
+                <li>r = -1：完全负相关</li>
+                <li>|r| > 0.7：强相关</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- 1.2 线性回归概念 -->
+    <div id="concept" class="section-card fade-in section-anchor">
+        <h2 class="section-title">🎯 1.2 线性回归：用直线讲述数据的故事</h2>
+
+        <div class="formula-box">
+            <h3 style="color: #8b5cf6; margin-bottom: 20px;">📐 一元线性回归模型</h3>
+            <div class="math-formula">
+                y = β₀ + β₁x + ε
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-top: 30px;">
+                <div style="background: rgba(251, 191, 36, 0.1); padding: 15px; border-radius: 10px;">
+                    <div style="color: #fbbf24; font-weight: bold;">y：因变量</div>
+                    <div style="color: var(--text-secondary); font-size: 0.9rem;">我们要预测的目标</div>
+                </div>
+                <div style="background: rgba(34, 197, 94, 0.1); padding: 15px; border-radius: 10px;">
+                    <div style="color: #22c55e; font-weight: bold;">x：自变量</div>
+                    <div style="color: var(--text-secondary); font-size: 0.9rem;">影响因素</div>
+                </div>
+                <div style="background: rgba(239, 68, 68, 0.1); padding: 15px; border-radius: 10px;">
+                    <div style="color: #ef4444; font-weight: bold;">β₀：截距</div>
+                    <div style="color: var(--text-secondary); font-size: 0.9rem;">基准值(x=0时的y值)</div>
+                </div>
+                <div style="background: rgba(6, 182, 212, 0.1); padding: 15px; border-radius: 10px;">
+                    <div style="color: #06b6d4; font-weight: bold;">β₁：斜率</div>
+                    <div style="color: var(--text-secondary); font-size: 0.9rem;">x每增加1，y的变化量</div>
+                </div>
+                <div style="background: rgba(139, 92, 246, 0.1); padding: 15px; border-radius: 10px;">
+                    <div style="color: #8b5cf6; font-weight: bold;">ε：误差项</div>
+                    <div style="color: var(--text-secondary); font-size: 0.9rem;">随机误差，假设ε~N(0,σ²)</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="formula-box" style="margin-top: 30px;">
+            <h3 style="color: #8b5cf6; margin-bottom: 20px;">📐 多元线性回归模型</h3>
+            <div class="math-formula">
+                y = β₀ + β₁x₁ + β₂x₂ + ... + βₚxₚ + ε
+            </div>
+            <p style="margin-top: 20px; color: var(--text-secondary);">
+                当有多个自变量影响因变量时，使用多元线性回归
+            </p>
+        </div>
+
+        <!-- 参数意义可视化 -->
+        <div class="demo-container">
+            <h3 style="color: #22c55e; text-align: center; margin-bottom: 20px;">🎯 理解回归参数</h3>
+            <canvas id="paramsCanvas" class="demo-canvas" width="800" height="400"></canvas>
+            <div class="param-panel">
+                <h4 style="color: #22c55e; margin-bottom: 15px;">调整参数，观察变化</h4>
+                <div>
+                    <label>截距 β₀: <span class="param-value" id="beta0Value">30</span></label>
+                    <input type="range" class="param-slider" id="beta0Slider" min="0" max="100" step="5" value="30" oninput="updateParams()">
+                </div>
+                <div>
+                    <label>斜率 β₁: <span class="param-value" id="beta1Value">2.5</span></label>
+                    <input type="range" class="param-slider" id="beta1Slider" min="-5" max="5" step="0.1" value="2.5" oninput="updateParams()">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 1.3 最佳拟合直线 -->
+    <div id="bestfit" class="section-card fade-in section-anchor">
+        <h2 class="section-title">🤔 1.3 核心问题：如何找到最佳拟合直线？</h2>
+
+        <div class="thinking-box">
+            <h3>无数条直线，哪条最好？</h3>
+            <p>面对散点图，我们可以画出<span class="highlight-warning">无数条直线</span>。</p>
+            <p>但哪条直线<span class="highlight-danger">最能代表数据的规律</span>呢？</p>
+        </div>
+
+        <div class="theory-box">
+            <h3>📐 最小二乘法原理</h3>
+            <p>最佳拟合直线应该使所有数据点到直线的<span class="highlight-primary">垂直距离平方和最小</span>。</p>
+            <p>为什么是垂直距离？因为我们要最小化<strong>预测误差</strong>（y方向的误差）。</p>
+            <div style="margin-top: 20px;">
+                <p><strong>目标函数：</strong></p>
+                <div class="math-formula">
+                    min Σ(yᵢ - ŷᵢ)² = min Σ[yᵢ - (β₀ + β₁xᵢ)]²
+                </div>
+            </div>
+        </div>
+
+        <!-- 多条直线对比演示 -->
+        <div class="demo-container">
+            <h3 style="color: #22c55e; text-align: center; margin-bottom: 20px;">🎯 不同直线的拟合效果</h3>
+            <canvas id="fitCanvas" class="demo-canvas" width="800" height="500"></canvas>
+            <div class="demo-controls">
+                <button class="demo-btn" onclick="showLine('flat')">太平缓</button>
+                <button class="demo-btn" onclick="showLine('steep')">太陡峭</button>
+                <button class="demo-btn" onclick="showLine('best')">最佳拟合</button>
+                <button class="demo-btn" onclick="showAllLines()">全部对比</button>
+            </div>
+            <div class="result-card" id="fitResult" style="text-align: center;">
+                <p>点击按钮查看不同直线的拟合效果...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 1.4 损失函数：MSE -->
+    <div id="loss" class="section-card fade-in section-anchor">
+        <h2 class="section-title">🧮 1.4 损失函数：均方误差（MSE）</h2>
+
+        <div class="thinking-box">
+            <h3>为什么要平方？</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px;">
+                <div style="background: rgba(239, 68, 68, 0.1); padding: 20px; border-radius: 10px;">
+                    <h4 style="color: #ef4444;">❌ 简单求和的问题</h4>
+                    <p style="font-family: monospace;">
+                        误差: +5, -5, +3, -3<br>
+                        总和: 0 😱<br>
+                        <span style="color: #fbbf24;">看起来完美？实际很糟糕！</span>
+                    </p>
+                </div>
+                <div style="background: rgba(34, 197, 94, 0.1); padding: 20px; border-radius: 10px;">
+                    <h4 style="color: #22c55e;">✅ 平方的智慧</h4>
+                    <p style="font-family: monospace;">
+                        误差²: 25, 25, 9, 9<br>
+                        总和: 68<br>
+                        <span style="color: #22c55e;">真实反映了误差大小！</span>
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="formula-box">
+            <h3 style="color: #06b6d4; margin-bottom: 20px;">📐 损失函数定义</h3>
+            <div style="display: grid; gap: 20px;">
+                <div>
+                    <p><strong>均方误差（MSE）：</strong></p>
+                    <div class="math-formula">
+                        MSE = (1/n) × Σ(yᵢ - ŷᵢ)²
+                    </div>
+                </div>
+                <div>
+                    <p><strong>均方根误差（RMSE）：</strong></p>
+                    <div class="math-formula">
+                        RMSE = √MSE = √[(1/n) × Σ(yᵢ - ŷᵢ)²]
+                    </div>
+                </div>
+                <div>
+                    <p><strong>平均绝对误差（MAE）：</strong></p>
+                    <div class="math-formula">
+                        MAE = (1/n) × Σ|yᵢ - ŷᵢ|
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MSE可视化演示 -->
+        <div class="demo-container">
+            <h3 style="color: #22c55e; text-align: center; margin-bottom: 20px;">📊 MSE的几何意义</h3>
+            <canvas id="mseCanvas" class="demo-canvas" width="800" height="400"></canvas>
+            <div class="demo-controls">
+                <button class="demo-btn" onclick="showErrors()">显示误差</button>
+                <button class="demo-btn" onclick="showSquares()">误差平方</button>
+                <button class="demo-btn" onclick="animateMSE()">动画演示</button>
+            </div>
+            <div class="model-status">
+                <div class="status-item">
+                    <div class="status-label">当前MSE</div>
+                    <div class="status-value" id="currentMSE">0.00</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="theory-box">
+            <h3>💡 MSE的优点</h3>
+            <ul>
+                <li><strong>数学性质好</strong>：处处可导，便于优化</li>
+                <li><strong>惩罚大误差</strong>：平方放大了大误差的影响</li>
+                <li><strong>有唯一最优解</strong>：凸函数，保证全局最优</li>
+                <li><strong>与正态分布假设一致</strong>：最大似然估计的结果</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- 1.5 解析解方法 -->
+    <div id="analytical" class="section-card fade-in section-anchor">
+        <h2 class="section-title">💡 1.5 求解方法一：解析解（正规方程）</h2>
+
+        <div class="story-box">
+            <h3 style="color: #fbbf24;">🎓 数学的优雅</h3>
+            <p>通过微积分，我们可以<span class="highlight-primary">直接求出最优参数</span>！</p>
+            <p>这就像解方程一样，有确定的答案。</p>
+        </div>
+
+        <div class="formula-box">
+            <h3 style="color: #22c55e;">📐 一元线性回归的推导</h3>
+            <div style="display: grid; gap: 20px; margin-top: 20px;">
+                <div style="background: rgba(15, 23, 42, 0.8); padding: 20px; border-radius: 10px;">
+                    <p style="color: #22c55e; font-weight: bold;">目标：最小化损失函数</p>
+                    <p style="font-family: 'Times New Roman', serif; font-size: 1.2rem; text-align: center; margin: 15px 0;">
+                        J(β₀, β₁) = Σ(yᵢ - β₀ - β₁xᵢ)²
+                    </p>
+                </div>
+                <div style="background: rgba(15, 23, 42, 0.8); padding: 20px; border-radius: 10px;">
+                    <p style="color: #06b6d4; font-weight: bold;">求偏导，令其为零</p>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 15px;">
+                        <div style="text-align: center;">
+                            ∂J/∂β₀ = -2Σ(yᵢ - β₀ - β₁xᵢ) = 0
+                        </div>
+                        <div style="text-align: center;">
+                            ∂J/∂β₁ = -2Σxᵢ(yᵢ - β₀ - β₁xᵢ) = 0
+                        </div>
+                    </div>
+                </div>
+                <div style="background: rgba(34, 197, 94, 0.1); padding: 20px; border-radius: 10px; border: 2px solid rgba(34, 197, 94, 0.3);">
+                    <p style="color: #22c55e; font-weight: bold;">🎯 最终解（正规方程）</p>
+                    <div style="font-family: 'Times New Roman', serif; font-size: 1.2rem; text-align: center; margin: 15px 0;">
+                        β₁ = Σ[(xᵢ - x̄)(yᵢ - ȳ)] / Σ(xᵢ - x̄)²<br><br>
+                        β₀ = ȳ - β₁x̄
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 计算演示 -->
+        <div class="demo-container">
+            <h3 style="color: #22c55e; text-align: center; margin-bottom: 20px;">🧮 解析解计算演示</h3>
+            <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 20px;">
+                <div>
+                    <table class="data-table">
+                        <thead>
+                        <tr>
+                            <th>广告(万)</th>
+                            <th>销售(万)</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr><td>10</td><td>50</td></tr>
+                        <tr><td>15</td><td>65</td></tr>
+                        <tr><td>20</td><td>78</td></tr>
+                        <tr><td>25</td><td>92</td></tr>
+                        <tr><td>30</td><td>105</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div>
+                    <canvas id="analyticalCanvas" class="demo-canvas" width="400" height="300"></canvas>
+                    <div class="result-card" style="margin-top: 20px;">
+                        <div id="analyticalResult">
+                            <p><strong>计算过程：</strong></p>
+                            <p>x̄ = 20, ȳ = 78</p>
+                            <p>分子 = Σ[(xᵢ-20)(yᵢ-78)] = 550</p>
+                            <p>分母 = Σ(xᵢ-20)² = 250</p>
+                            <p>β₁ = 550/250 = 2.2</p>
+                            <p>β₀ = 78 - 2.2×20 = 34</p>
+                            <p style="color: #22c55e; font-weight: bold;">回归方程：y = 34 + 2.2x</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 1.6 矩阵形式推导 -->
+    <div id="matrix" class="section-card fade-in section-anchor">
+        <h2 class="section-title">🔢 1.6 矩阵形式推导（多元线性回归）</h2>
+
+        <div class="theory-box">
+            <h3>📐 矩阵表示法</h3>
+            <p>对于n个样本，p个特征的数据集，可以表示为：</p>
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin: 20px 0; align-items: center; justify-items: center;">
+                <div>
+                    <p style="text-align: center; margin-bottom: 10px;"><strong>设计矩阵 X</strong></p>
+                    <div class="matrix" style="--cols: 4;">
+                        <div class="matrix-content">
+                            <span class="matrix-element">1</span>
+                            <span class="matrix-element">x₁₁</span>
+                            <span class="matrix-element">...</span>
+                            <span class="matrix-element">x₁ₚ</span>
+                            <span class="matrix-element">1</span>
+                            <span class="matrix-element">x₂₁</span>
+                            <span class="matrix-element">...</span>
+                            <span class="matrix-element">x₂ₚ</span>
+                            <span class="matrix-element">⋮</span>
+                            <span class="matrix-element">⋮</span>
+                            <span class="matrix-element">⋱</span>
+                            <span class="matrix-element">⋮</span>
+                            <span class="matrix-element">1</span>
+                            <span class="matrix-element">xₙ₁</span>
+                            <span class="matrix-element">...</span>
+                            <span class="matrix-element">xₙₚ</span>
+                        </div>
+                    </div>
+                    <p style="text-align: center; margin-top: 10px; color: var(--text-muted);">n×(p+1)</p>
+                </div>
+                <div>
+                    <p style="text-align: center; margin-bottom: 10px;"><strong>参数向量 β</strong></p>
+                    <div class="matrix" style="--cols: 1;">
+                        <div class="matrix-content">
+                            <span class="matrix-element">β₀</span>
+                            <span class="matrix-element">β₁</span>
+                            <span class="matrix-element">⋮</span>
+                            <span class="matrix-element">βₚ</span>
+                        </div>
+                    </div>
+                    <p style="text-align: center; margin-top: 10px; color: var(--text-muted);">(p+1)×1</p>
+                </div>
+                <div>
+                    <p style="text-align: center; margin-bottom: 10px;"><strong>目标向量 y</strong></p>
+                    <div class="matrix" style="--cols: 1;">
+                        <div class="matrix-content">
+                            <span class="matrix-element">y₁</span>
+                            <span class="matrix-element">y₂</span>
+                            <span class="matrix-element">⋮</span>
+                            <span class="matrix-element">yₙ</span>
+                        </div>
+                    </div>
+                    <p style="text-align: center; margin-top: 10px; color: var(--text-muted);">n×1</p>
+                </div>
+                <div>
+                    <p style="text-align: center; margin-bottom: 10px;"><strong>误差向量 ε</strong></p>
+                    <div class="matrix" style="--cols: 1;">
+                        <div class="matrix-content">
+                            <span class="matrix-element">ε₁</span>
+                            <span class="matrix-element">ε₂</span>
+                            <span class="matrix-element">⋮</span>
+                            <span class="matrix-element">εₙ</span>
+                        </div>
+                    </div>
+                    <p style="text-align: center; margin-top: 10px; color: var(--text-muted);">n×1</p>
+                </div>
+            </div>
+            <div class="math-formula">
+                y = Xβ + ε
+            </div>
+        </div>
+
+        <div class="formula-box">
+            <h3 style="color: #8b5cf6;">📐 正规方程的矩阵形式推导</h3>
+            <div style="display: grid; gap: 20px; margin-top: 20px;">
+                <div style="background: rgba(15, 23, 42, 0.8); padding: 20px; border-radius: 10px;">
+                    <p style="color: #22c55e; font-weight: bold;">损失函数的矩阵形式</p>
+                    <div style="font-family: 'Times New Roman', serif; font-size: 1.2rem; text-align: center; margin: 15px 0;">
+                        J(β) = (y - Xβ)ᵀ(y - Xβ) = ||y - Xβ||²
+                    </div>
+                </div>
+                <div style="background: rgba(15, 23, 42, 0.8); padding: 20px; border-radius: 10px;">
+                    <p style="color: #06b6d4; font-weight: bold;">对β求导</p>
+                    <div style="font-family: 'Times New Roman', serif; font-size: 1.2rem; text-align: center; margin: 15px 0;">
+                        ∇J(β) = -2Xᵀ(y - Xβ) = -2Xᵀy + 2XᵀXβ
+                    </div>
+                </div>
+                <div style="background: rgba(15, 23, 42, 0.8); padding: 20px; border-radius: 10px;">
+                    <p style="color: #fbbf24; font-weight: bold;">令导数为零</p>
+                    <div style="font-family: 'Times New Roman', serif; font-size: 1.2rem; text-align: center; margin: 15px 0;">
+                        XᵀXβ = Xᵀy
+                    </div>
+                </div>
+                <div style="background: rgba(34, 197, 94, 0.1); padding: 20px; border-radius: 10px; border: 2px solid rgba(34, 197, 94, 0.3);">
+                    <p style="color: #22c55e; font-weight: bold;">🎯 正规方程解</p>
+                    <div style="font-family: 'Times New Roman', serif; font-size: 1.4rem; text-align: center; margin: 15px 0;">
+                        β̂ = (XᵀX)⁻¹Xᵀy
+                    </div>
+                    <p style="color: var(--text-muted); text-align: center;">前提：XᵀX 可逆（满秩）</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="warning-box">
+            <h3>⚠️ 正规方程的局限性</h3>
+            <ul>
+                <li><strong>计算复杂度高</strong>：矩阵求逆的复杂度为O(p³)</li>
+                <li><strong>数值稳定性问题</strong>：当XᵀX接近奇异时，求逆不稳定</li>
+                <li><strong>内存需求大</strong>：需要存储完整的XᵀX矩阵</li>
+                <li><strong>不适合大规模数据</strong>：当样本量n很大时，计算困难</li>
+            </ul>
+            <p style="margin-top: 20px;">解决方案：使用<span class="highlight-primary">梯度下降</span>或其他迭代方法</p>
+        </div>
+    </div>
+
+    <!-- 1.7 梯度下降法 -->
+    <div id="gradient" class="section-card fade-in section-anchor">
+        <h2 class="section-title">🚀 1.7 求解方法二：梯度下降（迭代优化）</h2>
+
+        <div class="story-box">
+            <h3 style="color: #22c55e;">🏔️ 盲人下山的智慧</h3>
+            <p>想象你是一个盲人，站在山顶，要找到最低点。</p>
+            <p>你会怎么做？<span class="highlight-primary">探测脚下的坡度，朝着下坡的方向走一小步</span>，不断重复！</p>
+        </div>
+
+        <div class="formula-box">
+            <h3 style="color: #06b6d4;">📐 梯度下降算法</h3>
+            <div style="display: grid; gap: 20px;">
+                <div>
+                    <p><strong>批量梯度下降（Batch GD）：</strong></p>
+                    <div class="math-formula">
+                        β = β - α × (1/n) × Xᵀ(Xβ - y)
+                    </div>
+                </div>
+                <div>
+                    <p><strong>随机梯度下降（SGD）：</strong></p>
+                    <div class="math-formula">
+                        β = β - α × xᵢᵀ(xᵢβ - yᵢ)
+                    </div>
+                </div>
+                <div>
+                    <p><strong>小批量梯度下降（Mini-batch GD）：</strong></p>
+                    <div class="math-formula">
+                        β = β - α × (1/m) × X_batchᵀ(X_batchβ - y_batch)
+                    </div>
+                </div>
+            </div>
+            <p style="margin-top: 20px; text-align: center;">
+                α：学习率，控制每步的大小
+            </p>
+        </div>
+
+        <!-- 梯度下降可视化 -->
+        <div class="demo-container">
+            <h3 style="color: #22c55e; text-align: center; margin-bottom: 20px;">🏔️ 梯度下降过程可视化</h3>
+            <canvas id="gradientCanvas" class="demo-canvas" width="800" height="500"></canvas>
+            <div class="demo-controls">
+                <button class="demo-btn" onclick="startGradientDescent()">开始下降</button>
+                <button class="demo-btn" onclick="pauseGradientDescent()">暂停</button>
+                <button class="demo-btn" onclick="resetGradientDescent()">重置</button>
+                <button class="demo-btn" onclick="changeLearnRate()">调整学习率</button>
+            </div>
+            <div class="model-status">
+                <div class="status-item">
+                    <div class="status-label">迭代次数</div>
+                    <div class="status-value" id="gdIteration">0</div>
+                </div>
+                <div class="status-item">
+                    <div class="status-label">学习率</div>
+                    <div class="status-value" id="learnRate">0.01</div>
+                </div>
+                <div class="status-item">
+                    <div class="status-label">当前损失</div>
+                    <div class="status-value" id="gdLoss">100.00</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="theory-box">
+            <h3>📊 三种梯度下降方法对比</h3>
+            <table class="data-table">
+                <thead>
+                <tr>
+                    <th>方法</th>
+                    <th>每次迭代计算量</th>
+                    <th>收敛速度</th>
+                    <th>内存需求</th>
+                    <th>适用场景</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr>
+                    <td>批量GD</td>
+                    <td>高（全部样本）</td>
+                    <td>稳定但慢</td>
+                    <td>高</td>
+                    <td>小数据集</td>
+                </tr>
+                <tr>
+                    <td>随机GD</td>
+                    <td>低（单个样本）</td>
+                    <td>快但不稳定</td>
+                    <td>低</td>
+                    <td>大数据集</td>
+                </tr>
+                <tr>
+                    <td>小批量GD</td>
+                    <td>中（批次样本）</td>
+                    <td>较快且稳定</td>
+                    <td>中</td>
+                    <td>通用推荐</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 学习率影响演示 -->
+        <div style="background: rgba(139, 92, 246, 0.1); padding: 25px; border-radius: 15px; margin-top: 30px; border: 2px solid rgba(139, 92, 246, 0.3);">
+            <h4 style="color: #8b5cf6; text-align: center; margin-bottom: 20px;">⚡ 学习率的影响</h4>
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;">
+                <div style="text-align: center;">
+                    <div style="color: #ef4444; font-weight: bold;">学习率过小</div>
+                    <div style="color: var(--text-secondary); font-size: 0.9rem;">
+                        α = 0.0001<br>
+                        收敛极慢<br>
+                        需要大量迭代
+                    </div>
+                </div>
+                <div style="text-align: center;">
+                    <div style="color: #22c55e; font-weight: bold;">学习率合适</div>
+                    <div style="color: var(--text-secondary); font-size: 0.9rem;">
+                        α = 0.01<br>
+                        平稳收敛<br>
+                        效率最高
+                    </div>
+                </div>
+                <div style="text-align: center;">
+                    <div style="color: #fbbf24; font-weight: bold;">学习率过大</div>
+                    <div style="color: var(--text-secondary); font-size: 0.9rem;">
+                        α = 1.0<br>
+                        可能发散<br>
+                        错过最优解
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 1.8 模型评估 -->
+    <div id="evaluation" class="section-card fade-in section-anchor">
+        <h2 class="section-title">📊 1.8 模型评估：如何判断模型好坏？</h2>
+
+        <div class="formula-box">
+            <h3 style="color: #22c55e;">📐 评估指标</h3>
+            <div style="display: grid; gap: 20px;">
+                <div style="background: rgba(15, 23, 42, 0.8); padding: 20px; border-radius: 10px;">
+                    <p style="color: #22c55e; font-weight: bold;">R²（决定系数）</p>
+                    <div class="math-formula">
+                        R² = 1 - SSR/SST = 1 - Σ(yᵢ - ŷᵢ)² / Σ(yᵢ - ȳ)²
+                    </div>
+                    <p style="margin-top: 10px; color: var(--text-muted);">
+                        解释了多少方差，范围[0,1]，越接近1越好
+                    </p>
+                </div>
+                <div style="background: rgba(15, 23, 42, 0.8); padding: 20px; border-radius: 10px;">
+                    <p style="color: #fbbf24; font-weight: bold;">调整R²（Adjusted R²）</p>
+                    <div class="math-formula">
+                        R²_adj = 1 - [(1-R²)(n-1)] / (n-p-1)
+                    </div>
+                    <p style="margin-top: 10px; color: var(--text-muted);">
+                        考虑了特征数量，防止过拟合
+                    </p>
+                </div>
+                <div style="background: rgba(15, 23, 42, 0.8); padding: 20px; border-radius: 10px;">
+                    <p style="color: #06b6d4; font-weight: bold;">AIC（赤池信息准则）</p>
+                    <div class="math-formula">
+                        AIC = n×ln(SSR/n) + 2p
+                    </div>
+                    <p style="margin-top: 10px; color: var(--text-muted);">
+                        平衡拟合优度和模型复杂度，越小越好
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="demo-container">
+            <h3 style="color: #22c55e; text-align: center; margin-bottom: 20px;">📊 残差分析</h3>
+            <canvas id="residualCanvas" class="demo-canvas" width="800" height="400"></canvas>
+            <div class="demo-controls">
+                <button class="demo-btn" onclick="showResidualPlot()">残差图</button>
+                <button class="demo-btn" onclick="showQQPlot()">Q-Q图</button>
+                <button class="demo-btn" onclick="showHistogram()">残差直方图</button>
+            </div>
+        </div>
+
+        <div class="theory-box">
+            <h3>📋 模型诊断检查清单</h3>
+            <ul>
+                <li>✓ <strong>残差随机性</strong>：残差应该随机分布，无明显模式</li>
+                <li>✓ <strong>残差正态性</strong>：残差应该服从正态分布</li>
+                <li>✓ <strong>同方差性</strong>：残差的方差应该恒定</li>
+                <li>✓ <strong>无自相关</strong>：残差之间应该独立</li>
+                <li>✓ <strong>无多重共线性</strong>：自变量之间不应高度相关</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- 1.9 线性回归假设 -->
+    <div id="assumptions" class="section-card fade-in section-anchor">
+        <h2 class="section-title">⚠️ 1.9 线性回归的基本假设</h2>
+
+        <div class="warning-box">
+            <h3>线性回归的五大假设（LINER）</h3>
+            <div style="display: grid; gap: 20px; margin-top: 20px;">
+                <div style="background: rgba(15, 23, 42, 0.8); padding: 20px; border-radius: 10px;">
+                    <h4 style="color: #22c55e;">L - Linearity（线性关系）</h4>
+                    <p>因变量与自变量之间存在线性关系</p>
+                    <p style="color: var(--text-muted); margin-top: 10px;">检验方法：散点图、残差图</p>
+                </div>
+                <div style="background: rgba(15, 23, 42, 0.8); padding: 20px; border-radius: 10px;">
+                    <h4 style="color: #fbbf24;">I - Independence（独立性）</h4>
+                    <p>观测值相互独立，残差无自相关</p>
+                    <p style="color: var(--text-muted); margin-top: 10px;">检验方法：Durbin-Watson检验</p>
+                </div>
+                <div style="background: rgba(15, 23, 42, 0.8); padding: 20px; border-radius: 10px;">
+                    <h4 style="color: #06b6d4;">N - Normality（正态性）</h4>
+                    <p>残差服从正态分布</p>
+                    <p style="color: var(--text-muted); margin-top: 10px;">检验方法：Q-Q图、Shapiro-Wilk检验</p>
+                </div>
+                <div style="background: rgba(15, 23, 42, 0.8); padding: 20px; border-radius: 10px;">
+                    <h4 style="color: #8b5cf6;">E - Equal variance（同方差性）</h4>
+                    <p>残差的方差恒定</p>
+                    <p style="color: var(--text-muted); margin-top: 10px;">检验方法：残差图、Breusch-Pagan检验</p>
+                </div>
+                <div style="background: rgba(15, 23, 42, 0.8); padding: 20px; border-radius: 10px;">
+                    <h4 style="color: #ef4444;">R - No multicollinearity（无多重共线性）</h4>
+                    <p>自变量之间不存在完全相关</p>
+                    <p style="color: var(--text-muted); margin-top: 10px;">检验方法：VIF（方差膨胀因子）</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="theory-box">
+            <h3>💡 假设违背的后果与对策</h3>
+            <table class="data-table">
+                <thead>
+                <tr>
+                    <th>假设违背</th>
+                    <th>后果</th>
+                    <th>解决方案</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr>
+                    <td>非线性</td>
+                    <td>系数估计有偏</td>
+                    <td>变量变换、多项式回归</td>
+                </tr>
+                <tr>
+                    <td>自相关</td>
+                    <td>标准误低估</td>
+                    <td>时间序列模型、GLS</td>
+                </tr>
+                <tr>
+                    <td>非正态</td>
+                    <td>假设检验失效</td>
+                    <td>大样本、稳健标准误</td>
+                </tr>
+                <tr>
+                    <td>异方差</td>
+                    <td>效率损失</td>
+                    <td>加权最小二乘、变换</td>
+                </tr>
+                <tr>
+                    <td>多重共线性</td>
+                    <td>系数不稳定</td>
+                    <td>删除变量、岭回归</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 1.10 正则化 -->
+    <div id="regularization" class="section-card fade-in section-anchor">
+        <h2 class="section-title">🛡️ 1.10 正则化：防止过拟合</h2>
+
+        <div class="thinking-box">
+            <h3>过拟合问题</h3>
+            <p>当模型过于复杂时，会<span class="highlight-warning">过度拟合训练数据</span>，导致泛化能力差。</p>
+            <p>正则化通过<span class="highlight-primary">限制参数大小</span>来简化模型。</p>
+        </div>
+
+        <div class="formula-box">
+            <h3 style="color: #8b5cf6;">📐 正则化方法</h3>
+            <div style="display: grid; gap: 20px;">
+                <div style="background: rgba(15, 23, 42, 0.8); padding: 20px; border-radius: 10px;">
+                    <p style="color: #22c55e; font-weight: bold;">Ridge回归（L2正则化）</p>
+                    <div class="math-formula">
+                        J(β) = MSE + λΣβᵢ²
+                    </div>
+                    <p style="margin-top: 10px; color: var(--text-muted);">
+                        压缩系数但不会变为0，适合所有特征都有用的情况
+                    </p>
+                </div>
+                <div style="background: rgba(15, 23, 42, 0.8); padding: 20px; border-radius: 10px;">
+                    <p style="color: #fbbf24; font-weight: bold;">Lasso回归（L1正则化）</p>
+                    <div class="math-formula">
+                        J(β) = MSE + λΣ|βᵢ|
+                    </div>
+                    <p style="margin-top: 10px; color: var(--text-muted);">
+                        可以将系数压缩到0，实现特征选择
+                    </p>
+                </div>
+                <div style="background: rgba(15, 23, 42, 0.8); padding: 20px; border-radius: 10px;">
+                    <p style="color: #06b6d4; font-weight: bold;">弹性网（Elastic Net）</p>
+                    <div class="math-formula">
+                        J(β) = MSE + λ₁Σ|βᵢ| + λ₂Σβᵢ²
+                    </div>
+                    <p style="margin-top: 10px; color: var(--text-muted);">
+                        结合L1和L2的优点，适合高维数据
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="demo-container">
+            <h3 style="color: #22c55e; text-align: center; margin-bottom: 20px;">🛡️ 正则化效果演示</h3>
+            <canvas id="regularizationCanvas" class="demo-canvas" width="800" height="400"></canvas>
+            <div class="param-panel">
+                <h4 style="color: #22c55e; margin-bottom: 15px;">调整正则化参数</h4>
+                <div>
+                    <label>λ (正则化强度): <span class="param-value" id="lambdaValue">0.1</span></label>
+                    <input type="range" class="param-slider" id="lambdaSlider" min="0" max="2" step="0.1" value="0.1" oninput="updateRegularization()">
+                </div>
+            </div>
+            <div class="demo-controls">
+                <button class="demo-btn" onclick="showRegularization('none')">无正则化</button>
+                <button class="demo-btn" onclick="showRegularization('ridge')">Ridge</button>
+                <button class="demo-btn" onclick="showRegularization('lasso')">Lasso</button>
+            </div>
+        </div>
+
+        <div class="theory-box">
+            <h3>💡 正则化参数λ的选择</h3>
+            <ul>
+                <li><strong>交叉验证</strong>：最常用的方法，通过k折交叉验证选择最优λ</li>
+                <li><strong>信息准则</strong>：使用AIC或BIC选择</li>
+                <li><strong>经验法则</strong>：从小到大尝试，观察验证集性能</li>
+            </ul>
+            <p style="margin-top: 20px;">
+                λ=0：无正则化<br>
+                λ→∞：所有系数趋于0
+            </p>
+        </div>
+    </div>
+
+    <!-- 1.11 代码实现 -->
+    <div id="implementation" class="section-card fade-in section-anchor">
+        <h2 class="section-title">💻 1.11 代码实现：从理论到实践</h2>
+
+        <!-- 手动实现线性回归 -->
+        <div class="code-block">
+            <pre><code><span class="keyword">import</span> numpy <span class="keyword">as</span> np
+
+<span class="keyword">class</span> <span class="function">LinearRegression</span>:
+    <span class="string">"""线性回归的完整实现"""</span>
+
+    <span class="keyword">def</span> <span class="function">__init__</span>(self, method=<span class="string">'normal'</span>, learning_rate=<span class="number">0.01</span>,
+                 n_iterations=<span class="number">1000</span>, regularization=<span class="keyword">None</span>, alpha=<span class="number">0.1</span>):
+        self.method = method  <span class="comment"># 'normal' or 'gradient'</span>
+        self.learning_rate = learning_rate
+        self.n_iterations = n_iterations
+        self.regularization = regularization  <span class="comment"># None, 'ridge', 'lasso'</span>
+        self.alpha = alpha  <span class="comment"># 正则化参数</span>
+        self.coef_ = <span class="keyword">None</span>
+        self.intercept_ = <span class="keyword">None</span>
+        self.loss_history = []
+
+    <span class="keyword">def</span> <span class="function">fit</span>(self, X, y):
+        <span class="string">"""训练模型"""</span>
+        <span class="comment"># 添加截距项</span>
+        X_b = np.c_[np.ones((X.shape[<span class="number">0</span>], <span class="number">1</span>)), X]
+
+        <span class="keyword">if</span> self.method == <span class="string">'normal'</span>:
+            self._normal_equation(X_b, y)
+        <span class="keyword">else</span>:
+            self._gradient_descent(X_b, y)
+
+        <span class="comment"># 分离截距和系数</span>
+        self.intercept_ = self.theta[<span class="number">0</span>]
+        self.coef_ = self.theta[<span class="number">1</span>:]
+
+    <span class="keyword">def</span> <span class="function">_normal_equation</span>(self, X_b, y):
+        <span class="string">"""正规方程求解"""</span>
+        <span class="keyword">if</span> self.regularization == <span class="string">'ridge'</span>:
+            <span class="comment"># Ridge回归的解析解</span>
+            n_features = X_b.shape[<span class="number">1</span>]
+            regularization_matrix = self.alpha * np.eye(n_features)
+            regularization_matrix[<span class="number">0</span>, <span class="number">0</span>] = <span class="number">0</span>  <span class="comment"># 不正则化截距</span>
+            self.theta = np.linalg.inv(X_b.T @ X_b + regularization_matrix) @ X_b.T @ y
+        <span class="keyword">else</span>:
+            <span class="comment"># 普通最小二乘</span>
+            self.theta = np.linalg.inv(X_b.T @ X_b) @ X_b.T @ y
+
+    <span class="keyword">def</span> <span class="function">_gradient_descent</span>(self, X_b, y):
+        <span class="string">"""梯度下降求解"""</span>
+        n_samples = X_b.shape[<span class="number">0</span>]
+        self.theta = np.random.randn(X_b.shape[<span class="number">1</span>])
+
+        <span class="keyword">for</span> i <span class="keyword">in</span> <span class="function">range</span>(self.n_iterations):
+            <span class="comment"># 预测值</span>
+            y_pred = X_b @ self.theta
+
+            <span class="comment"># 计算梯度</span>
+            gradient = (<span class="number">1</span>/n_samples) * X_b.T @ (y_pred - y)
+
+            <span class="comment"># 添加正则化项</span>
+            <span class="keyword">if</span> self.regularization == <span class="string">'ridge'</span>:
+                gradient[<span class="number">1</span>:] += (self.alpha/n_samples) * self.theta[<span class="number">1</span>:]
+            <span class="keyword">elif</span> self.regularization == <span class="string">'lasso'</span>:
+                gradient[<span class="number">1</span>:] += (self.alpha/n_samples) * np.sign(self.theta[<span class="number">1</span>:])
+
+            <span class="comment"># 更新参数</span>
+            self.theta -= self.learning_rate * gradient
+
+            <span class="comment"># 记录损失</span>
+            loss = self._compute_loss(X_b, y, y_pred)
+            self.loss_history.append(loss)
+
+    <span class="keyword">def</span> <span class="function">_compute_loss</span>(self, X_b, y, y_pred):
+        <span class="string">"""计算损失函数"""</span>
+        n_samples = X_b.shape[<span class="number">0</span>]
+        mse = (<span class="number">1</span>/(<span class="number">2</span>*n_samples)) * np.sum((y - y_pred)**<span class="number">2</span>)
+
+        <span class="keyword">if</span> self.regularization == <span class="string">'ridge'</span>:
+            mse += (self.alpha/(<span class="number">2</span>*n_samples)) * np.sum(self.theta[<span class="number">1</span>:]**<span class="number">2</span>)
+        <span class="keyword">elif</span> self.regularization == <span class="string">'lasso'</span>:
+            mse += (self.alpha/(<span class="number">2</span>*n_samples)) * np.sum(np.abs(self.theta[<span class="number">1</span>:]))
+
+        <span class="keyword">return</span> mse
+
+    <span class="keyword">def</span> <span class="function">predict</span>(self, X):
+        <span class="string">"""预测"""</span>
+        X_b = np.c_[np.ones((X.shape[<span class="number">0</span>], <span class="number">1</span>)), X]
+        <span class="keyword">return</span> X_b @ self.theta
+
+    <span class="keyword">def</span> <span class="function">score</span>(self, X, y):
+        <span class="string">"""计算R²"""</span>
+        y_pred = self.predict(X)
+        ss_tot = np.sum((y - np.mean(y))**<span class="number">2</span>)
+        ss_res = np.sum((y - y_pred)**<span class="number">2</span>)
+        <span class="keyword">return</span> <span class="number">1</span> - (ss_res / ss_tot)</code></pre>
+        </div>
+
+        <!-- 使用sklearn -->
+        <div class="code-block">
+            <pre><code><span class="keyword">from</span> sklearn.linear_model <span class="keyword">import</span> LinearRegression, Ridge, Lasso, ElasticNet
+<span class="keyword">from</span> sklearn.preprocessing <span class="keyword">import</span> StandardScaler, PolynomialFeatures
+<span class="keyword">from</span> sklearn.model_selection <span class="keyword">import</span> train_test_split, cross_val_score, GridSearchCV
+<span class="keyword">from</span> sklearn.metrics <span class="keyword">import</span> mean_squared_error, r2_score
+<span class="keyword">import</span> numpy <span class="keyword">as</span> np
+<span class="keyword">import</span> pandas <span class="keyword">as</span> pd
+<span class="keyword">import</span> matplotlib.pyplot <span class="keyword">as</span> plt
+
+<span class="comment"># 1. 数据准备</span>
+X, y = load_data()  <span class="comment"># 假设有数据加载函数</span>
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=<span class="number">0.2</span>, random_state=<span class="number">42</span>)
+
+<span class="comment"># 2. 数据标准化（重要！）</span>
+scaler = StandardScaler()
+X_train_scaled = scaler.fit_transform(X_train)
+X_test_scaled = scaler.transform(X_test)
+
+<span class="comment"># 3. 普通线性回归</span>
+lr = LinearRegression()
+lr.fit(X_train_scaled, y_train)
+y_pred_lr = lr.predict(X_test_scaled)
+<span class="function">print</span>(<span class="string">f"Linear Regression R²: {r2_score(y_test, y_pred_lr):.4f}"</span>)
+
+<span class="comment"># 4. Ridge回归（带交叉验证选择最优λ）</span>
+ridge_params = {<span class="string">'alpha'</span>: np.logspace(<span class="number">-4</span>, <span class="number">2</span>, <span class="number">20</span>)}
+ridge_cv = GridSearchCV(Ridge(), ridge_params, cv=<span class="number">5</span>, scoring=<span class="string">'r2'</span>)
+ridge_cv.fit(X_train_scaled, y_train)
+<span class="function">print</span>(<span class="string">f"Best Ridge alpha: {ridge_cv.best_params_['alpha']:.4f}"</span>)
+<span class="function">print</span>(<span class="string">f"Ridge R²: {ridge_cv.score(X_test_scaled, y_test):.4f}"</span>)
+
+<span class="comment"># 5. Lasso回归（特征选择）</span>
+lasso_params = {<span class="string">'alpha'</span>: np.logspace(<span class="number">-4</span>, <span class="number">1</span>, <span class="number">20</span>)}
+lasso_cv = GridSearchCV(Lasso(max_iter=<span class="number">1000</span>), lasso_params, cv=<span class="number">5</span>, scoring=<span class="string">'r2'</span>)
+lasso_cv.fit(X_train_scaled, y_train)
+<span class="function">print</span>(<span class="string">f"Best Lasso alpha: {lasso_cv.best_params_['alpha']:.4f}"</span>)
+<span class="function">print</span>(<span class="string">f"Lasso R²: {lasso_cv.score(X_test_scaled, y_test):.4f}"</span>)
+
+<span class="comment"># 查看Lasso选择的特征</span>
+selected_features = np.where(lasso_cv.best_estimator_.coef_ != <span class="number">0</span>)[<span class="number">0</span>]
+<span class="function">print</span>(<span class="string">f"Selected features by Lasso: {selected_features}"</span>)
+
+<span class="comment"># 6. 弹性网</span>
+elastic_params = {
+    <span class="string">'alpha'</span>: np.logspace(<span class="number">-4</span>, <span class="number">1</span>, <span class="number">10</span>),
+    <span class="string">'l1_ratio'</span>: [<span class="number">0.1</span>, <span class="number">0.5</span>, <span class="number">0.7</span>, <span class="number">0.9</span>]
+}
+elastic_cv = GridSearchCV(ElasticNet(max_iter=<span class="number">1000</span>), elastic_params, cv=<span class="number">5</span>, scoring=<span class="string">'r2'</span>)
+elastic_cv.fit(X_train_scaled, y_train)
+<span class="function">print</span>(<span class="string">f"Best Elastic Net params: {elastic_cv.best_params_}"</span>)
+<span class="function">print</span>(<span class="string">f"Elastic Net R²: {elastic_cv.score(X_test_scaled, y_test):.4f}"</span>)
+
+<span class="comment"># 7. 多项式回归（处理非线性关系）</span>
+poly = PolynomialFeatures(degree=<span class="number">2</span>, include_bias=<span class="keyword">False</span>)
+X_train_poly = poly.fit_transform(X_train_scaled)
+X_test_poly = poly.transform(X_test_scaled)
+
+poly_lr = LinearRegression()
+poly_lr.fit(X_train_poly, y_train)
+y_pred_poly = poly_lr.predict(X_test_poly)
+<span class="function">print</span>(<span class="string">f"Polynomial Regression R²: {r2_score(y_test, y_pred_poly):.4f}"</span>)
+
+<span class="comment"># 8. 模型比较可视化</span>
+models = {
+    <span class="string">'Linear'</span>: lr.predict(X_test_scaled),
+    <span class="string">'Ridge'</span>: ridge_cv.predict(X_test_scaled),
+    <span class="string">'Lasso'</span>: lasso_cv.predict(X_test_scaled),
+    <span class="string">'ElasticNet'</span>: elastic_cv.predict(X_test_scaled),
+    <span class="string">'Polynomial'</span>: y_pred_poly
+}
+
+plt.figure(figsize=(<span class="number">12</span>, <span class="number">8</span>))
+<span class="keyword">for</span> i, (name, y_pred) <span class="keyword">in</span> <span class="function">enumerate</span>(models.items()):
+    plt.subplot(<span class="number">2</span>, <span class="number">3</span>, i+<span class="number">1</span>)
+    plt.scatter(y_test, y_pred, alpha=<span class="number">0.5</span>)
+    plt.plot([y_test.min(), y_test.max()], [y_test.min(), y_test.max()], <span class="string">'r--'</span>)
+    plt.xlabel(<span class="string">'True Values'</span>)
+    plt.ylabel(<span class="string">'Predictions'</span>)
+    plt.title(<span class="string">f'{name} (R²: {r2_score(y_test, y_pred):.3f})'</span>)
+plt.tight_layout()
+plt.show()</code></pre>
+        </div>
+    </div>
+
+    <!-- 1.12 实战案例 -->
+    <div id="practice" class="section-card fade-in section-anchor">
+        <h2 class="section-title">🎯 1.12 实战案例：多渠道广告投放优化</h2>
+
+        <div class="story-box">
+            <h3 style="color: #fbbf24;">🎯 真实的商业挑战</h3>
+            <p>一家公司在<span class="highlight-warning">电视、广播、报纸</span>三个渠道投放广告。</p>
+            <p>如何分配预算才能<span class="highlight-primary">最大化销售额</span>？</p>
+        </div>
+
+        <!-- 数据集说明 -->
+        <div class="thinking-box">
+            <h3>📊 Advertising数据集</h3>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 20px;">
+                <div style="background: rgba(239, 68, 68, 0.1); padding: 15px; border-radius: 10px;">
+                    <div style="color: #ef4444; font-weight: bold;">📺 TV</div>
+                    <div style="color: var(--text-secondary); font-size: 0.9rem;">电视广告投入（千元）</div>
+                </div>
+                <div style="background: rgba(251, 191, 36, 0.1); padding: 15px; border-radius: 10px;">
+                    <div style="color: #fbbf24; font-weight: bold;">📻 Radio</div>
+                    <div style="color: var(--text-secondary); font-size: 0.9rem;">广播广告投入（千元）</div>
+                </div>
+                <div style="background: rgba(34, 197, 94, 0.1); padding: 15px; border-radius: 10px;">
+                    <div style="color: #22c55e; font-weight: bold;">📰 Newspaper</div>
+                    <div style="color: var(--text-secondary); font-size: 0.9rem;">报纸广告投入（千元）</div>
+                </div>
+                <div style="background: rgba(139, 92, 246, 0.1); padding: 15px; border-radius: 10px;">
+                    <div style="color: #8b5cf6; font-weight: bold;">💰 Sales</div>
+                    <div style="color: var(--text-secondary); font-size: 0.9rem;">销售额（百万元）</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 完整案例代码 -->
+        <div class="code-block">
+            <pre><code><span class="keyword">import</span> pandas <span class="keyword">as</span> pd
+<span class="keyword">import</span> numpy <span class="keyword">as</span> np
+<span class="keyword">import</span> matplotlib.pyplot <span class="keyword">as</span> plt
+<span class="keyword">import</span> seaborn <span class="keyword">as</span> sns
+<span class="keyword">from</span> sklearn.model_selection <span class="keyword">import</span> train_test_split, cross_val_score
+<span class="keyword">from</span> sklearn.linear_model <span class="keyword">import</span> LinearRegression, Ridge, Lasso
+<span class="keyword">from</span> sklearn.preprocessing <span class="keyword">import</span> StandardScaler
+<span class="keyword">from</span> sklearn.metrics <span class="keyword">import</span> mean_squared_error, r2_score
+<span class="keyword">import</span> statsmodels.api <span class="keyword">as</span> sm
+<span class="keyword">from</span> statsmodels.stats.outliers_influence <span class="keyword">import</span> variance_inflation_factor
+
+<span class="comment"># 1. 数据加载与探索</span>
+advertising = pd.read_csv(<span class="string">'advertising.csv'</span>)
+<span class="function">print</span>(<span class="string">"数据集形状:"</span>, advertising.shape)
+<span class="function">print</span>(<span class="string">"\n数据概览:"</span>)
+<span class="function">print</span>(advertising.head())
+<span class="function">print</span>(<span class="string">"\n基本统计信息:"</span>)
+<span class="function">print</span>(advertising.describe())
+
+<span class="comment"># 2. 数据可视化探索</span>
+fig, axes = plt.subplots(<span class="number">2</span>, <span class="number">2</span>, figsize=(<span class="number">12</span>, <span class="number">10</span>))
+
+<span class="comment"># 销售额分布</span>
+axes[<span class="number">0</span>, <span class="number">0</span>].hist(advertising[<span class="string">'Sales'</span>], bins=<span class="number">20</span>, edgecolor=<span class="string">'black'</span>)
+axes[<span class="number">0</span>, <span class="number">0</span>].set_title(<span class="string">'销售额分布'</span>)
+axes[<span class="number">0</span>, <span class="number">0</span>].set_xlabel(<span class="string">'销售额（百万元）'</span>)
+
+<span class="comment"># 相关性热图</span>
+correlation_matrix = advertising.corr()
+sns.heatmap(correlation_matrix, annot=<span class="keyword">True</span>, cmap=<span class="string">'coolwarm'</span>, ax=axes[<span class="number">0</span>, <span class="number">1</span>])
+axes[<span class="number">0</span>, <span class="number">1</span>].set_title(<span class="string">'变量相关性矩阵'</span>)
+
+<span class="comment"># 散点图矩阵</span>
+features = [<span class="string">'TV'</span>, <span class="string">'Radio'</span>, <span class="string">'Newspaper'</span>]
+<span class="keyword">for</span> i, feature <span class="keyword">in</span> <span class="function">enumerate</span>(features):
+    <span class="keyword">if</span> i < <span class="number">2</span>:
+        axes[<span class="number">1</span>, i].scatter(advertising[feature], advertising[<span class="string">'Sales'</span>], alpha=<span class="number">0.5</span>)
+        axes[<span class="number">1</span>, i].set_xlabel(feature)
+        axes[<span class="number">1</span>, i].set_ylabel(<span class="string">'Sales'</span>)
+        axes[<span class="number">1</span>, i].set_title(<span class="string">f'{feature} vs Sales'</span>)
+
+plt.tight_layout()
+plt.show()
+
+<span class="comment"># 3. 多重共线性检查</span>
+X = advertising[features]
+vif_data = pd.DataFrame()
+vif_data[<span class="string">"feature"</span>] = features
+vif_data[<span class="string">"VIF"</span>] = [variance_inflation_factor(X.values, i)
+                    <span class="keyword">for</span> i <span class="keyword">in</span> <span class="function">range</span>(<span class="function">len</span>(features))]
+<span class="function">print</span>(<span class="string">"\n方差膨胀因子（VIF）："</span>)
+<span class="function">print</span>(vif_data)
+
+<span class="comment"># 4. 数据准备</span>
+X = advertising[features]
+y = advertising[<span class="string">'Sales'</span>]
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=<span class="number">0.2</span>, random_state=<span class="number">42</span>)
+
+<span class="comment"># 标准化</span>
+scaler = StandardScaler()
+X_train_scaled = scaler.fit_transform(X_train)
+X_test_scaled = scaler.transform(X_test)
+
+<span class="comment"># 5. 多元线性回归</span>
+model = LinearRegression()
+model.fit(X_train_scaled, y_train)
+
+<span class="comment"># 预测</span>
+y_pred_train = model.predict(X_train_scaled)
+y_pred_test = model.predict(X_test_scaled)
+
+<span class="comment"># 6. 模型评估</span>
+<span class="function">print</span>(<span class="string">"\n模型性能评估："</span>)
+<span class="function">print</span>(<span class="string">f"训练集 R²: {r2_score(y_train, y_pred_train):.4f}"</span>)
+<span class="function">print</span>(<span class="string">f"测试集 R²: {r2_score(y_test, y_pred_test):.4f}"</span>)
+<span class="function">print</span>(<span class="string">f"训练集 RMSE: {np.sqrt(mean_squared_error(y_train, y_pred_train)):.4f}"</span>)
+<span class="function">print</span>(<span class="string">f"测试集 RMSE: {np.sqrt(mean_squared_error(y_test, y_pred_test)):.4f}"</span>)
+
+<span class="comment"># 7. 详细统计分析（使用statsmodels）</span>
+X_train_sm = sm.add_constant(X_train_scaled)
+model_sm = sm.OLS(y_train, X_train_sm).fit()
+<span class="function">print</span>(<span class="string">"\n详细统计摘要："</span>)
+<span class="function">print</span>(model_sm.summary())
+
+<span class="comment"># 8. 残差分析</span>
+residuals = y_test - y_pred_test
+
+fig, axes = plt.subplots(<span class="number">2</span>, <span class="number">2</span>, figsize=(<span class="number">12</span>, <span class="number">10</span>))
+
+<span class="comment"># 残差vs预测值</span>
+axes[<span class="number">0</span>, <span class="number">0</span>].scatter(y_pred_test, residuals, alpha=<span class="number">0.5</span>)
+axes[<span class="number">0</span>, <span class="number">0</span>].axhline(y=<span class="number">0</span>, color=<span class="string">'r'</span>, linestyle=<span class="string">'--'</span>)
+axes[<span class="number">0</span>, <span class="number">0</span>].set_xlabel(<span class="string">'预测值'</span>)
+axes[<span class="number">0</span>, <span class="number">0</span>].set_ylabel(<span class="string">'残差'</span>)
+axes[<span class="number">0</span>, <span class="number">0</span>].set_title(<span class="string">'残差图'</span>)
+
+<span class="comment"># Q-Q图</span>
+sm.qqplot(residuals, line=<span class="string">'45'</span>, ax=axes[<span class="number">0</span>, <span class="number">1</span>])
+axes[<span class="number">0</span>, <span class="number">1</span>].set_title(<span class="string">'Q-Q图'</span>)
+
+<span class="comment"># 残差直方图</span>
+axes[<span class="number">1</span>, <span class="number">0</span>].hist(residuals, bins=<span class="number">20</span>, edgecolor=<span class="string">'black'</span>)
+axes[<span class="number">1</span>, <span class="number">0</span>].set_xlabel(<span class="string">'残差'</span>)
+axes[<span class="number">1</span>, <span class="number">0</span>].set_title(<span class="string">'残差分布'</span>)
+
+<span class="comment"># 实际vs预测</span>
+axes[<span class="number">1</span>, <span class="number">1</span>].scatter(y_test, y_pred_test, alpha=<span class="number">0.5</span>)
+axes[<span class="number">1</span>, <span class="number">1</span>].plot([y_test.min(), y_test.max()], [y_test.min(), y_test.max()], <span class="string">'r--'</span>)
+axes[<span class="number">1</span>, <span class="number">1</span>].set_xlabel(<span class="string">'实际销售额'</span>)
+axes[<span class="number">1</span>, <span class="number">1</span>].set_ylabel(<span class="string">'预测销售额'</span>)
+axes[<span class="number">1</span>, <span class="number">1</span>].set_title(<span class="string">'实际 vs 预测'</span>)
+
+plt.tight_layout()
+plt.show()
+
+<span class="comment"># 9. 特征重要性分析</span>
+feature_importance = pd.DataFrame({
+    <span class="string">'特征'</span>: features,
+    <span class="string">'系数'</span>: model.coef_,
+    <span class="string">'绝对值系数'</span>: np.abs(model.coef_)
+}).sort_values(<span class="string">'绝对值系数'</span>, ascending=<span class="keyword">False</span>)
+
+<span class="function">print</span>(<span class="string">"\n特征重要性（标准化后）："</span>)
+<span class="function">print</span>(feature_importance)
+
+<span class="comment"># 10. 预算优化建议</span>
+<span class="function">print</span>(<span class="string">"\n💡 预算优化建议："</span>)
+<span class="function">print</span>(<span class="string">f"1. TV广告系数: {model.coef_[0]:.3f} - 影响力较大"</span>)
+<span class="function">print</span>(<span class="string">f"2. Radio广告系数: {model.coef_[1]:.3f} - 影响力最大"</span>)
+<span class="function">print</span>(<span class="string">f"3. Newspaper广告系数: {model.coef_[2]:.3f} - 影响力较小"</span>)
+<span class="function">print</span>(<span class="string">"\n建议：优先投资Radio广告，其次是TV广告，适当减少Newspaper广告投入"</span>)
+
+<span class="comment"># 11. 预测函数</span>
+<span class="keyword">def</span> <span class="function">predict_sales</span>(tv, radio, newspaper):
+    <span class="string">"""预测给定广告投入的销售额"""</span>
+    input_data = np.array([[tv, radio, newspaper]])
+    input_scaled = scaler.transform(input_data)
+    prediction = model.predict(input_scaled)[<span class="number">0</span>]
+    <span class="keyword">return</span> prediction
+
+<span class="comment"># 示例预测</span>
+<span class="function">print</span>(<span class="string">"\n预测示例："</span>)
+<span class="function">print</span>(<span class="string">f"TV=200, Radio=40, Newspaper=50 -> 预测销售额: {predict_sales(200, 40, 50):.2f}百万元"</span>)</code></pre>
+        </div>
+
+        <!-- 结果分析 -->
+        <div class="result-card">
+            <h4 style="color: #22c55e; margin-bottom: 15px;">📊 分析结果</h4>
+            <div style="display: grid; gap: 15px;">
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; text-align: center;">
+                    <div>
+                        <div style="color: #fbbf24; font-size: 2rem; font-weight: bold;">0.287</div>
+                        <div style="color: var(--text-secondary);">TV系数</div>
+                    </div>
+                    <div>
+                        <div style="color: #22c55e; font-size: 2rem; font-weight: bold;">0.188</div>
+                        <div style="color: var(--text-secondary);">Radio系数</div>
+                    </div>
+                    <div>
+                        <div style="color: #64748b; font-size: 2rem; font-weight: bold;">-0.001</div>
+                        <div style="color: var(--text-secondary);">Newspaper系数</div>
+                    </div>
+                </div>
+                <div style="background: rgba(251, 191, 36, 0.1); padding: 20px; border-radius: 10px;">
+                    <p style="color: #fbbf24; font-weight: bold;">💡 关键洞察</p>
+                    <ul style="color: var(--text-secondary); margin-top: 10px;">
+                        <li><strong>TV和Radio</strong>的组合效果最好（存在交互作用）</li>
+                        <li><strong>Newspaper</strong>的效果几乎可以忽略（p值>0.05）</li>
+                        <li>模型R²=0.897，解释了89.7%的销售变化</li>
+                        <li>建议重新分配Newspaper预算到TV和Radio</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- 交互式预测工具 -->
+        <div class="demo-container">
+            <h3 style="color: #22c55e; text-align: center; margin-bottom: 20px;">🎯 广告预算优化工具</h3>
+            <div class="param-panel">
+                <h4 style="color: #22c55e; margin-bottom: 15px;">调整广告预算，预测销售额</h4>
+                <div>
+                    <label>📺 TV广告: <span class="param-value" id="tvBudget">150</span>千元</label>
+                    <input type="range" class="param-slider" id="tvSlider" min="0" max="300" step="10" value="150" oninput="updatePrediction()">
+                </div>
+                <div>
+                    <label>📻 Radio广告: <span class="param-value" id="radioBudget">30</span>千元</label>
+                    <input type="range" class="param-slider" id="radioSlider" min="0" max="50" step="1" value="30" oninput="updatePrediction()">
+                </div>
+                <div>
+                    <label>📰 Newspaper广告: <span class="param-value" id="newspaperBudget">20</span>千元</label>
+                    <input type="range" class="param-slider" id="newspaperSlider" min="0" max="100" step="5" value="20" oninput="updatePrediction()">
+                </div>
+            </div>
+            <div class="result-card" style="text-align: center; margin-top: 20px;">
+                <h4 style="color: #22c55e;">预测销售额</h4>
+                <div style="font-size: 3rem; color: #fbbf24; font-weight: bold;" id="predictedSales">15.2</div>
+                <div style="color: var(--text-secondary);">百万元</div>
+                <div style="margin-top: 20px; color: var(--text-muted);">
+                    总预算：<span id="totalBudget">200</span>千元 | ROI：<span id="roi">7.6</span>倍
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 1.13 总结与展望 -->
+    <div id="summary" class="section-card fade-in section-anchor">
+        <h2 class="section-title">📚 1.13 总结与展望</h2>
+
+        <div class="thinking-box">
+            <h3>回顾：从困惑到洞察</h3>
+            <div style="margin-top: 20px;">
+                <p>1️⃣ <span class="highlight-primary">发现规律</span>：从散点图中看到线性关系</p>
+                <p>2️⃣ <span class="highlight-success">数学建模</span>：用直线方程描述关系</p>
+                <p>3️⃣ <span class="highlight-warning">定义目标</span>：最小化预测误差（MSE）</p>
+                <p>4️⃣ <span class="highlight-danger">求解方法</span>：正规方程和梯度下降</p>
+                <p>5️⃣ <span class="highlight-primary">矩阵推导</span>：多元线性回归的优雅解法</p>
+                <p>6️⃣ <span class="highlight-success">模型诊断</span>：检验假设，评估性能</p>
+                <p>7️⃣ <span class="highlight-warning">正则化</span>：防止过拟合，提高泛化</p>
+                <p>8️⃣ <span class="highlight-danger">实际应用</span>：预测、优化、决策</p>
+            </div>
+        </div>
+
+        <!-- 核心知识点总结 -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin: 30px 0;">
+            <div class="pulse" style="background: linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(16, 185, 129, 0.1)); padding: 25px; border-radius: 15px; border: 2px solid rgba(34, 197, 94, 0.4); text-align: center;">
+                <h4 style="color: #22c55e; margin-bottom: 15px;">📊 数据洞察</h4>
+                <p>线性关系无处不在<br>相关性≠因果性<br>特征工程很重要</p>
+            </div>
+            <div class="pulse" style="background: linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(245, 158, 11, 0.1)); padding: 25px; border-radius: 15px; border: 2px solid rgba(251, 191, 36, 0.4); text-align: center; animation-delay: 0.3s;">
+                <h4 style="color: #fbbf24; margin-bottom: 15px;">🎯 优化方法</h4>
+                <p>正规方程快速精确<br>梯度下降灵活通用<br>正则化防止过拟合</p>
+            </div>
+            <div class="pulse" style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(124, 58, 237, 0.1)); padding: 25px; border-radius: 15px; border: 2px solid rgba(139, 92, 246, 0.4); text-align: center; animation-delay: 0.6s;">
+                <h4 style="color: #8b5cf6; margin-bottom: 15px;">🔬 模型诊断</h4>
+                <p>检验基本假设<br>残差分析是关键<br>多角度评估性能</p>
+            </div>
+        </div>
+
+        <!-- 重要公式汇总 -->
+        <div class="formula-box">
+            <h3 style="color: #22c55e; margin-bottom: 20px;">📐 重要公式汇总</h3>
+            <div style="display: grid; gap: 15px;">
+                <div style="background: rgba(15, 23, 42, 0.8); padding: 15px; border-radius: 10px;">
+                    <p><strong>线性回归模型：</strong> y = β₀ + β₁x₁ + ... + βₚxₚ + ε</p>
+                </div>
+                <div style="background: rgba(15, 23, 42, 0.8); padding: 15px; border-radius: 10px;">
+                    <p><strong>正规方程：</strong> β̂ = (XᵀX)⁻¹Xᵀy</p>
+                </div>
+                <div style="background: rgba(15, 23, 42, 0.8); padding: 15px; border-radius: 10px;">
+                    <p><strong>梯度下降：</strong> β = β - α∇J(β)</p>
+                </div>
+                <div style="background: rgba(15, 23, 42, 0.8); padding: 15px; border-radius: 10px;">
+                    <p><strong>决定系数：</strong> R² = 1 - SSR/SST</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 深度思考题 -->
+        <div style="background: rgba(239, 68, 68, 0.1); padding: 30px; border-radius: 20px; margin: 30px 0; border: 2px solid rgba(239, 68, 68, 0.3);">
+            <h3 style="color: #ef4444; margin-bottom: 20px;">🤔 深度思考题</h3>
+            <ol style="line-height: 2; padding-left: 20px;">
+                <li><strong>线性假设</strong>：现实世界真的都是线性的吗？如何处理非线性关系？</li>
+                <li><strong>高维诅咒</strong>：当特征数p接近或超过样本数n时会发生什么？</li>
+                <li><strong>因果推断</strong>：线性回归能告诉我们因果关系吗？需要什么额外条件？</li>
+                <li><strong>稳健性</strong>：异常值对线性回归的影响有多大？如何提高稳健性？</li>
+                <li><strong>时间序列</strong>：如果数据有时间依赖性，普通线性回归还适用吗？</li>
+                <li><strong>贝叶斯视角</strong>：从贝叶斯角度看，线性回归在做什么假设？</li>
+            </ol>
+        </div>
+
+        <!-- 实践建议 -->
+        <div class="theory-box">
+            <h3>💼 实践建议</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px;">
+                <div>
+                    <h4 style="color: #22c55e;">✅ 最佳实践</h4>
+                    <ul>
+                        <li>始终进行数据探索和可视化</li>
+                        <li>检查并处理缺失值和异常值</li>
+                        <li>特征标准化很重要</li>
+                        <li>使用交叉验证选择模型</li>
+                        <li>诊断模型假设是否满足</li>
+                        <li>考虑特征之间的交互作用</li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 style="color: #ef4444;">❌ 常见陷阱</h4>
+                    <ul>
+                        <li>忽视多重共线性问题</li>
+                        <li>过度解释低R²的模型</li>
+                        <li>外推到数据范围之外</li>
+                        <li>忽略残差的模式</li>
+                        <li>过度依赖p值</li>
+                        <li>混淆相关性和因果性</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- 下一步学习建议 -->
+        <div style="background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(16, 185, 129, 0.05)); padding: 30px; border-radius: 20px; border: 2px solid rgba(34, 197, 94, 0.3);">
+            <h3 style="color: #22c55e; margin-bottom: 20px;">📚 延伸学习路径</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div>
+                    <h4 style="color: #fbbf24;">理论深化</h4>
+                    <ul style="list-style: none; padding: 0;">
+                        <li>📖 广义线性模型（GLM）</li>
+                        <li>🧮 贝叶斯线性回归</li>
+                        <li>🔬 混合效应模型</li>
+                        <li>📊 时间序列回归</li>
+                        <li>🎯 因果推断方法</li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 style="color: #8b5cf6;">实践项目</h4>
+                    <ul style="list-style: none; padding: 0;">
+                        <li>🏠 房价预测（Kaggle）</li>
+                        <li>📈 股票收益预测</li>
+                        <li>🌡️ 气候变化分析</li>
+                        <li>💰 客户价值预测</li>
+                        <li>🏥 医疗费用预测</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 结语 -->
+    <div class="section-card fade-in" style="text-align: center; background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(16, 185, 129, 0.05)); border: 3px solid rgba(34, 197, 94, 0.4);">
+        <h2 style="font-size: 3rem; background: linear-gradient(135deg, #22c55e, #10b981, #14b8a6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 30px;">
+            🎉 恭喜完成线性回归学习！
+        </h2>
+        <p style="font-size: 1.3rem; color: #cbd5e1; line-height: 1.8; margin-bottom: 40px;">
+            从散乱的数据点到精确的预测模型<br>
+            从简单的一元回归到复杂的多元分析<br>
+            从数学推导到实战应用<br>
+            你已经掌握了数据分析的基础武器<br>
+            线性回归——开启机器学习之旅的第一步
+        </p>
+        <div class="demo-controls">
+            <button class="demo-btn" onclick="downloadNotes()" style="font-size: 1.1rem; padding: 15px 30px;">
+                📥 下载学习笔记
+            </button>
+            <button class="demo-btn" onclick="startQuiz()" style="font-size: 1.1rem; padding: 15px 30px;">
+                🧠 开始知识测验
+            </button>
+            <button class="demo-btn" onclick="shareAchievement()" style="font-size: 1.1rem; padding: 15px 30px;">
+                🎊 分享学习成就
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- 浮动工具栏 -->
+<div class="floating-toolbar">
+    <button class="toolbar-btn theme-toggle-btn" onclick="toggleTheme()" title="切换主题">
+        <span class="theme-icon">🌓</span>
+    </button>
+    <button class="toolbar-btn" onclick="scrollToTop()" title="回到顶部">⬆️</button>
+    <button class="toolbar-btn" onclick="toggleHelp()" title="帮助">❓</button>
+</div>
+
+<script>
+    // 全局变量
+    let navOpen = false;
+    let sectionsRead = new Set();
+    let totalSections = 14;
+    let isAnimating = false;
+    let gradientAnimation = null;
+    let currentLineType = 'best';
+    let regressionParams = { beta0: 30, beta1: 2.5 };
+    let regularizationType = 'none';
+
+    // 示例数据
+    const sampleData = [
+        { x: 10, y: 50 },
+        { x: 15, y: 65 },
+        { x: 20, y: 78 },
+        { x: 25, y: 92 },
+        { x: 30, y: 105 },
+        { x: 18, y: 72 },
+        { x: 22, y: 85 }
+    ];
+
+    // 导航系统功能
+    function toggleNav() {
+        navOpen = !navOpen;
+        document.body.classList.toggle('nav-open', navOpen);
+    }
+
+    // 键盘快捷键
+    document.addEventListener('keydown', function(e) {
+        if (e.altKey && e.key === 'n') {
+            e.preventDefault();
+            toggleNav();
+        }
+        if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+            e.preventDefault();
+            downloadNotes();
+        }
+    });
+
+    // 初始化导航
+    function initNavigation() {
+        const navItems = document.querySelectorAll('.nav-item a');
+        navItems.forEach(item => {
+            item.addEventListener('click', function(e) {
+                e.preventDefault();
+                const targetId = this.getAttribute('href').substring(1);
+                const targetElement = document.getElementById(targetId);
+
+                if (targetElement) {
+                    targetElement.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+
+                    document.querySelectorAll('.nav-item').forEach(ni => ni.classList.remove('active'));
+                    this.parentElement.classList.add('active');
+                }
+            });
+        });
+
+        updateNavigationOnScroll();
+    }
+
+    // 更新导航状态
+    function updateNavigationOnScroll() {
+        const sections = document.querySelectorAll('.section-anchor');
+        const navItems = document.querySelectorAll('.nav-item');
+
+        window.addEventListener('scroll', function() {
+            const scrollPosition = window.scrollY + 150;
+
+            updateProgress();
+
+            sections.forEach((section, index) => {
+                const sectionTop = section.offsetTop;
+                const sectionBottom = sectionTop + section.offsetHeight;
+
+                if (scrollPosition >= sectionTop && scrollPosition < sectionBottom) {
+                    navItems.forEach(item => item.classList.remove('active'));
+                    if (navItems[index]) {
+                        navItems[index].classList.add('active');
+
+                        const sectionId = section.id;
+                        if (!sectionsRead.has(sectionId)) {
+                            sectionsRead.add(sectionId);
+                            navItems[index].classList.add('completed');
+                            updateReadingStats();
+                        }
+                    }
+                }
+            });
+        });
+    }
+
+    // 更新阅读统计
+    function updateReadingStats() {
+        const sectionsReadCount = sectionsRead.size;
+        document.getElementById('completedSections').textContent = `${sectionsReadCount}/${totalSections}`;
+
+        const percentage = Math.round((sectionsReadCount / totalSections) * 100);
+        document.getElementById('progressPercent').textContent = percentage + '%';
+
+        // 更新进度环
+        const circumference = 2 * Math.PI * 22;
+        const offset = circumference - (percentage / 100) * circumference;
+        document.getElementById('progressRing').style.strokeDashoffset = offset;
+    }
+
+    // 更新进度条
+    function updateProgress() {
+        const scrolled = window.scrollY;
+        const total = document.documentElement.scrollHeight - window.innerHeight;
+        const progress = Math.min((scrolled / total) * 100, 100);
+
+        document.getElementById('progressFill').style.width = progress + '%';
+        document.getElementById('progressText').textContent = Math.round(progress) + '%';
+    }
+
+    // 散点图演示
+    let scatterCanvas, scatterCtx;
+
+    function initScatterDemo() {
+        scatterCanvas = document.getElementById('scatterCanvas');
+        if (!scatterCanvas) return;
+
+        scatterCtx = scatterCanvas.getContext('2d');
+        drawScatter();
+    }
+
+    function drawScatter(showLine = false) {
+        if (!scatterCtx) return;
+
+        const colors = getCanvasColors();
+
+        // 清除画布
+        scatterCtx.fillStyle = colors.background;
+        scatterCtx.fillRect(0, 0, scatterCanvas.width, scatterCanvas.height);
+
+        // 绘制网格
+        drawGrid(scatterCtx, scatterCanvas);
+
+        // 绘制坐标轴
+        drawAxes(scatterCtx, scatterCanvas, '广告投入（万元）', '销售额（万元）');
+
+        // 绘制数据点
+        const padding = 60;
+        const width = scatterCanvas.width - 2 * padding;
+        const height = scatterCanvas.height - 2 * padding;
+
+        sampleData.forEach(point => {
+            const x = padding + (point.x / 40) * width;
+            const y = scatterCanvas.height - padding - (point.y / 120) * height;
+
+            scatterCtx.beginPath();
+            scatterCtx.arc(x, y, 8, 0, 2 * Math.PI);
+            scatterCtx.fillStyle = colors.dataPoint;
+            scatterCtx.fill();
+            scatterCtx.strokeStyle = colors.background;
+            scatterCtx.lineWidth = 2;
+            scatterCtx.stroke();
+        });
+
+        // 绘制趋势线
+        if (showLine) {
+            const beta0 = 34;
+            const beta1 = 2.2;
+
+            scatterCtx.beginPath();
+            scatterCtx.strokeStyle = colors.regressionLine;
+            scatterCtx.lineWidth = 3;
+
+            const x1 = 0;
+            const y1 = beta0 + beta1 * x1;
+            const x2 = 40;
+            const y2 = beta0 + beta1 * x2;
+
+            const px1 = padding + (x1 / 40) * width;
+            const py1 = scatterCanvas.height - padding - (y1 / 120) * height;
+            const px2 = padding + (x2 / 40) * width;
+            const py2 = scatterCanvas.height - padding - (y2 / 120) * height;
+
+            scatterCtx.moveTo(px1, py1);
+            scatterCtx.lineTo(px2, py2);
+            scatterCtx.stroke();
+        }
+
+        // 更新统计信息
+        updateScatterStats();
+    }
+
+    function showScatterOnly() {
+        drawScatter(false);
+    }
+
+    function showTrendLine() {
+        drawScatter(true);
+    }
+
+    function animateRegression() {
+        // 动画展示回归线的形成
+        let progress = 0;
+        const animate = () => {
+            drawScatter(false);
+
+            const colors = getCanvasColors();
+            const padding = 60;
+            const width = scatterCanvas.width - 2 * padding;
+            const height = scatterCanvas.height - 2 * padding;
+
+            // 渐进绘制回归线
+            scatterCtx.globalAlpha = progress;
+            scatterCtx.beginPath();
+            scatterCtx.strokeStyle = colors.regressionLine;
+            scatterCtx.lineWidth = 3;
+
+            const beta0 = 34;
+            const beta1 = 2.2;
+            const x1 = 0;
+            const y1 = beta0 + beta1 * x1;
+            const x2 = 40 * progress;
+            const y2 = beta0 + beta1 * x2;
+
+            const px1 = padding + (x1 / 40) * width;
+            const py1 = scatterCanvas.height - padding - (y1 / 120) * height;
+            const px2 = padding + (x2 / 40) * width;
+            const py2 = scatterCanvas.height - padding - (y2 / 120) * height;
+
+            scatterCtx.moveTo(px1, py1);
+            scatterCtx.lineTo(px2, py2);
+            scatterCtx.stroke();
+            scatterCtx.globalAlpha = 1;
+
+            progress += 0.02;
+            if (progress <= 1) {
+                requestAnimationFrame(animate);
+            }
+        };
+        animate();
+    }
+
+    function addRandomPoint() {
+        const x = Math.random() * 30 + 5;
+        const y = 34 + 2.2 * x + (Math.random() - 0.5) * 20;
+        sampleData.push({ x, y });
+        drawScatter(true);
+    }
+
+    function updateScatterStats() {
+        document.getElementById('pointCount').textContent = sampleData.length;
+        // 计算相关系数
+        const n = sampleData.length;
+        const sumX = sampleData.reduce((sum, p) => sum + p.x, 0);
+        const sumY = sampleData.reduce((sum, p) => sum + p.y, 0);
+        const meanX = sumX / n;
+        const meanY = sumY / n;
+
+        const num = sampleData.reduce((sum, p) => sum + (p.x - meanX) * (p.y - meanY), 0);
+        const denX = Math.sqrt(sampleData.reduce((sum, p) => sum + Math.pow(p.x - meanX, 2), 0));
+        const denY = Math.sqrt(sampleData.reduce((sum, p) => sum + Math.pow(p.y - meanY, 2), 0));
+        const r = num / (denX * denY);
+
+        document.getElementById('correlation').textContent = r.toFixed(3);
+        document.getElementById('rSquared').textContent = (r * r).toFixed(3);
+    }
+
+    // 参数可视化
+    let paramsCanvas, paramsCtx;
+
+    function initParamsDemo() {
+        paramsCanvas = document.getElementById('paramsCanvas');
+        if (!paramsCanvas) return;
+
+        paramsCtx = paramsCanvas.getContext('2d');
+        drawParams();
+    }
+
+    function drawParams() {
+        if (!paramsCtx) return;
+
+        const colors = getCanvasColors();
+
+        // 清除画布
+        paramsCtx.fillStyle = colors.background;
+        paramsCtx.fillRect(0, 0, paramsCanvas.width, paramsCanvas.height);
+
+        // 绘制网格
+        drawGrid(paramsCtx, paramsCanvas);
+
+        // 绘制坐标轴
+        drawAxes(paramsCtx, paramsCanvas, 'x', 'y');
+
+        // 绘制回归线
+        const padding = 60;
+        const width = paramsCanvas.width - 2 * padding;
+        const height = paramsCanvas.height - 2 * padding;
+
+        paramsCtx.beginPath();
+        paramsCtx.strokeStyle = colors.regressionLine;
+        paramsCtx.lineWidth = 3;
+
+        const x1 = -10;
+        const y1 = regressionParams.beta0 + regressionParams.beta1 * x1;
+        const x2 = 40;
+        const y2 = regressionParams.beta0 + regressionParams.beta1 * x2;
+
+        const px1 = padding + ((x1 + 10) / 50) * width;
+        const py1 = paramsCanvas.height - padding - ((y1 + 50) / 200) * height;
+        const px2 = padding + ((x2 + 10) / 50) * width;
+        const py2 = paramsCanvas.height - padding - ((y2 + 50) / 200) * height;
+
+        paramsCtx.moveTo(px1, py1);
+        paramsCtx.lineTo(px2, py2);
+        paramsCtx.stroke();
+
+        // 标注截距
+        const interceptX = padding + (10 / 50) * width;
+        const interceptY = paramsCanvas.height - padding - ((regressionParams.beta0 + 50) / 200) * height;
+
+        paramsCtx.beginPath();
+        paramsCtx.arc(interceptX, interceptY, 6, 0, 2 * Math.PI);
+        paramsCtx.fillStyle = colors.highlight;
+        paramsCtx.fill();
+
+        paramsCtx.fillStyle = colors.text;
+        paramsCtx.font = '14px Arial';
+        paramsCtx.fillText(`β₀ = ${regressionParams.beta0}`, interceptX + 10, interceptY - 10);
+
+        // 标注斜率
+        const midX = padding + (25 / 50) * width;
+        const midY = paramsCanvas.height - padding - ((regressionParams.beta0 + regressionParams.beta1 * 15 + 50) / 200) * height;
+
+        paramsCtx.fillText(`斜率 β₁ = ${regressionParams.beta1}`, midX, midY - 20);
+    }
+
+    function updateParams() {
+        regressionParams.beta0 = parseFloat(document.getElementById('beta0Slider').value);
+        regressionParams.beta1 = parseFloat(document.getElementById('beta1Slider').value);
+
+        document.getElementById('beta0Value').textContent = regressionParams.beta0;
+        document.getElementById('beta1Value').textContent = regressionParams.beta1.toFixed(1);
+
+        drawParams();
+    }
+
+    // 拟合效果演示
+    let fitCanvas, fitCtx;
+
+    function initFitDemo() {
+        fitCanvas = document.getElementById('fitCanvas');
+        if (!fitCanvas) return;
+
+        fitCtx = fitCanvas.getContext('2d');
+        showLine('best');
+    }
+
+    function showLine(type) {
+        if (!fitCtx) return;
+
+        currentLineType = type;
+        const colors = getCanvasColors();
+
+        // 清除画布
+        fitCtx.fillStyle = colors.background;
+        fitCtx.fillRect(0, 0, fitCanvas.width, fitCanvas.height);
+
+        // 绘制网格
+        drawGrid(fitCtx, fitCanvas);
+
+        // 绘制数据点
+        const padding = 60;
+        const width = fitCanvas.width - 2 * padding;
+        const height = fitCanvas.height - 2 * padding;
+
+        sampleData.forEach(point => {
+            const x = padding + (point.x / 40) * width;
+            const y = fitCanvas.height - padding - (point.y / 120) * height;
+
+            fitCtx.beginPath();
+            fitCtx.arc(x, y, 6, 0, 2 * Math.PI);
+            fitCtx.fillStyle = colors.dataPoint;
+            fitCtx.fill();
+        });
+
+        // 根据类型绘制不同的直线
+        let beta0, beta1, lineColor, message;
+
+        switch(type) {
+            case 'flat':
+                beta0 = 60;
+                beta1 = 1.0;
+                lineColor = '#ef4444';
+                message = '太平缓：低估了变化趋势，MSE = 580';
+                break;
+            case 'steep':
+                beta0 = 10;
+                beta1 = 4.0;
+                lineColor = '#fbbf24';
+                message = '太陡峭：高估了变化趋势，MSE = 420';
+                break;
+            case 'best':
+                beta0 = 34;
+                beta1 = 2.2;
+                lineColor = '#22c55e';
+                message = '最佳拟合：误差最小，MSE = 12.5';
+                break;
+        }
+
+        // 绘制直线
+        fitCtx.beginPath();
+        fitCtx.strokeStyle = lineColor;
+        fitCtx.lineWidth = 3;
+
+        const x1 = 0;
+        const y1 = beta0 + beta1 * x1;
+        const x2 = 40;
+        const y2 = beta0 + beta1 * x2;
+
+        const px1 = padding + (x1 / 40) * width;
+        const py1 = fitCanvas.height - padding - (y1 / 120) * height;
+        const px2 = padding + (x2 / 40) * width;
+        const py2 = fitCanvas.height - padding - (y2 / 120) * height;
+
+        fitCtx.moveTo(px1, py1);
+        fitCtx.lineTo(px2, py2);
+        fitCtx.stroke();
+
+        // 绘制误差线（仅最佳拟合时）
+        if (type === 'best') {
+            fitCtx.strokeStyle = colors.error;
+            fitCtx.lineWidth = 1;
+            fitCtx.setLineDash([5, 5]);
+
+            sampleData.forEach(point => {
+                const x = padding + (point.x / 40) * width;
+                const y = fitCanvas.height - padding - (point.y / 120) * height;
+                const predY = fitCanvas.height - padding - ((beta0 + beta1 * point.x) / 120) * height;
+
+                fitCtx.beginPath();
+                fitCtx.moveTo(x, y);
+                fitCtx.lineTo(x, predY);
+                fitCtx.stroke();
+            });
+
+            fitCtx.setLineDash([]);
+        }
+
+        // 更新结果信息
+        document.getElementById('fitResult').innerHTML = `<p style="color: ${lineColor};">${message}</p>`;
+    }
+
+    function showAllLines() {
+        if (!fitCtx) return;
+
+        const colors = getCanvasColors();
+
+        // 清除画布
+        fitCtx.fillStyle = colors.background;
+        fitCtx.fillRect(0, 0, fitCanvas.width, fitCanvas.height);
+
+        // 绘制网格
+        drawGrid(fitCtx, fitCanvas);
+
+        // 绘制数据点
+        const padding = 60;
+        const width = fitCanvas.width - 2 * padding;
+        const height = fitCanvas.height - 2 * padding;
+
+        sampleData.forEach(point => {
+            const x = padding + (point.x / 40) * width;
+            const y = fitCanvas.height - padding - (point.y / 120) * height;
+
+            fitCtx.beginPath();
+            fitCtx.arc(x, y, 6, 0, 2 * Math.PI);
+            fitCtx.fillStyle = colors.dataPoint;
+            fitCtx.fill();
+        });
+
+        // 绘制所有三条线
+        const lines = [
+            { beta0: 60, beta1: 1.0, color: '#ef4444', label: '太平' },
+            { beta0: 10, beta1: 4.0, color: '#fbbf24', label: '太陡' },
+            { beta0: 34, beta1: 2.2, color: '#22c55e', label: '最佳' }
+        ];
+
+        lines.forEach(line => {
+            fitCtx.beginPath();
+            fitCtx.strokeStyle = line.color;
+            fitCtx.lineWidth = 2;
+            fitCtx.globalAlpha = 0.8;
+
+            const x1 = 0;
+            const y1 = line.beta0 + line.beta1 * x1;
+            const x2 = 40;
+            const y2 = line.beta0 + line.beta1 * x2;
+
+            const px1 = padding + (x1 / 40) * width;
+            const py1 = fitCanvas.height - padding - (y1 / 120) * height;
+            const px2 = padding + (x2 / 40) * width;
+            const py2 = fitCanvas.height - padding - (y2 / 120) * height;
+
+            fitCtx.moveTo(px1, py1);
+            fitCtx.lineTo(px2, py2);
+            fitCtx.stroke();
+            fitCtx.globalAlpha = 1;
+        });
+
+        document.getElementById('fitResult').innerHTML = '<p>对比三种拟合效果，绿色线误差最小</p>';
+    }
+
+    // MSE可视化
+    let mseCanvas, mseCtx;
+
+    function initMSEDemo() {
+        mseCanvas = document.getElementById('mseCanvas');
+        if (!mseCanvas) return;
+
+        mseCtx = mseCanvas.getContext('2d');
+        showErrors();
+    }
+
+    function showErrors() {
+        if (!mseCtx) return;
+
+        const colors = getCanvasColors();
+
+        // 清除画布
+        mseCtx.fillStyle = colors.background;
+        mseCtx.fillRect(0, 0, mseCanvas.width, mseCanvas.height);
+
+        // 绘制网格
+        drawGrid(mseCtx, mseCanvas);
+
+        // 绘制数据点和回归线
+        const padding = 60;
+        const width = mseCanvas.width - 2 * padding;
+        const height = mseCanvas.height - 2 * padding;
+
+        const beta0 = 34;
+        const beta1 = 2.2;
+
+        // 绘制回归线
+        mseCtx.beginPath();
+        mseCtx.strokeStyle = colors.regressionLine;
+        mseCtx.lineWidth = 3;
+
+        const x1 = 0;
+        const y1 = beta0 + beta1 * x1;
+        const x2 = 40;
+        const y2 = beta0 + beta1 * x2;
+
+        const px1 = padding + (x1 / 40) * width;
+        const py1 = mseCanvas.height - padding - (y1 / 120) * height;
+        const px2 = padding + (x2 / 40) * width;
+        const py2 = mseCanvas.height - padding - (y2 / 120) * height;
+
+        mseCtx.moveTo(px1, py1);
+        mseCtx.lineTo(px2, py2);
+        mseCtx.stroke();
+
+        // 绘制数据点和误差线
+        let totalMSE = 0;
+        sampleData.forEach(point => {
+            const x = padding + (point.x / 40) * width;
+            const y = mseCanvas.height - padding - (point.y / 120) * height;
+            const predY = beta0 + beta1 * point.x;
+            const predPixelY = mseCanvas.height - padding - (predY / 120) * height;
+
+            // 误差线
+            mseCtx.strokeStyle = colors.error;
+            mseCtx.lineWidth = 2;
+            mseCtx.beginPath();
+            mseCtx.moveTo(x, y);
+            mseCtx.lineTo(x, predPixelY);
+            mseCtx.stroke();
+
+            // 数据点
+            mseCtx.beginPath();
+            mseCtx.arc(x, y, 6, 0, 2 * Math.PI);
+            mseCtx.fillStyle = colors.dataPoint;
+            mseCtx.fill();
+
+            // 计算MSE
+            const error = point.y - predY;
+            totalMSE += error * error;
+        });
+
+        // 更新MSE显示
+        const mse = totalMSE / sampleData.length;
+        document.getElementById('currentMSE').textContent = mse.toFixed(2);
+    }
+
+    function showSquares() {
+        showErrors();
+
+        // 在误差线旁边显示平方值
+        const colors = getCanvasColors();
+        const padding = 60;
+        const width = mseCanvas.width - 2 * padding;
+        const height = mseCanvas.height - 2 * padding;
+
+        const beta0 = 34;
+        const beta1 = 2.2;
+
+        mseCtx.fillStyle = colors.text;
+        mseCtx.font = '12px Arial';
+
+        sampleData.forEach(point => {
+            const x = padding + (point.x / 40) * width;
+            const predY = beta0 + beta1 * point.x;
+            const error = point.y - predY;
+            const squared = error * error;
+
+            mseCtx.fillText(squared.toFixed(1), x + 10, mseCanvas.height - padding - (point.y / 120) * height);
+        });
+    }
+
+    function animateMSE() {
+        let progress = 0;
+        const animate = () => {
+            showErrors();
+
+            const colors = getCanvasColors();
+            const padding = 60;
+            const width = mseCanvas.width - 2 * padding;
+            const height = mseCanvas.height - 2 * padding;
+
+            const beta0 = 34;
+            const beta1 = 2.2;
+
+            // 动画显示误差平方
+            mseCtx.globalAlpha = progress;
+            mseCtx.fillStyle = 'rgba(251, 191, 36, 0.2)';
+
+            sampleData.forEach(point => {
+                const x = padding + (point.x / 40) * width;
+                const y = mseCanvas.height - padding - (point.y / 120) * height;
+                const predY = beta0 + beta1 * point.x;
+                const predPixelY = mseCanvas.height - padding - (predY / 120) * height;
+                const error = Math.abs(y - predPixelY);
+
+                // 绘制误差平方的可视化（正方形）
+                if (error > 5) {
+                    mseCtx.fillRect(x - error/2, Math.min(y, predPixelY), error, error);
+                }
+            });
+
+            mseCtx.globalAlpha = 1;
+
+            progress += 0.02;
+            if (progress <= 1) {
+                requestAnimationFrame(animate);
+            }
+        };
+        animate();
+    }
+
+    // 解析解演示
+    let analyticalCanvas, analyticalCtx;
+
+    function initAnalyticalDemo() {
+        analyticalCanvas = document.getElementById('analyticalCanvas');
+        if (!analyticalCanvas) return;
+
+        analyticalCtx = analyticalCanvas.getContext('2d');
+        drawAnalyticalSolution();
+    }
+
+    function drawAnalyticalSolution() {
+        if (!analyticalCtx) return;
+
+        const colors = getCanvasColors();
+
+        // 清除画布
+        analyticalCtx.fillStyle = colors.background;
+        analyticalCtx.fillRect(0, 0, analyticalCanvas.width, analyticalCanvas.height);
+
+        // 绘制小型散点图和回归线
+        const padding = 40;
+        const width = analyticalCanvas.width - 2 * padding;
+        const height = analyticalCanvas.height - 2 * padding;
+
+        // 绘制坐标轴
+        analyticalCtx.strokeStyle = colors.axis;
+        analyticalCtx.lineWidth = 2;
+        analyticalCtx.beginPath();
+        analyticalCtx.moveTo(padding, analyticalCanvas.height - padding);
+        analyticalCtx.lineTo(analyticalCanvas.width - padding, analyticalCanvas.height - padding);
+        analyticalCtx.moveTo(padding, padding);
+        analyticalCtx.lineTo(padding, analyticalCanvas.height - padding);
+        analyticalCtx.stroke();
+
+        // 绘制数据点
+        const data = [
+            { x: 10, y: 50 },
+            { x: 15, y: 65 },
+            { x: 20, y: 78 },
+            { x: 25, y: 92 },
+            { x: 30, y: 105 }
+        ];
+
+        data.forEach(point => {
+            const x = padding + ((point.x - 5) / 30) * width;
+            const y = analyticalCanvas.height - padding - ((point.y - 40) / 70) * height;
+
+            analyticalCtx.beginPath();
+            analyticalCtx.arc(x, y, 5, 0, 2 * Math.PI);
+            analyticalCtx.fillStyle = colors.dataPoint;
+            analyticalCtx.fill();
+        });
+
+        // 绘制回归线
+        analyticalCtx.beginPath();
+        analyticalCtx.strokeStyle = colors.regressionLine;
+        analyticalCtx.lineWidth = 2;
+
+        const beta0 = 34;
+        const beta1 = 2.2;
+        const x1 = 5;
+        const y1 = beta0 + beta1 * x1;
+        const x2 = 35;
+        const y2 = beta0 + beta1 * x2;
+
+        const px1 = padding + ((x1 - 5) / 30) * width;
+        const py1 = analyticalCanvas.height - padding - ((y1 - 40) / 70) * height;
+        const px2 = padding + ((x2 - 5) / 30) * width;
+        const py2 = analyticalCanvas.height - padding - ((y2 - 40) / 70) * height;
+
+        analyticalCtx.moveTo(px1, py1);
+        analyticalCtx.lineTo(px2, py2);
+        analyticalCtx.stroke();
+    }
+
+    // 梯度下降可视化
+    let gradientCanvas, gradientCtx;
+    let gdProgress = 0;
+    let learningRate = 0.01;
+    let gdAnimation = null;
+    let gdPath = [];
+
+    function initGradientDemo() {
+        gradientCanvas = document.getElementById('gradientCanvas');
+        if (!gradientCanvas) return;
+
+        gradientCtx = gradientCanvas.getContext('2d');
+        drawGradientDescent();
+    }
+
+    function drawGradientDescent() {
+        if (!gradientCtx) return;
+
+        const colors = getCanvasColors();
+
+        // 清除画布
+        gradientCtx.fillStyle = colors.background;
+        gradientCtx.fillRect(0, 0, gradientCanvas.width, gradientCanvas.height);
+
+        // 绘制损失函数曲面（2D投影）
+        const padding = 60;
+        const width = gradientCanvas.width - 2 * padding;
+        const height = gradientCanvas.height - 2 * padding;
+
+        // 绘制等高线
+        gradientCtx.strokeStyle = colors.contour;
+        gradientCtx.lineWidth = 1;
+        gradientCtx.globalAlpha = 0.3;
+
+        for (let i = 0; i < 5; i++) {
+            gradientCtx.beginPath();
+            gradientCtx.arc(gradientCanvas.width / 2, gradientCanvas.height / 2, 50 + i * 40, 0, 2 * Math.PI);
+            gradientCtx.stroke();
+        }
+        gradientCtx.globalAlpha = 1;
+
+        // 绘制最优点
+        const optimalX = gradientCanvas.width / 2;
+        const optimalY = gradientCanvas.height / 2;
+
+        gradientCtx.beginPath();
+        gradientCtx.arc(optimalX, optimalY, 8, 0, 2 * Math.PI);
+        gradientCtx.fillStyle = colors.optimal;
+        gradientCtx.fill();
+
+        // 绘制路径
+        if (gdPath.length > 0) {
+            gradientCtx.beginPath();
+            gradientCtx.strokeStyle = colors.path;
+            gradientCtx.lineWidth = 3;
+            gradientCtx.moveTo(gdPath[0].x, gdPath[0].y);
+
+            for (let i = 1; i < gdPath.length; i++) {
+                gradientCtx.lineTo(gdPath[i].x, gdPath[i].y);
+            }
+            gradientCtx.stroke();
+
+            // 绘制当前位置
+            const current = gdPath[gdPath.length - 1];
+            gradientCtx.beginPath();
+            gradientCtx.arc(current.x, current.y, 6, 0, 2 * Math.PI);
+            gradientCtx.fillStyle = colors.current;
+            gradientCtx.fill();
+        }
+
+        // 更新状态
+        if (gdPath.length > 0) {
+            document.getElementById('gdIteration').textContent = gdPath.length - 1;
+            const current = gdPath[gdPath.length - 1];
+            const distance = Math.sqrt(Math.pow(current.x - optimalX, 2) + Math.pow(current.y - optimalY, 2));
+            const loss = Math.max(0, (distance * distance / 100)).toFixed(2);
+            document.getElementById('gdLoss').textContent = loss;
+        }
+    }
+
+    function startGradientDescent() {
+        if (gdAnimation) return;
+
+        // 初始化起点（随机位置）
+        gdPath = [{
+            x: 100 + Math.random() * 200,
+            y: 100 + Math.random() * 200
+        }];
+
+        const optimalX = gradientCanvas.width / 2;
+        const optimalY = gradientCanvas.height / 2;
+
+        const animate = () => {
+            const current = gdPath[gdPath.length - 1];
+            const gradX = (current.x - optimalX) / 100;
+            const gradY = (current.y - optimalY) / 100;
+
+            // 梯度下降更新
+            const newX = current.x - learningRate * gradX * 100;
+            const newY = current.y - learningRate * gradY * 100;
+
+            gdPath.push({ x: newX, y: newY });
+            drawGradientDescent();
+
+            // 检查是否收敛
+            const distance = Math.sqrt(Math.pow(newX - optimalX, 2) + Math.pow(newY - optimalY, 2));
+            if (distance > 5 && gdPath.length < 100) {
+                gdAnimation = requestAnimationFrame(animate);
+            } else {
+                gdAnimation = null;
+            }
+        };
+
+        animate();
+    }
+
+    function pauseGradientDescent() {
+        if (gdAnimation) {
+            cancelAnimationFrame(gdAnimation);
+            gdAnimation = null;
+        }
+    }
+
+    function resetGradientDescent() {
+        pauseGradientDescent();
+        gdPath = [];
+        drawGradientDescent();
+        document.getElementById('gdIteration').textContent = '0';
+        document.getElementById('gdLoss').textContent = '100.00';
+    }
+
+    function changeLearnRate() {
+        const rates = [0.001, 0.01, 0.1, 1.0];
+        const currentIndex = rates.indexOf(learningRate);
+        learningRate = rates[(currentIndex + 1) % rates.length];
+        document.getElementById('learnRate').textContent = learningRate;
+    }
+
+    // 残差分析演示
+    let residualCanvas, residualCtx;
+
+    function initResidualDemo() {
+        residualCanvas = document.getElementById('residualCanvas');
+        if (!residualCanvas) return;
+
+        residualCtx = residualCanvas.getContext('2d');
+        showResidualPlot();
+    }
+
+    function showResidualPlot() {
+        if (!residualCtx) return;
+
+        const colors = getCanvasColors();
+
+        // 清除画布
+        residualCtx.fillStyle = colors.background;
+        residualCtx.fillRect(0, 0, residualCanvas.width, residualCanvas.height);
+
+        // 绘制坐标轴
+        drawAxes(residualCtx, residualCanvas, '预测值', '残差');
+
+        // 计算残差
+        const beta0 = 34;
+        const beta1 = 2.2;
+        const residuals = sampleData.map(point => ({
+            predicted: beta0 + beta1 * point.x,
+            residual: point.y - (beta0 + beta1 * point.x)
+        }));
+
+        // 绘制残差点
+        const padding = 60;
+        const width = residualCanvas.width - 2 * padding;
+        const height = residualCanvas.height - 2 * padding;
+
+        residuals.forEach(r => {
+            const x = padding + ((r.predicted - 40) / 80) * width;
+            const y = residualCanvas.height/2 - (r.residual / 20) * height/2;
+
+            residualCtx.beginPath();
+            residualCtx.arc(x, y, 5, 0, 2 * Math.PI);
+            residualCtx.fillStyle = colors.dataPoint;
+            residualCtx.fill();
+        });
+
+        // 绘制零线
+        residualCtx.beginPath();
+        residualCtx.strokeStyle = colors.error;
+        residualCtx.lineWidth = 2;
+        residualCtx.setLineDash([5, 5]);
+        residualCtx.moveTo(padding, residualCanvas.height/2);
+        residualCtx.lineTo(residualCanvas.width - padding, residualCanvas.height/2);
+        residualCtx.stroke();
+        residualCtx.setLineDash([]);
+    }
+
+    function showQQPlot() {
+        // Q-Q图实现（简化版）
+        if (!residualCtx) return;
+
+        const colors = getCanvasColors();
+
+        // 清除画布
+        residualCtx.fillStyle = colors.background;
+        residualCtx.fillRect(0, 0, residualCanvas.width, residualCanvas.height);
+
+        // 绘制对角线
+        residualCtx.beginPath();
+        residualCtx.strokeStyle = colors.regressionLine;
+        residualCtx.lineWidth = 2;
+        residualCtx.moveTo(60, residualCanvas.height - 60);
+        residualCtx.lineTo(residualCanvas.width - 60, 60);
+        residualCtx.stroke();
+
+        // 绘制标题
+        residualCtx.fillStyle = colors.text;
+        residualCtx.font = '16px Arial';
+        residualCtx.textAlign = 'center';
+        residualCtx.fillText('Q-Q Plot', residualCanvas.width/2, 30);
+    }
+
+    function showHistogram() {
+        // 残差直方图（简化版）
+        if (!residualCtx) return;
+
+        const colors = getCanvasColors();
+
+        // 清除画布
+        residualCtx.fillStyle = colors.background;
+        residualCtx.fillRect(0, 0, residualCanvas.width, residualCanvas.height);
+
+        // 简单的柱状图
+        const barWidth = 40;
+        const bars = [2, 5, 8, 6, 3];
+        const maxHeight = Math.max(...bars);
+
+        bars.forEach((height, i) => {
+            const x = 100 + i * (barWidth + 10);
+            const h = (height / maxHeight) * 200;
+            const y = residualCanvas.height - 80 - h;
+
+            residualCtx.fillStyle = colors.dataPoint;
+            residualCtx.fillRect(x, y, barWidth, h);
+        });
+
+        // 绘制标题
+        residualCtx.fillStyle = colors.text;
+        residualCtx.font = '16px Arial';
+        residualCtx.textAlign = 'center';
+        residualCtx.fillText('残差分布', residualCanvas.width/2, 30);
+    }
+
+    // 正则化演示
+    let regularizationCanvas, regularizationCtx;
+
+    function initRegularizationDemo() {
+        regularizationCanvas = document.getElementById('regularizationCanvas');
+        if (!regularizationCanvas) return;
+
+        regularizationCtx = regularizationCanvas.getContext('2d');
+        showRegularization('none');
+    }
+
+    function showRegularization(type) {
+        regularizationType = type;
+        if (!regularizationCtx) return;
+
+        const colors = getCanvasColors();
+
+        // 清除画布
+        regularizationCtx.fillStyle = colors.background;
+        regularizationCtx.fillRect(0, 0, regularizationCanvas.width, regularizationCanvas.height);
+
+        // 绘制系数对比图
+        const coefficients = {
+            none: [2.5, 1.8, 1.2, 0.9, 0.6],
+            ridge: [2.0, 1.5, 1.0, 0.7, 0.5],
+            lasso: [2.2, 1.6, 0, 0, 0]
+        };
+
+        const names = ['β₁', 'β₂', 'β₃', 'β₄', 'β₅'];
+        const coefs = coefficients[type];
+
+        // 绘制柱状图
+        const barWidth = 60;
+        const maxCoef = 3;
+
+        coefs.forEach((coef, i) => {
+            const x = 100 + i * (barWidth + 20);
+            const h = (Math.abs(coef) / maxCoef) * 200;
+            const y = regularizationCanvas.height/2 - (coef > 0 ? h : 0);
+
+            regularizationCtx.fillStyle = type === 'lasso' && coef === 0 ? '#64748b' : colors.regressionLine;
+            regularizationCtx.fillRect(x, y, barWidth, coef > 0 ? h : -h);
+
+            // 标签
+            regularizationCtx.fillStyle = colors.text;
+            regularizationCtx.font = '14px Arial';
+            regularizationCtx.textAlign = 'center';
+            regularizationCtx.fillText(names[i], x + barWidth/2, regularizationCanvas.height - 40);
+            regularizationCtx.fillText(coef.toFixed(1), x + barWidth/2, y - 10);
+        });
+
+        // 标题
+        const title = type === 'none' ? '无正则化' : type === 'ridge' ? 'Ridge回归' : 'Lasso回归';
+        regularizationCtx.font = '18px Arial';
+        regularizationCtx.fillText(title, regularizationCanvas.width/2, 30);
+    }
+
+    function updateRegularization() {
+        const lambda = parseFloat(document.getElementById('lambdaSlider').value);
+        document.getElementById('lambdaValue').textContent = lambda.toFixed(1);
+        showRegularization(regularizationType);
+    }
+
+    // 广告预算预测
+    function updatePrediction() {
+        const tv = parseFloat(document.getElementById('tvSlider').value);
+        const radio = parseFloat(document.getElementById('radioSlider').value);
+        const newspaper = parseFloat(document.getElementById('newspaperSlider').value);
+
+        document.getElementById('tvBudget').textContent = tv;
+        document.getElementById('radioBudget').textContent = radio;
+        document.getElementById('newspaperBudget').textContent = newspaper;
+
+        // 简化的预测模型
+        const prediction = 2.5 + tv * 0.046 + radio * 0.189 - newspaper * 0.001;
+        document.getElementById('predictedSales').textContent = prediction.toFixed(1);
+
+        // 计算总预算和ROI
+        const totalBudget = tv + radio + newspaper;
+        document.getElementById('totalBudget').textContent = totalBudget.toFixed(0);
+
+        const roi = totalBudget > 0 ? (prediction * 1000 / totalBudget).toFixed(1) : '0.0';
+        document.getElementById('roi').textContent = roi;
+    }
+
+    // 背景动画
+    function initDataPointsBackground() {
+        const canvas = document.getElementById('dataPointsBg');
+        if (!canvas) return;
+
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        const points = [];
+        const connections = [];
+
+        // 创建数据点
+        for (let i = 0; i < 30; i++) {
+            points.push({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                vx: (Math.random() - 0.5) * 0.3,
+                vy: (Math.random() - 0.5) * 0.3,
+                radius: Math.random() * 4 + 2,
+                opacity: Math.random() * 0.5 + 0.3
+            });
+        }
+
+        function animate() {
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.05)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // 更新点的位置
+            points.forEach(point => {
+                point.x += point.vx;
+                point.y += point.vy;
+
+                if (point.x < 0 || point.x > canvas.width) point.vx *= -1;
+                if (point.y < 0 || point.y > canvas.height) point.vy *= -1;
+            });
+
+            // 绘制连接线（模拟回归线）
+            ctx.strokeStyle = 'rgba(34, 197, 94, 0.1)';
+            ctx.lineWidth = 1;
+
+            for (let i = 0; i < points.length - 1; i++) {
+                if (Math.random() > 0.98) {
+                    ctx.beginPath();
+                    ctx.moveTo(points[i].x, points[i].y);
+                    ctx.lineTo(points[i + 1].x, points[i + 1].y);
+                    ctx.stroke();
+                }
+            }
+
+            // 绘制数据点
+            points.forEach(point => {
+                ctx.beginPath();
+                ctx.arc(point.x, point.y, point.radius, 0, 2 * Math.PI);
+                ctx.fillStyle = `rgba(34, 197, 94, ${point.opacity})`;
+                ctx.fill();
+            });
+
+            requestAnimationFrame(animate);
+        }
+
+        animate();
+
+        // 窗口大小改变时调整画布
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+    }
+
+    // 辅助函数
+    function drawGrid(ctx, canvas) {
+        const colors = getCanvasColors();
+        ctx.strokeStyle = colors.grid;
+        ctx.lineWidth = 1;
+        ctx.globalAlpha = 0.2;
+
+        const gridSize = 40;
+        for (let i = 0; i <= canvas.width; i += gridSize) {
+            ctx.beginPath();
+            ctx.moveTo(i, 0);
+            ctx.lineTo(i, canvas.height);
+            ctx.stroke();
+        }
+
+        for (let i = 0; i <= canvas.height; i += gridSize) {
+            ctx.beginPath();
+            ctx.moveTo(0, i);
+            ctx.lineTo(canvas.width, i);
+            ctx.stroke();
+        }
+
+        ctx.globalAlpha = 1;
+    }
+
+    function drawAxes(ctx, canvas, xLabel, yLabel) {
+        const colors = getCanvasColors();
+        const padding = 60;
+
+        ctx.strokeStyle = colors.axis;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(padding, canvas.height - padding);
+        ctx.lineTo(canvas.width - padding, canvas.height - padding);
+        ctx.moveTo(padding, padding);
+        ctx.lineTo(padding, canvas.height - padding);
+        ctx.stroke();
+
+        // 标签
+        ctx.fillStyle = colors.text;
+        ctx.font = '14px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(xLabel, canvas.width / 2, canvas.height - 20);
+
+        ctx.save();
+        ctx.translate(20, canvas.height / 2);
+        ctx.rotate(-Math.PI / 2);
+        ctx.fillText(yLabel, 0, 0);
+        ctx.restore();
+    }
+
+    function getCanvasColors() {
+        const isLight = document.body.classList.contains('light-theme');
+        return {
+            background: isLight ? '#ffffff' : '#0f172a',
+            grid: isLight ? '#e5e7eb' : '#2d3748',
+            text: isLight ? '#1e293b' : '#cbd5e1',
+            axis: isLight ? '#64748b' : '#4a5568',
+            dataPoint: '#ef4444',
+            regressionLine: '#22c55e',
+            error: '#fbbf24',
+            errorSquare: 'rgba(251, 191, 36, 0.2)',
+            contour: isLight ? '#cbd5e1' : '#334155',
+            optimal: '#22c55e',
+            current: '#ef4444',
+            path: '#fbbf24',
+            highlight: '#8b5cf6'
+        };
+    }
+
+    // 主题切换
+    function initTheme() {
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        if (savedTheme === 'light') {
+            document.body.classList.add('light-theme');
+            updateThemeIcon('light');
+        }
+    }
+
+    function toggleTheme() {
+        const isLight = document.body.classList.contains('light-theme');
+
+        if (isLight) {
+            document.body.classList.remove('light-theme');
+            localStorage.setItem('theme', 'dark');
+            updateThemeIcon('dark');
+        } else {
+            document.body.classList.add('light-theme');
+            localStorage.setItem('theme', 'light');
+            updateThemeIcon('light');
+        }
+
+        // 重绘所有canvas
+        updateAllCanvas();
+    }
+
+    function updateThemeIcon(theme) {
+        const icon = document.querySelector('.theme-icon');
+        if (icon) {
+            icon.textContent = theme === 'light' ? '🌙' : '☀️';
+        }
+    }
+
+    function updateAllCanvas() {
+        drawScatter(true);
+        drawParams();
+        showLine(currentLineType);
+        showErrors();
+        drawAnalyticalSolution();
+        drawGradientDescent();
+        showResidualPlot();
+        showRegularization(regularizationType);
+    }
+
+    // 工具函数
+    function scrollToTop() {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function toggleHelp() {
+        alert('使用提示：\n1. 点击导航项快速跳转到相应章节\n2. 使用交互式演示理解线性回归原理\n3. Alt+N 切换导航栏\n4. Ctrl+S 保存学习笔记\n5. 点击主题按钮切换深色/浅色模式');
+    }
+
+    function downloadNotes() {
+        const notes = `
+第5章：线性回归学习笔记
+
+一、核心概念
+- 线性回归是用直线（或超平面）拟合数据的方法
+- 目标：找到最能代表数据规律的直线
+- 应用：预测、分析变量关系
+
+二、数学模型
+1. 一元线性回归：y = β₀ + β₁x + ε
+2. 多元线性回归：y = β₀ + β₁x₁ + ... + βₚxₚ + ε
+   - y：因变量（预测目标）
+   - x：自变量（影响因素）
+   - β₀：截距（基准值）
+   - β₁...βₚ：回归系数（影响程度）
+   - ε：误差项，假设ε~N(0,σ²)
+
+三、损失函数
+MSE = (1/n) × Σ(yᵢ - ŷᵢ)²
+- 使用平方避免正负抵消
+- 惩罚大的预测误差
+- 有唯一最小值（凸函数）
+
+四、求解方法
+1. 解析解（正规方程）
+   - 一元：β₁ = Σ[(xᵢ - x̄)(yᵢ - ȳ)] / Σ(xᵢ - x̄)²
+           β₀ = ȳ - β₁x̄
+   - 多元：β̂ = (XᵀX)⁻¹Xᵀy
+   - 优点：一步到位，精确解
+   - 缺点：计算复杂度O(p³)，大数据集困难
+
+2. 梯度下降
+   - 更新规则：β = β - α × ∇J(β)
+   - 批量GD：使用全部数据
+   - 随机GD：使用单个样本
+   - 小批量GD：使用部分样本
+   - 优点：适合大数据，内存友好
+   - 缺点：需要调参，可能陷入局部最优
+
+五、模型评估
+- R²（决定系数）：解释的方差比例
+- 调整R²：考虑特征数量
+- MSE/RMSE：预测误差
+- 残差分析：检验模型假设
+
+六、线性回归假设（LINER）
+L - Linearity（线性关系）
+I - Independence（独立性）
+N - Normality（正态性）
+E - Equal variance（同方差性）
+R - No multicollinearity（无多重共线性）
+
+七、正则化方法
+1. Ridge（L2）：J = MSE + λΣβᵢ²
+   - 压缩系数但不会为0
+2. Lasso（L1）：J = MSE + λΣ|βᵢ|
+   - 可以特征选择（系数为0）
+3. 弹性网：结合L1和L2
+
+八、实战要点
+- 数据标准化很重要
+- 检查多重共线性（VIF）
+- 验证模型假设
+- 使用交叉验证选择参数
+- 注意过拟合风险
+
+九、广告投放案例
+- 多元线性回归分析
+- TV和Radio效果显著
+- Newspaper效果不显著
+- 存在渠道间的交互作用
+- R²=0.897，模型拟合良好
+
+十、重要提醒
+- 相关性≠因果性
+- 外推需谨慎
+- 残差模式很重要
+- 特征工程是关键
+
+学习进度：${document.getElementById('progressPercent').textContent}
+完成章节：${document.getElementById('completedSections').textContent}
+学习时间：${new Date().toLocaleString()}
+        `;
+
+        const blob = new Blob([notes], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = '线性回归学习笔记.txt';
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+
+    function startQuiz() {
+        const questions = [
+            {
+                question: "线性回归的目标是什么？",
+                options: ["找到数据的平均值", "找到最佳拟合直线", "对数据进行分类", "计算数据的方差"],
+                correct: 1,
+                explanation: "线性回归的目标是找到一条最能代表数据规律的直线，使预测误差最小"
+            },
+            {
+                question: "为什么使用误差的平方而不是简单求和？",
+                options: ["计算更简单", "避免正负误差抵消", "使结果更大", "没有特别原因"],
+                correct: 1,
+                explanation: "正负误差会相互抵消，使用平方可以确保所有误差都被考虑，且惩罚大的误差"
+            },
+            {
+                question: "正规方程的矩阵形式是什么？",
+                options: ["β = XᵀX", "β = (XᵀX)⁻¹Xᵀy", "β = Xᵀy", "β = X⁻¹y"],
+                correct: 1,
+                explanation: "正规方程通过求导并令其为零得到：β̂ = (XᵀX)⁻¹Xᵀy"
+            },
+            {
+                question: "梯度下降中，学习率过大会导致什么？",
+                options: ["收敛太慢", "可能发散或震荡", "没有影响", "结果更准确"],
+                correct: 1,
+                explanation: "学习率过大可能导致步长太大，错过最优解，甚至使损失函数发散"
+            },
+            {
+                question: "R²的含义是什么？",
+                options: ["误差的平方", "相关系数的平方", "模型解释的方差比例", "回归系数"],
+                correct: 2,
+                explanation: "R²表示模型解释的方差占总方差的比例，越接近1说明模型拟合越好"
+            },
+            {
+                question: "以下哪个不是线性回归的基本假设？",
+                options: ["线性关系", "误差独立", "特征必须正态分布", "同方差性"],
+                correct: 2,
+                explanation: "线性回归要求的是误差项正态分布，而不是特征正态分布"
+            },
+            {
+                question: "Ridge回归和Lasso回归的主要区别是？",
+                options: ["计算速度不同", "Ridge可以特征选择", "Lasso可以将系数压缩到0", "没有区别"],
+                correct: 2,
+                explanation: "Lasso使用L1正则化，可以将某些系数压缩到0，实现特征选择；Ridge使用L2正则化，只能压缩系数但不会为0"
+            },
+            {
+                question: "多重共线性会导致什么问题？",
+                options: ["预测准确度下降", "系数估计不稳定", "模型无法收敛", "残差不独立"],
+                correct: 1,
+                explanation: "多重共线性使得系数估计不稳定，微小的数据变化可能导致系数大幅变化"
+            }
+        ];
+
+        let score = 0;
+        let currentQuestion = 0;
+
+        function showQuestion() {
+            if (currentQuestion >= questions.length) {
+                showResult();
+                return;
+            }
+
+            const q = questions[currentQuestion];
+            const html = `
+                <div style="background: rgba(30, 41, 59, 0.9); padding: 30px; border-radius: 20px; max-width: 600px; margin: 50px auto;">
+                    <h3 style="color: #22c55e; margin-bottom: 20px;">问题 ${currentQuestion + 1}/${questions.length}</h3>
+                    <p style="font-size: 1.2rem; margin-bottom: 20px;">${q.question}</p>
+                    <div style="display: grid; gap: 10px;">
+                        ${q.options.map((opt, i) => `
+                            <button onclick="selectAnswer(${i})" style="background: rgba(34, 197, 94, 0.1); border: 2px solid rgba(34, 197, 94, 0.3); color: #e2e8f0; padding: 15px; border-radius: 10px; cursor: pointer; text-align: left; transition: all 0.3s;">
+                                ${String.fromCharCode(65 + i)}. ${opt}
+                            </button>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+
+            document.body.insertAdjacentHTML('beforeend', `<div id="quizModal" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 10000; display: flex; align-items: center; justify-content: center;">${html}</div>`);
+        }
+
+        window.selectAnswer = function(index) {
+            const q = questions[currentQuestion];
+            if (index === q.correct) {
+                score++;
+                alert('✅ 正确！\n\n' + q.explanation);
+            } else {
+                alert('❌ 错误！\n\n正确答案是：' + q.options[q.correct] + '\n\n' + q.explanation);
+            }
+            currentQuestion++;
+            document.getElementById('quizModal').remove();
+            showQuestion();
+        };
+
+        function showResult() {
+            const percentage = (score / questions.length * 100).toFixed(0);
+            const html = `
+                <div style="background: rgba(30, 41, 59, 0.9); padding: 40px; border-radius: 20px; max-width: 600px; margin: 50px auto; text-align: center;">
+                    <h2 style="color: #22c55e; margin-bottom: 30px;">测验完成！</h2>
+                    <div style="font-size: 4rem; margin-bottom: 20px;">
+                        ${percentage >= 80 ? '🎉' : percentage >= 60 ? '👍' : '💪'}
+                    </div>
+                    <p style="font-size: 2rem; color: #10b981; margin-bottom: 10px;">
+                        得分：${score}/${questions.length}
+                    </p>
+                    <p style="font-size: 1.5rem; color: #94a3b8; margin-bottom: 30px;">
+                        正确率：${percentage}%
+                    </p>
+                    <button onclick="document.getElementById('quizModal').remove()" style="background: linear-gradient(135deg, #22c55e, #10b981); color: white; border: none; padding: 15px 30px; border-radius: 25px; cursor: pointer; font-size: 1.1rem;">
+                        关闭
+                    </button>
+                </div>
+            `;
+
+            document.getElementById('quizModal').innerHTML = html;
+        }
+
+        showQuestion();
+    }
+
+    function shareAchievement() {
+        const text = `🎉 我刚刚完成了线性回归的学习！
+
+📚 学习内容：
+- 理解线性回归的核心概念
+- 掌握正规方程和梯度下降
+- 学会矩阵形式的推导
+- 理解模型评估和诊断
+- 掌握正则化方法
+- 完成多渠道广告投放案例
+
+学习进度：${document.getElementById('progressPercent').textContent}
+已完成章节：${document.getElementById('completedSections').textContent}
+
+线性回归——数据分析的基础武器！
+
+#机器学习 #线性回归 #数据分析 #Python`;
+
+        if (navigator.share) {
+            navigator.share({
+                title: '线性回归学习成就',
+                text: text,
+                url: window.location.href
+            }).catch(err => console.log('分享取消'));
+        } else {
+            navigator.clipboard.writeText(text).then(() => {
+                alert('学习成就已复制到剪贴板！');
+            });
+        }
+    }
+
+    // 页面加载时初始化
+    document.addEventListener('DOMContentLoaded', function() {
+        // 初始化主题
+        initTheme();
+
+        // 初始化导航
+        initNavigation();
+
+        // 初始化所有演示
+        initScatterDemo();
+        initParamsDemo();
+        initFitDemo();
+        initMSEDemo();
+        initAnalyticalDemo();
+        initGradientDemo();
+        initResidualDemo();
+        initRegularizationDemo();
+        initDataPointsBackground();
+
+        // 渐入动画
+        const cards = document.querySelectorAll('.fade-in');
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach((entry, index) => {
+                if (entry.isIntersecting) {
+                    setTimeout(() => {
+                        entry.target.style.opacity = '1';
+                        entry.target.style.transform = 'translateY(0)';
+                    }, index * 100);
+                }
+            });
+        });
+
+        cards.forEach(card => {
+            observer.observe(card);
+        });
+    });
+
+    // 平滑滚动
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener('click', function(e) {
+            e.preventDefault();
+            const target = document.querySelector(this.getAttribute('href'));
+            if (target) {
+                target.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start'
+                });
+            }
+        });
+    });
+
+    // 控制台彩蛋
+    console.log('%c📈 线性回归学习系统已加载！', 'color: #22c55e; font-size: 20px; font-weight: bold;');
+    console.log('%c寻找数据背后的规律，预测未来的趋势', 'color: #10b981; font-size: 16px;');
+    console.log('%c提示：Alt+N 切换导航，Ctrl+S 保存笔记', 'color: #fbbf24; font-size: 14px;');
+</script>
+</body>
+</html>

@@ -1,0 +1,3866 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>第7章：文本生成技术 - 让机器学会创作</title>
+    <meta name="description" content="从重复到创意，探索文本生成的技术演进">
+
+    <!-- 数学公式支持 -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+            onload="renderMathInElement(document.body, {
+                delimiters: [
+                    {left: '$$', right: '$$', display: true},
+                    {left: '$', right: '$', display: false}
+                ]
+            });"></script>
+
+    <style>
+        /* ===== CSS变量定义 ===== */
+        :root {
+            /* 渐变色 */
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --hero-gradient: linear-gradient(135deg, #ee9ca7 0%, #ffdde1 100%);
+            --card-gradient: linear-gradient(135deg, rgba(238, 156, 167, 0.1), rgba(255, 221, 225, 0.05));
+            --success-gradient: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            --warning-gradient: linear-gradient(135deg, #f2994a 0%, #f2c94c 100%);
+
+            /* 主题色 */
+            --primary: #667eea;
+            --primary-light: #9f7aea;
+            --primary-dark: #5a67d8;
+            --secondary: #ee9ca7;
+            --accent: #38ef7d;
+
+            /* 功能色 */
+            --success: #11998e;
+            --warning: #f2994a;
+            --danger: #eb5757;
+            --info: #2d9cdb;
+
+            /* 背景色 */
+            --bg-dark: #0f0f1e;
+            --bg-section: #1a1a2e;
+            --bg-card: #252542;
+            --bg-code: #1e1e2e;
+
+            /* 文字色 */
+            --text-primary: #e0e0e0;
+            --text-secondary: #a0a0a0;
+            --text-muted: #666680;
+
+            /* 其他 */
+            --border-color: rgba(255, 255, 255, 0.1);
+            --shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+            --shadow-lg: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+            --radius: 1rem;
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* ===== 全局样式 ===== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            line-height: 1.7;
+            font-size: 16px;
+            overflow-x: hidden;
+        }
+
+        /* ===== 背景效果 ===== */
+        .bg-pattern {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            opacity: 0.03;
+            background-image:
+                    radial-gradient(circle at 20% 80%, var(--primary) 0%, transparent 50%),
+                    radial-gradient(circle at 80% 20%, var(--secondary) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .floating-shapes {
+            position: fixed;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            z-index: 0;
+        }
+
+        .shape {
+            position: absolute;
+            border-radius: 50%;
+            background: var(--primary-gradient);
+            opacity: 0.1;
+            animation: float 20s infinite ease-in-out;
+        }
+
+        .shape:nth-child(1) {
+            width: 80px;
+            height: 80px;
+            left: 10%;
+            top: 20%;
+            animation-delay: 0s;
+        }
+
+        .shape:nth-child(2) {
+            width: 120px;
+            height: 120px;
+            left: 70%;
+            top: 60%;
+            background: var(--hero-gradient);
+            animation-delay: 5s;
+        }
+
+        .shape:nth-child(3) {
+            width: 60px;
+            height: 60px;
+            left: 40%;
+            top: 80%;
+            background: var(--success-gradient);
+            animation-delay: 10s;
+        }
+
+        @keyframes float {
+            0%, 100% {
+                transform: translateY(0) rotate(0deg);
+            }
+            33% {
+                transform: translateY(-30px) rotate(120deg);
+            }
+            66% {
+                transform: translateY(30px) rotate(240deg);
+            }
+        }
+
+        /* ===== 布局 ===== */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 1.5rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ===== 导航栏 ===== */
+        .nav-header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: rgba(26, 26, 46, 0.9);
+            backdrop-filter: blur(20px);
+            z-index: 1000;
+            border-bottom: 1px solid var(--border-color);
+            transition: var(--transition);
+        }
+
+        .nav-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1rem 0;
+        }
+
+        .nav-title {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .nav-title h1 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .nav-menu {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        /* 进度条 */
+        .progress-container {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: var(--primary-gradient);
+            width: 0;
+            transition: width 0.3s ease;
+        }
+
+        /* ===== 侧边栏 ===== */
+        .sidebar {
+            position: fixed;
+            left: -300px;
+            top: 60px;
+            bottom: 0;
+            width: 300px;
+            background: var(--bg-section);
+            border-right: 1px solid var(--border-color);
+            padding: 2rem;
+            overflow-y: auto;
+            transition: transform 0.3s ease;
+            z-index: 999;
+            box-shadow: 5px 0 25px rgba(0, 0, 0, 0.5);
+        }
+
+        .sidebar.open {
+            transform: translateX(300px);
+        }
+
+        .toc-title {
+            color: var(--primary-light);
+            margin-bottom: 1.5rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .toc-section {
+            margin-bottom: 1.5rem;
+        }
+
+        .toc-section-title {
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.5rem;
+            padding-left: 0.5rem;
+        }
+
+        .toc-item {
+            display: block;
+            padding: 0.75rem 1rem;
+            color: var(--text-secondary);
+            text-decoration: none;
+            border-radius: 0.5rem;
+            transition: all 0.3s ease;
+            margin-bottom: 0.25rem;
+            font-size: 0.95rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .toc-item::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: var(--primary);
+            transform: translateX(-100%);
+            transition: transform 0.3s ease;
+        }
+
+        .toc-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-primary);
+            padding-left: 1.5rem;
+        }
+
+        .toc-item.active {
+            background: var(--card-gradient);
+            color: var(--primary-light);
+        }
+
+        .toc-item.active::before {
+            transform: translateX(0);
+        }
+
+        /* ===== 按钮样式 ===== */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            font-size: 0.95rem;
+            font-weight: 500;
+            text-decoration: none;
+            transition: var(--transition);
+            cursor: pointer;
+            border: none;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            transition: width 0.5s, height 0.5s;
+        }
+
+        .btn:hover::before {
+            width: 300px;
+            height: 300px;
+        }
+
+        .btn-primary {
+            background: var(--primary-gradient);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-icon {
+            background: transparent;
+            padding: 0.5rem;
+            color: var(--text-secondary);
+        }
+
+        /* ===== 主内容 ===== */
+        main {
+            margin-top: 80px;
+            padding-bottom: 4rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ===== 章节头部 ===== */
+        .chapter-hero {
+            background: var(--hero-gradient);
+            padding: 6rem 0;
+            margin-bottom: 3rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .chapter-hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background:
+                    radial-gradient(circle at 30% 50%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
+                    radial-gradient(circle at 70% 50%, rgba(255, 255, 255, 0.1) 0%, transparent 50%);
+            animation: pulse 4s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 0.8; }
+        }
+
+        .chapter-hero-content {
+            text-align: center;
+            color: white;
+            position: relative;
+            z-index: 1;
+        }
+
+        .chapter-hero h1 {
+            font-size: 3.5rem;
+            margin-bottom: 1rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            animation: fadeInUp 0.8s ease;
+        }
+
+        .chapter-hero p {
+            font-size: 1.5rem;
+            opacity: 0.95;
+            animation: fadeInUp 0.8s ease 0.2s both;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* ===== 内容卡片 ===== */
+        .section-card {
+            background: var(--bg-section);
+            border-radius: var(--radius);
+            padding: 3rem;
+            margin-bottom: 2rem;
+            box-shadow: var(--shadow);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .section-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--primary-gradient);
+            transform: scaleX(0);
+            transform-origin: left;
+            transition: transform 0.5s ease;
+        }
+
+        .section-card:hover::before {
+            transform: scaleX(1);
+        }
+
+        .section-card h2 {
+            color: var(--primary-light);
+            margin-bottom: 2rem;
+            font-size: 2.25rem;
+            font-weight: 700;
+        }
+
+        .section-card h3 {
+            color: var(--text-primary);
+            margin: 2rem 0 1rem;
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        /* ===== 故事卡片 ===== */
+        .story-card {
+            background: linear-gradient(135deg, rgba(238, 156, 167, 0.1), rgba(255, 221, 225, 0.1));
+            border: 2px solid rgba(238, 156, 167, 0.3);
+            border-radius: var(--radius);
+            padding: 2.5rem;
+            margin: 2rem 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .story-card::after {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            background: var(--hero-gradient);
+            z-index: -1;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            border-radius: var(--radius);
+        }
+
+        .story-card:hover::after {
+            opacity: 0.3;
+        }
+
+        .story-icon {
+            font-size: 3rem;
+            display: block;
+            margin-bottom: 1rem;
+            animation: bounce 2s ease-in-out infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        /* ===== 代码块 ===== */
+        .code-block {
+            background: var(--bg-code);
+            border: 1px solid #30363d;
+            border-radius: 0.75rem;
+            margin: 1.5rem 0;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .code-header {
+            background: #161b22;
+            padding: 1rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #30363d;
+        }
+
+        .code-lang {
+            color: var(--primary-light);
+            font-size: 0.875rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .code-lang::before {
+            content: '';
+            width: 12px;
+            height: 12px;
+            background: var(--primary);
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .code-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .code-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: var(--text-secondary);
+            padding: 0.375rem 0.875rem;
+            border-radius: 0.375rem;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+
+        .code-btn:hover {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+            transform: translateY(-1px);
+        }
+
+        .code-content {
+            padding: 1.5rem;
+            overflow-x: auto;
+            font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', monospace;
+            font-size: 0.875rem;
+            line-height: 1.7;
+        }
+
+        .code-content pre {
+            margin: 0;
+            color: #e6edf3;
+        }
+
+        .code-content.collapsed {
+            max-height: 300px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .code-content.collapsed::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 100px;
+            background: linear-gradient(transparent, var(--bg-code));
+        }
+
+        /* 代码高亮 */
+        .keyword { color: #ff79c6; }
+        .string { color: #f1fa8c; }
+        .comment { color: #6272a4; }
+        .function { color: #50fa7b; }
+        .number { color: #bd93f9; }
+
+        /* ===== 卡片网格 ===== */
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin: 2rem 0;
+        }
+
+        .info-card {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 2rem;
+            border: 1px solid var(--border-color);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .info-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: var(--primary-gradient);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .info-card:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--shadow-lg);
+            border-color: var(--primary);
+        }
+
+        .info-card:hover::before {
+            opacity: 0.05;
+        }
+
+        .card-icon {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            display: block;
+        }
+
+        .card-title {
+            color: var(--primary-light);
+            margin-bottom: 1rem;
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+        /* ===== 问题展示 ===== */
+        .problem-showcase {
+            background: linear-gradient(135deg, rgba(235, 87, 87, 0.1), rgba(242, 153, 74, 0.1));
+            border: 2px solid rgba(235, 87, 87, 0.3);
+            border-radius: var(--radius);
+            padding: 2rem;
+            margin: 2rem 0;
+        }
+
+        .problem-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .problem-icon {
+            font-size: 1.5rem;
+            color: var(--danger);
+        }
+
+        .problem-content h4 {
+            color: var(--danger);
+            margin-bottom: 0.5rem;
+        }
+
+        /* ===== 生成示例 ===== */
+        .generation-example {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 2rem;
+            margin: 2rem 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .example-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .example-content {
+            font-family: Georgia, serif;
+            line-height: 1.8;
+            color: var(--text-primary);
+        }
+
+        .prompt-tag {
+            display: inline-block;
+            background: var(--primary-gradient);
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 1rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+
+        /* ===== 对比展示 ===== */
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin: 2rem 0;
+        }
+
+        .comparison-item {
+            background: var(--bg-card);
+            padding: 2rem;
+            border-radius: var(--radius);
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .comparison-item.bad {
+            border: 2px solid var(--danger);
+        }
+
+        .comparison-item.good {
+            border: 2px solid var(--success);
+        }
+
+        .comparison-label {
+            position: absolute;
+            top: -12px;
+            left: 20px;
+            background: var(--bg-section);
+            padding: 0 1rem;
+            font-weight: 600;
+        }
+
+        .comparison-item.bad .comparison-label {
+            color: var(--danger);
+        }
+
+        .comparison-item.good .comparison-label {
+            color: var(--success);
+        }
+
+        /* ===== 交互式演示 ===== */
+        .interactive-demo {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 2rem;
+            margin: 2rem 0;
+        }
+
+        .demo-controls {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .demo-output {
+            background: var(--bg-code);
+            padding: 1.5rem;
+            border-radius: 0.5rem;
+            min-height: 150px;
+            font-family: Georgia, serif;
+            line-height: 1.8;
+        }
+
+        .slider-container {
+            margin: 1rem 0;
+        }
+
+        .slider-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+            font-size: 0.875rem;
+        }
+
+        .slider {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(255, 255, 255, 0.1);
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--primary);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .slider::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+            background: var(--primary-light);
+        }
+
+        /* ===== 深度思考框 ===== */
+        .deep-think-box {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+            border: 2px solid rgba(102, 126, 234, 0.3);
+            border-radius: var(--radius);
+            padding: 2.5rem;
+            margin: 3rem 0;
+            position: relative;
+        }
+
+        .deep-think-box::before {
+            content: '🧠';
+            position: absolute;
+            top: -18px;
+            left: 30px;
+            font-size: 2.5rem;
+            background: var(--bg-section);
+            padding: 0 0.75rem;
+        }
+
+        .deep-think-box h4 {
+            color: var(--primary-light);
+            margin-bottom: 1.25rem;
+            font-size: 1.25rem;
+        }
+
+        .think-item {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 1.25rem;
+            border-radius: 0.75rem;
+            margin-bottom: 1rem;
+            border-left: 3px solid var(--primary);
+        }
+
+        .think-item h5 {
+            color: var(--primary-light);
+            margin-bottom: 0.5rem;
+        }
+
+        /* ===== 提示框 ===== */
+        .tip {
+            padding: 1.5rem 2rem;
+            border-radius: var(--radius);
+            margin: 2rem 0;
+            border-left: 4px solid;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .tip::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            opacity: 0.05;
+            background: currentColor;
+        }
+
+        .tip-icon {
+            font-size: 1.5rem;
+            margin-right: 1rem;
+            vertical-align: middle;
+        }
+
+        .tip.info {
+            background: rgba(45, 156, 219, 0.1);
+            border-color: var(--info);
+            color: var(--text-primary);
+        }
+
+        .tip.warning {
+            background: rgba(242, 153, 74, 0.1);
+            border-color: var(--warning);
+            color: var(--text-primary);
+        }
+
+        .tip.success {
+            background: rgba(17, 153, 142, 0.1);
+            border-color: var(--success);
+            color: var(--text-primary);
+        }
+
+        .tip.danger {
+            background: rgba(235, 87, 87, 0.1);
+            border-color: var(--danger);
+            color: var(--text-primary);
+        }
+
+        /* ===== 时间线 ===== */
+        .timeline {
+            position: relative;
+            padding: 2rem 0;
+            margin: 2rem 0;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 50%;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: var(--primary-gradient);
+            transform: translateX(-50%);
+        }
+
+        .timeline-item {
+            position: relative;
+            margin-bottom: 3rem;
+            display: flex;
+            align-items: center;
+        }
+
+        .timeline-item:nth-child(odd) {
+            flex-direction: row-reverse;
+        }
+
+        .timeline-content {
+            width: 45%;
+            background: var(--bg-card);
+            padding: 1.5rem;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            transition: all 0.3s ease;
+        }
+
+        .timeline-content:hover {
+            transform: scale(1.05);
+        }
+
+        .timeline-date {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--primary);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 2rem;
+            font-weight: 600;
+            z-index: 1;
+        }
+
+        /* ===== 快速导航 ===== */
+        .quick-nav {
+            position: fixed;
+            right: 2rem;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .quick-nav-item {
+            width: 12px;
+            height: 12px;
+            background: var(--text-muted);
+            border-radius: 50%;
+            transition: all 0.3s;
+            position: relative;
+            cursor: pointer;
+        }
+
+        .quick-nav-item:hover,
+        .quick-nav-item.active {
+            background: var(--primary);
+            transform: scale(1.5);
+        }
+
+        .quick-nav-tooltip {
+            position: absolute;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: var(--bg-dark);
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+            border: 1px solid var(--border-color);
+            font-size: 0.875rem;
+        }
+
+        .quick-nav-item:hover .quick-nav-tooltip {
+            opacity: 1;
+        }
+
+        /* ===== 响应式设计 ===== */
+        @media (max-width: 768px) {
+            .chapter-hero h1 {
+                font-size: 2.5rem;
+            }
+
+            .section-card {
+                padding: 2rem;
+            }
+
+            .quick-nav {
+                display: none;
+            }
+
+            .comparison-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .timeline-item {
+                flex-direction: column !important;
+            }
+
+            .timeline-content {
+                width: 100%;
+            }
+
+            .timeline::before {
+                left: 20px;
+            }
+
+            .timeline-date {
+                left: 20px;
+                transform: none;
+            }
+        }
+
+        /* ===== 工具类 ===== */
+        .text-center { text-align: center; }
+        .text-muted { color: var(--text-muted); }
+        .mt-1 { margin-top: 0.5rem; }
+        .mt-2 { margin-top: 1rem; }
+        .mt-3 { margin-top: 1.5rem; }
+        .mt-4 { margin-top: 2rem; }
+        .mb-1 { margin-bottom: 0.5rem; }
+        .mb-2 { margin-bottom: 1rem; }
+        .mb-3 { margin-bottom: 1.5rem; }
+        .mb-4 { margin-bottom: 2rem; }
+
+        /* ===== 表格样式 ===== */
+        .comparison-table {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            overflow: hidden;
+            margin: 2rem 0;
+            box-shadow: var(--shadow);
+        }
+
+        .comparison-table table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .comparison-table th {
+            background: var(--primary-gradient);
+            color: white;
+            padding: 1.25rem;
+            text-align: left;
+            font-weight: 600;
+            font-size: 0.95rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .comparison-table td {
+            padding: 1.25rem;
+            border-bottom: 1px solid var(--border-color);
+            transition: all 0.3s ease;
+        }
+
+        .comparison-table tr:hover td {
+            background: rgba(102, 126, 234, 0.05);
+        }
+
+        .comparison-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* ===== 参数显示 ===== */
+        .param-display {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+
+        .param-item {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 1rem;
+            border-radius: 0.5rem;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .param-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .param-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: var(--primary-light);
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+
+        .param-label {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+        }
+    </style>
+</head>
+<body>
+
+<!-- 背景效果 -->
+<div class="bg-pattern"></div>
+<div class="floating-shapes">
+    <div class="shape"></div>
+    <div class="shape"></div>
+    <div class="shape"></div>
+</div>
+
+<!-- 导航栏 -->
+<nav class="nav-header">
+    <div class="container">
+        <div class="nav-content">
+            <div class="nav-title">
+                <button id="toggle-sidebar" class="btn btn-icon">
+                    <svg width="20" height="20" fill="currentColor">
+                        <path d="M3 5h14M3 10h14M3 15h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </button>
+                <h1>第7章：文本生成技术</h1>
+            </div>
+            <div class="nav-menu">
+                <button class="btn btn-icon" id="theme-toggle">🌙</button>
+                <a href="#summary" class="btn btn-secondary">章节总结</a>
+            </div>
+        </div>
+        <div class="progress-container">
+            <div class="progress-bar" id="progress-bar"></div>
+        </div>
+    </div>
+</nav>
+
+<!-- 侧边栏 -->
+<aside class="sidebar" id="sidebar">
+    <h3 class="toc-title">
+        <span>📚</span>
+        <span>本章导航</span>
+    </h3>
+
+    <div class="toc-section">
+        <div class="toc-section-title">引言</div>
+        <a href="#intro" class="toc-item active">让机器写作的挑战</a>
+        <a href="#evolution" class="toc-item">技术演进历程</a>
+    </div>
+
+    <div class="toc-section">
+        <div class="toc-section-title">基础技术</div>
+        <a href="#generation-basics" class="toc-item">文本生成基础</a>
+        <a href="#decoding-strategies" class="toc-item">解码策略详解</a>
+    </div>
+
+    <div class="toc-section">
+        <div class="toc-section-title">质量提升</div>
+        <a href="#quality-problems" class="toc-item">常见质量问题</a>
+        <a href="#improvement-techniques" class="toc-item">改进技术</a>
+    </div>
+
+    <div class="toc-section">
+        <div class="toc-section-title">高级技术</div>
+        <a href="#controlled-generation" class="toc-item">可控生成</a>
+        <a href="#diversity" class="toc-item">多样性增强</a>
+        <a href="#evaluation" class="toc-item">评估方法</a>
+    </div>
+
+    <div class="toc-section">
+        <div class="toc-section-title">应用实践</div>
+        <a href="#applications" class="toc-item">实际应用</a>
+        <a href="#best-practices" class="toc-item">最佳实践</a>
+    </div>
+
+    <div class="toc-section">
+        <div class="toc-section-title">总结</div>
+        <a href="#summary" class="toc-item">本章总结</a>
+        <a href="#future" class="toc-item">未来展望</a>
+    </div>
+</aside>
+
+<!-- 快速导航 -->
+<div class="quick-nav" id="quick-nav">
+    <div class="quick-nav-item active" data-section="intro">
+        <span class="quick-nav-tooltip">引言</span>
+    </div>
+    <div class="quick-nav-item" data-section="generation-basics">
+        <span class="quick-nav-tooltip">基础技术</span>
+    </div>
+    <div class="quick-nav-item" data-section="quality-problems">
+        <span class="quick-nav-tooltip">质量提升</span>
+    </div>
+    <div class="quick-nav-item" data-section="controlled-generation">
+        <span class="quick-nav-tooltip">高级技术</span>
+    </div>
+    <div class="quick-nav-item" data-section="applications">
+        <span class="quick-nav-tooltip">应用实践</span>
+    </div>
+    <div class="quick-nav-item" data-section="summary">
+        <span class="quick-nav-tooltip">总结</span>
+    </div>
+</div>
+
+<!-- 主内容 -->
+<main>
+    <!-- 章节标题 -->
+    <section class="chapter-hero">
+        <div class="container">
+            <div class="chapter-hero-content">
+                <h1>文本生成技术</h1>
+                <p>从重复到创意，让机器学会创作</p>
+            </div>
+        </div>
+    </section>
+
+    <div class="container">
+        <!-- 引言：让机器写作的挑战 -->
+        <section id="intro" class="section-card">
+            <h2>✍️ 让机器写作的挑战</h2>
+
+            <div class="story-card">
+                <span class="story-icon">📝</span>
+                <p><strong>一个看似简单的任务</strong></p>
+                <p class="mt-2">
+                    "让机器写一段话"，听起来很简单对吗？然而当我们真正尝试时，
+                    却发现机器生成的文本充满了各种问题...
+                </p>
+            </div>
+
+            <div class="problem-showcase">
+                <h3 class="mb-3">🚨 我们遇到的问题</h3>
+
+                <div class="problem-item">
+                    <span class="problem-icon">🔁</span>
+                    <div class="problem-content">
+                        <h4>重复问题</h4>
+                        <p>机器总是重复同样的词句，像坏掉的唱片机：</p>
+                        <div class="generation-example mt-2">
+                            <div class="example-content">
+                                "我喜欢吃苹果。苹果很好吃。苹果真的很好吃。我真的喜欢吃苹果..."
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="problem-item">
+                    <span class="problem-icon">🎲</span>
+                    <div class="problem-content">
+                        <h4>不连贯问题</h4>
+                        <p>前后文逻辑混乱，像喝醉了的人在说话：</p>
+                        <div class="generation-example mt-2">
+                            <div class="example-content">
+                                "今天天气很好。我的猫叫小花。数学很难。你吃饭了吗？"
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="problem-item">
+                    <span class="problem-icon">😴</span>
+                    <div class="problem-content">
+                        <h4>缺乏创意</h4>
+                        <p>生成的内容平淡无奇，毫无新意：</p>
+                        <div class="generation-example mt-2">
+                            <div class="example-content">
+                                "这是一个故事。主人公很勇敢。他战胜了困难。故事结束了。"
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="problem-item">
+                    <span class="problem-icon">🎯</span>
+                    <div class="problem-content">
+                        <h4>失控问题</h4>
+                        <p>无法控制生成的内容风格和主题：</p>
+                        <div class="generation-example mt-2">
+                            <div class="example-content">
+                                提示："写一个温馨的故事"<br>
+                                输出："在一个黑暗的夜晚，恐怖的事情发生了..."
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="deep-think-box">
+                <h4>为什么这么难？</h4>
+                <div class="think-item">
+                    <h5>🧠 语言的复杂性</h5>
+                    <ul>
+                        <li>词汇的多义性和歧义性</li>
+                        <li>语法规则的灵活性</li>
+                        <li>上下文依赖的语义理解</li>
+                        <li>文化背景和常识推理</li>
+                    </ul>
+                </div>
+                <div class="think-item">
+                    <h5>🎨 创作的艺术性</h5>
+                    <ul>
+                        <li>创意和想象力难以量化</li>
+                        <li>风格和个性的表达</li>
+                        <li>情感和氛围的营造</li>
+                        <li>读者体验的考虑</li>
+                    </ul>
+                </div>
+                <div class="think-item">
+                    <h5>⚖️ 平衡的困难</h5>
+                    <ul>
+                        <li>流畅性 vs 多样性</li>
+                        <li>准确性 vs 创造性</li>
+                        <li>可控性 vs 自由度</li>
+                        <li>局部连贯 vs 全局一致</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="tip info mt-4">
+                <span class="tip-icon">💡</span>
+                <strong>核心挑战</strong>
+                <p class="mt-2">
+                    文本生成不仅是一个技术问题，更是一个艺术问题。
+                    我们需要让机器既懂语言规则，又有创造力，
+                    还要能够理解和满足人类的需求。这正是本章要解决的挑战！
+                </p>
+            </div>
+        </section>
+
+        <!-- 技术演进历程 -->
+        <section id="evolution" class="section-card">
+            <h2>📈 技术演进历程</h2>
+
+            <div class="story-card">
+                <span class="story-icon">🚀</span>
+                <p><strong>从规则到神经网络的飞跃</strong></p>
+                <p class="mt-2">
+                    文本生成技术的发展，是一部从"死板"到"灵活"，
+                    从"机械"到"智能"的进化史。让我们回顾这段精彩的历程。
+                </p>
+            </div>
+
+            <div class="timeline">
+                <div class="timeline-item">
+                    <div class="timeline-date">1950s-1980s</div>
+                    <div class="timeline-content">
+                        <h4>📏 基于规则的时代</h4>
+                        <ul>
+                            <li>模板填充：Mad Libs式生成</li>
+                            <li>语法规则：上下文无关文法</li>
+                            <li>专家系统：领域知识编码</li>
+                        </ul>
+                        <p class="mt-2 text-muted">优点：可控；缺点：死板</p>
+                    </div>
+                </div>
+
+                <div class="timeline-item">
+                    <div class="timeline-date">1990s-2000s</div>
+                    <div class="timeline-content">
+                        <h4>📊 统计方法兴起</h4>
+                        <ul>
+                            <li>N-gram模型：基于概率的预测</li>
+                            <li>隐马尔可夫模型：序列建模</li>
+                            <li>最大熵模型：特征组合</li>
+                        </ul>
+                        <p class="mt-2 text-muted">开始从数据中学习模式</p>
+                    </div>
+                </div>
+
+                <div class="timeline-item">
+                    <div class="timeline-date">2010s初期</div>
+                    <div class="timeline-content">
+                        <h4>🧠 神经网络革命</h4>
+                        <ul>
+                            <li>RNN：处理序列数据</li>
+                            <li>LSTM/GRU：长期依赖</li>
+                            <li>Seq2Seq：编码-解码范式</li>
+                        </ul>
+                        <p class="mt-2 text-muted">质的飞跃开始</p>
+                    </div>
+                </div>
+
+                <div class="timeline-item">
+                    <div class="timeline-date">2017-2020</div>
+                    <div class="timeline-content">
+                        <h4>⚡ Transformer时代</h4>
+                        <ul>
+                            <li>注意力机制：并行处理</li>
+                            <li>GPT系列：自回归生成</li>
+                            <li>大规模预训练：通用能力</li>
+                        </ul>
+                        <p class="mt-2 text-muted">生成质量接近人类</p>
+                    </div>
+                </div>
+
+                <div class="timeline-item">
+                    <div class="timeline-date">2020至今</div>
+                    <div class="timeline-content">
+                        <h4>🌟 智能创作时代</h4>
+                        <ul>
+                            <li>ChatGPT：对话生成</li>
+                            <li>多模态生成：文图结合</li>
+                            <li>可控生成：精确控制</li>
+                        </ul>
+                        <p class="mt-2 text-muted">AI成为创作伙伴</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="comparison-grid mt-4">
+                <div class="comparison-item bad">
+                    <span class="comparison-label">传统方法</span>
+                    <h4>基于规则的生成</h4>
+                    <div class="generation-example mt-3">
+                        <p><strong>模板：</strong>[主语] [动词] [宾语]。</p>
+                        <p><strong>输出：</strong>小明 吃 苹果。</p>
+                    </div>
+                    <ul class="mt-3">
+                        <li>✓ 语法正确</li>
+                        <li>✓ 完全可控</li>
+                        <li>✗ 缺乏灵活性</li>
+                        <li>✗ 无法扩展</li>
+                    </ul>
+                </div>
+
+                <div class="comparison-item good">
+                    <span class="comparison-label">现代方法</span>
+                    <h4>神经网络生成</h4>
+                    <div class="generation-example mt-3">
+                        <p><strong>提示：</strong>描述吃苹果的感受</p>
+                        <p><strong>输出：</strong>咬下第一口，清脆的声音伴随着甜美的汁水在口中绽放，仿佛整个秋天都浓缩在这一刻...</p>
+                    </div>
+                    <ul class="mt-3">
+                        <li>✓ 自然流畅</li>
+                        <li>✓ 富有创意</li>
+                        <li>✓ 上下文理解</li>
+                        <li>✗ 偶尔失控</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="tip success mt-4">
+                <span class="tip-icon">🎯</span>
+                <strong>关键转折点</strong>
+                <p class="mt-2">
+                    Transformer的出现是文本生成技术的分水岭。
+                    它让机器第一次真正"理解"了语言的深层结构，
+                    而不是简单地记忆和复制模式。
+                </p>
+            </div>
+        </section>
+
+        <!-- 文本生成基础 -->
+        <section id="generation-basics" class="section-card">
+            <h2>🔤 文本生成基础</h2>
+
+            <div class="story-card">
+                <span class="story-icon">🎲</span>
+                <p><strong>概率的艺术</strong></p>
+                <p class="mt-2">
+                    文本生成的本质是什么？是在每个时刻，从成千上万个可能的词中，
+                    选出"最合适"的那一个。这个选择过程，就是概率的艺术。
+                </p>
+            </div>
+
+            <div class="deep-think-box">
+                <h4>核心概念</h4>
+                <div class="think-item">
+                    <h5>📊 语言模型</h5>
+                    <p>给定前文，预测下一个词的概率分布：</p>
+                    <p class="text-center mt-2" style="font-size: 1.2rem;">
+                        P(下一个词 | 前面所有词)
+                    </p>
+                </div>
+                <div class="think-item">
+                    <h5>🎯 生成过程</h5>
+                    <ol>
+                        <li>输入初始文本（提示词）</li>
+                        <li>模型预测下一个词的概率分布</li>
+                        <li>根据策略选择一个词</li>
+                        <li>将选中的词加入序列</li>
+                        <li>重复直到满足停止条件</li>
+                    </ol>
+                </div>
+            </div>
+
+            <div class="code-block">
+                <div class="code-header">
+                    <span class="code-lang">Python - 基础文本生成流程</span>
+                    <div class="code-actions">
+                        <button class="code-btn" onclick="toggleCode(this)">展开</button>
+                        <button class="code-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+                </div>
+                <div class="code-content collapsed">
+                    <pre><span class="keyword">import</span> torch
+<span class="keyword">import</span> torch.nn.functional <span class="keyword">as</span> F
+<span class="keyword">from</span> transformers <span class="keyword">import</span> GPT2LMHeadModel, GPT2Tokenizer
+
+<span class="keyword">class</span> <span class="function">TextGenerator</span>:
+    <span class="string">"""
+    文本生成器基类
+    """</span>
+    <span class="keyword">def</span> <span class="function">__init__</span>(self, model_name=<span class="string">'gpt2'</span>):
+        self.tokenizer = GPT2Tokenizer.from_pretrained(model_name)
+        self.model = GPT2LMHeadModel.from_pretrained(model_name)
+        self.model.eval()
+
+    <span class="keyword">def</span> <span class="function">generate_step</span>(self, input_ids, temperature=1.0):
+        <span class="string">"""
+        单步生成：预测下一个token
+        """</span>
+        <span class="keyword">with</span> torch.no_grad():
+            <span class="comment"># 1. 前向传播获取logits</span>
+            outputs = self.model(input_ids)
+            logits = outputs.logits[:, -1, :]  <span class="comment"># 只看最后一个位置</span>
+
+            <span class="comment"># 2. 温度调节</span>
+            logits = logits / temperature
+
+            <span class="comment"># 3. 转换为概率分布</span>
+            probs = F.softmax(logits, dim=-1)
+
+        <span class="keyword">return</span> probs
+
+    <span class="keyword">def</span> <span class="function">generate</span>(self,
+                  prompt,
+                  max_length=100,
+                  temperature=1.0,
+                  strategy=<span class="string">'greedy'</span>):
+        <span class="string">"""
+        完整的生成流程
+
+        Args:
+            prompt: 提示文本
+            max_length: 最大生成长度
+            temperature: 温度参数（控制随机性）
+            strategy: 解码策略
+        """</span>
+        <span class="comment"># 1. 编码输入</span>
+        input_ids = self.tokenizer.encode(prompt, return_tensors=<span class="string">'pt'</span>)
+        generated = input_ids
+
+        <span class="comment"># 2. 逐步生成</span>
+        <span class="keyword">for</span> _ <span class="keyword">in</span> range(max_length):
+            <span class="comment"># 获取概率分布</span>
+            probs = self.generate_step(generated, temperature)
+
+            <span class="comment"># 根据策略选择下一个token</span>
+            <span class="keyword">if</span> strategy == <span class="string">'greedy'</span>:
+                next_token = torch.argmax(probs, dim=-1)
+            <span class="keyword">elif</span> strategy == <span class="string">'sample'</span>:
+                next_token = torch.multinomial(probs, 1)
+
+            <span class="comment"># 添加到序列</span>
+            generated = torch.cat([generated, next_token.unsqueeze(0)], dim=1)
+
+            <span class="comment"># 检查是否生成了结束符</span>
+            <span class="keyword">if</span> next_token.item() == self.tokenizer.eos_token_id:
+                <span class="keyword">break</span>
+
+        <span class="comment"># 3. 解码为文本</span>
+        text = self.tokenizer.decode(generated[0], skip_special_tokens=True)
+        <span class="keyword">return</span> text
+
+<span class="comment"># ========== 概率分布可视化 ==========</span>
+<span class="keyword">def</span> <span class="function">visualize_probability_distribution</span>(generator, prompt):
+    <span class="string">"""
+    可视化下一个词的概率分布
+    """</span>
+    input_ids = generator.tokenizer.encode(prompt, return_tensors=<span class="string">'pt'</span>)
+    probs = generator.generate_step(input_ids)
+
+    <span class="comment"># 获取top-k概率最高的词</span>
+    top_k = 10
+    top_probs, top_indices = torch.topk(probs[0], top_k)
+
+    <span class="comment"># 解码为词汇</span>
+    top_words = [generator.tokenizer.decode([idx]) <span class="keyword">for</span> idx <span class="keyword">in</span> top_indices]
+
+    <span class="comment"># 打印结果</span>
+    print(<span class="string">f"提示: '{prompt}'"</span>)
+    print(<span class="string">"下一个词的概率分布:"</span>)
+    <span class="keyword">for</span> word, prob <span class="keyword">in</span> zip(top_words, top_probs):
+        bar = <span class="string">'█'</span> * int(prob * 50)
+        print(<span class="string">f"{word:15} {prob:.3f} {bar}"</span>)
+
+<span class="comment"># ========== 温度效果演示 ==========</span>
+<span class="keyword">def</span> <span class="function">demonstrate_temperature_effect</span>(generator, prompt):
+    <span class="string">"""
+    演示不同温度对生成的影响
+    """</span>
+    temperatures = [0.5, 1.0, 1.5]
+
+    <span class="keyword">for</span> temp <span class="keyword">in</span> temperatures:
+        print(<span class="string">f"\n温度 = {temp}:"</span>)
+        text = generator.generate(
+            prompt,
+            max_length=50,
+            temperature=temp,
+            strategy=<span class="string">'sample'</span>
+        )
+        print(text)
+
+<span class="comment"># 使用示例</span>
+<span class="keyword">if</span> __name__ == <span class="string">"__main__"</span>:
+    generator = TextGenerator()
+
+    <span class="comment"># 演示概率分布</span>
+    visualize_probability_distribution(generator, <span class="string">"今天天气"</span>)
+
+    <span class="comment"># 演示温度效果</span>
+    demonstrate_temperature_effect(generator, <span class="string">"从前有一个"</span>)</pre>
+                </div>
+            </div>
+
+            <div class="interactive-demo">
+                <h3 class="mb-3">🎮 交互式演示：温度参数的影响</h3>
+
+                <div class="slider-container">
+                    <div class="slider-label">
+                        <span>温度 (Temperature)</span>
+                        <span id="temp-value">1.0</span>
+                    </div>
+                    <input type="range" class="slider" id="temperature-slider"
+                           min="0.1" max="2.0" step="0.1" value="1.0">
+                </div>
+
+                <div class="param-display mt-3">
+                    <div class="param-item">
+                        <span class="param-value" id="randomness">中等</span>
+                        <span class="param-label">随机性</span>
+                    </div>
+                    <div class="param-item">
+                        <span class="param-value" id="creativity">平衡</span>
+                        <span class="param-label">创造性</span>
+                    </div>
+                    <div class="param-item">
+                        <span class="param-value" id="coherence">良好</span>
+                        <span class="param-label">连贯性</span>
+                    </div>
+                </div>
+
+                <div class="generation-example mt-3">
+                    <div class="example-header">
+                        <span class="prompt-tag">提示：从前有座山</span>
+                        <button class="btn btn-primary" onclick="regenerate()">重新生成</button>
+                    </div>
+                    <div class="demo-output" id="generation-output">
+                        选择温度值，点击"重新生成"查看效果...
+                    </div>
+                </div>
+            </div>
+
+            <div class="tip warning mt-4">
+                <span class="tip-icon">⚠️</span>
+                <strong>温度参数的权衡</strong>
+                <ul class="mt-2">
+                    <li><strong>低温度（< 0.7）：</strong>更保守、更确定、可能更无聊</li>
+                    <li><strong>中温度（0.7-1.3）：</strong>平衡的选择，适合大多数场景</li>
+                    <li><strong>高温度（> 1.3）：</strong>更随机、更创意、可能不连贯</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- 解码策略详解 -->
+        <section id="decoding-strategies" class="section-card">
+            <h2>🎯 解码策略详解</h2>
+
+            <div class="story-card">
+                <span class="story-icon">🎰</span>
+                <p><strong>选择的艺术</strong></p>
+                <p class="mt-2">
+                    模型给出了概率分布，但如何从中选择下一个词？
+                    这就是解码策略的作用——不同的策略会产生截然不同的文本。
+                </p>
+            </div>
+
+            <div class="card-grid">
+                <div class="info-card">
+                    <span class="card-icon">🏆</span>
+                    <h4 class="card-title">贪心解码</h4>
+                    <p><strong>策略：</strong>总是选择概率最高的词</p>
+                    <div class="code-block mt-2">
+                        <div class="code-content">
+                            <pre>next_token = argmax(P(w|context))</pre>
+                        </div>
+                    </div>
+                    <ul class="mt-2 text-muted">
+                        <li>✓ 确定性输出</li>
+                        <li>✓ 局部最优</li>
+                        <li>✗ 容易重复</li>
+                        <li>✗ 缺乏多样性</li>
+                    </ul>
+                </div>
+
+                <div class="info-card">
+                    <span class="card-icon">🔍</span>
+                    <h4 class="card-title">束搜索</h4>
+                    <p><strong>策略：</strong>保留k个最佳候选序列</p>
+                    <div class="code-block mt-2">
+                        <div class="code-content">
+                            <pre>保持beam_size个概率最高的序列</pre>
+                        </div>
+                    </div>
+                    <ul class="mt-2 text-muted">
+                        <li>✓ 全局更优</li>
+                        <li>✓ 质量稳定</li>
+                        <li>✗ 计算开销大</li>
+                        <li>✗ 仍可能重复</li>
+                    </ul>
+                </div>
+
+                <div class="info-card">
+                    <span class="card-icon">🎲</span>
+                    <h4 class="card-title">随机采样</h4>
+                    <p><strong>策略：</strong>按概率分布随机选择</p>
+                    <div class="code-block mt-2">
+                        <div class="code-content">
+                            <pre>next_token ~ P(w|context)</pre>
+                        </div>
+                    </div>
+                    <ul class="mt-2 text-muted">
+                        <li>✓ 多样性高</li>
+                        <li>✓ 避免重复</li>
+                        <li>✗ 可能不连贯</li>
+                        <li>✗ 质量不稳定</li>
+                    </ul>
+                </div>
+
+                <div class="info-card">
+                    <span class="card-icon">🎯</span>
+                    <h4 class="card-title">Top-k采样</h4>
+                    <p><strong>策略：</strong>只从概率最高的k个词中采样</p>
+                    <div class="code-block mt-2">
+                        <div class="code-content">
+                            <pre>候选集 = top_k(P), 然后采样</pre>
+                        </div>
+                    </div>
+                    <ul class="mt-2 text-muted">
+                        <li>✓ 平衡质量和多样性</li>
+                        <li>✓ 避免低概率词</li>
+                        <li>✗ k值固定</li>
+                        <li>✗ 不同上下文需求不同</li>
+                    </ul>
+                </div>
+
+                <div class="info-card">
+                    <span class="card-icon">📊</span>
+                    <h4 class="card-title">Top-p (Nucleus)采样</h4>
+                    <p><strong>策略：</strong>选择累积概率达到p的最小词集</p>
+                    <div class="code-block mt-2">
+                        <div class="code-content">
+                            <pre>选择最小集合使Σ P(w) ≥ p</pre>
+                        </div>
+                    </div>
+                    <ul class="mt-2 text-muted">
+                        <li>✓ 动态调整候选集</li>
+                        <li>✓ 适应不同分布</li>
+                        <li>✓ 效果通常最好</li>
+                        <li>✗ 需要调参</li>
+                    </ul>
+                </div>
+
+                <div class="info-card">
+                    <span class="card-icon">🔄</span>
+                    <h4 class="card-title">对比搜索</h4>
+                    <p><strong>策略：</strong>平衡相似性和多样性</p>
+                    <div class="code-block mt-2">
+                        <div class="code-content">
+                            <pre>score = α·相似度 - (1-α)·重复度</pre>
+                        </div>
+                    </div>
+                    <ul class="mt-2 text-muted">
+                        <li>✓ 主动避免重复</li>
+                        <li>✓ 保持连贯性</li>
+                        <li>✓ 最新技术</li>
+                        <li>✗ 计算复杂</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="code-block mt-4">
+                <div class="code-header">
+                    <span class="code-lang">Python - 解码策略实现</span>
+                    <div class="code-actions">
+                        <button class="code-btn" onclick="toggleCode(this)">展开</button>
+                        <button class="code-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+                </div>
+                <div class="code-content collapsed">
+                    <pre><span class="keyword">import</span> torch
+<span class="keyword">import</span> torch.nn.functional <span class="keyword">as</span> F
+<span class="keyword">import</span> numpy <span class="keyword">as</span> np
+
+<span class="keyword">class</span> <span class="function">DecodingStrategies</span>:
+    <span class="string">"""
+    各种解码策略的实现
+    """</span>
+
+    @staticmethod
+    <span class="keyword">def</span> <span class="function">greedy_search</span>(logits):
+        <span class="string">"""
+        贪心搜索：选择概率最高的token
+        """</span>
+        <span class="keyword">return</span> torch.argmax(logits, dim=-1)
+
+    @staticmethod
+    <span class="keyword">def</span> <span class="function">random_sampling</span>(logits, temperature=1.0):
+        <span class="string">"""
+        随机采样：按概率分布采样
+        """</span>
+        <span class="comment"># 温度调节</span>
+        logits = logits / temperature
+
+        <span class="comment"># 转换为概率</span>
+        probs = F.softmax(logits, dim=-1)
+
+        <span class="comment"># 采样</span>
+        <span class="keyword">return</span> torch.multinomial(probs, num_samples=1).squeeze()
+
+    @staticmethod
+    <span class="keyword">def</span> <span class="function">top_k_sampling</span>(logits, k=50, temperature=1.0):
+        <span class="string">"""
+        Top-k采样：只从概率最高的k个token中采样
+        """</span>
+        <span class="comment"># 温度调节</span>
+        logits = logits / temperature
+
+        <span class="comment"># 获取top-k</span>
+        top_k_logits, top_k_indices = torch.topk(logits, k, dim=-1)
+
+        <span class="comment"># 将其他位置设为-inf</span>
+        logits_masked = torch.full_like(logits, float(<span class="string">'-inf'</span>))
+        logits_masked.scatter_(1, top_k_indices, top_k_logits)
+
+        <span class="comment"># 重新计算概率并采样</span>
+        probs = F.softmax(logits_masked, dim=-1)
+        <span class="keyword">return</span> torch.multinomial(probs, num_samples=1).squeeze()
+
+    @staticmethod
+    <span class="keyword">def</span> <span class="function">top_p_sampling</span>(logits, p=0.9, temperature=1.0):
+        <span class="string">"""
+        Top-p (Nucleus)采样：选择累积概率达到p的最小词集
+        """</span>
+        <span class="comment"># 温度调节</span>
+        logits = logits / temperature
+
+        <span class="comment"># 排序</span>
+        sorted_logits, sorted_indices = torch.sort(logits, descending=True)
+        cumulative_probs = torch.cumsum(F.softmax(sorted_logits, dim=-1), dim=-1)
+
+        <span class="comment"># 找到累积概率超过p的位置</span>
+        sorted_indices_to_remove = cumulative_probs > p
+        <span class="comment"># 保留第一个超过p的位置</span>
+        sorted_indices_to_remove[..., 1:] = sorted_indices_to_remove[..., :-1].clone()
+        sorted_indices_to_remove[..., 0] = False
+
+        <span class="comment"># 将要移除的位置设为-inf</span>
+        indices_to_remove = sorted_indices_to_remove.scatter(
+            1, sorted_indices, sorted_indices_to_remove
+        )
+        logits_masked = logits.masked_fill(indices_to_remove, float(<span class="string">'-inf'</span>))
+
+        <span class="comment"># 重新计算概率并采样</span>
+        probs = F.softmax(logits_masked, dim=-1)
+        <span class="keyword">return</span> torch.multinomial(probs, num_samples=1).squeeze()
+
+    @staticmethod
+    <span class="keyword">def</span> <span class="function">beam_search</span>(model, input_ids, beam_size=5, max_length=50):
+        <span class="string">"""
+        束搜索：维护beam_size个最佳候选序列
+        """</span>
+        <span class="comment"># 初始化束</span>
+        beams = [(input_ids, 0.0)]  <span class="comment"># (序列, 累积对数概率)</span>
+
+        <span class="keyword">for</span> _ <span class="keyword">in</span> range(max_length):
+            candidates = []
+
+            <span class="keyword">for</span> seq, score <span class="keyword">in</span> beams:
+                <span class="comment"># 获取下一个token的概率</span>
+                <span class="keyword">with</span> torch.no_grad():
+                    outputs = model(seq)
+                    logits = outputs.logits[:, -1, :]
+                    log_probs = F.log_softmax(logits, dim=-1)
+
+                <span class="comment"># 获取top-k候选</span>
+                top_log_probs, top_indices = torch.topk(
+                    log_probs[0], beam_size
+                )
+
+                <span class="comment"># 创建新的候选序列</span>
+                <span class="keyword">for</span> log_prob, idx <span class="keyword">in</span> zip(top_log_probs, top_indices):
+                    new_seq = torch.cat([seq, idx.unsqueeze(0).unsqueeze(0)], dim=1)
+                    new_score = score + log_prob.item()
+                    candidates.append((new_seq, new_score))
+
+            <span class="comment"># 选择得分最高的beam_size个序列</span>
+            beams = sorted(candidates, key=<span class="keyword">lambda</span> x: x[1], reverse=True)[:beam_size]
+
+            <span class="comment"># 检查是否所有束都结束了</span>
+            <span class="keyword">if</span> all(seq[0, -1].item() == model.config.eos_token_id <span class="keyword">for</span> seq, _ <span class="keyword">in</span> beams):
+                <span class="keyword">break</span>
+
+        <span class="comment"># 返回得分最高的序列</span>
+        <span class="keyword">return</span> beams[0][0]
+
+<span class="comment"># ========== 重复惩罚机制 ==========</span>
+<span class="keyword">class</span> <span class="function">RepetitionPenalty</span>:
+    <span class="string">"""
+    避免重复的各种惩罚机制
+    """</span>
+
+    @staticmethod
+    <span class="keyword">def</span> <span class="function">apply_repetition_penalty</span>(logits, generated_ids, penalty=1.2):
+        <span class="string">"""
+        对已生成的token施加惩罚
+        """</span>
+        <span class="keyword">for</span> token_id <span class="keyword">in</span> set(generated_ids.tolist()):
+            <span class="keyword">if</span> logits[token_id] < 0:
+                logits[token_id] *= penalty
+            <span class="keyword">else</span>:
+                logits[token_id] /= penalty
+        <span class="keyword">return</span> logits
+
+    @staticmethod
+    <span class="keyword">def</span> <span class="function">apply_no_repeat_ngram</span>(logits, generated_ids, ngram_size=3):
+        <span class="string">"""
+        禁止重复的n-gram
+        """</span>
+        <span class="keyword">if</span> len(generated_ids) < ngram_size:
+            <span class="keyword">return</span> logits
+
+        <span class="comment"># 获取最近的n-1个token</span>
+        prev_ngram = tuple(generated_ids[-(ngram_size-1):].tolist())
+
+        <span class="comment"># 查找所有出现过的n-gram</span>
+        banned_tokens = []
+        <span class="keyword">for</span> i <span class="keyword">in</span> range(len(generated_ids) - ngram_size + 1):
+            <span class="keyword">if</span> tuple(generated_ids[i:i+ngram_size-1].tolist()) == prev_ngram:
+                banned_tokens.append(generated_ids[i+ngram_size-1].item())
+
+        <span class="comment"># 禁止这些token</span>
+        <span class="keyword">for</span> token <span class="keyword">in</span> banned_tokens:
+            logits[token] = float(<span class="string">'-inf'</span>)
+
+        <span class="keyword">return</span> logits
+
+<span class="comment"># ========== 策略对比实验 ==========</span>
+<span class="keyword">def</span> <span class="function">compare_strategies</span>(model, tokenizer, prompt, num_samples=3):
+    <span class="string">"""
+    对比不同解码策略的效果
+    """</span>
+    strategies = {
+        <span class="string">'贪心搜索'</span>: <span class="keyword">lambda</span> l: DecodingStrategies.greedy_search(l),
+        <span class="string">'随机采样'</span>: <span class="keyword">lambda</span> l: DecodingStrategies.random_sampling(l, temperature=1.0),
+        <span class="string">'Top-k (k=50)'</span>: <span class="keyword">lambda</span> l: DecodingStrategies.top_k_sampling(l, k=50),
+        <span class="string">'Top-p (p=0.9)'</span>: <span class="keyword">lambda</span> l: DecodingStrategies.top_p_sampling(l, p=0.9),
+    }
+
+    print(<span class="string">f"提示: {prompt}\n"</span>)
+
+    <span class="keyword">for</span> name, strategy <span class="keyword">in</span> strategies.items():
+        print(<span class="string">f"=== {name} ==="</span>)
+        <span class="keyword">for</span> i <span class="keyword">in</span> range(num_samples):
+            text = generate_with_strategy(
+                model, tokenizer, prompt, strategy, max_length=50
+            )
+            print(<span class="string">f"样本{i+1}: {text}"</span>)
+        print()</pre>
+                </div>
+            </div>
+
+            <div class="comparison-grid mt-4">
+                <div class="comparison-item">
+                    <span class="comparison-label">贪心解码结果</span>
+                    <div class="generation-example">
+                        <p><strong>提示：</strong>今天的天气</p>
+                        <p><strong>输出：</strong>今天的天气很好，天气很好，天气很好，天气很好...</p>
+                    </div>
+                    <p class="mt-2 text-muted">严重的重复问题！</p>
+                </div>
+
+                <div class="comparison-item">
+                    <span class="comparison-label">Top-p采样结果</span>
+                    <div class="generation-example">
+                        <p><strong>提示：</strong>今天的天气</p>
+                        <p><strong>输出：</strong>今天的天气格外晴朗，微风轻拂，正适合去公园散步。树叶在阳光下闪闪发光...</p>
+                    </div>
+                    <p class="mt-2 text-muted">自然且富有变化！</p>
+                </div>
+            </div>
+
+            <div class="tip info mt-4">
+                <span class="tip-icon">💡</span>
+                <strong>最佳实践</strong>
+                <p class="mt-2">
+                    对于大多数生成任务，推荐使用<strong>Top-p采样 + 适度的温度（0.8-1.0）+ 重复惩罚</strong>。
+                    这个组合能够在质量、多样性和可控性之间取得良好平衡。
+                </p>
+            </div>
+        </section>
+
+        <!-- 常见质量问题 -->
+        <section id="quality-problems" class="section-card">
+            <h2>⚠️ 常见质量问题</h2>
+
+            <div class="story-card">
+                <span class="story-icon">🐛</span>
+                <p><strong>诊断与治疗</strong></p>
+                <p class="mt-2">
+                    就像医生需要先诊断病因才能开药，
+                    我们也需要深入理解文本生成的质量问题，才能找到有效的解决方案。
+                </p>
+            </div>
+
+            <div class="problem-showcase">
+                <h3 class="mb-3">问题诊断清单</h3>
+
+                <div class="problem-item">
+                    <span class="problem-icon">🔁</span>
+                    <div class="problem-content">
+                        <h4>问题1：重复生成</h4>
+                        <p><strong>症状：</strong>词、短语或句子级别的重复</p>
+                        <div class="comparison-grid mt-2">
+                            <div class="comparison-item bad">
+                                <span class="comparison-label">问题示例</span>
+                                <p>"我喜欢苹果。苹果很好吃。我真的喜欢苹果。苹果是我最喜欢的水果..."</p>
+                            </div>
+                            <div class="comparison-item good">
+                                <span class="comparison-label">改进后</span>
+                                <p>"我喜欢苹果。它的清脆口感和甜美滋味总能让我心情愉悦。每当秋天来临..."</p>
+                            </div>
+                        </div>
+                        <p class="mt-2"><strong>原因：</strong></p>
+                        <ul>
+                            <li>贪心解码的局部最优陷阱</li>
+                            <li>训练数据中的重复模式</li>
+                            <li>缺乏多样性机制</li>
+                        </ul>
+                        <p class="mt-2"><strong>解决方案：</strong></p>
+                        <ul>
+                            <li>使用重复惩罚机制</li>
+                            <li>采用Top-p/Top-k采样</li>
+                            <li>限制n-gram重复</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="problem-item">
+                    <span class="problem-icon">💔</span>
+                    <div class="problem-content">
+                        <h4>问题2：逻辑不连贯</h4>
+                        <p><strong>症状：</strong>前后文矛盾、主题跳跃、因果混乱</p>
+                        <div class="comparison-grid mt-2">
+                            <div class="comparison-item bad">
+                                <span class="comparison-label">问题示例</span>
+                                <p>"小明是个程序员。她喜欢画画。昨天我们去爬山了。编程很有趣。"</p>
+                            </div>
+                            <div class="comparison-item good">
+                                <span class="comparison-label">改进后</span>
+                                <p>"小明是个程序员。他热爱编程，经常熬夜写代码。尽管工作繁忙，他仍然坚持每天学习新技术。"</p>
+                            </div>
+                        </div>
+                        <p class="mt-2"><strong>原因：</strong></p>
+                        <ul>
+                            <li>上下文理解不足</li>
+                            <li>长距离依赖建模失败</li>
+                            <li>缺乏全局规划</li>
+                        </ul>
+                        <p class="mt-2"><strong>解决方案：</strong></p>
+                        <ul>
+                            <li>使用更大的上下文窗口</li>
+                            <li>引入主题追踪机制</li>
+                            <li>分层规划生成</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="problem-item">
+                    <span class="problem-icon">📏</span>
+                    <div class="problem-content">
+                        <h4>问题3：长度失控</h4>
+                        <p><strong>症状：</strong>过早结束或无休止生成</p>
+                        <div class="comparison-grid mt-2">
+                            <div class="comparison-item bad">
+                                <span class="comparison-label">过短</span>
+                                <p>任务："写一个故事"<br>输出："有一天。结束。"</p>
+                            </div>
+                            <div class="comparison-item bad">
+                                <span class="comparison-label">过长</span>
+                                <p>"...然后他又说，然后她又说，然后他们又说，然后..."（无限循环）</p>
+                            </div>
+                        </div>
+                        <p class="mt-2"><strong>解决方案：</strong></p>
+                        <ul>
+                            <li>设置合理的长度约束</li>
+                            <li>使用长度惩罚/奖励</li>
+                            <li>训练长度感知模型</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="problem-item">
+                    <span class="problem-icon">🎭</span>
+                    <div class="problem-content">
+                        <h4>问题4：风格不一致</h4>
+                        <p><strong>症状：</strong>正式与口语混杂、情感突变</p>
+                        <div class="comparison-grid mt-2">
+                            <div class="comparison-item bad">
+                                <span class="comparison-label">问题示例</span>
+                                <p>"尊敬的客户您好，咱今天聊点啥呢？本公司诚挚地...哈哈哈太逗了！"</p>
+                            </div>
+                            <div class="comparison-item good">
+                                <span class="comparison-label">改进后</span>
+                                <p>"尊敬的客户您好，感谢您对本公司的支持。我们诚挚地为您提供最优质的服务。"</p>
+                            </div>
+                        </div>
+                        <p class="mt-2"><strong>解决方案：</strong></p>
+                        <ul>
+                            <li>风格向量控制</li>
+                            <li>条件生成训练</li>
+                            <li>后处理风格统一</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="deep-think-box mt-4">
+                <h4>质量评估维度</h4>
+                <div class="think-item">
+                    <h5>📊 自动评估指标</h5>
+                    <ul>
+                        <li><strong>困惑度（Perplexity）：</strong>语言模型的不确定性</li>
+                        <li><strong>BLEU分数：</strong>与参考文本的n-gram重叠</li>
+                        <li><strong>ROUGE分数：</strong>召回导向的评估</li>
+                        <li><strong>BERTScore：</strong>基于语义的相似度</li>
+                    </ul>
+                </div>
+                <div class="think-item">
+                    <h5>👥 人工评估维度</h5>
+                    <ul>
+                        <li><strong>流畅性：</strong>语法正确、自然流畅</li>
+                        <li><strong>连贯性：</strong>逻辑清晰、前后一致</li>
+                        <li><strong>相关性：</strong>符合主题、满足需求</li>
+                        <li><strong>创造性：</strong>新颖有趣、富有想象</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- 改进技术 -->
+        <section id="improvement-techniques" class="section-card">
+            <h2>🚀 改进技术</h2>
+
+            <div class="story-card">
+                <span class="story-icon">💊</span>
+                <p><strong>对症下药</strong></p>
+                <p class="mt-2">
+                    针对不同的质量问题，研究者们开发了各种改进技术。
+                    让我们看看这些"良药"是如何工作的。
+                </p>
+            </div>
+
+            <div class="code-block">
+                <div class="code-header">
+                    <span class="code-lang">Python - 质量改进技术实现</span>
+                    <div class="code-actions">
+                        <button class="code-btn" onclick="toggleCode(this)">展开</button>
+                        <button class="code-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+                </div>
+                <div class="code-content collapsed">
+                    <pre><span class="keyword">import</span> torch
+<span class="keyword">import</span> torch.nn <span class="keyword">as</span> nn
+<span class="keyword">import</span> torch.nn.functional <span class="keyword">as</span> F
+<span class="keyword">from</span> collections <span class="keyword">import</span> defaultdict
+
+<span class="keyword">class</span> <span class="function">QualityImprovement</span>:
+    <span class="string">"""
+    文本生成质量改进技术集合
+    """</span>
+
+    <span class="comment"># ========== 1. 重复控制 ==========</span>
+    <span class="keyword">class</span> <span class="function">RepetitionController</span>:
+        <span class="string">"""
+        控制各种级别的重复
+        """</span>
+        <span class="keyword">def</span> <span class="function">__init__</span>(self):
+            self.word_counts = defaultdict(int)
+            self.ngram_history = set()
+
+        <span class="keyword">def</span> <span class="function">update_history</span>(self, token_ids):
+            <span class="string">"""更新历史记录"""</span>
+            <span class="comment"># 更新词频</span>
+            <span class="keyword">for</span> tid <span class="keyword">in</span> token_ids:
+                self.word_counts[tid] += 1
+
+            <span class="comment"># 更新n-gram历史</span>
+            <span class="keyword">for</span> n <span class="keyword">in</span> [2, 3, 4]:  <span class="comment"># 2-gram到4-gram</span>
+                <span class="keyword">if</span> len(token_ids) >= n:
+                    <span class="keyword">for</span> i <span class="keyword">in</span> range(len(token_ids) - n + 1):
+                        ngram = tuple(token_ids[i:i+n])
+                        self.ngram_history.add(ngram)
+
+        <span class="keyword">def</span> <span class="function">apply_penalties</span>(self, logits, recent_tokens, config):
+            <span class="string">"""
+            应用各种重复惩罚
+
+            Args:
+                logits: 模型输出的logits
+                recent_tokens: 最近生成的token序列
+                config: 惩罚配置
+            """</span>
+            <span class="comment"># 1. 频率惩罚</span>
+            <span class="keyword">if</span> config.frequency_penalty > 0:
+                <span class="keyword">for</span> token_id, count <span class="keyword">in</span> self.word_counts.items():
+                    <span class="keyword">if</span> token_id < len(logits):
+                        logits[token_id] -= config.frequency_penalty * count
+
+            <span class="comment"># 2. 存在惩罚</span>
+            <span class="keyword">if</span> config.presence_penalty > 0:
+                <span class="keyword">for</span> token_id <span class="keyword">in</span> set(recent_tokens):
+                    <span class="keyword">if</span> token_id < len(logits):
+                        logits[token_id] -= config.presence_penalty
+
+            <span class="comment"># 3. N-gram阻断</span>
+            <span class="keyword">if</span> config.no_repeat_ngram_size > 0:
+                <span class="keyword">if</span> len(recent_tokens) >= config.no_repeat_ngram_size - 1:
+                    prefix = tuple(recent_tokens[-(config.no_repeat_ngram_size-1):])
+                    <span class="keyword">for</span> token_id <span class="keyword">in</span> range(len(logits)):
+                        test_ngram = prefix + (token_id,)
+                        <span class="keyword">if</span> test_ngram <span class="keyword">in</span> self.ngram_history:
+                            logits[token_id] = float(<span class="string">'-inf'</span>)
+
+            <span class="keyword">return</span> logits
+
+    <span class="comment"># ========== 2. 多样性增强 ==========</span>
+    @staticmethod
+    <span class="keyword">def</span> <span class="function">diverse_beam_search</span>(model, input_ids, num_beams=5,
+                              num_beam_groups=5, diversity_penalty=0.5):
+        <span class="string">"""
+        多样化束搜索：生成多样的高质量候选
+        """</span>
+        <span class="comment"># 将束分成多个组</span>
+        beams_per_group = num_beams // num_beam_groups
+        group_beams = [[] <span class="keyword">for</span> _ <span class="keyword">in</span> range(num_beam_groups)]
+
+        <span class="comment"># 初始化每组</span>
+        <span class="keyword">for</span> group_idx <span class="keyword">in</span> range(num_beam_groups):
+            group_beams[group_idx] = [(input_ids, 0.0)]
+
+        <span class="comment"># 记录已使用的token，用于多样性惩罚</span>
+        used_tokens = [set() <span class="keyword">for</span> _ <span class="keyword">in</span> range(len(input_ids[0]))]
+
+        <span class="keyword">for</span> step <span class="keyword">in</span> range(50):  <span class="comment"># 最大生成长度</span>
+            <span class="keyword">for</span> group_idx <span class="keyword">in</span> range(num_beam_groups):
+                candidates = []
+
+                <span class="keyword">for</span> seq, score <span class="keyword">in</span> group_beams[group_idx]:
+                    <span class="comment"># 获取logits</span>
+                    <span class="keyword">with</span> torch.no_grad():
+                        outputs = model(seq)
+                        logits = outputs.logits[:, -1, :]
+
+                    <span class="comment"># 应用多样性惩罚</span>
+                    <span class="keyword">for</span> prev_group_idx <span class="keyword">in</span> range(group_idx):
+                        <span class="keyword">for</span> token <span class="keyword">in</span> used_tokens[step]:
+                            logits[0, token] -= diversity_penalty
+
+                    <span class="comment"># 获取top候选</span>
+                    log_probs = F.log_softmax(logits, dim=-1)
+                    top_log_probs, top_indices = torch.topk(
+                        log_probs[0], beams_per_group * 2
+                    )
+
+                    <span class="comment"># 创建新候选</span>
+                    <span class="keyword">for</span> log_prob, idx <span class="keyword">in</span> zip(top_log_probs, top_indices):
+                        new_seq = torch.cat([seq, idx.unsqueeze(0).unsqueeze(0)], dim=1)
+                        new_score = score + log_prob.item()
+                        candidates.append((new_seq, new_score, idx.item()))
+
+                <span class="comment"># 选择最佳候选</span>
+                candidates.sort(key=<span class="keyword">lambda</span> x: x[1], reverse=True)
+                group_beams[group_idx] = [
+                    (seq, score) <span class="keyword">for</span> seq, score, token <span class="keyword">in</span> candidates[:beams_per_group]
+                ]
+
+                <span class="comment"># 记录使用的token</span>
+                <span class="keyword">for</span> _, _, token <span class="keyword">in</span> candidates[:beams_per_group]:
+                    used_tokens[step].add(token)
+
+        <span class="comment"># 返回所有组的最佳结果</span>
+        all_sequences = []
+        <span class="keyword">for</span> group <span class="keyword">in</span> group_beams:
+            all_sequences.extend(group)
+        all_sequences.sort(key=<span class="keyword">lambda</span> x: x[1], reverse=True)
+
+        <span class="keyword">return</span> [seq <span class="keyword">for</span> seq, _ <span class="keyword">in</span> all_sequences[:num_beams]]
+
+    <span class="comment"># ========== 3. 连贯性增强 ==========</span>
+    <span class="keyword">class</span> <span class="function">CoherenceEnhancer</span>:
+        <span class="string">"""
+        增强文本连贯性
+        """</span>
+        <span class="keyword">def</span> <span class="function">__init__</span>(self, model):
+            self.model = model
+            self.topic_embeddings = []
+            self.entity_tracker = defaultdict(list)
+
+        <span class="keyword">def</span> <span class="function">track_entities</span>(self, text, position):
+            <span class="string">"""跟踪文本中的实体"""</span>
+            <span class="comment"># 简化版：跟踪专有名词</span>
+            words = text.split()
+            <span class="keyword">for</span> word <span class="keyword">in</span> words:
+                <span class="keyword">if</span> word[0].isupper():  <span class="comment"># 简单判断</span>
+                    self.entity_tracker[word].append(position)
+
+        <span class="keyword">def</span> <span class="function">compute_coherence_score</span>(self, candidate_text, context):
+            <span class="string">"""
+            计算候选文本的连贯性分数
+            """</span>
+            <span class="comment"># 1. 主题一致性</span>
+            topic_score = self._compute_topic_consistency(candidate_text, context)
+
+            <span class="comment"># 2. 实体一致性</span>
+            entity_score = self._compute_entity_consistency(candidate_text)
+
+            <span class="comment"># 3. 语义相似度</span>
+            semantic_score = self._compute_semantic_similarity(candidate_text, context)
+
+            <span class="comment"># 综合分数</span>
+            coherence_score = (
+                0.4 * topic_score +
+                0.3 * entity_score +
+                0.3 * semantic_score
+            )
+
+            <span class="keyword">return</span> coherence_score
+
+        <span class="keyword">def</span> <span class="function">_compute_topic_consistency</span>(self, text, context):
+            <span class="string">"""计算主题一致性"""</span>
+            <span class="comment"># 使用词袋模型的简化版本</span>
+            text_words = set(text.lower().split())
+            context_words = set(context.lower().split())
+
+            <span class="keyword">if</span> <span class="keyword">not</span> context_words:
+                <span class="keyword">return</span> 1.0
+
+            overlap = len(text_words & context_words)
+            <span class="keyword">return</span> overlap / len(context_words)
+
+        <span class="keyword">def</span> <span class="function">_compute_entity_consistency</span>(self, text):
+            <span class="string">"""计算实体一致性"""</span>
+            <span class="comment"># 检查是否正确引用了之前的实体</span>
+            score = 1.0
+            words = text.split()
+
+            <span class="keyword">for</span> word <span class="keyword">in</span> words:
+                <span class="keyword">if</span> word <span class="keyword">in</span> self.entity_tracker:
+                    <span class="comment"># 实体被正确引用，加分</span>
+                    score += 0.1
+                <span class="keyword">elif</span> word[0].isupper() <span class="keyword">and</span> word <span class="keyword">not</span> <span class="keyword">in</span> self.entity_tracker:
+                    <span class="comment"># 新实体突然出现，减分</span>
+                    score -= 0.1
+
+            <span class="keyword">return</span> max(0, min(1, score))
+
+        <span class="keyword">def</span> <span class="function">_compute_semantic_similarity</span>(self, text1, text2):
+            <span class="string">"""计算语义相似度（简化版）"""</span>
+            <span class="comment"># 实际应用中会使用句子嵌入</span>
+            words1 = set(text1.lower().split())
+            words2 = set(text2.lower().split())
+
+            <span class="keyword">if</span> <span class="keyword">not</span> words1 <span class="keyword">or</span> <span class="keyword">not</span> words2:
+                <span class="keyword">return</span> 0
+
+            intersection = len(words1 & words2)
+            union = len(words1 | words2)
+
+            <span class="keyword">return</span> intersection / union <span class="keyword">if</span> union > 0 <span class="keyword">else</span> 0
+
+    <span class="comment"># ========== 4. 长度控制 ==========</span>
+    @staticmethod
+    <span class="keyword">def</span> <span class="function">length_penalty</span>(score, length, alpha=0.6):
+        <span class="string">"""
+        长度惩罚：避免过短或过长的生成
+        """</span>
+        <span class="comment"># Wu et al. (2016) 的长度惩罚公式</span>
+        <span class="keyword">return</span> score / (length ** alpha)
+
+    @staticmethod
+    <span class="keyword">def</span> <span class="function">adaptive_length_control</span>(logits, current_length, target_length,
+                                   eos_token_id, length_tolerance=0.2):
+        <span class="string">"""
+        自适应长度控制：根据目标长度调整EOS概率
+        """</span>
+        <span class="comment"># 计算当前长度与目标长度的比例</span>
+        length_ratio = current_length / target_length
+
+        <span class="keyword">if</span> length_ratio < (1 - length_tolerance):
+            <span class="comment"># 还没达到目标长度，降低EOS概率</span>
+            logits[eos_token_id] -= 5.0
+        <span class="keyword">elif</span> length_ratio > (1 + length_tolerance):
+            <span class="comment"># 超过目标长度，提高EOS概率</span>
+            logits[eos_token_id] += 5.0
+
+        <span class="keyword">return</span> logits
+
+<span class="comment"># ========== 使用示例 ==========</span>
+<span class="keyword">def</span> <span class="function">generate_with_improvements</span>(model, tokenizer, prompt, config):
+    <span class="string">"""
+    使用各种改进技术生成文本
+    """</span>
+    <span class="comment"># 初始化控制器</span>
+    rep_controller = QualityImprovement.RepetitionController()
+    coh_enhancer = QualityImprovement.CoherenceEnhancer(model)
+
+    <span class="comment"># 编码输入</span>
+    input_ids = tokenizer.encode(prompt, return_tensors=<span class="string">'pt'</span>)
+    generated = input_ids
+
+    <span class="keyword">for</span> step <span class="keyword">in</span> range(config.max_length):
+        <span class="comment"># 获取logits</span>
+        <span class="keyword">with</span> torch.no_grad():
+            outputs = model(generated)
+            logits = outputs.logits[0, -1, :]
+
+        <span class="comment"># 应用各种改进</span>
+        <span class="comment"># 1. 重复控制</span>
+        logits = rep_controller.apply_penalties(
+            logits,
+            generated[0].tolist(),
+            config
+        )
+
+        <span class="comment"># 2. 长度控制</span>
+        logits = QualityImprovement.adaptive_length_control(
+            logits,
+            step,
+            config.target_length,
+            tokenizer.eos_token_id
+        )
+
+        <span class="comment"># 3. 温度和采样</span>
+        logits = logits / config.temperature
+        probs = F.softmax(logits, dim=-1)
+
+        <span class="comment"># Top-p采样</span>
+        sorted_probs, sorted_indices = torch.sort(probs, descending=True)
+        cumsum_probs = torch.cumsum(sorted_probs, dim=-1)
+        sorted_indices_to_remove = cumsum_probs > config.top_p
+        sorted_indices_to_remove[1:] = sorted_indices_to_remove[:-1].clone()
+        sorted_indices_to_remove[0] = False
+
+        indices_to_remove = sorted_indices[sorted_indices_to_remove]
+        probs[indices_to_remove] = 0
+        probs = probs / probs.sum()  <span class="comment"># 重新归一化</span>
+
+        <span class="comment"># 采样</span>
+        next_token = torch.multinomial(probs, 1)
+
+        <span class="comment"># 更新生成序列</span>
+        generated = torch.cat([generated, next_token.unsqueeze(0)], dim=1)
+
+        <span class="comment"># 更新历史</span>
+        rep_controller.update_history([next_token.item()])
+
+        <span class="comment"># 检查结束</span>
+        <span class="keyword">if</span> next_token.item() == tokenizer.eos_token_id:
+            <span class="keyword">break</span>
+
+    <span class="keyword">return</span> tokenizer.decode(generated[0], skip_special_tokens=True)</pre>
+                </div>
+            </div>
+
+            <div class="card-grid mt-4">
+                <div class="info-card">
+                    <span class="card-icon">🚫</span>
+                    <h4 class="card-title">重复惩罚</h4>
+                    <ul>
+                        <li><strong>频率惩罚：</strong>降低高频词概率</li>
+                        <li><strong>存在惩罚：</strong>避免重复已有词</li>
+                        <li><strong>N-gram阻断：</strong>禁止重复短语</li>
+                    </ul>
+                </div>
+
+                <div class="info-card">
+                    <span class="card-icon">🌈</span>
+                    <h4 class="card-title">多样性技术</h4>
+                    <ul>
+                        <li><strong>多样束搜索：</strong>生成不同的候选</li>
+                        <li><strong>采样技巧：</strong>增加随机性</li>
+                        <li><strong>对比解码：</strong>鼓励差异化</li>
+                    </ul>
+                </div>
+
+                <div class="info-card">
+                    <span class="card-icon">🔗</span>
+                    <h4 class="card-title">连贯性保持</h4>
+                    <ul>
+                        <li><strong>主题追踪：</strong>保持话题一致</li>
+                        <li><strong>实体跟踪：</strong>正确引用实体</li>
+                        <li><strong>上下文感知：</strong>考虑全局信息</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="tip success mt-4">
+                <span class="tip-icon">🎯</span>
+                <strong>改进效果</strong>
+                <p class="mt-2">
+                    通过合理组合这些技术，可以显著提升生成质量：
+                    重复率降低80%，连贯性提升50%，用户满意度提升70%！
+                </p>
+            </div>
+        </section>
+
+        <!-- 可控生成 -->
+        <section id="controlled-generation" class="section-card">
+            <h2>🎮 可控生成</h2>
+
+            <div class="story-card">
+                <span class="story-icon">🎨</span>
+                <p><strong>精确控制的艺术</strong></p>
+                <p class="mt-2">
+                    如果说文本生成是绘画，那么可控生成就是让你能够精确控制画笔的每一笔。
+                    让我们探索如何让AI按照我们的意图创作。
+                </p>
+            </div>
+
+            <div class="deep-think-box">
+                <h4>控制维度</h4>
+                <div class="think-item">
+                    <h5>🎭 风格控制</h5>
+                    <ul>
+                        <li>正式 vs 口语</li>
+                        <li>简洁 vs 详细</li>
+                        <li>客观 vs 主观</li>
+                        <li>专业 vs 通俗</li>
+                    </ul>
+                </div>
+                <div class="think-item">
+                    <h5>📝 内容控制</h5>
+                    <ul>
+                        <li>主题限定</li>
+                        <li>关键词包含</li>
+                        <li>情节发展</li>
+                        <li>观点倾向</li>
+                    </ul>
+                </div>
+                <div class="think-item">
+                    <h5>🎨 属性控制</h5>
+                    <ul>
+                        <li>情感色彩</li>
+                        <li>长度范围</li>
+                        <li>复杂度</li>
+                        <li>创新程度</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="interactive-demo">
+                <h3 class="mb-3">🎮 可控生成演示</h3>
+
+                <div class="demo-controls">
+                    <button class="btn btn-primary" onclick="controlledGenerate('formal')">正式风格</button>
+                    <button class="btn btn-primary" onclick="controlledGenerate('casual')">休闲风格</button>
+                    <button class="btn btn-primary" onclick="controlledGenerate('poetic')">诗意风格</button>
+                    <button class="btn btn-primary" onclick="controlledGenerate('technical')">技术风格</button>
+                </div>
+
+                <div class="generation-example mt-3">
+                    <div class="example-header">
+                        <span class="prompt-tag">主题：人工智能的未来</span>
+                    </div>
+                    <div class="demo-output" id="controlled-output">
+                        <p class="text-center text-muted">选择一个风格查看生成效果...</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="code-block mt-4">
+                <div class="code-header">
+                    <span class="code-lang">Python - 可控生成技术</span>
+                    <div class="code-actions">
+                        <button class="code-btn" onclick="toggleCode(this)">展开</button>
+                        <button class="code-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+                </div>
+                <div class="code-content">
+                    <pre><span class="keyword">import</span> torch
+<span class="keyword">import</span> torch.nn <span class="keyword">as</span> nn
+
+<span class="keyword">class</span> <span class="function">ControlledGenerator</span>:
+    <span class="string">"""
+    可控文本生成器
+    """</span>
+
+    <span class="comment"># ========== 1. 条件语言模型 ==========</span>
+    <span class="keyword">class</span> <span class="function">ConditionalLM</span>(nn.Module):
+        <span class="string">"""
+        条件语言模型：在生成时考虑控制信号
+        """</span>
+        <span class="keyword">def</span> <span class="function">__init__</span>(self, base_model, num_conditions, condition_dim=128):
+            super().__init__()
+            self.base_model = base_model
+            self.condition_embeddings = nn.Embedding(num_conditions, condition_dim)
+
+            <span class="comment"># 条件投影层</span>
+            hidden_size = base_model.config.hidden_size
+            self.condition_proj = nn.Linear(condition_dim, hidden_size)
+
+        <span class="keyword">def</span> <span class="function">forward</span>(self, input_ids, condition_id):
+            <span class="comment"># 获取条件嵌入</span>
+            condition_emb = self.condition_embeddings(condition_id)
+            condition_hidden = self.condition_proj(condition_emb)
+
+            <span class="comment"># 将条件信息注入到每一层</span>
+            outputs = self.base_model(
+                input_ids,
+                encoder_hidden_states=condition_hidden.unsqueeze(1)
+            )
+
+            <span class="keyword">return</span> outputs
+
+    <span class="comment"># ========== 2. 属性控制 ==========</span>
+    @staticmethod
+    <span class="keyword">def</span> <span class="function">attribute_control</span>(logits, attribute_discriminator,
+                          target_attribute, strength=1.0):
+        <span class="string">"""
+        使用属性判别器控制生成
+
+        Args:
+            logits: 模型输出
+            attribute_discriminator: 属性判别器
+            target_attribute: 目标属性值
+            strength: 控制强度
+        """</span>
+        <span class="comment"># 对每个可能的下一个token</span>
+        controlled_logits = logits.clone()
+
+        <span class="keyword">for</span> i <span class="keyword">in</span> range(logits.size(-1)):
+            <span class="comment"># 预测该token的属性</span>
+            token_attr = attribute_discriminator(i)
+
+            <span class="comment"># 根据与目标属性的匹配度调整logit</span>
+            attr_match = -abs(token_attr - target_attribute)
+            controlled_logits[i] += strength * attr_match
+
+        <span class="keyword">return</span> controlled_logits
+
+    <span class="comment"># ========== 3. 关键词控制 ==========</span>
+    <span class="keyword">class</span> <span class="function">KeywordController</span>:
+        <span class="string">"""
+        确保生成文本包含指定关键词
+        """</span>
+        <span class="keyword">def</span> <span class="function">__init__</span>(self, tokenizer):
+            self.tokenizer = tokenizer
+            self.keyword_positions = {}
+
+        <span class="keyword">def</span> <span class="function">set_keywords</span>(self, keywords, positions=None):
+            <span class="string">"""
+            设置必须包含的关键词
+
+            Args:
+                keywords: 关键词列表
+                positions: 可选，指定关键词应该出现的位置范围
+            """</span>
+            self.keywords = keywords
+            self.keyword_tokens = [
+                self.tokenizer.encode(kw, add_special_tokens=False)
+                <span class="keyword">for</span> kw <span class="keyword">in</span> keywords
+            ]
+
+            <span class="keyword">if</span> positions:
+                self.keyword_positions = dict(zip(keywords, positions))
+
+        <span class="keyword">def</span> <span class="function">apply_keyword_boost</span>(self, logits, current_position, generated_text):
+            <span class="string">"""
+            提升关键词相关token的概率
+            """</span>
+            <span class="comment"># 检查哪些关键词还没出现</span>
+            remaining_keywords = []
+            <span class="keyword">for</span> kw <span class="keyword">in</span> self.keywords:
+                <span class="keyword">if</span> kw <span class="keyword">not</span> <span class="keyword">in</span> generated_text:
+                    remaining_keywords.append(kw)
+
+            <span class="comment"># 对每个剩余关键词</span>
+            <span class="keyword">for</span> kw, tokens <span class="keyword">in</span> zip(remaining_keywords, self.keyword_tokens):
+                <span class="comment"># 检查是否在合适的位置</span>
+                <span class="keyword">if</span> kw <span class="keyword">in</span> self.keyword_positions:
+                    pos_range = self.keyword_positions[kw]
+                    <span class="keyword">if</span> <span class="keyword">not</span> (pos_range[0] <= current_position <= pos_range[1]):
+                        <span class="keyword">continue</span>
+
+                <span class="comment"># 提升关键词首token的概率</span>
+                <span class="keyword">if</span> tokens:
+                    logits[tokens[0]] += 5.0
+
+            <span class="keyword">return</span> logits
+
+    <span class="comment"># ========== 4. 风格迁移 ==========</span>
+    <span class="keyword">class</span> <span class="function">StyleTransfer</span>:
+        <span class="string">"""
+        文本风格迁移控制
+        """</span>
+        <span class="keyword">def</span> <span class="function">__init__</span>(self):
+            <span class="comment"># 预定义的风格向量</span>
+            self.style_vectors = {
+                <span class="string">'formal'</span>: {
+                    <span class="string">'词汇复杂度'</span>: 0.8,
+                    <span class="string">'句子长度'</span>: 0.7,
+                    <span class="string">'被动语态'</span>: 0.6,
+                    <span class="string">'专业术语'</span>: 0.9
+                },
+                <span class="string">'casual'</span>: {
+                    <span class="string">'词汇复杂度'</span>: 0.3,
+                    <span class="string">'句子长度'</span>: 0.4,
+                    <span class="string">'口语化'</span>: 0.9,
+                    <span class="string">'表情符号'</span>: 0.7
+                },
+                <span class="string">'poetic'</span>: {
+                    <span class="string">'修辞手法'</span>: 0.9,
+                    <span class="string">'韵律感'</span>: 0.8,
+                    <span class="string">'意象使用'</span>: 0.9,
+                    <span class="string">'情感强度'</span>: 0.8
+                }
+            }
+
+        <span class="keyword">def</span> <span class="function">apply_style</span>(self, logits, style_name, vocabulary_stats):
+            <span class="string">"""
+            根据风格调整词汇选择
+            """</span>
+            <span class="keyword">if</span> style_name <span class="keyword">not</span> <span class="keyword">in</span> self.style_vectors:
+                <span class="keyword">return</span> logits
+
+            style = self.style_vectors[style_name]
+
+            <span class="comment"># 根据词汇特征调整logits</span>
+            <span class="keyword">for</span> token_id, token_stats <span class="keyword">in</span> vocabulary_stats.items():
+                <span class="keyword">if</span> <span class="string">'词汇复杂度'</span> <span class="keyword">in</span> style:
+                    <span class="comment"># 复杂词汇的调整</span>
+                    <span class="keyword">if</span> token_stats[<span class="string">'complexity'</span>] > 0.7:
+                        logits[token_id] *= (1 + style[<span class="string">'词汇复杂度'</span>])
+                    <span class="keyword">else</span>:
+                        logits[token_id] *= (2 - style[<span class="string">'词汇复杂度'</span>])
+
+                <span class="keyword">if</span> <span class="string">'口语化'</span> <span class="keyword">in</span> style <span class="keyword">and</span> token_stats.get(<span class="string">'colloquial'</span>, 0) > 0.5:
+                    logits[token_id] *= (1 + style[<span class="string">'口语化'</span>])
+
+            <span class="keyword">return</span> logits
+
+<span class="comment"># ========== 5. 主题引导 ==========</span>
+<span class="keyword">class</span> <span class="function">TopicGuidance</span>:
+    <span class="string">"""
+    主题引导生成
+    """</span>
+    <span class="keyword">def</span> <span class="function">__init__</span>(self, topic_model):
+        self.topic_model = topic_model
+        self.target_topic = None
+        self.topic_words = {}
+
+    <span class="keyword">def</span> <span class="function">set_topic</span>(self, topic_name, topic_words):
+        <span class="string">"""设置目标主题和相关词汇"""</span>
+        self.target_topic = topic_name
+        self.topic_words = {
+            word: score
+            <span class="keyword">for</span> word, score <span class="keyword">in</span> topic_words
+        }
+
+    <span class="keyword">def</span> <span class="function">guide_generation</span>(self, logits, tokenizer):
+        <span class="string">"""引导生成朝向目标主题"""</span>
+        <span class="keyword">if</span> <span class="keyword">not</span> self.target_topic:
+            <span class="keyword">return</span> logits
+
+        <span class="comment"># 对每个token计算主题相关性</span>
+        <span class="keyword">for</span> token_id <span class="keyword">in</span> range(len(logits)):
+            token_text = tokenizer.decode([token_id])
+
+            <span class="comment"># 如果是主题相关词，提升概率</span>
+            <span class="keyword">if</span> token_text <span class="keyword">in</span> self.topic_words:
+                boost = self.topic_words[token_text]
+                logits[token_id] += boost * 2.0
+
+        <span class="keyword">return</span> logits
+
+<span class="comment"># ========== 使用示例 ==========</span>
+<span class="keyword">def</span> <span class="function">controlled_generation_demo</span>():
+    <span class="string">"""
+    演示各种可控生成技术
+    """</span>
+    <span class="comment"># 初始化组件</span>
+    generator = ControlledGenerator()
+    style_transfer = generator.StyleTransfer()
+    keyword_controller = generator.KeywordController(tokenizer)
+
+    <span class="comment"># 设置控制参数</span>
+    style = <span class="string">'formal'</span>
+    keywords = [<span class="string">'人工智能'</span>, <span class="string">'未来'</span>, <span class="string">'发展'</span>]
+    sentiment = <span class="string">'positive'</span>
+
+    <span class="comment"># 设置关键词</span>
+    keyword_controller.set_keywords(
+        keywords,
+        positions={
+            <span class="string">'人工智能'</span>: (0, 20),
+            <span class="string">'未来'</span>: (20, 40),
+            <span class="string">'发展'</span>: (30, 50)
+        }
+    )
+
+    <span class="comment"># 生成文本</span>
+    prompt = <span class="string">"探讨科技的"</span>
+    generated_text = prompt
+
+    <span class="keyword">for</span> i <span class="keyword">in</span> range(100):
+        <span class="comment"># 获取logits</span>
+        logits = get_model_logits(generated_text)
+
+        <span class="comment"># 应用各种控制</span>
+        <span class="comment"># 1. 风格控制</span>
+        logits = style_transfer.apply_style(logits, style, vocab_stats)
+
+        <span class="comment"># 2. 关键词控制</span>
+        logits = keyword_controller.apply_keyword_boost(
+            logits, i, generated_text
+        )
+
+        <span class="comment"># 3. 情感控制</span>
+        <span class="keyword">if</span> sentiment == <span class="string">'positive'</span>:
+            <span class="comment"># 提升积极词汇的概率</span>
+            <span class="keyword">for</span> pos_word_id <span class="keyword">in</span> positive_word_ids:
+                logits[pos_word_id] += 1.0
+
+        <span class="comment"># 采样下一个词</span>
+        next_token = sample_from_logits(logits)
+        generated_text += tokenizer.decode([next_token])
+
+        <span class="comment"># 检查结束条件</span>
+        <span class="keyword">if</span> next_token == eos_token_id:
+            <span class="keyword">break</span>
+
+    <span class="keyword">return</span> generated_text</pre>
+                </div>
+            </div>
+
+            <div class="tip info mt-4">
+                <span class="tip-icon">🎯</span>
+                <strong>可控生成的应用</strong>
+                <ul class="mt-2">
+                    <li><strong>个性化写作助手：</strong>适应用户的写作风格</li>
+                    <li><strong>品牌内容生成：</strong>保持一致的品牌调性</li>
+                    <li><strong>教育内容适配：</strong>根据学生水平调整难度</li>
+                    <li><strong>多语言本地化：</strong>考虑文化差异的翻译</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- 多样性增强 -->
+        <section id="diversity" class="section-card">
+            <h2>🌈 多样性增强</h2>
+
+            <div class="story-card">
+                <span class="story-icon">🎨</span>
+                <p><strong>避免千篇一律</strong></p>
+                <p class="mt-2">
+                    如果AI总是生成相似的内容，那将多么无趣！
+                    让我们探索如何让生成的文本充满惊喜和创意。
+                </p>
+            </div>
+
+            <div class="comparison-grid">
+                <div class="comparison-item bad">
+                    <span class="comparison-label">缺乏多样性</span>
+                    <h4>同一提示，相似输出</h4>
+                    <div class="generation-example mt-2">
+                        <p><strong>提示：</strong>写一个开头</p>
+                        <p><strong>输出1：</strong>从前有一个小村庄...</p>
+                        <p><strong>输出2：</strong>从前有一个小镇...</p>
+                        <p><strong>输出3：</strong>从前有一个小城市...</p>
+                    </div>
+                </div>
+
+                <div class="comparison-item good">
+                    <span class="comparison-label">富有多样性</span>
+                    <h4>同一提示，多样输出</h4>
+                    <div class="generation-example mt-2">
+                        <p><strong>提示：</strong>写一个开头</p>
+                        <p><strong>输出1：</strong>雨夜，咖啡馆的门铃响起...</p>
+                        <p><strong>输出2：</strong>"别动！"声音从黑暗中传来...</p>
+                        <p><strong>输出3：</strong>她从未想过会在地铁站遇见他...</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card-grid mt-4">
+                <div class="info-card">
+                    <span class="card-icon">🎲</span>
+                    <h4 class="card-title">随机性注入</h4>
+                    <ul>
+                        <li>温度调节</li>
+                        <li>随机种子变化</li>
+                        <li>Dropout变化</li>
+                        <li>噪声添加</li>
+                    </ul>
+                </div>
+
+                <div class="info-card">
+                    <span class="card-icon">🌟</span>
+                    <h4 class="card-title">多样化解码</h4>
+                    <ul>
+                        <li>多样束搜索</li>
+                        <li>群组多样性奖励</li>
+                        <li>最小相似度约束</li>
+                        <li>主题分散策略</li>
+                    </ul>
+                </div>
+
+                <div class="info-card">
+                    <span class="card-icon">🔄</span>
+                    <h4 class="card-title">后处理增强</h4>
+                    <ul>
+                        <li>同义词替换</li>
+                        <li>句式变换</li>
+                        <li>段落重组</li>
+                        <li>风格变化</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="deep-think-box mt-4">
+                <h4>多样性与质量的平衡</h4>
+                <div class="think-item">
+                    <h5>⚖️ 权衡考虑</h5>
+                    <ul>
+                        <li><strong>太少多样性：</strong>无聊、可预测、缺乏创意</li>
+                        <li><strong>太多多样性：</strong>混乱、不连贯、质量下降</li>
+                        <li><strong>理想状态：</strong>在保证质量的前提下最大化多样性</li>
+                    </ul>
+                </div>
+                <div class="think-item">
+                    <h5>🎯 应用场景</h5>
+                    <ul>
+                        <li><strong>创意写作：</strong>需要高多样性</li>
+                        <li><strong>技术文档：</strong>需要低多样性</li>
+                        <li><strong>对话系统：</strong>需要适度多样性</li>
+                        <li><strong>新闻生成：</strong>需要事实准确性</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- 评估方法 -->
+        <section id="evaluation" class="section-card">
+            <h2>📊 评估方法</h2>
+
+            <div class="story-card">
+                <span class="story-icon">📏</span>
+                <p><strong>如何衡量"好"文本？</strong></p>
+                <p class="mt-2">
+                    评估生成文本的质量就像品评美食——既有客观标准，也有主观感受。
+                    让我们了解如何全面评估文本生成系统。
+                </p>
+            </div>
+
+            <div class="comparison-table">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>评估维度</th>
+                        <th>自动指标</th>
+                        <th>人工评估</th>
+                        <th>适用场景</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td>流畅性</td>
+                        <td>困惑度(PPL)</td>
+                        <td>语法正确性评分</td>
+                        <td>所有生成任务</td>
+                    </tr>
+                    <tr>
+                        <td>相关性</td>
+                        <td>BLEU, ROUGE</td>
+                        <td>主题相关度评分</td>
+                        <td>有参考文本时</td>
+                    </tr>
+                    <tr>
+                        <td>多样性</td>
+                        <td>Distinct-n, Self-BLEU</td>
+                        <td>创新性评分</td>
+                        <td>创意写作</td>
+                    </tr>
+                    <tr>
+                        <td>连贯性</td>
+                        <td>BERTScore</td>
+                        <td>逻辑连贯性评分</td>
+                        <td>长文本生成</td>
+                    </tr>
+                    <tr>
+                        <td>真实性</td>
+                        <td>事实验证模型</td>
+                        <td>事实准确性检查</td>
+                        <td>知识密集型任务</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="code-block mt-4">
+                <div class="code-header">
+                    <span class="code-lang">Python - 评估指标实现</span>
+                    <div class="code-actions">
+                        <button class="code-btn" onclick="toggleCode(this)">展开</button>
+                        <button class="code-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+                </div>
+                <div class="code-content collapsed">
+                    <pre><span class="keyword">import</span> numpy <span class="keyword">as</span> np
+<span class="keyword">from</span> collections <span class="keyword">import</span> Counter
+<span class="keyword">from</span> nltk.translate.bleu_score <span class="keyword">import</span> sentence_bleu
+<span class="keyword">import</span> torch
+
+<span class="keyword">class</span> <span class="function">GenerationMetrics</span>:
+    <span class="string">"""
+    文本生成评估指标集合
+    """</span>
+
+    <span class="comment"># ========== 流畅性指标 ==========</span>
+    @staticmethod
+    <span class="keyword">def</span> <span class="function">perplexity</span>(model, tokenizer, text):
+        <span class="string">"""
+        计算困惑度：衡量模型对文本的"惊讶"程度
+        """</span>
+        inputs = tokenizer(text, return_tensors=<span class="string">'pt'</span>)
+
+        <span class="keyword">with</span> torch.no_grad():
+            outputs = model(**inputs, labels=inputs[<span class="string">'input_ids'</span>])
+            loss = outputs.loss
+
+        <span class="comment"># 困惑度 = exp(loss)</span>
+        ppl = torch.exp(loss)
+        <span class="keyword">return</span> ppl.item()
+
+    <span class="comment"># ========== 相关性指标 ==========</span>
+    @staticmethod
+    <span class="keyword">def</span> <span class="function">bleu_score</span>(generated, reference, n_gram=4):
+        <span class="string">"""
+        BLEU分数：衡量生成文本与参考文本的相似度
+        """</span>
+        <span class="comment"># 分词</span>
+        gen_tokens = generated.split()
+        ref_tokens = reference.split()
+
+        <span class="comment"># 计算不同n-gram的权重</span>
+        weights = tuple([1.0/n_gram] * n_gram)
+
+        score = sentence_bleu([ref_tokens], gen_tokens, weights=weights)
+        <span class="keyword">return</span> score
+
+    @staticmethod
+    <span class="keyword">def</span> <span class="function">rouge_score</span>(generated, reference):
+        <span class="string">"""
+        ROUGE分数：召回率导向的评估
+        """</span>
+        gen_tokens = set(generated.split())
+        ref_tokens = set(reference.split())
+
+        <span class="comment"># ROUGE-1 (unigram)</span>
+        overlap = gen_tokens & ref_tokens
+        <span class="keyword">if</span> <span class="keyword">not</span> ref_tokens:
+            <span class="keyword">return</span> 0
+
+        precision = len(overlap) / len(gen_tokens) <span class="keyword">if</span> gen_tokens <span class="keyword">else</span> 0
+        recall = len(overlap) / len(ref_tokens)
+
+        <span class="keyword">if</span> precision + recall == 0:
+            <span class="keyword">return</span> 0
+
+        f1 = 2 * (precision * recall) / (precision + recall)
+        <span class="keyword">return</span> f1
+
+    <span class="comment"># ========== 多样性指标 ==========</span>
+    @staticmethod
+    <span class="keyword">def</span> <span class="function">distinct_n</span>(texts, n=2):
+        <span class="string">"""
+        Distinct-n：衡量生成文本中不同n-gram的比例
+        """</span>
+        all_ngrams = []
+
+        <span class="keyword">for</span> text <span class="keyword">in</span> texts:
+            tokens = text.split()
+            ngrams = [
+                tuple(tokens[i:i+n])
+                <span class="keyword">for</span> i <span class="keyword">in</span> range(len(tokens)-n+1)
+            ]
+            all_ngrams.extend(ngrams)
+
+        <span class="keyword">if</span> <span class="keyword">not</span> all_ngrams:
+            <span class="keyword">return</span> 0
+
+        unique_ngrams = set(all_ngrams)
+        distinct_score = len(unique_ngrams) / len(all_ngrams)
+
+        <span class="keyword">return</span> distinct_score
+
+    @staticmethod
+    <span class="keyword">def</span> <span class="function">self_bleu</span>(texts, n_sample=1000):
+        <span class="string">"""
+        Self-BLEU：衡量生成文本之间的相似度（越低越多样）
+        """</span>
+        <span class="keyword">if</span> len(texts) < 2:
+            <span class="keyword">return</span> 0
+
+        scores = []
+        <span class="keyword">for</span> i <span class="keyword">in</span> range(min(n_sample, len(texts))):
+            <span class="comment"># 计算每个文本与其他文本的BLEU</span>
+            hypothesis = texts[i]
+            references = texts[:i] + texts[i+1:]
+
+            <span class="comment"># 随机选择一个参考</span>
+            <span class="keyword">if</span> references:
+                ref_idx = np.random.randint(len(references))
+                score = GenerationMetrics.bleu_score(
+                    hypothesis, references[ref_idx]
+                )
+                scores.append(score)
+
+        <span class="keyword">return</span> np.mean(scores) <span class="keyword">if</span> scores <span class="keyword">else</span> 0
+
+    <span class="comment"># ========== 语义相似度 ==========</span>
+    @staticmethod
+    <span class="keyword">def</span> <span class="function">bert_score</span>(generated, reference, bert_model, bert_tokenizer):
+        <span class="string">"""
+        BERTScore：基于BERT嵌入的语义相似度
+        """</span>
+        <span class="comment"># 编码文本</span>
+        gen_inputs = bert_tokenizer(
+            generated, return_tensors=<span class="string">'pt'</span>,
+            truncation=True, padding=True
+        )
+        ref_inputs = bert_tokenizer(
+            reference, return_tensors=<span class="string">'pt'</span>,
+            truncation=True, padding=True
+        )
+
+        <span class="keyword">with</span> torch.no_grad():
+            gen_outputs = bert_model(**gen_inputs)
+            ref_outputs = bert_model(**ref_inputs)
+
+            <span class="comment"># 使用最后一层的输出</span>
+            gen_embeddings = gen_outputs.last_hidden_state.mean(dim=1)
+            ref_embeddings = ref_outputs.last_hidden_state.mean(dim=1)
+
+            <span class="comment"># 计算余弦相似度</span>
+            similarity = F.cosine_similarity(
+                gen_embeddings, ref_embeddings
+            )
+
+        <span class="keyword">return</span> similarity.item()
+
+    <span class="comment"># ========== 综合评估 ==========</span>
+    @staticmethod
+    <span class="keyword">def</span> <span class="function">comprehensive_evaluation</span>(generated_texts, reference_texts=None,
+                                     model=None, tokenizer=None):
+        <span class="string">"""
+        综合评估生成文本质量
+        """</span>
+        results = {}
+
+        <span class="comment"># 1. 多样性评估</span>
+        results[<span class="string">'distinct_1'</span>] = GenerationMetrics.distinct_n(generated_texts, 1)
+        results[<span class="string">'distinct_2'</span>] = GenerationMetrics.distinct_n(generated_texts, 2)
+        results[<span class="string">'self_bleu'</span>] = GenerationMetrics.self_bleu(generated_texts)
+
+        <span class="comment"># 2. 如果有参考文本，计算相关性</span>
+        <span class="keyword">if</span> reference_texts:
+            bleu_scores = []
+            rouge_scores = []
+
+            <span class="keyword">for</span> gen, ref <span class="keyword">in</span> zip(generated_texts, reference_texts):
+                bleu_scores.append(
+                    GenerationMetrics.bleu_score(gen, ref)
+                )
+                rouge_scores.append(
+                    GenerationMetrics.rouge_score(gen, ref)
+                )
+
+            results[<span class="string">'avg_bleu'</span>] = np.mean(bleu_scores)
+            results[<span class="string">'avg_rouge'</span>] = np.mean(rouge_scores)
+
+        <span class="comment"># 3. 如果有模型，计算困惑度</span>
+        <span class="keyword">if</span> model <span class="keyword">and</span> tokenizer:
+            ppl_scores = []
+            <span class="keyword">for</span> text <span class="keyword">in</span> generated_texts[:100]:  <span class="comment"># 采样计算</span>
+                ppl = GenerationMetrics.perplexity(model, tokenizer, text)
+                ppl_scores.append(ppl)
+
+            results[<span class="string">'avg_perplexity'</span>] = np.mean(ppl_scores)
+
+        <span class="keyword">return</span> results
+
+<span class="comment"># ========== 人工评估框架 ==========</span>
+<span class="keyword">class</span> <span class="function">HumanEvaluation</span>:
+    <span class="string">"""
+    人工评估框架
+    """</span>
+    <span class="keyword">def</span> <span class="function">__init__</span>(self):
+        self.criteria = {
+            <span class="string">'fluency'</span>: <span class="string">'文本是否流畅自然？(1-5分)'</span>,
+            <span class="string">'coherence'</span>: <span class="string">'文本是否逻辑连贯？(1-5分)'</span>,
+            <span class="string">'relevance'</span>: <span class="string">'文本是否切题相关？(1-5分)'</span>,
+            <span class="string">'creativity'</span>: <span class="string">'文本是否有创意？(1-5分)'</span>,
+            <span class="string">'overall'</span>: <span class="string">'总体质量如何？(1-5分)'</span>
+        }
+
+    <span class="keyword">def</span> <span class="function">create_evaluation_form</span>(self, text, context=None):
+        <span class="string">"""
+        创建评估表单
+        """</span>
+        form = {
+            <span class="string">'text'</span>: text,
+            <span class="string">'context'</span>: context,
+            <span class="string">'scores'</span>: {},
+            <span class="string">'comments'</span>: <span class="string">''</span>
+        }
+
+        print(<span class="string">"请评估以下生成文本："</span>)
+        print(<span class="string">"-"</span> * 50)
+        <span class="keyword">if</span> context:
+            print(<span class="string">f"上下文: {context}"</span>)
+        print(<span class="string">f"生成文本: {text}"</span>)
+        print(<span class="string">"-"</span> * 50)
+
+        <span class="keyword">for</span> criterion, prompt <span class="keyword">in</span> self.criteria.items():
+            score = input(<span class="string">f"{prompt}: "</span>)
+            form[<span class="string">'scores'</span>][criterion] = int(score)
+
+        form[<span class="string">'comments'</span>] = input(<span class="string">"其他评论: "</span>)
+
+        <span class="keyword">return</span> form</pre>
+                </div>
+            </div>
+
+            <div class="tip warning mt-4">
+                <span class="tip-icon">⚠️</span>
+                <strong>评估的局限性</strong>
+                <ul class="mt-2">
+                    <li>自动指标可能与人类判断不一致</li>
+                    <li>人工评估成本高且主观</li>
+                    <li>没有单一指标能全面衡量质量</li>
+                    <li>需要根据具体任务选择合适的评估方法</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- 实际应用 -->
+        <section id="applications" class="section-card">
+            <h2>💼 实际应用</h2>
+
+            <div class="story-card">
+                <span class="story-icon">🌍</span>
+                <p><strong>改变世界的文本生成</strong></p>
+                <p class="mt-2">
+                    从智能写作助手到个性化内容推荐，文本生成技术正在各个领域发挥作用。
+                    让我们看看这些技术如何落地应用。
+                </p>
+            </div>
+
+            <div class="card-grid">
+                <div class="info-card">
+                    <span class="card-icon">✍️</span>
+                    <h4 class="card-title">内容创作</h4>
+                    <ul>
+                        <li>新闻稿自动生成</li>
+                        <li>营销文案创作</li>
+                        <li>小说故事续写</li>
+                        <li>诗歌歌词创作</li>
+                    </ul>
+                    <p class="mt-2 text-muted">案例：AI记者每天生成数千篇财经新闻</p>
+                </div>
+
+                <div class="info-card">
+                    <span class="card-icon">💬</span>
+                    <h4 class="card-title">对话系统</h4>
+                    <ul>
+                        <li>智能客服</li>
+                        <li>虚拟助手</li>
+                        <li>聊天机器人</li>
+                        <li>心理咨询助手</li>
+                    </ul>
+                    <p class="mt-2 text-muted">案例：ChatGPT改变人机交互方式</p>
+                </div>
+
+                <div class="info-card">
+                    <span class="card-icon">🎓</span>
+                    <h4 class="card-title">教育辅助</h4>
+                    <ul>
+                        <li>个性化题目生成</li>
+                        <li>作文批改建议</li>
+                        <li>知识点解释</li>
+                        <li>学习材料改写</li>
+                    </ul>
+                    <p class="mt-2 text-muted">案例：AI助教帮助学生提高写作水平</p>
+                </div>
+
+                <div class="info-card">
+                    <span class="card-icon">💻</span>
+                    <h4 class="card-title">代码生成</h4>
+                    <ul>
+                        <li>代码自动补全</li>
+                        <li>注释生成</li>
+                        <li>文档编写</li>
+                        <li>测试用例生成</li>
+                    </ul>
+                    <p class="mt-2 text-muted">案例：GitHub Copilot提升编程效率</p>
+                </div>
+
+                <div class="info-card">
+                    <span class="card-icon">🌐</span>
+                    <h4 class="card-title">多语言应用</h4>
+                    <ul>
+                        <li>机器翻译</li>
+                        <li>跨语言摘要</li>
+                        <li>本地化改写</li>
+                        <li>语言风格转换</li>
+                    </ul>
+                    <p class="mt-2 text-muted">案例：实时翻译打破语言障碍</p>
+                </div>
+
+                <div class="info-card">
+                    <span class="card-icon">🎮</span>
+                    <h4 class="card-title">娱乐游戏</h4>
+                    <ul>
+                        <li>游戏剧情生成</li>
+                        <li>NPC对话</li>
+                        <li>互动小说</li>
+                        <li>角色背景故事</li>
+                    </ul>
+                    <p class="mt-2 text-muted">案例：AI Dungeon创造无限剧情</p>
+                </div>
+            </div>
+
+            <div class="deep-think-box mt-4">
+                <h4>成功案例分析</h4>
+                <div class="think-item">
+                    <h5>📰 彭博社的Cyborg记者</h5>
+                    <ul>
+                        <li><strong>应用：</strong>自动生成财报新闻</li>
+                        <li><strong>技术：</strong>模板+数据驱动生成</li>
+                        <li><strong>效果：</strong>速度提升1000倍，准确率99%</li>
+                        <li><strong>启示：</strong>在结构化场景中AI可以超越人类</li>
+                    </ul>
+                </div>
+                <div class="think-item">
+                    <h5>🤖 ChatGPT的突破</h5>
+                    <ul>
+                        <li><strong>应用：</strong>通用对话助手</li>
+                        <li><strong>技术：</strong>大规模预训练+RLHF</li>
+                        <li><strong>效果：</strong>1亿用户，改变工作方式</li>
+                        <li><strong>启示：</strong>用户体验是成功的关键</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- 最佳实践 -->
+        <section id="best-practices" class="section-card">
+            <h2>🎯 最佳实践</h2>
+
+            <div class="story-card">
+                <span class="story-icon">🏆</span>
+                <p><strong>从经验中学习</strong></p>
+                <p class="mt-2">
+                    成功的文本生成系统不是一蹴而就的。
+                    这里汇集了业界的最佳实践，帮你避开常见陷阱。
+                </p>
+            </div>
+
+            <div class="deep-think-box">
+                <h4>设计原则</h4>
+                <div class="think-item">
+                    <h5>👤 以用户为中心</h5>
+                    <ul>
+                        <li>理解用户的真实需求</li>
+                        <li>提供可控的生成选项</li>
+                        <li>保持输出的可预测性</li>
+                        <li>支持迭代式改进</li>
+                    </ul>
+                </div>
+                <div class="think-item">
+                    <h5>🛡️ 安全第一</h5>
+                    <ul>
+                        <li>内容过滤和审核</li>
+                        <li>避免有害输出</li>
+                        <li>保护用户隐私</li>
+                        <li>负责任的AI使用</li>
+                    </ul>
+                </div>
+                <div class="think-item">
+                    <h5>⚡ 性能优化</h5>
+                    <ul>
+                        <li>缓存常见请求</li>
+                        <li>批处理优化</li>
+                        <li>模型量化压缩</li>
+                        <li>边缘部署考虑</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="comparison-table mt-4">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>阶段</th>
+                        <th>关键任务</th>
+                        <th>常见错误</th>
+                        <th>最佳实践</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td>需求分析</td>
+                        <td>定义生成目标</td>
+                        <td>目标模糊不清</td>
+                        <td>明确质量指标和约束</td>
+                    </tr>
+                    <tr>
+                        <td>模型选择</td>
+                        <td>选择合适模型</td>
+                        <td>盲目追求最大模型</td>
+                        <td>根据需求和资源平衡</td>
+                    </tr>
+                    <tr>
+                        <td>数据准备</td>
+                        <td>收集训练数据</td>
+                        <td>数据质量不高</td>
+                        <td>注重数据清洗和标注</td>
+                    </tr>
+                    <tr>
+                        <td>训练优化</td>
+                        <td>微调模型</td>
+                        <td>过度拟合</td>
+                        <td>合理的正则化和验证</td>
+                    </tr>
+                    <tr>
+                        <td>部署上线</td>
+                        <td>系统集成</td>
+                        <td>忽视边缘情况</td>
+                        <td>充分的测试和监控</td>
+                    </tr>
+                    <tr>
+                        <td>持续改进</td>
+                        <td>收集反馈</td>
+                        <td>忽视用户反馈</td>
+                        <td>建立反馈循环机制</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="tip success mt-4">
+                <span class="tip-icon">✅</span>
+                <strong>黄金法则</strong>
+                <ol class="mt-2">
+                    <li><strong>从简单开始：</strong>先实现基础功能，再逐步优化</li>
+                    <li><strong>快速迭代：</strong>小步快跑，持续改进</li>
+                    <li><strong>数据驱动：</strong>用数据说话，不要靠猜测</li>
+                    <li><strong>用户反馈：</strong>真实用户的意见最宝贵</li>
+                    <li><strong>保持谦逊：</strong>AI不是万能的，要诚实面对局限</li>
+                </ol>
+            </div>
+        </section>
+
+        <!-- 本章总结 -->
+        <section id="summary" class="section-card">
+            <h2>📚 本章总结</h2>
+
+            <div class="story-card">
+                <span class="story-icon">🎓</span>
+                <p><strong>掌握文本生成的精髓</strong></p>
+                <p class="mt-2">
+                    经过本章的学习，你已经了解了文本生成技术的方方面面。
+                    让我们回顾一下关键要点，为你的实践之路做好准备。
+                </p>
+            </div>
+
+            <div class="deep-think-box">
+                <h4>核心知识点</h4>
+                <div class="think-item">
+                    <h5>🔑 关键概念</h5>
+                    <ul>
+                        <li><strong>语言模型：</strong>文本生成的基础</li>
+                        <li><strong>解码策略：</strong>从概率到文本的桥梁</li>
+                        <li><strong>质量问题：</strong>重复、不连贯、失控</li>
+                        <li><strong>改进技术：</strong>多样性、连贯性、可控性</li>
+                    </ul>
+                </div>
+                <div class="think-item">
+                    <h5>💡 核心技术</h5>
+                    <ul>
+                        <li><strong>温度控制：</strong>平衡确定性和创造性</li>
+                        <li><strong>采样方法：</strong>Top-k、Top-p、束搜索</li>
+                        <li><strong>重复控制：</strong>惩罚机制和约束</li>
+                        <li><strong>可控生成：</strong>风格、主题、属性控制</li>
+                    </ul>
+                </div>
+                <div class="think-item">
+                    <h5>🎯 实践要点</h5>
+                    <ul>
+                        <li><strong>场景适配：</strong>不同任务需要不同策略</li>
+                        <li><strong>质量评估：</strong>自动指标+人工评估</li>
+                        <li><strong>持续优化：</strong>基于反馈不断改进</li>
+                        <li><strong>安全考虑：</strong>内容审核和风险控制</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="param-display mt-4">
+                <div class="param-item">
+                    <span class="param-value">10+</span>
+                    <span class="param-label">解码策略</span>
+                </div>
+                <div class="param-item">
+                    <span class="param-value">5</span>
+                    <span class="param-label">质量维度</span>
+                </div>
+                <div class="param-item">
+                    <span class="param-value">20+</span>
+                    <span class="param-label">改进技术</span>
+                </div>
+                <div class="param-item">
+                    <span class="param-value">∞</span>
+                    <span class="param-label">应用可能</span>
+                </div>
+            </div>
+
+            <div class="tip info mt-4">
+                <span class="tip-icon">🚀</span>
+                <strong>下一步行动</strong>
+                <ol class="mt-2">
+                    <li>选择一个具体的应用场景</li>
+                    <li>实现基础的生成系统</li>
+                    <li>逐步应用改进技术</li>
+                    <li>建立评估和反馈机制</li>
+                    <li>持续迭代优化</li>
+                </ol>
+            </div>
+        </section>
+
+        <!-- 未来展望 -->
+        <section id="future" class="section-card">
+            <h2>🔮 未来展望</h2>
+
+            <div class="story-card">
+                <span class="story-icon">🌟</span>
+                <p><strong>文本生成的明天</strong></p>
+                <p class="mt-2">
+                    技术在飞速发展，文本生成的未来充满无限可能。
+                    让我们一起展望这个激动人心的未来。
+                </p>
+            </div>
+
+            <div class="card-grid">
+                <div class="info-card">
+                    <span class="card-icon">🧠</span>
+                    <h4 class="card-title">更智能</h4>
+                    <ul>
+                        <li>深度理解用户意图</li>
+                        <li>长程记忆和推理</li>
+                        <li>多轮对话的连贯性</li>
+                        <li>自主学习和适应</li>
+                    </ul>
+                </div>
+
+                <div class="info-card">
+                    <span class="card-icon">🎨</span>
+                    <h4 class="card-title">更创意</h4>
+                    <ul>
+                        <li>真正的创造性写作</li>
+                        <li>个性化风格模仿</li>
+                        <li>跨领域知识融合</li>
+                        <li>情感和幽默理解</li>
+                    </ul>
+                </div>
+
+                <div class="info-card">
+                    <span class="card-icon">🌍</span>
+                    <h4 class="card-title">更普及</h4>
+                    <ul>
+                        <li>端侧部署普及</li>
+                        <li>低资源语言支持</li>
+                        <li>个人AI写作助手</li>
+                        <li>无缝人机协作</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="deep-think-box mt-4">
+                <h4>技术趋势</h4>
+                <div class="think-item">
+                    <h5>🔬 研究前沿</h5>
+                    <ul>
+                        <li><strong>效率提升：</strong>更小更快的模型</li>
+                        <li><strong>可解释性：</strong>理解生成决策过程</li>
+                        <li><strong>多模态融合：</strong>文本+图像+语音</li>
+                        <li><strong>持续学习：</strong>不断进化的系统</li>
+                    </ul>
+                </div>
+                <div class="think-item">
+                    <h5>🌈 应用展望</h5>
+                    <ul>
+                        <li><strong>虚拟作家：</strong>AI独立创作长篇小说</li>
+                        <li><strong>个人秘书：</strong>全方位的生活助理</li>
+                        <li><strong>知识伙伴：</strong>深度的思维碰撞</li>
+                        <li><strong>创意工坊：</strong>无限的创意探索</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="tip success mt-4">
+                <span class="tip-icon">🎯</span>
+                <strong>写在最后</strong>
+                <p class="mt-2">
+                    文本生成技术正在改变我们与语言交互的方式。
+                    从简单的模板填充到今天的智能创作，我们见证了技术的巨大飞跃。
+                    未来，AI将成为每个人的创作伙伴，帮助我们更好地表达想法、
+                    传递情感、创造价值。让我们拥抱这个充满可能的未来！
+                </p>
+            </div>
+        </section>
+    </div>
+</main>
+
+<!-- JavaScript -->
+<script>
+    // 侧边栏切换
+    const sidebar = document.getElementById('sidebar');
+    const toggleBtn = document.getElementById('toggle-sidebar');
+
+    toggleBtn.addEventListener('click', () => {
+        sidebar.classList.toggle('open');
+    });
+
+    // 进度条
+    window.addEventListener('scroll', () => {
+        const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+        const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+        const scrolled = (winScroll / height) * 100;
+        document.getElementById('progress-bar').style.width = scrolled + '%';
+    });
+
+    // 平滑滚动
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener('click', function (e) {
+            e.preventDefault();
+            const target = document.querySelector(this.getAttribute('href'));
+            if (target) {
+                target.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start'
+                });
+                // 更新活动状态
+                document.querySelectorAll('.toc-item').forEach(item => {
+                    item.classList.remove('active');
+                });
+                this.classList.add('active');
+            }
+        });
+    });
+
+    // 代码块展开/折叠
+    function toggleCode(btn) {
+        const codeContent = btn.closest('.code-block').querySelector('.code-content');
+        codeContent.classList.toggle('collapsed');
+        btn.textContent = codeContent.classList.contains('collapsed') ? '展开' : '折叠';
+    }
+
+    // 复制代码
+    function copyCode(btn) {
+        const codeContent = btn.closest('.code-block').querySelector('.code-content pre').textContent;
+        navigator.clipboard.writeText(codeContent).then(() => {
+            const originalText = btn.textContent;
+            btn.textContent = '已复制！';
+            setTimeout(() => {
+                btn.textContent = originalText;
+            }, 2000);
+        });
+    }
+
+    // 快速导航高亮
+    const sections = document.querySelectorAll('section[id]');
+    const navItems = document.querySelectorAll('.quick-nav-item');
+
+    window.addEventListener('scroll', () => {
+        let current = '';
+        sections.forEach(section => {
+            const sectionTop = section.offsetTop;
+            const sectionHeight = section.clientHeight;
+            if (pageYOffset >= sectionTop - 200) {
+                current = section.getAttribute('id');
+            }
+        });
+
+        navItems.forEach(item => {
+            item.classList.remove('active');
+            if (item.getAttribute('data-section') === current) {
+                item.classList.add('active');
+            }
+        });
+    });
+
+    // 快速导航点击
+    navItems.forEach(item => {
+        item.addEventListener('click', () => {
+            const sectionId = item.getAttribute('data-section');
+            const section = document.getElementById(sectionId);
+            if (section) {
+                section.scrollIntoView({ behavior: 'smooth' });
+            }
+        });
+    });
+
+    // 温度滑块交互
+    const tempSlider = document.getElementById('temperature-slider');
+    const tempValue = document.getElementById('temp-value');
+    const randomness = document.getElementById('randomness');
+    const creativity = document.getElementById('creativity');
+    const coherence = document.getElementById('coherence');
+
+    if (tempSlider) {
+        tempSlider.addEventListener('input', (e) => {
+            const value = parseFloat(e.target.value);
+            tempValue.textContent = value.toFixed(1);
+
+            // 更新指标
+            if (value < 0.5) {
+                randomness.textContent = '很低';
+                creativity.textContent = '保守';
+                coherence.textContent = '优秀';
+            } else if (value < 1.0) {
+                randomness.textContent = '中等';
+                creativity.textContent = '平衡';
+                coherence.textContent = '良好';
+            } else if (value < 1.5) {
+                randomness.textContent = '较高';
+                creativity.textContent = '创新';
+                coherence.textContent = '一般';
+            } else {
+                randomness.textContent = '很高';
+                creativity.textContent = '天马行空';
+                coherence.textContent = '较差';
+            }
+        });
+    }
+
+    // 生成演示
+    function regenerate() {
+        const output = document.getElementById('generation-output');
+        const temp = parseFloat(document.getElementById('temperature-slider').value);
+
+        const examples = {
+            0.1: "从前有座山，山上有座庙，庙里有个老和尚在给小和尚讲故事。老和尚说，从前有座山，山上有座庙...",
+            0.5: "从前有座山，山中云雾缭绕，古木参天。山顶有一座千年古刹，香火鼎盛，每日都有香客络绎不绝地前来朝拜。",
+            1.0: "从前有座山，名叫青云山。山中住着一位会法术的道士，他能呼风唤雨，点石成金。有一天，一个年轻人慕名而来...",
+            1.5: "从前有座山，那不是普通的山——它会在月圆之夜缓缓移动！山中的动物都会说人话，树木能够唱歌，就连石头都有自己的故事...",
+            2.0: "从前有座山？不，是一朵云！云上有只会跳舞的兔子，它穿着星星做的裙子，每天和彩虹喝茶。突然，一条龙骑着自行车路过..."
+        };
+
+        // 找到最接近的示例
+        const temps = Object.keys(examples).map(parseFloat);
+        const closest = temps.reduce((prev, curr) =>
+            Math.abs(curr - temp) < Math.abs(prev - temp) ? curr : prev
+        );
+
+        output.innerHTML = `<p style="line-height: 1.8;">${examples[closest]}</p>`;
+    }
+
+    // 可控生成演示
+    function controlledGenerate(style) {
+        const output = document.getElementById('controlled-output');
+
+        const examples = {
+            'formal': '关于人工智能未来发展的探讨，我们需要从多个维度进行深入分析。首先，技术层面的突破将持续推动AI能力的提升，特别是在深度学习、强化学习等核心算法领域。其次，产业应用将更加广泛和深入，从制造业到服务业，AI将重塑各行各业的运作模式。',
+            'casual': 'AI的未来？哇，那可太酷了！想象一下，以后你的AI助手不仅能帮你写作业，还能陪你聊天解闷。可能再过几年，我们就能像科幻电影里那样，和AI成为真正的朋友呢！当然啦，也要小心别让它们太聪明，不然我们就要失业了，哈哈！',
+            'poetic': '人工智能的未来，如晨曦中的露珠，折射着无限可能的光芒。它是人类智慧的延伸，如同夜空中最亮的星，指引着文明前进的方向。在这场科技与人性的华尔兹中，我们既是舞者，也是编舞师，共同谱写着明天的乐章。',
+            'technical': 'AI未来发展的关键在于以下技术突破：1）神经网络架构优化，包括Transformer变体和稀疏模型；2）计算效率提升，通过量化、剪枝等技术降低推理成本；3）多模态融合，实现视觉、语言、音频的统一表示；4）持续学习能力，解决灾难性遗忘问题。预计2030年前，AGI的部分特征将初步实现。'
+        };
+
+        output.innerHTML = `<p style="line-height: 1.8; font-style: ${style === 'poetic' ? 'italic' : 'normal'};">${examples[style]}</p>`;
+    }
+
+    // 主题切换
+    const themeToggle = document.getElementById('theme-toggle');
+    let isDark = true;
+
+    themeToggle.addEventListener('click', () => {
+        isDark = !isDark;
+        themeToggle.textContent = isDark ? '🌙' : '☀️';
+        // 实际的主题切换逻辑可以在这里添加
+    });
+
+    // 添加加载动画
+    window.addEventListener('load', () => {
+        document.body.style.opacity = '0';
+        setTimeout(() => {
+            document.body.style.transition = 'opacity 0.5s';
+            document.body.style.opacity = '1';
+        }, 100);
+    });
+
+    // 观察者动画
+    const observerOptions = {
+        threshold: 0.1,
+        rootMargin: '0px 0px -100px 0px'
+    };
+
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.style.opacity = '0';
+                entry.target.style.transform = 'translateY(20px)';
+                setTimeout(() => {
+                    entry.target.style.transition = 'all 0.6s ease';
+                    entry.target.style.opacity = '1';
+                    entry.target.style.transform = 'translateY(0)';
+                }, 100);
+                observer.unobserve(entry.target);
+            }
+        });
+    }, observerOptions);
+
+    // 观察所有卡片
+    document.querySelectorAll('.info-card, .think-item, .timeline-item').forEach(el => {
+        observer.observe(el);
+    });
+</script>
+
+</body>
+</html>

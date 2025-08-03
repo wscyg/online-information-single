@@ -1,0 +1,4337 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>第9章：其他监督学习算法 - 机器学习的瑞士军刀</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        /* CSS 变量统一管理主题颜色 */
+        :root {
+            /* 深色主题（默认） */
+            --bg-primary: #0a0e27;
+            --bg-secondary: #151a3a;
+            --bg-card: rgba(21, 26, 58, 0.8);
+            --bg-card-solid: rgba(21, 26, 58, 0.95);
+            --bg-code: #0f1729;
+
+            --text-primary: #e8eaed;
+            --text-secondary: #c7d0dc;
+            --text-muted: #8b98a8;
+            --text-dim: #5f6e82;
+
+            --border-primary: rgba(79, 172, 254, 0.3);
+            --border-secondary: rgba(79, 172, 254, 0.2);
+            --border-muted: rgba(139, 152, 168, 0.1);
+
+            --shadow-sm: rgba(0,0,0,0.3);
+            --shadow-md: rgba(0,0,0,0.4);
+            --shadow-lg: rgba(0,0,0,0.5);
+
+            --gradient-primary: linear-gradient(135deg, #4facfe, #00f2fe);
+            --gradient-bg: linear-gradient(135deg, #0a0e27 0%, #151a3a 100%);
+
+            /* 算法主题色 */
+            --algo-blue: #4facfe;
+            --algo-cyan: #00f2fe;
+            --algo-purple: #a78bfa;
+            --algo-pink: #f472b6;
+            --algo-amber: #fbbf24;
+            --algo-emerald: #34d399;
+            --algo-red: #ef4444;
+            --algo-orange: #fb923c;
+        }
+
+        /* 浅色主题 */
+        body.light-theme {
+            --bg-primary: #f9fafb;
+            --bg-secondary: #e5e7eb;
+            --bg-card: rgba(255, 255, 255, 0.9);
+            --bg-card-solid: rgba(255, 255, 255, 0.95);
+            --bg-code: #f3f4f6;
+
+            --text-primary: #111827;
+            --text-secondary: #374151;
+            --text-muted: #4b5563;
+            --text-dim: #6b7280;
+
+            --border-primary: rgba(79, 172, 254, 0.4);
+            --border-secondary: rgba(79, 172, 254, 0.3);
+            --border-muted: rgba(209, 213, 219, 0.5);
+
+            --shadow-sm: rgba(0,0,0,0.1);
+            --shadow-md: rgba(0,0,0,0.15);
+            --shadow-lg: rgba(0,0,0,0.2);
+
+            --gradient-bg: linear-gradient(135deg, #f9fafb 0%, #e5e7eb 100%);
+        }
+
+        /* 全局过渡动画 */
+        body, body * {
+            transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: var(--gradient-bg);
+            color: var(--text-primary);
+            line-height: 1.8;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        body.nav-open .container {
+            margin-left: 360px;
+        }
+
+        /* 动态背景粒子系统 */
+        .dynamic-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            z-index: -1;
+        }
+
+        .particle-system {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* 智能导航系统 */
+        .smart-nav {
+            position: fixed;
+            left: -340px;
+            top: 0;
+            width: 340px;
+            height: 100vh;
+            background: linear-gradient(135deg, rgba(10, 14, 39, 0.98) 0%, rgba(21, 26, 58, 0.95) 100%);
+            backdrop-filter: blur(20px);
+            border-right: 1px solid var(--border-primary);
+            box-shadow: 4px 0 30px var(--shadow-lg);
+            z-index: 1000;
+            transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            overflow: hidden;
+        }
+
+        body.nav-open .smart-nav {
+            left: 0;
+        }
+
+        .nav-bg-decoration {
+            position: absolute;
+            top: -100px;
+            right: -100px;
+            width: 300px;
+            height: 300px;
+            background: radial-gradient(circle, var(--algo-blue) 0%, transparent 70%);
+            opacity: 0.1;
+            animation: pulse 4s ease-in-out infinite;
+        }
+
+        /* 导航触发按钮 */
+        .nav-trigger {
+            position: fixed;
+            left: 20px;
+            top: 20px;
+            width: 56px;
+            height: 56px;
+            background: linear-gradient(135deg, rgba(79, 172, 254, 0.1), rgba(0, 242, 254, 0.1));
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(79, 172, 254, 0.3);
+            border-radius: 16px;
+            cursor: pointer;
+            z-index: 1001;
+            transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        body.nav-open .nav-trigger {
+            left: 290px;
+            background: linear-gradient(135deg, rgba(167, 139, 250, 0.1), rgba(244, 114, 182, 0.1));
+            border-color: rgba(167, 139, 250, 0.5);
+        }
+
+        .nav-trigger:hover {
+            transform: scale(1.1);
+            box-shadow: 0 8px 25px rgba(79, 172, 254, 0.4);
+        }
+
+        /* 汉堡菜单图标动画 */
+        .nav-trigger-icon {
+            width: 24px;
+            height: 20px;
+            position: relative;
+        }
+
+        .nav-trigger-icon span {
+            display: block;
+            position: absolute;
+            height: 3px;
+            width: 100%;
+            background: linear-gradient(90deg, var(--algo-blue), var(--algo-cyan));
+            border-radius: 3px;
+            opacity: 1;
+            left: 0;
+            transition: 0.25s ease-in-out;
+        }
+
+        .nav-trigger-icon span:nth-child(1) { top: 0px; }
+        .nav-trigger-icon span:nth-child(2) { top: 8px; }
+        .nav-trigger-icon span:nth-child(3) { top: 16px; }
+
+        body.nav-open .nav-trigger-icon span:nth-child(1) { top: 8px; transform: rotate(135deg); }
+        body.nav-open .nav-trigger-icon span:nth-child(2) { opacity: 0; left: -60px; }
+        body.nav-open .nav-trigger-icon span:nth-child(3) { top: 8px; transform: rotate(-135deg); }
+
+        /* 导航头部 */
+        .nav-header {
+            padding: 30px;
+            background: linear-gradient(135deg, rgba(79, 172, 254, 0.1), rgba(0, 242, 254, 0.05));
+            border-bottom: 1px solid rgba(79, 172, 254, 0.2);
+            position: relative;
+        }
+
+        .nav-header h3 {
+            font-size: 1.4rem;
+            background: linear-gradient(135deg, var(--algo-blue), var(--algo-cyan));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 700;
+        }
+
+        .nav-subtitle {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-top: 5px;
+        }
+
+        /* 导航列表 */
+        .nav-list {
+            list-style: none;
+            padding: 20px 0;
+            max-height: calc(100vh - 300px);
+            overflow-y: auto;
+        }
+
+        .nav-list::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .nav-list::-webkit-scrollbar-track {
+            background: rgba(79, 172, 254, 0.05);
+            border-radius: 3px;
+        }
+
+        .nav-list::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, var(--algo-blue), var(--algo-cyan));
+            border-radius: 3px;
+        }
+
+        /* 导航项优化 */
+        .nav-item {
+            position: relative;
+            margin: 8px 15px;
+            border-radius: 12px;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .nav-item::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 0;
+            background: linear-gradient(90deg, var(--algo-blue), var(--algo-cyan));
+            transition: width 0.3s ease;
+            opacity: 0.8;
+        }
+
+        .nav-item:hover::before,
+        .nav-item.active::before {
+            width: 4px;
+        }
+
+        .nav-item.active::before {
+            opacity: 1;
+            box-shadow: 0 0 12px var(--algo-blue);
+        }
+
+        .nav-item a {
+            display: flex;
+            align-items: center;
+            padding: 14px 20px;
+            color: var(--text-muted);
+            text-decoration: none;
+            transition: all 0.3s ease;
+            position: relative;
+            background: rgba(0, 0, 0, 0);
+        }
+
+        .nav-item:hover a,
+        .nav-item.active a {
+            color: var(--text-primary);
+            padding-left: 28px;
+        }
+
+        .nav-item.active a {
+            background: linear-gradient(90deg, rgba(79, 172, 254, 0.1), rgba(0, 242, 254, 0.05));
+            font-weight: 600;
+        }
+
+        .nav-icon {
+            font-size: 1.4rem;
+            margin-right: 14px;
+            flex-shrink: 0;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            background: rgba(79, 172, 254, 0.1);
+            border-radius: 8px;
+        }
+
+        .nav-item:hover .nav-icon {
+            transform: scale(1.1) rotate(10deg);
+            background: rgba(79, 172, 254, 0.2);
+        }
+
+        .nav-item.active .nav-icon {
+            background: linear-gradient(135deg, rgba(79, 172, 254, 0.3), rgba(0, 242, 254, 0.2));
+            animation: iconPulse 2s ease-in-out infinite;
+        }
+
+        @keyframes iconPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        .nav-content {
+            flex: 1;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .nav-text {
+            font-size: 0.95rem;
+            font-weight: 500;
+        }
+
+        .nav-meta {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .nav-time {
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            background: rgba(79, 172, 254, 0.1);
+            padding: 2px 8px;
+            border-radius: 12px;
+        }
+
+        .nav-status {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #4a5568;
+            transition: all 0.3s ease;
+        }
+
+        .nav-item.completed .nav-status {
+            background: #34d399;
+            box-shadow: 0 0 8px #34d399;
+        }
+
+        .nav-item.active .nav-status {
+            background: var(--algo-blue);
+            box-shadow: 0 0 8px var(--algo-blue);
+            animation: statusPulse 2s ease-in-out infinite;
+        }
+
+        @keyframes statusPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* 主标题样式 */
+        .main-header {
+            text-align: center;
+            margin: 60px 0;
+            position: relative;
+        }
+
+        .main-title {
+            font-size: 4rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, var(--algo-blue) 0%, var(--algo-cyan) 25%, var(--algo-purple) 50%, var(--algo-pink) 75%, var(--algo-amber) 100%);
+            background-size: 300% 300%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: gradient-flow 8s ease infinite;
+            text-shadow: 0 0 80px rgba(79, 172, 254, 0.5);
+            margin-bottom: 20px;
+        }
+
+        @keyframes gradient-flow {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .subtitle {
+            font-size: 1.6rem;
+            color: var(--text-muted);
+            text-shadow: 0 2px 10px var(--shadow-sm);
+        }
+
+        /* 章节卡片基础样式 */
+        .section-card {
+            background: var(--bg-card);
+            backdrop-filter: blur(10px);
+            border-radius: 24px;
+            padding: 40px;
+            margin: 30px 0;
+            border: 1px solid var(--border-secondary);
+            box-shadow: 0 20px 40px var(--shadow-sm);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .section-card::before {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            background: linear-gradient(45deg, var(--algo-blue), var(--algo-cyan), var(--algo-purple), var(--algo-pink));
+            border-radius: 24px;
+            opacity: 0;
+            z-index: -1;
+            transition: opacity 0.3s ease;
+        }
+
+        .section-card:hover::before {
+            opacity: 0.5;
+            animation: borderRotate 6s linear infinite;
+        }
+
+        @keyframes borderRotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .section-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 30px 60px var(--shadow-md);
+        }
+
+        .section-title {
+            font-size: 2.5rem;
+            background: linear-gradient(135deg, var(--algo-blue), var(--algo-cyan));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 30px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        /* 通用内容框样式 */
+        .content-box {
+            border-radius: 20px;
+            padding: 30px;
+            margin: 30px 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .story-box {
+            background: linear-gradient(135deg, rgba(79, 172, 254, 0.1), rgba(0, 242, 254, 0.05));
+            border: 2px solid rgba(79, 172, 254, 0.3);
+        }
+
+        .story-box::after {
+            content: '📚';
+            position: absolute;
+            top: -20px;
+            right: 20px;
+            font-size: 4rem;
+            opacity: 0.08;
+            z-index: 0;
+        }
+
+        .thinking-box {
+            background: linear-gradient(135deg, rgba(167, 139, 250, 0.1), rgba(129, 140, 248, 0.05));
+            border: 2px solid rgba(167, 139, 250, 0.3);
+        }
+
+        .thinking-box::before {
+            content: '💭';
+            position: absolute;
+            top: -15px;
+            left: 20px;
+            font-size: 2rem;
+            background: var(--bg-card-solid);
+            padding: 5px 15px;
+            border-radius: 50%;
+            opacity: 0.3;
+            z-index: 1;
+        }
+
+        .formula-box {
+            background: linear-gradient(135deg, rgba(244, 114, 182, 0.1), rgba(236, 72, 153, 0.05));
+            border: 2px solid rgba(244, 114, 182, 0.3);
+            text-align: center;
+        }
+
+        .formula-box::before {
+            content: '∑';
+            position: absolute;
+            top: -30px;
+            right: 30px;
+            font-size: 6rem;
+            opacity: 0.03;
+            transform: rotate(15deg);
+            z-index: 0;
+        }
+
+        .math-formula {
+            font-family: 'Times New Roman', serif;
+            font-size: 1.8rem;
+            color: var(--text-primary);
+            margin: 20px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        /* 高亮样式系统 */
+        .highlight {
+            font-weight: bold;
+            padding: 2px 8px;
+            border-radius: 6px;
+            border: 1px solid;
+        }
+
+        .highlight-primary {
+            color: var(--algo-blue);
+            background: rgba(79, 172, 254, 0.1);
+            border-color: rgba(79, 172, 254, 0.3);
+        }
+
+        .highlight-secondary {
+            color: var(--algo-cyan);
+            background: rgba(0, 242, 254, 0.1);
+            border-color: rgba(0, 242, 254, 0.3);
+        }
+
+        .highlight-success {
+            color: var(--algo-emerald);
+            background: rgba(52, 211, 153, 0.1);
+            border-color: rgba(52, 211, 153, 0.3);
+        }
+
+        .highlight-warning {
+            color: var(--algo-amber);
+            background: rgba(251, 191, 36, 0.1);
+            border-color: rgba(251, 191, 36, 0.3);
+        }
+
+        .highlight-danger {
+            color: var(--algo-pink);
+            background: rgba(244, 114, 182, 0.1);
+            border-color: rgba(244, 114, 182, 0.3);
+        }
+
+        /* 表格样式 */
+        .data-table {
+            margin: 20px auto;
+            border-collapse: collapse;
+            background: var(--bg-card);
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px var(--shadow-sm);
+            width: 100%;
+        }
+
+        .data-table th {
+            background: linear-gradient(135deg, var(--algo-blue), var(--algo-cyan));
+            color: white;
+            padding: 12px 20px;
+            font-weight: 600;
+            text-align: left;
+        }
+
+        .data-table td {
+            padding: 10px 20px;
+            border-bottom: 1px solid var(--border-muted);
+            color: var(--text-primary);
+        }
+
+        .data-table tr:hover td {
+            background: rgba(79, 172, 254, 0.05);
+        }
+
+        .data-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* 交互式演示区域 */
+        .demo-container {
+            background: linear-gradient(135deg, rgba(10, 14, 39, 0.9), rgba(21, 26, 58, 0.8));
+            border-radius: 20px;
+            padding: 30px;
+            margin: 30px 0;
+            border: 2px solid rgba(79, 172, 254, 0.3);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .demo-canvas {
+            background: #0a0e27;
+            border-radius: 10px;
+            margin: 20px auto;
+            display: block;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            cursor: crosshair;
+        }
+
+        .demo-controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin: 20px 0;
+        }
+
+        .demo-btn {
+            background: linear-gradient(135deg, var(--algo-blue), var(--algo-cyan));
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(79, 172, 254, 0.3);
+        }
+
+        .demo-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(79, 172, 254, 0.4);
+        }
+
+        .demo-btn:active {
+            transform: translateY(0);
+        }
+
+        .demo-btn.secondary {
+            background: linear-gradient(135deg, var(--algo-purple), var(--algo-pink));
+            box-shadow: 0 5px 15px rgba(167, 139, 250, 0.3);
+        }
+
+        .demo-btn.secondary:hover {
+            box-shadow: 0 8px 25px rgba(167, 139, 250, 0.4);
+        }
+
+        /* 参数控制面板 */
+        .param-panel {
+            background: rgba(79, 172, 254, 0.05);
+            border: 1px solid rgba(79, 172, 254, 0.3);
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .param-group {
+            margin-bottom: 20px;
+        }
+
+        .param-label {
+            display: block;
+            font-weight: 600;
+            color: var(--algo-blue);
+            margin-bottom: 10px;
+        }
+
+        .param-slider {
+            width: 100%;
+            margin: 10px 0;
+            -webkit-appearance: none;
+            appearance: none;
+            height: 8px;
+            background: rgba(79, 172, 254, 0.2);
+            border-radius: 4px;
+            outline: none;
+        }
+
+        .param-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: linear-gradient(135deg, var(--algo-blue), var(--algo-cyan));
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 2px 10px rgba(79, 172, 254, 0.5);
+        }
+
+        .param-value {
+            display: inline-block;
+            width: 60px;
+            text-align: center;
+            color: var(--algo-cyan);
+            font-weight: bold;
+            background: rgba(0, 242, 254, 0.1);
+            padding: 4px 8px;
+            border-radius: 8px;
+            margin-left: 10px;
+        }
+
+        /* 算法卡片 */
+        .algo-results {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .algo-card {
+            background: linear-gradient(135deg, rgba(79, 172, 254, 0.1), rgba(0, 242, 254, 0.05));
+            border: 2px solid rgba(79, 172, 254, 0.3);
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .algo-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(79, 172, 254, 0.3);
+        }
+
+        .algo-icon {
+            font-size: 3rem;
+            margin-bottom: 10px;
+        }
+
+        .algo-label {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: var(--algo-blue);
+            margin-bottom: 5px;
+        }
+
+        .algo-desc {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+
+        /* 代码区域样式 */
+        .code-block {
+            background: #0f1729;
+            border-radius: 15px;
+            padding: 25px;
+            margin: 25px 0;
+            overflow-x: auto;
+            position: relative;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            border: 1px solid rgba(79, 172, 254, 0.2);
+        }
+
+        .code-block::before {
+            content: 'Python';
+            position: absolute;
+            top: -12px;
+            left: 20px;
+            background: linear-gradient(135deg, var(--algo-blue), var(--algo-cyan));
+            color: white;
+            padding: 5px 15px;
+            border-radius: 15px;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .code-block pre {
+            color: #f8f8f2;
+            font-family: 'Fira Code', 'Consolas', monospace;
+            line-height: 1.6;
+            margin: 0;
+        }
+
+        /* 语法高亮 */
+        .keyword { color: #ff79c6; }
+        .string { color: #f1fa8c; }
+        .comment { color: #6272a4; }
+        .number { color: #bd93f9; }
+        .function { color: #50fa7b; }
+        .operator { color: #ff6347; }
+
+        /* 进度指示器 */
+        .progress-indicator {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, rgba(79, 172, 254, 0.1), rgba(167, 139, 250, 0.1));
+            padding: 15px 25px;
+            border-radius: 50px;
+            border: 2px solid rgba(79, 172, 254, 0.3);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            backdrop-filter: blur(10px);
+            z-index: 1000;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px var(--shadow-sm);
+        }
+
+        .progress-bar {
+            width: 150px;
+            height: 6px;
+            background: rgba(79, 172, 254, 0.2);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--algo-blue), var(--algo-cyan));
+            border-radius: 3px;
+            transition: width 0.3s ease;
+        }
+
+        /* 浮动工具栏 */
+        .floating-toolbar {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 1000;
+        }
+
+        .toolbar-btn {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--algo-blue), var(--algo-cyan));
+            color: white;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(79, 172, 254, 0.3);
+        }
+
+        .toolbar-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 8px 25px rgba(79, 172, 254, 0.4);
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 1400px) {
+            body.nav-open .container {
+                margin-left: 0;
+                padding-left: 360px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .main-title {
+                font-size: 2.5rem;
+            }
+
+            .section-title {
+                font-size: 1.8rem;
+            }
+
+            .section-card {
+                padding: 25px;
+            }
+
+            .demo-controls {
+                flex-direction: column;
+            }
+
+            .smart-nav {
+                width: 100%;
+                left: -100%;
+            }
+
+            body.nav-open .smart-nav {
+                left: 0;
+            }
+
+            body.nav-open .container {
+                margin-left: 0;
+                padding-left: 20px;
+            }
+
+            body.nav-open .nav-trigger {
+                left: auto;
+                right: 20px;
+            }
+
+            .data-table {
+                font-size: 0.9rem;
+            }
+
+            .data-table th,
+            .data-table td {
+                padding: 10px;
+            }
+        }
+
+        /* 动画效果 */
+        .fade-in {
+            opacity: 0;
+            transform: translateY(30px);
+            animation: fadeInUp 0.6s ease forwards;
+        }
+
+        @keyframes fadeInUp {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .pulse {
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        .section-anchor {
+            scroll-margin-top: 100px;
+        }
+
+        /* 评估指标卡片 */
+        .metric-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+
+        .metric-card {
+            background: linear-gradient(135deg, rgba(79, 172, 254, 0.1), rgba(0, 242, 254, 0.05));
+            border: 2px solid rgba(79, 172, 254, 0.3);
+            border-radius: 15px;
+            padding: 25px;
+            text-align: center;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .metric-card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(79, 172, 254, 0.1) 0%, transparent 70%);
+            transform: rotate(45deg);
+            transition: all 0.5s ease;
+            opacity: 0;
+        }
+
+        .metric-card:hover::before {
+            opacity: 1;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(79, 172, 254, 0.3);
+        }
+
+        .metric-icon {
+            font-size: 3rem;
+            margin-bottom: 15px;
+        }
+
+        .metric-name {
+            font-size: 1.1rem;
+            color: var(--algo-blue);
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .metric-value {
+            font-size: 2rem;
+            font-weight: bold;
+            background: linear-gradient(135deg, var(--algo-blue), var(--algo-cyan));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .metric-description {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-top: 10px;
+        }
+
+        /* 决策树节点样式 */
+        .tree-node {
+            position: absolute;
+            width: 120px;
+            height: 60px;
+            background: linear-gradient(135deg, rgba(79, 172, 254, 0.2), rgba(0, 242, 254, 0.1));
+            border: 2px solid var(--algo-blue);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .tree-node:hover {
+            transform: scale(1.1);
+            box-shadow: 0 5px 15px rgba(79, 172, 254, 0.5);
+        }
+
+        .tree-node.leaf {
+            background: linear-gradient(135deg, rgba(52, 211, 153, 0.2), rgba(34, 197, 94, 0.1));
+            border-color: var(--algo-emerald);
+        }
+
+        .tree-edge {
+            position: absolute;
+            height: 2px;
+            background: var(--algo-blue);
+            transform-origin: left center;
+            transition: all 0.3s ease;
+        }
+
+        /* SVM 演示样式 */
+        .svm-point {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            transition: all 0.3s ease;
+        }
+
+        .svm-point.class1 {
+            background: var(--algo-blue);
+            box-shadow: 0 0 10px rgba(79, 172, 254, 0.5);
+        }
+
+        .svm-point.class2 {
+            background: var(--algo-pink);
+            box-shadow: 0 0 10px rgba(244, 114, 182, 0.5);
+        }
+
+        .svm-point.support {
+            border: 3px solid var(--algo-amber);
+            box-shadow: 0 0 20px var(--algo-amber);
+        }
+
+        .hyperplane {
+            position: absolute;
+            background: linear-gradient(90deg, transparent, var(--algo-cyan), transparent);
+            height: 2px;
+            width: 100%;
+            transform-origin: center;
+        }
+
+        .margin-line {
+            position: absolute;
+            background: rgba(251, 191, 36, 0.3);
+            height: 1px;
+            width: 100%;
+            transform-origin: center;
+            border-top: 2px dashed var(--algo-amber);
+        }
+    </style>
+</head>
+<body>
+<!-- 动态背景 -->
+<div class="dynamic-bg">
+    <canvas id="particleSystem" class="particle-system"></canvas>
+</div>
+
+<!-- 导航触发按钮 -->
+<button class="nav-trigger" onclick="toggleNav()">
+    <div class="nav-trigger-icon">
+        <span></span>
+        <span></span>
+        <span></span>
+    </div>
+</button>
+
+<!-- 智能导航系统 -->
+<nav class="smart-nav">
+    <div class="nav-bg-decoration"></div>
+
+    <div class="nav-header">
+        <h3>🛠️ 监督学习算法工具箱</h3>
+        <p class="nav-subtitle">机器学习的瑞士军刀</p>
+    </div>
+
+    <ul class="nav-list">
+        <li class="nav-item active" data-section="intro">
+            <a href="#intro">
+                <span class="nav-icon">🚀</span>
+                <div class="nav-content">
+                    <span class="nav-text">引言：算法的瑞士军刀</span>
+                    <div class="nav-meta">
+                        <span class="nav-time">3 min</span>
+                        <span class="nav-status"></span>
+                    </div>
+                </div>
+            </a>
+        </li>
+        <li class="nav-item" data-section="naive-bayes">
+            <a href="#naive-bayes">
+                <span class="nav-icon">🎲</span>
+                <div class="nav-content">
+                    <span class="nav-text">9.1 朴素贝叶斯法</span>
+                    <div class="nav-meta">
+                        <span class="nav-time">8 min</span>
+                        <span class="nav-status"></span>
+                    </div>
+                </div>
+            </a>
+        </li>
+        <li class="nav-item" data-section="decision-tree">
+            <a href="#decision-tree">
+                <span class="nav-icon">🌳</span>
+                <div class="nav-content">
+                    <span class="nav-text">9.2 决策树</span>
+                    <div class="nav-meta">
+                        <span class="nav-time">10 min</span>
+                        <span class="nav-status"></span>
+                    </div>
+                </div>
+            </a>
+        </li>
+        <li class="nav-item" data-section="svm">
+            <a href="#svm">
+                <span class="nav-icon">⚡</span>
+                <div class="nav-content">
+                    <span class="nav-text">9.3 支持向量机</span>
+                    <div class="nav-meta">
+                        <span class="nav-time">12 min</span>
+                        <span class="nav-status"></span>
+                    </div>
+                </div>
+            </a>
+        </li>
+        <li class="nav-item" data-section="ensemble">
+            <a href="#ensemble">
+                <span class="nav-icon">🌲</span>
+                <div class="nav-content">
+                    <span class="nav-text">9.4 集成学习</span>
+                    <div class="nav-meta">
+                        <span class="nav-time">10 min</span>
+                        <span class="nav-status"></span>
+                    </div>
+                </div>
+            </a>
+        </li>
+        <li class="nav-item" data-section="comparison">
+            <a href="#comparison">
+                <span class="nav-icon">⚔️</span>
+                <div class="nav-content">
+                    <span class="nav-text">9.5 算法对比与选择</span>
+                    <div class="nav-meta">
+                        <span class="nav-time">6 min</span>
+                        <span class="nav-status"></span>
+                    </div>
+                </div>
+            </a>
+        </li>
+        <li class="nav-item" data-section="practice">
+            <a href="#practice">
+                <span class="nav-icon">🎯</span>
+                <div class="nav-content">
+                    <span class="nav-text">9.6 实战：垃圾邮件过滤</span>
+                    <div class="nav-meta">
+                        <span class="nav-time">12 min</span>
+                        <span class="nav-status"></span>
+                    </div>
+                </div>
+            </a>
+        </li>
+        <li class="nav-item" data-section="summary">
+            <a href="#summary">
+                <span class="nav-icon">🎓</span>
+                <div class="nav-content">
+                    <span class="nav-text">9.7 总结与展望</span>
+                    <div class="nav-meta">
+                        <span class="nav-time">3 min</span>
+                        <span class="nav-status"></span>
+                    </div>
+                </div>
+            </a>
+        </li>
+    </ul>
+</nav>
+
+<!-- 进度指示器 -->
+<div class="progress-indicator">
+    <span>学习进度</span>
+    <div class="progress-bar">
+        <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+    </div>
+    <span id="progressText">0%</span>
+</div>
+
+<!-- 主容器 -->
+<div class="container">
+    <!-- 标题部分 -->
+    <div class="main-header fade-in">
+        <h1 class="main-title">第9章：其他监督学习算法</h1>
+        <p class="subtitle">🛠️ 机器学习的瑞士军刀 - 掌握更多强大工具</p>
+    </div>
+
+    <!-- 引言：算法的瑞士军刀 -->
+    <div id="intro" class="section-card fade-in section-anchor">
+        <h2 class="section-title">🚀 引言：算法的瑞士军刀</h2>
+
+        <div class="story-box content-box">
+            <h3 style="color: #4facfe; margin-bottom: 20px;">🏔️ 瑞士军刀的启示</h3>
+            <p style="font-size: 1.1rem; line-height: 1.8;">
+                1891年，瑞士军队面临一个棘手的问题：<br>
+                士兵们需要携带各种工具——螺丝刀修理步枪，开罐器打开罐头，小刀切割...<br>
+                但背包空间有限，装备越多，行军越困难。<br><br>
+
+                <strong>卡尔·埃尔森纳</strong>想到了一个绝妙的主意：<br>
+                <span class="highlight-primary">为什么不把所有工具集成到一把小刀里？</span><br><br>
+
+                于是，世界上第一把瑞士军刀诞生了——<br>
+                小巧、精致，却功能强大，每个工具都有其独特用途。<br><br>
+
+                今天，我们要学习的就是机器学习中的"瑞士军刀"：<br>
+                <span class="highlight-secondary">朴素贝叶斯、决策树、支持向量机、集成学习</span><br>
+                每种算法都像军刀上的一个工具，<span class="highlight-warning">解决特定问题时无可替代</span>！
+            </p>
+        </div>
+
+        <div class="thinking-box content-box">
+            <h3>🤔 为什么需要这么多算法？</h3>
+            <p style="margin-bottom: 15px;">想象你是一位大厨，面对不同的食材和菜肴...</p>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px;">
+                <div style="background: rgba(79, 172, 254, 0.1); padding: 15px; border-radius: 10px;">
+                    <h4 style="color: #4facfe;">🍳 只有一把菜刀</h4>
+                    <ul style="list-style: none; padding: 0; margin-top: 10px;">
+                        <li>• 切菜还行</li>
+                        <li>• 削皮困难</li>
+                        <li>• 开瓶无能为力</li>
+                        <li>• 搅拌更是不可能</li>
+                    </ul>
+                </div>
+                <div style="background: rgba(167, 139, 250, 0.1); padding: 15px; border-radius: 10px;">
+                    <h4 style="color: #a78bfa;">🍴 工具齐全</h4>
+                    <ul style="list-style: none; padding: 0; margin-top: 10px;">
+                        <li>• 菜刀切菜</li>
+                        <li>• 削皮器削皮</li>
+                        <li>• 开瓶器开瓶</li>
+                        <li>• 打蛋器搅拌</li>
+                    </ul>
+                </div>
+            </div>
+
+            <p style="margin-top: 20px; padding: 15px; background: rgba(52, 211, 153, 0.1); border-radius: 10px; border: 1px solid rgba(52, 211, 153, 0.3);">
+                🎯 <strong>没有万能的算法</strong>，但总有一种算法最适合你的问题！
+            </p>
+        </div>
+
+        <div style="background: linear-gradient(135deg, rgba(251, 191, 36, 0.1), rgba(245, 158, 11, 0.05)); padding: 25px; border-radius: 15px; margin: 20px 0; border: 2px solid rgba(251, 191, 36, 0.3);">
+            <h4 style="color: #fbbf24; margin-bottom: 15px;">📊 本章算法一览</h4>
+
+            <div class="algo-results">
+                <div class="algo-card">
+                    <div class="algo-icon">🎲</div>
+                    <div class="algo-label">朴素贝叶斯</div>
+                    <div class="algo-desc">概率推理<br>文本分类利器</div>
+                </div>
+                <div class="algo-card">
+                    <div class="algo-icon">🌳</div>
+                    <div class="algo-label">决策树</div>
+                    <div class="algo-desc">规则学习<br>可解释性强</div>
+                </div>
+                <div class="algo-card">
+                    <div class="algo-icon">⚡</div>
+                    <div class="algo-label">支持向量机</div>
+                    <div class="algo-desc">最大间隔<br>理论优雅</div>
+                </div>
+                <div class="algo-card">
+                    <div class="algo-icon">🌲</div>
+                    <div class="algo-label">集成学习</div>
+                    <div class="algo-desc">群体智慧<br>性能卓越</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 9.1 朴素贝叶斯法 -->
+    <div id="naive-bayes" class="section-card fade-in section-anchor">
+        <h2 class="section-title">🎲 9.1 朴素贝叶斯法</h2>
+
+        <div class="story-box content-box">
+            <h3 style="color: #4facfe;">📧 垃圾邮件的"概率密码"</h3>
+            <p style="margin-bottom: 20px;">
+                2002年，<strong>保罗·格雷厄姆</strong>写了一篇震撼业界的文章：<br>
+                《垃圾邮件过滤的贝叶斯方法》<br><br>
+
+                他的洞察很简单却很深刻：<br>
+                💭 垃圾邮件总是包含某些特定的词汇——"免费"、"中奖"、"点击这里"...<br>
+                📊 如果我们统计这些词在垃圾邮件中出现的概率...<br>
+                🎯 就能根据邮件内容计算它是垃圾邮件的概率！<br><br>
+
+                这个想法基于18世纪数学家<span class="highlight-primary">托马斯·贝叶斯</span>的理论，<br>
+                却在21世纪成为了<span class="highlight-secondary">对抗垃圾邮件的利器</span>！
+            </p>
+        </div>
+
+        <div class="thinking-box content-box">
+            <h3>🧠 贝叶斯定理：逆向思维的艺术</h3>
+            <p style="margin-bottom: 20px;">贝叶斯定理告诉我们如何"反向推理"：</p>
+
+            <div style="background: rgba(79, 172, 254, 0.1); padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+                <h4 style="color: #4facfe;">🏥 一个医学诊断的例子</h4>
+                <p>某种罕见疾病的发病率是0.1%（先验概率）<br>
+                    检测的准确率是99%（似然概率）<br>
+                    如果你检测呈阳性，真正患病的概率是多少？</p>
+
+                <p style="margin-top: 15px; padding: 10px; background: rgba(255,255,255,0.1); border-radius: 5px;">
+                    直觉：99%？<br>
+                    <strong>实际：只有9%左右！</strong><br>
+                    因为疾病太罕见，即使检测很准确，误报的绝对数量仍然很大。
+                </p>
+            </div>
+        </div>
+
+        <div class="formula-box content-box">
+            <h3 style="color: #f472b6; margin-bottom: 20px;">📐 贝叶斯公式</h3>
+            <div class="math-formula">
+                P(A|B) = P(B|A) × P(A) / P(B)
+            </div>
+            <div style="text-align: left; margin: 20px auto; max-width: 600px;">
+                <p><strong>P(A|B)</strong>：后验概率（给定B发生时A的概率）</p>
+                <p><strong>P(B|A)</strong>：似然概率（给定A发生时B的概率）</p>
+                <p><strong>P(A)</strong>：先验概率（A的概率）</p>
+                <p><strong>P(B)</strong>：证据（B的概率）</p>
+            </div>
+        </div>
+
+        <!-- 朴素贝叶斯交互式演示 -->
+        <div class="demo-container">
+            <h3 style="color: #4facfe; text-align: center; margin-bottom: 20px;">🎮 朴素贝叶斯垃圾邮件分类器</h3>
+            <canvas id="bayesCanvas" class="demo-canvas" width="800" height="400"></canvas>
+
+            <div class="param-panel">
+                <div class="param-group">
+                    <label class="param-label">训练样本数:</label>
+                    <input type="range" class="param-slider" id="bayesSamples" min="10" max="200" value="50" onchange="updateBayesDemo()">
+                    <span class="param-value" id="bayesSamplesValue">50</span>
+                </div>
+                <div class="param-group">
+                    <label class="param-label">测试邮件:</label>
+                    <input type="text" id="testEmail" placeholder="输入测试文本..." style="padding: 8px; border-radius: 5px; border: 1px solid var(--border-primary); background: var(--bg-secondary); color: var(--text-primary); width: 300px;">
+                </div>
+            </div>
+
+            <div class="demo-controls">
+                <button class="demo-btn" onclick="trainBayes()">🎯 训练模型</button>
+                <button class="demo-btn" onclick="testBayes()">📧 测试邮件</button>
+                <button class="demo-btn secondary" onclick="showWordProbs()">📊 词频统计</button>
+                <button class="demo-btn secondary" onclick="animateBayes()">🎬 推理过程</button>
+            </div>
+
+            <div class="metric-cards" style="margin-top: 20px;">
+                <div class="metric-card">
+                    <div class="metric-icon">📧</div>
+                    <div class="metric-name">垃圾邮件概率</div>
+                    <div class="metric-value" id="spamProb">0%</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-icon">✉️</div>
+                    <div class="metric-name">正常邮件概率</div>
+                    <div class="metric-value" id="hamProb">0%</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-icon">🎯</div>
+                    <div class="metric-name">分类结果</div>
+                    <div class="metric-value" id="classResult">-</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 朴素贝叶斯代码示例 -->
+        <div class="code-block">
+            <pre><code><span class="keyword">import</span> numpy <span class="keyword">as</span> np
+<span class="keyword">from</span> collections <span class="keyword">import</span> defaultdict
+<span class="keyword">import</span> re
+
+<span class="keyword">class</span> <span class="function">NaiveBayesClassifier</span>:
+    <span class="string">"""朴素贝叶斯分类器 - 简单而强大的概率推理"""</span>
+
+    <span class="keyword">def</span> <span class="function">__init__</span>(self, alpha=<span class="number">1.0</span>):
+        <span class="string">"""
+        alpha: 拉普拉斯平滑参数，避免概率为0
+        """</span>
+        self.alpha = alpha
+        self.class_prior = {}  <span class="comment"># 类的先验概率</span>
+        self.feature_prob = {}  <span class="comment"># 特征的条件概率</span>
+        self.classes = []
+        self.vocabulary = set()
+
+    <span class="keyword">def</span> <span class="function">tokenize</span>(self, text):
+        <span class="string">"""简单的分词器"""</span>
+        <span class="comment"># 转小写，提取单词</span>
+        words = re.findall(r'\b\w+\b', text.lower())
+        <span class="keyword">return</span> words
+
+    <span class="keyword">def</span> <span class="function">fit</span>(self, X, y):
+        <span class="string">"""训练朴素贝叶斯模型"""</span>
+        n_samples = len(X)
+        self.classes = np.unique(y)
+        n_classes = len(self.classes)
+
+        <span class="comment"># 初始化</span>
+        <span class="keyword">for</span> c <span class="keyword">in</span> self.classes:
+            self.feature_prob[c] = defaultdict(<span class="keyword">lambda</span>: <span class="number">0</span>)
+
+        <span class="comment"># 统计词频和类别计数</span>
+        class_count = defaultdict(<span class="keyword">lambda</span>: <span class="number">0</span>)
+        <span class="keyword">for</span> text, label <span class="keyword">in</span> zip(X, y):
+            class_count[label] += <span class="number">1</span>
+            words = self.tokenize(text)
+            <span class="keyword">for</span> word <span class="keyword">in</span> words:
+                self.vocabulary.add(word)
+                self.feature_prob[label][word] += <span class="number">1</span>
+
+        <span class="comment"># 计算先验概率 P(类别)</span>
+        <span class="keyword">for</span> c <span class="keyword">in</span> self.classes:
+            self.class_prior[c] = class_count[c] / n_samples
+
+        <span class="comment"># 计算条件概率 P(词|类别) with 拉普拉斯平滑</span>
+        <span class="keyword">for</span> c <span class="keyword">in</span> self.classes:
+            total_words = sum(self.feature_prob[c].values())
+            vocab_size = len(self.vocabulary)
+
+            <span class="keyword">for</span> word <span class="keyword">in</span> self.vocabulary:
+                count = self.feature_prob[c][word]
+                <span class="comment"># 拉普拉斯平滑</span>
+                self.feature_prob[c][word] = (count + self.alpha) / \
+                                           (total_words + self.alpha * vocab_size)
+
+    <span class="keyword">def</span> <span class="function">predict_proba</span>(self, text):
+        <span class="string">"""预测文本属于各类别的概率"""</span>
+        words = self.tokenize(text)
+        scores = {}
+
+        <span class="keyword">for</span> c <span class="keyword">in</span> self.classes:
+            <span class="comment"># 取对数避免下溢</span>
+            log_prob = np.log(self.class_prior[c])
+
+            <span class="keyword">for</span> word <span class="keyword">in</span> words:
+                <span class="keyword">if</span> word <span class="keyword">in</span> self.vocabulary:
+                    log_prob += np.log(self.feature_prob[c].get(word,
+                                     self.alpha / (sum(self.feature_prob[c].values()) +
+                                     self.alpha * len(self.vocabulary))))
+
+            scores[c] = log_prob
+
+        <span class="comment"># 转换回概率</span>
+        max_score = max(scores.values())
+        exp_scores = {c: np.exp(score - max_score) <span class="keyword">for</span> c, score <span class="keyword">in</span> scores.items()}
+        total = sum(exp_scores.values())
+
+        <span class="keyword">return</span> {c: exp_score / total <span class="keyword">for</span> c, exp_score <span class="keyword">in</span> exp_scores.items()}
+
+    <span class="keyword">def</span> <span class="function">predict</span>(self, text):
+        <span class="string">"""预测文本的类别"""</span>
+        proba = self.predict_proba(text)
+        <span class="keyword">return</span> max(proba, key=proba.get)
+
+<span class="comment"># 🚀 使用示例：垃圾邮件分类</span>
+<span class="comment"># 训练数据</span>
+emails = [
+    (<span class="string">"免费 中奖 点击这里 赢取大奖"</span>, <span class="string">"spam"</span>),
+    (<span class="string">"恭喜您中奖了 请提供银行账号"</span>, <span class="string">"spam"</span>),
+    (<span class="string">"会议安排在明天下午三点"</span>, <span class="string">"ham"</span>),
+    (<span class="string">"项目进展报告已发送"</span>, <span class="string">"ham"</span>),
+    (<span class="string">"限时优惠 立即购买"</span>, <span class="string">"spam"</span>),
+    (<span class="string">"明天的会议议程"</span>, <span class="string">"ham"</span>)
+]
+
+X = [email[<span class="number">0</span>] <span class="keyword">for</span> email <span class="keyword">in</span> emails]
+y = [email[<span class="number">1</span>] <span class="keyword">for</span> email <span class="keyword">in</span> emails]
+
+<span class="comment"># 训练模型</span>
+nb = NaiveBayesClassifier()
+nb.fit(X, y)
+
+<span class="comment"># 测试新邮件</span>
+test_email = <span class="string">"恭喜您获得免费大奖"</span>
+prediction = nb.predict(test_email)
+proba = nb.predict_proba(test_email)
+
+print(<span class="string">f"📧 邮件内容: {test_email}"</span>)
+print(<span class="string">f"🎯 预测结果: {prediction}"</span>)
+print(<span class="string">f"📊 概率分布: 垃圾邮件={proba['spam']:.2%}, 正常邮件={proba['ham']:.2%}"</span>)</code></pre>
+        </div>
+
+        <!-- 朴素贝叶斯优缺点 -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 30px;">
+            <div style="background: rgba(52, 211, 153, 0.1); padding: 25px; border-radius: 15px; border: 2px solid rgba(52, 211, 153, 0.3);">
+                <h4 style="color: #34d399; margin-bottom: 15px;">✅ 朴素贝叶斯的优势</h4>
+                <ul style="list-style: none; padding: 0;">
+                    <li>⚡ 训练和预测速度极快</li>
+                    <li>💾 内存占用小</li>
+                    <li>📊 小样本下表现良好</li>
+                    <li>🎯 对缺失数据不敏感</li>
+                    <li>📝 可处理多分类问题</li>
+                </ul>
+            </div>
+            <div style="background: rgba(244, 114, 182, 0.1); padding: 25px; border-radius: 15px; border: 2px solid rgba(244, 114, 182, 0.3);">
+                <h4 style="color: #f472b6; margin-bottom: 15px;">⚠️ 朴素贝叶斯的局限</h4>
+                <ul style="list-style: none; padding: 0;">
+                    <li>🤝 特征独立假设太强</li>
+                    <li>📉 对输入数据的分布敏感</li>
+                    <li>🔢 需要先验概率</li>
+                    <li>❌ 无法学习特征间的关系</li>
+                    <li>🎲 概率估计可能不准确</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- 9.2 决策树 -->
+    <div id="decision-tree" class="section-card fade-in section-anchor">
+        <h2 class="section-title">🌳 9.2 决策树</h2>
+
+        <div class="story-box content-box">
+            <h3 style="color: #4facfe;">🕵️ 二十个问题的游戏</h3>
+            <p style="margin-bottom: 20px;">
+                还记得小时候玩的"二十个问题"游戏吗？<br><br>
+
+                一个人心里想一个东西，其他人通过问是/否问题来猜测：<br>
+                👤 "是活的吗？" — 是<br>
+                👤 "是动物吗？" — 是<br>
+                👤 "有四条腿吗？" — 是<br>
+                👤 "是宠物吗？" — 是<br>
+                👤 "会汪汪叫吗？" — 是<br>
+                🎯 "是狗！"<br><br>
+
+                这个游戏的精髓就是<span class="highlight-primary">决策树的核心思想</span>：<br>
+                通过一系列问题，逐步缩小范围，最终得出答案。<br><br>
+
+                1963年，<strong>Morgan和Sonquist</strong>首次提出了决策树算法，<br>
+                将这个简单的游戏原理，变成了<span class="highlight-secondary">强大的机器学习工具</span>！
+            </p>
+        </div>
+
+        <div class="thinking-box content-box">
+            <h3>🎯 决策树的智慧：分而治之</h3>
+            <p style="margin-bottom: 20px;">决策树通过递归地选择最优特征，将数据空间划分成不同的区域：</p>
+
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-top: 20px;">
+                <div style="background: rgba(79, 172, 254, 0.1); padding: 15px; border-radius: 10px; text-align: center;">
+                    <h4 style="color: #4facfe;">1️⃣ 特征选择</h4>
+                    <p style="font-size: 0.9rem;">选择最能区分数据的特征</p>
+                </div>
+                <div style="background: rgba(167, 139, 250, 0.1); padding: 15px; border-radius: 10px; text-align: center;">
+                    <h4 style="color: #a78bfa;">2️⃣ 决策生成</h4>
+                    <p style="font-size: 0.9rem;">根据特征值划分数据</p>
+                </div>
+                <div style="background: rgba(244, 114, 182, 0.1); padding: 15px; border-radius: 10px; text-align: center;">
+                    <h4 style="color: #f472b6;">3️⃣ 剪枝优化</h4>
+                    <p style="font-size: 0.9rem;">防止过拟合，提高泛化</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 决策树交互式演示 -->
+        <div class="demo-container">
+            <h3 style="color: #4facfe; text-align: center; margin-bottom: 20px;">🌳 决策树生长过程可视化</h3>
+            <div style="position: relative; height: 500px; background: #0a0e27; border-radius: 10px; margin: 20px auto;">
+                <canvas id="treeCanvas" class="demo-canvas" width="800" height="500"></canvas>
+            </div>
+
+            <div class="param-panel">
+                <div class="param-group">
+                    <label class="param-label">最大深度:</label>
+                    <input type="range" class="param-slider" id="maxDepth" min="1" max="5" value="3" onchange="updateTreeDepth()">
+                    <span class="param-value" id="maxDepthValue">3</span>
+                </div>
+                <div class="param-group">
+                    <label class="param-label">分裂准则:</label>
+                    <select id="criterion" onchange="updateCriterion()" style="padding: 5px 10px; border-radius: 5px; background: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--border-primary);">
+                        <option value="gini">基尼指数</option>
+                        <option value="entropy">信息增益</option>
+                        <option value="gain_ratio">信息增益率</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="demo-controls">
+                <button class="demo-btn" onclick="generateTreeData()">🎲 生成数据</button>
+                <button class="demo-btn" onclick="growTree()">🌱 生长决策树</button>
+                <button class="demo-btn secondary" onclick="pruneTree()">✂️ 剪枝优化</button>
+                <button class="demo-btn secondary" onclick="animateDecision()">🎬 决策过程</button>
+            </div>
+        </div>
+
+        <!-- 信息增益公式 -->
+        <div class="formula-box content-box">
+            <h3 style="color: #f472b6; margin-bottom: 20px;">📐 特征选择的数学基础</h3>
+
+            <div style="text-align: left; margin: 20px auto; max-width: 700px;">
+                <h4 style="color: #4facfe; margin-bottom: 15px;">1. 信息熵（不确定性的度量）</h4>
+                <p style="text-align: center; margin: 15px 0;">H(D) = -Σ p_i × log₂(p_i)</p>
+
+                <h4 style="color: #a78bfa; margin: 15px 0;">2. 信息增益（不确定性的减少）</h4>
+                <p style="text-align: center; margin: 15px 0;">Gain(D, A) = H(D) - Σ |D_v|/|D| × H(D_v)</p>
+
+                <h4 style="color: #f472b6; margin: 15px 0;">3. 基尼指数（不纯度的度量）</h4>
+                <p style="text-align: center; margin: 15px 0;">Gini(D) = 1 - Σ p_i²</p>
+            </div>
+        </div>
+
+        <!-- 决策树算法对比 -->
+        <div style="margin: 30px 0;">
+            <h3 style="color: #a78bfa; margin-bottom: 20px;">🌲 决策树算法家族</h3>
+            <table class="data-table">
+                <thead>
+                <tr>
+                    <th>算法</th>
+                    <th>分裂准则</th>
+                    <th>特点</th>
+                    <th>优势</th>
+                    <th>局限</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr>
+                    <td><strong>ID3</strong></td>
+                    <td>信息增益</td>
+                    <td>最早的决策树算法</td>
+                    <td>简单直观</td>
+                    <td>偏向多值特征</td>
+                </tr>
+                <tr>
+                    <td><strong>C4.5</strong></td>
+                    <td>信息增益率</td>
+                    <td>ID3的改进版</td>
+                    <td>处理连续特征</td>
+                    <td>计算复杂</td>
+                </tr>
+                <tr>
+                    <td><strong>CART</strong></td>
+                    <td>基尼指数</td>
+                    <td>二叉树结构</td>
+                    <td>可做回归，稳定</td>
+                    <td>容易过拟合</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 决策树代码示例 -->
+        <div class="code-block">
+            <pre><code><span class="keyword">import</span> numpy <span class="keyword">as</span> np
+<span class="keyword">from</span> collections <span class="keyword">import</span> Counter
+<span class="keyword">import</span> matplotlib.pyplot <span class="keyword">as</span> plt
+
+<span class="keyword">class</span> <span class="function">DecisionTreeClassifier</span>:
+    <span class="string">"""决策树分类器 - 可解释的规则学习"""</span>
+
+    <span class="keyword">def</span> <span class="function">__init__</span>(self, max_depth=<span class="number">5</span>, min_samples_split=<span class="number">2</span>,
+                 criterion=<span class="string">'gini'</span>):
+        self.max_depth = max_depth
+        self.min_samples_split = min_samples_split
+        self.criterion = criterion
+        self.tree = <span class="keyword">None</span>
+
+    <span class="keyword">def</span> <span class="function">_entropy</span>(self, y):
+        <span class="string">"""计算信息熵"""</span>
+        hist = np.bincount(y)
+        ps = hist / len(y)
+        <span class="keyword">return</span> -np.sum([p * np.log2(p) <span class="keyword">for</span> p <span class="keyword">in</span> ps <span class="keyword">if</span> p > <span class="number">0</span>])
+
+    <span class="keyword">def</span> <span class="function">_gini</span>(self, y):
+        <span class="string">"""计算基尼指数"""</span>
+        hist = np.bincount(y)
+        ps = hist / len(y)
+        <span class="keyword">return</span> <span class="number">1</span> - np.sum([p**<span class="number">2</span> <span class="keyword">for</span> p <span class="keyword">in</span> ps])
+
+    <span class="keyword">def</span> <span class="function">_information_gain</span>(self, y, X_column, threshold):
+        <span class="string">"""计算信息增益"""</span>
+        <span class="comment"># 父节点的不纯度</span>
+        parent_loss = self._entropy(y) <span class="keyword">if</span> self.criterion == <span class="string">'entropy'</span> \
+                      <span class="keyword">else</span> self._gini(y)
+
+        <span class="comment"># 生成分割</span>
+        left_idxs = np.argwhere(X_column <= threshold).flatten()
+        right_idxs = np.argwhere(X_column > threshold).flatten()
+
+        <span class="keyword">if</span> len(left_idxs) == <span class="number">0</span> <span class="keyword">or</span> len(right_idxs) == <span class="number">0</span>:
+            <span class="keyword">return</span> <span class="number">0</span>
+
+        <span class="comment"># 计算子节点的加权不纯度</span>
+        n = len(y)
+        n_l, n_r = len(left_idxs), len(right_idxs)
+
+        <span class="keyword">if</span> self.criterion == <span class="string">'entropy'</span>:
+            e_l = self._entropy(y[left_idxs])
+            e_r = self._entropy(y[right_idxs])
+            child_loss = (n_l / n) * e_l + (n_r / n) * e_r
+        <span class="keyword">else</span>:
+            g_l = self._gini(y[left_idxs])
+            g_r = self._gini(y[right_idxs])
+            child_loss = (n_l / n) * g_l + (n_r / n) * g_r
+
+        <span class="comment"># 信息增益</span>
+        <span class="keyword">return</span> parent_loss - child_loss
+
+    <span class="keyword">def</span> <span class="function">_best_split</span>(self, X, y):
+        <span class="string">"""寻找最佳分割点"""</span>
+        m, n = X.shape
+        <span class="keyword">if</span> m <= self.min_samples_split:
+            <span class="keyword">return</span> <span class="keyword">None</span>, <span class="keyword">None</span>
+
+        <span class="comment"># 记录最佳分割</span>
+        best_gain = -<span class="number">1</span>
+        split_idx, split_threshold = <span class="keyword">None</span>, <span class="keyword">None</span>
+
+        <span class="keyword">for</span> feature_idx <span class="keyword">in</span> range(n):
+            X_column = X[:, feature_idx]
+            thresholds = np.unique(X_column)
+
+            <span class="keyword">for</span> threshold <span class="keyword">in</span> thresholds:
+                gain = self._information_gain(y, X_column, threshold)
+
+                <span class="keyword">if</span> gain > best_gain:
+                    best_gain = gain
+                    split_idx = feature_idx
+                    split_threshold = threshold
+
+        <span class="keyword">return</span> split_idx, split_threshold
+
+    <span class="keyword">def</span> <span class="function">_grow_tree</span>(self, X, y, depth=<span class="number">0</span>):
+        <span class="string">"""递归构建决策树"""</span>
+        <span class="comment"># 计算节点的预测值</span>
+        n_samples_per_class = Counter(y)
+        predicted_class = max(n_samples_per_class,
+                            key=n_samples_per_class.get)
+
+        node = {
+            <span class="string">'predicted_class'</span>: predicted_class,
+            <span class="string">'n_samples'</span>: len(y),
+            <span class="string">'impurity'</span>: self._gini(y) <span class="keyword">if</span> self.criterion == <span class="string">'gini'</span>
+                        <span class="keyword">else</span> self._entropy(y)
+        }
+
+        <span class="comment"># 递归终止条件</span>
+        <span class="keyword">if</span> (depth < self.max_depth <span class="keyword">and</span>
+            len(set(y)) > <span class="number">1</span> <span class="keyword">and</span>
+            len(y) >= self.min_samples_split):
+
+            feature_idx, threshold = self._best_split(X, y)
+
+            <span class="keyword">if</span> feature_idx <span class="keyword">is</span> <span class="keyword">not</span> <span class="keyword">None</span>:
+                left_idxs = X[:, feature_idx] <= threshold
+                right_idxs = X[:, feature_idx] > threshold
+
+                node[<span class="string">'feature_idx'</span>] = feature_idx
+                node[<span class="string">'threshold'</span>] = threshold
+                node[<span class="string">'left'</span>] = self._grow_tree(X[left_idxs], y[left_idxs],
+                                               depth + <span class="number">1</span>)
+                node[<span class="string">'right'</span>] = self._grow_tree(X[right_idxs], y[right_idxs],
+                                                depth + <span class="number">1</span>)
+
+        <span class="keyword">return</span> node
+
+    <span class="keyword">def</span> <span class="function">fit</span>(self, X, y):
+        <span class="string">"""训练决策树"""</span>
+        self.tree = self._grow_tree(X, y)
+
+    <span class="keyword">def</span> <span class="function">_predict_sample</span>(self, x, node):
+        <span class="string">"""预测单个样本"""</span>
+        <span class="keyword">if</span> <span class="string">'threshold'</span> <span class="keyword">in</span> node:
+            <span class="keyword">if</span> x[node[<span class="string">'feature_idx'</span>]] <= node[<span class="string">'threshold'</span>]:
+                <span class="keyword">return</span> self._predict_sample(x, node[<span class="string">'left'</span>])
+            <span class="keyword">else</span>:
+                <span class="keyword">return</span> self._predict_sample(x, node[<span class="string">'right'</span>])
+        <span class="keyword">else</span>:
+            <span class="keyword">return</span> node[<span class="string">'predicted_class'</span>]
+
+    <span class="keyword">def</span> <span class="function">predict</span>(self, X):
+        <span class="string">"""预测多个样本"""</span>
+        <span class="keyword">return</span> np.array([self._predict_sample(x, self.tree) <span class="keyword">for</span> x <span class="keyword">in</span> X])
+
+    <span class="keyword">def</span> <span class="function">print_tree</span>(self, node=<span class="keyword">None</span>, depth=<span class="number">0</span>):
+        <span class="string">"""打印决策树结构"""</span>
+        <span class="keyword">if</span> node <span class="keyword">is</span> <span class="keyword">None</span>:
+            node = self.tree
+
+        <span class="keyword">if</span> <span class="string">'threshold'</span> <span class="keyword">in</span> node:
+            print(<span class="string">'  '</span> * depth +
+                  <span class="string">f"特征{node['feature_idx']} <= {node['threshold']:.2f}"</span> +
+                  <span class="string">f" (样本数: {node['n_samples']}, 不纯度: {node['impurity']:.3f})"</span>)
+            self.print_tree(node[<span class="string">'left'</span>], depth + <span class="number">1</span>)
+            self.print_tree(node[<span class="string">'right'</span>], depth + <span class="number">1</span>)
+        <span class="keyword">else</span>:
+            print(<span class="string">'  '</span> * depth +
+                  <span class="string">f"预测类别: {node['predicted_class']}"</span> +
+                  <span class="string">f" (样本数: {node['n_samples']})"</span>)
+
+<span class="comment"># 🚀 使用示例：鸢尾花分类</span>
+<span class="keyword">from</span> sklearn.datasets <span class="keyword">import</span> load_iris
+<span class="keyword">from</span> sklearn.model_selection <span class="keyword">import</span> train_test_split
+
+<span class="comment"># 加载数据</span>
+iris = load_iris()
+X, y = iris.data, iris.target
+
+<span class="comment"># 划分训练集和测试集</span>
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=<span class="number">0.2</span>, random_state=<span class="number">42</span>
+)
+
+<span class="comment"># 训练决策树</span>
+tree = DecisionTreeClassifier(max_depth=<span class="number">3</span>, criterion=<span class="string">'gini'</span>)
+tree.fit(X_train, y_train)
+
+<span class="comment"># 预测</span>
+predictions = tree.predict(X_test)
+accuracy = np.mean(predictions == y_test)
+
+print(<span class="string">f"🌳 决策树结构："</span>)
+tree.print_tree()
+print(<span class="string">f"\n🎯 测试集准确率: {accuracy:.2%}"</span>)</code></pre>
+        </div>
+    </div>
+
+    <!-- 9.3 支持向量机 -->
+    <div id="svm" class="section-card fade-in section-anchor">
+        <h2 class="section-title">⚡ 9.3 支持向量机</h2>
+
+        <div class="story-box content-box">
+            <h3 style="color: #4facfe;">🌉 最宽的河流，最安全的边界</h3>
+            <p style="margin-bottom: 20px;">
+                1963年，苏联数学家<strong>弗拉基米尔·瓦普尼克</strong>在思考一个问题：<br>
+                "如何在两个阵营之间划定最安全的边界？"<br><br>
+
+                想象两个敌对的部落分别住在河的两岸...<br>
+                🏘️ 如果河很窄，稍有风吹草动就可能引发冲突<br>
+                🌊 如果河很宽，双方都有足够的缓冲空间<br><br>
+
+                这个直觉启发了他：<br>
+                <span class="highlight-primary">最好的分类边界，应该离两类样本都尽可能远！</span><br><br>
+
+                30年后的1995年，Vapnik和Cortes正式提出了<br>
+                <span class="highlight-secondary">支持向量机（SVM）</span>——一个理论优雅、性能卓越的算法！
+            </p>
+        </div>
+
+        <div class="thinking-box content-box">
+            <h3>⚡ SVM的核心理念：最大间隔</h3>
+            <p style="margin-bottom: 20px;">SVM寻找一个超平面，使得：</p>
+
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;">
+                <div style="background: rgba(79, 172, 254, 0.1); padding: 15px; border-radius: 10px; text-align: center;">
+                    <h4 style="color: #4facfe;">📏 间隔最大</h4>
+                    <p style="font-size: 0.9rem;">离最近点的距离最远</p>
+                </div>
+                <div style="background: rgba(167, 139, 250, 0.1); padding: 15px; border-radius: 10px; text-align: center;">
+                    <h4 style="color: #a78bfa;">🎯 支持向量</h4>
+                    <p style="font-size: 0.9rem;">只有边界上的点重要</p>
+                </div>
+                <div style="background: rgba(244, 114, 182, 0.1); padding: 15px; border-radius: 10px; text-align: center;">
+                    <h4 style="color: #f472b6;">🌀 核技巧</h4>
+                    <p style="font-size: 0.9rem;">将数据映射到高维</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- SVM交互式演示 -->
+        <div class="demo-container">
+            <h3 style="color: #4facfe; text-align: center; margin-bottom: 20px;">⚡ 支持向量机可视化演示</h3>
+            <canvas id="svmCanvas" class="demo-canvas" width="800" height="500"></canvas>
+
+            <div class="param-panel">
+                <div class="param-group">
+                    <label class="param-label">核函数:</label>
+                    <select id="kernelType" onchange="updateSVM()" style="padding: 5px 10px; border-radius: 5px; background: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--border-primary);">
+                        <option value="linear">线性核</option>
+                        <option value="rbf">RBF核</option>
+                        <option value="poly">多项式核</option>
+                    </select>
+                </div>
+                <div class="param-group">
+                    <label class="param-label">
+                        惩罚参数 C:
+                        <span class="param-value" id="svmCValue">1.0</span>
+                    </label>
+                    <input type="range" class="param-slider" id="svmC" min="0.1" max="10" step="0.1" value="1.0" onchange="updateSVMC()">
+                </div>
+            </div>
+
+            <div class="demo-controls">
+                <button class="demo-btn" onclick="generateSVMData()">🎲 生成数据</button>
+                <button class="demo-btn" onclick="trainSVM()">⚡ 训练SVM</button>
+                <button class="demo-btn secondary" onclick="showSupportVectors()">🎯 显示支持向量</button>
+                <button class="demo-btn secondary" onclick="animateMargin()">📏 演示间隔</button>
+            </div>
+        </div>
+
+        <!-- SVM数学原理 -->
+        <div class="formula-box content-box">
+            <h3 style="color: #f472b6; margin-bottom: 20px;">📐 SVM的数学之美</h3>
+
+            <div style="text-align: left; margin: 20px auto; max-width: 700px;">
+                <h4 style="color: #4facfe; margin-bottom: 15px;">1. 线性可分SVM</h4>
+                <p style="text-align: center;">最大化间隔: max 2/||w||</p>
+                <p style="text-align: center;">约束条件: y_i(w·x_i + b) ≥ 1</p>
+
+                <h4 style="color: #a78bfa; margin: 15px 0;">2. 软间隔SVM</h4>
+                <p style="text-align: center;">min (1/2)||w||² + C∑ξ_i</p>
+                <p style="text-align: center;">允许部分样本分类错误</p>
+
+                <h4 style="color: #f472b6; margin: 15px 0;">3. 核技巧</h4>
+                <p style="text-align: center;">K(x_i, x_j) = φ(x_i)·φ(x_j)</p>
+                <p style="text-align: center;">隐式映射到高维空间</p>
+            </div>
+        </div>
+
+        <!-- 常用核函数 -->
+        <div style="margin: 30px 0;">
+            <h3 style="color: #a78bfa; margin-bottom: 20px;">🌀 核函数的魔法</h3>
+            <div class="metric-cards">
+                <div class="metric-card">
+                    <div class="metric-icon">📏</div>
+                    <div class="metric-name">线性核</div>
+                    <div class="metric-value">K(x,y) = x·y</div>
+                    <div class="metric-description">适合线性可分数据</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-icon">🌊</div>
+                    <div class="metric-name">RBF核</div>
+                    <div class="metric-value">K(x,y) = e^(-γ||x-y||²)</div>
+                    <div class="metric-description">最常用，适应性强</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-icon">📐</div>
+                    <div class="metric-name">多项式核</div>
+                    <div class="metric-value">K(x,y) = (x·y+c)^d</div>
+                    <div class="metric-description">适合多项式特征</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SVM优缺点 -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 30px;">
+            <div style="background: rgba(52, 211, 153, 0.1); padding: 25px; border-radius: 15px; border: 2px solid rgba(52, 211, 153, 0.3);">
+                <h4 style="color: #34d399; margin-bottom: 15px;">✅ SVM的独特优势</h4>
+                <ul style="list-style: none; padding: 0;">
+                    <li>🎯 泛化能力强</li>
+                    <li>📐 理论基础坚实</li>
+                    <li>🌀 核技巧处理非线性</li>
+                    <li>💎 只依赖支持向量</li>
+                    <li>🔢 高维空间表现好</li>
+                </ul>
+            </div>
+            <div style="background: rgba(244, 114, 182, 0.1); padding: 25px; border-radius: 15px; border: 2px solid rgba(244, 114, 182, 0.3);">
+                <h4 style="color: #f472b6; margin-bottom: 15px;">⚠️ SVM的局限性</h4>
+                <ul style="list-style: none; padding: 0;">
+                    <li>🐌 大规模数据训练慢</li>
+                    <li>🎛️ 参数选择困难</li>
+                    <li>💾 内存需求大</li>
+                    <li>📊 不直接提供概率</li>
+                    <li>🏷️ 多分类需要扩展</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- 9.4 集成学习 -->
+    <div id="ensemble" class="section-card fade-in section-anchor">
+        <h2 class="section-title">🌲 9.4 集成学习</h2>
+
+        <div class="story-box content-box">
+            <h3 style="color: #4facfe;">👥 群体的智慧</h3>
+            <p style="margin-bottom: 20px;">
+                1906年，英国科学家<strong>弗朗西斯·高尔顿</strong>在集市上发现了一个有趣的现象：<br><br>
+
+                🐄 有人举办了一个"猜牛重"的比赛<br>
+                👥 800多人参与，每人都写下自己的猜测<br>
+                📊 单个人的猜测差异很大，有的差了几百磅<br><br>
+
+                但神奇的事情发生了：<br>
+                <span class="highlight-primary">所有人猜测的平均值是1197磅</span><br>
+                <span class="highlight-secondary">而牛的实际重量是1198磅！</span><br><br>
+
+                这就是"群体智慧"的力量——<br>
+                多个"弱"的个体组合起来，可能比任何"强"的个体都要准确！<br><br>
+
+                90年后，机器学习借鉴了这个思想，创造了<span class="highlight-warning">集成学习</span>！
+            </p>
+        </div>
+
+        <div class="thinking-box content-box">
+            <h3>🎭 集成学习的三大流派</h3>
+
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-top: 20px;">
+                <div style="background: rgba(79, 172, 254, 0.1); padding: 20px; border-radius: 10px;">
+                    <h4 style="color: #4facfe;">📚 Bagging</h4>
+                    <p style="font-size: 0.9rem;"><strong>并行训练</strong></p>
+                    <p style="font-size: 0.85rem;">独立训练多个模型<br>投票或平均得结果<br>降低方差，防过拟合</p>
+                    <p style="margin-top: 10px; font-style: italic;">代表：随机森林</p>
+                </div>
+                <div style="background: rgba(167, 139, 250, 0.1); padding: 20px; border-radius: 10px;">
+                    <h4 style="color: #a78bfa;">🔄 Boosting</h4>
+                    <p style="font-size: 0.9rem;"><strong>串行训练</strong></p>
+                    <p style="font-size: 0.85rem;">后续模型学习前者错误<br>加权组合所有模型<br>降低偏差，提升精度</p>
+                    <p style="margin-top: 10px; font-style: italic;">代表：AdaBoost、XGBoost</p>
+                </div>
+                <div style="background: rgba(244, 114, 182, 0.1); padding: 20px; border-radius: 10px;">
+                    <h4 style="color: #f472b6;">🏗️ Stacking</h4>
+                    <p style="font-size: 0.9rem;"><strong>分层组合</strong></p>
+                    <p style="font-size: 0.85rem;">用元模型组合基模型<br>充分利用不同优势<br>性能上限高</p>
+                    <p style="margin-top: 10px; font-style: italic;">常用于竞赛</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 集成学习交互式演示 -->
+        <div class="demo-container">
+            <h3 style="color: #4facfe; text-align: center; margin-bottom: 20px;">🌲 随机森林 vs 单棵树</h3>
+            <canvas id="ensembleCanvas" class="demo-canvas" width="800" height="500"></canvas>
+
+            <div class="param-panel">
+                <div class="param-group">
+                    <label class="param-label">
+                        树的数量:
+                        <span class="param-value" id="nTreesValue">10</span>
+                    </label>
+                    <input type="range" class="param-slider" id="nTrees" min="1" max="100" value="10" onchange="updateEnsemble()">
+                </div>
+                <div class="param-group">
+                    <label class="param-label">
+                        采样比例:
+                        <span class="param-value" id="sampleRateValue">0.8</span>
+                    </label>
+                    <input type="range" class="param-slider" id="sampleRate" min="0.1" max="1.0" step="0.1" value="0.8" onchange="updateSampleRate()">
+                </div>
+            </div>
+
+            <div class="demo-controls">
+                <button class="demo-btn" onclick="generateEnsembleData()">🎲 生成数据</button>
+                <button class="demo-btn" onclick="trainSingleTree()">🌳 训练单树</button>
+                <button class="demo-btn secondary" onclick="trainRandomForest()">🌲 训练森林</button>
+                <button class="demo-btn secondary" onclick="compareResults()">📊 对比结果</button>
+            </div>
+
+            <div class="metric-cards" style="margin-top: 20px;">
+                <div class="metric-card">
+                    <div class="metric-icon">🌳</div>
+                    <div class="metric-name">单树准确率</div>
+                    <div class="metric-value" id="singleAccuracy">-</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-icon">🌲</div>
+                    <div class="metric-name">森林准确率</div>
+                    <div class="metric-value" id="forestAccuracy">-</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-icon">📈</div>
+                    <div class="metric-name">性能提升</div>
+                    <div class="metric-value" id="improvement">-</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 集成学习代码示例 -->
+        <div class="code-block">
+            <pre><code><span class="keyword">import</span> numpy <span class="keyword">as</span> np
+<span class="keyword">from</span> sklearn.tree <span class="keyword">import</span> DecisionTreeClassifier
+<span class="keyword">from</span> sklearn.base <span class="keyword">import</span> clone
+<span class="keyword">from</span> collections <span class="keyword">import</span> Counter
+
+<span class="keyword">class</span> <span class="function">RandomForestClassifier</span>:
+    <span class="string">"""随机森林分类器 - 集成学习的经典代表"""</span>
+
+    <span class="keyword">def</span> <span class="function">__init__</span>(self, n_estimators=<span class="number">100</span>, max_depth=<span class="keyword">None</span>,
+                 max_features=<span class="string">'sqrt'</span>, bootstrap=<span class="keyword">True</span>,
+                 random_state=<span class="keyword">None</span>):
+        self.n_estimators = n_estimators
+        self.max_depth = max_depth
+        self.max_features = max_features
+        self.bootstrap = bootstrap
+        self.random_state = random_state
+        self.trees = []
+        self.feature_indices = []
+
+    <span class="keyword">def</span> <span class="function">_bootstrap_sample</span>(self, X, y):
+        <span class="string">"""自助采样（Bootstrap）"""</span>
+        n_samples = X.shape[<span class="number">0</span>]
+        indices = np.random.choice(n_samples, n_samples, replace=<span class="keyword">True</span>)
+        <span class="keyword">return</span> X[indices], y[indices]
+
+    <span class="keyword">def</span> <span class="function">_get_feature_subset</span>(self, n_features):
+        <span class="string">"""随机选择特征子集"""</span>
+        <span class="keyword">if</span> self.max_features == <span class="string">'sqrt'</span>:
+            max_features = int(np.sqrt(n_features))
+        <span class="keyword">elif</span> self.max_features == <span class="string">'log2'</span>:
+            max_features = int(np.log2(n_features))
+        <span class="keyword">elif</span> isinstance(self.max_features, int):
+            max_features = self.max_features
+        <span class="keyword">else</span>:
+            max_features = n_features
+
+        feature_indices = np.random.choice(
+            n_features, max_features, replace=<span class="keyword">False</span>
+        )
+        <span class="keyword">return</span> sorted(feature_indices)
+
+    <span class="keyword">def</span> <span class="function">fit</span>(self, X, y):
+        <span class="string">"""训练随机森林"""</span>
+        <span class="keyword">if</span> self.random_state:
+            np.random.seed(self.random_state)
+
+        n_samples, n_features = X.shape
+
+        <span class="keyword">for</span> i <span class="keyword">in</span> range(self.n_estimators):
+            <span class="comment"># 创建决策树</span>
+            tree = DecisionTreeClassifier(
+                max_depth=self.max_depth,
+                random_state=np.random.randint(<span class="number">0</span>, <span class="number">1000</span>)
+            )
+
+            <span class="comment"># Bootstrap采样</span>
+            <span class="keyword">if</span> self.bootstrap:
+                X_sample, y_sample = self._bootstrap_sample(X, y)
+            <span class="keyword">else</span>:
+                X_sample, y_sample = X, y
+
+            <span class="comment"># 随机选择特征</span>
+            feature_indices = self._get_feature_subset(n_features)
+
+            <span class="comment"># 训练树</span>
+            tree.fit(X_sample[:, feature_indices], y_sample)
+
+            <span class="comment"># 保存树和特征索引</span>
+            self.trees.append(tree)
+            self.feature_indices.append(feature_indices)
+
+            <span class="keyword">if</span> (i + <span class="number">1</span>) % <span class="number">10</span> == <span class="number">0</span>:
+                print(<span class="string">f"✅ 已训练 {i+1}/{self.n_estimators} 棵树"</span>)
+
+    <span class="keyword">def</span> <span class="function">predict</span>(self, X):
+        <span class="string">"""预测 - 多数投票"""</span>
+        predictions = []
+
+        <span class="keyword">for</span> tree, features <span class="keyword">in</span> zip(self.trees, self.feature_indices):
+            pred = tree.predict(X[:, features])
+            predictions.append(pred)
+
+        <span class="comment"># 转置，使每行是一个样本的所有预测</span>
+        predictions = np.array(predictions).T
+
+        <span class="comment"># 多数投票</span>
+        final_predictions = []
+        <span class="keyword">for</span> sample_preds <span class="keyword">in</span> predictions:
+            vote = Counter(sample_preds).most_common(<span class="number">1</span>)[<span class="number">0</span>][<span class="number">0</span>]
+            final_predictions.append(vote)
+
+        <span class="keyword">return</span> np.array(final_predictions)
+
+    <span class="keyword">def</span> <span class="function">feature_importances_</span>(self):
+        <span class="string">"""计算特征重要性"""</span>
+        n_features = len(self.feature_indices[<span class="number">0</span>])
+        importances = np.zeros(n_features)
+
+        <span class="keyword">for</span> tree, features <span class="keyword">in</span> zip(self.trees, self.feature_indices):
+            tree_importances = tree.feature_importances_
+            <span class="keyword">for</span> i, feat_idx <span class="keyword">in</span> enumerate(features):
+                importances[feat_idx] += tree_importances[i]
+
+        <span class="keyword">return</span> importances / self.n_estimators
+
+
+<span class="keyword">class</span> <span class="function">AdaBoostClassifier</span>:
+    <span class="string">"""AdaBoost分类器 - Boosting的经典实现"""</span>
+
+    <span class="keyword">def</span> <span class="function">__init__</span>(self, n_estimators=<span class="number">50</span>, learning_rate=<span class="number">1.0</span>):
+        self.n_estimators = n_estimators
+        self.learning_rate = learning_rate
+        self.estimators = []
+        self.estimator_weights = []
+        self.estimator_errors = []
+
+    <span class="keyword">def</span> <span class="function">fit</span>(self, X, y):
+        <span class="string">"""训练AdaBoost"""</span>
+        n_samples = X.shape[<span class="number">0</span>]
+
+        <span class="comment"># 初始化样本权重</span>
+        sample_weight = np.ones(n_samples) / n_samples
+
+        <span class="keyword">for</span> i <span class="keyword">in</span> range(self.n_estimators):
+            <span class="comment"># 训练弱分类器</span>
+            estimator = DecisionTreeClassifier(max_depth=<span class="number">1</span>)
+            estimator.fit(X, y, sample_weight=sample_weight)
+
+            <span class="comment"># 预测</span>
+            predictions = estimator.predict(X)
+
+            <span class="comment"># 计算加权错误率</span>
+            incorrect = predictions != y
+            estimator_error = np.sum(sample_weight[incorrect]) / np.sum(sample_weight)
+
+            <span class="comment"># 避免除零</span>
+            <span class="keyword">if</span> estimator_error >= <span class="number">0.5</span>:
+                <span class="keyword">break</span>
+
+            <span class="comment"># 计算分类器权重</span>
+            estimator_weight = self.learning_rate * <span class="number">0.5</span> * np.log(
+                (<span class="number">1</span> - estimator_error) / estimator_error
+            )
+
+            <span class="comment"># 更新样本权重</span>
+            sample_weight *= np.exp(-estimator_weight * y * predictions)
+            sample_weight /= np.sum(sample_weight)
+
+            <span class="comment"># 保存</span>
+            self.estimators.append(estimator)
+            self.estimator_weights.append(estimator_weight)
+            self.estimator_errors.append(estimator_error)
+
+            <span class="keyword">if</span> (i + <span class="number">1</span>) % <span class="number">10</span> == <span class="number">0</span>:
+                print(<span class="string">f"🔄 Boosting轮次 {i+1}/{self.n_estimators}, 错误率: {estimator_error:.4f}"</span>)
+
+    <span class="keyword">def</span> <span class="function">predict</span>(self, X):
+        <span class="string">"""预测 - 加权投票"""</span>
+        predictions = np.zeros(X.shape[<span class="number">0</span>])
+
+        <span class="keyword">for</span> estimator, weight <span class="keyword">in</span> zip(self.estimators, self.estimator_weights):
+            predictions += weight * estimator.predict(X)
+
+        <span class="keyword">return</span> np.sign(predictions)
+
+<span class="comment"># 🚀 使用示例：比较单模型与集成模型</span>
+<span class="keyword">from</span> sklearn.datasets <span class="keyword">import</span> make_classification
+<span class="keyword">from</span> sklearn.model_selection <span class="keyword">import</span> train_test_split
+
+<span class="comment"># 生成数据</span>
+X, y = make_classification(
+    n_samples=<span class="number">1000</span>, n_features=<span class="number">20</span>, n_informative=<span class="number">15</span>,
+    n_redundant=<span class="number">5</span>, random_state=<span class="number">42</span>
+)
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=<span class="number">0.2</span>, random_state=<span class="number">42</span>
+)
+
+<span class="comment"># 单棵决策树</span>
+single_tree = DecisionTreeClassifier(random_state=<span class="number">42</span>)
+single_tree.fit(X_train, y_train)
+single_acc = single_tree.score(X_test, y_test)
+
+<span class="comment"># 随机森林</span>
+rf = RandomForestClassifier(n_estimators=<span class="number">50</span>, random_state=<span class="number">42</span>)
+rf.fit(X_train, y_train)
+rf_acc = np.mean(rf.predict(X_test) == y_test)
+
+<span class="comment"># AdaBoost</span>
+ada = AdaBoostClassifier(n_estimators=<span class="number">50</span>)
+ada.fit(X_train, y_train)
+ada_acc = np.mean(ada.predict(X_test) == y_test)
+
+print(<span class="string">f"\n📊 模型性能对比："</span>)
+print(<span class="string">f"🌳 单棵决策树: {single_acc:.2%}"</span>)
+print(<span class="string">f"🌲 随机森林: {rf_acc:.2%}"</span>)
+print(<span class="string">f"🔄 AdaBoost: {ada_acc:.2%}"</span>)
+print(<span class="string">f"\n🎯 集成学习的威力: 准确率提升 {(max(rf_acc, ada_acc) - single_acc):.2%}!"</span>)</code></pre>
+        </div>
+    </div>
+
+    <!-- 9.5 算法对比与选择 -->
+    <div id="comparison" class="section-card fade-in section-anchor">
+        <h2 class="section-title">⚔️ 9.5 算法对比与选择</h2>
+
+        <div class="story-box content-box">
+            <h3 style="color: #4facfe;">🏆 没有最好，只有最合适</h3>
+            <p style="margin-bottom: 20px;">
+                在Netflix百万美元大奖赛中，有一个有趣的发现：<br><br>
+
+                🥇 获胜团队使用了<strong>超过100个模型的集成</strong><br>
+                🥈 第二名也用了几十个模型的组合<br>
+                🥉 没有任何单一算法能独占鳌头<br><br>
+
+                这告诉我们一个重要的道理：<br>
+                <span class="highlight-primary">算法选择就像挑选工具</span>——<br>
+                锤子适合钉钉子，螺丝刀适合拧螺丝，<br>
+                <span class="highlight-secondary">关键是了解每个工具的特点，选择合适的</span>！
+            </p>
+        </div>
+
+        <!-- 算法对比表 -->
+        <div style="margin: 30px 0;">
+            <h3 style="color: #a78bfa; margin-bottom: 20px;">🎯 算法特性对比表</h3>
+            <table class="data-table">
+                <thead>
+                <tr>
+                    <th>算法</th>
+                    <th>训练速度</th>
+                    <th>预测速度</th>
+                    <th>准确性</th>
+                    <th>可解释性</th>
+                    <th>适用场景</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr>
+                    <td><strong>朴素贝叶斯</strong></td>
+                    <td>⚡⚡⚡⚡⚡</td>
+                    <td>⚡⚡⚡⚡⚡</td>
+                    <td>⭐⭐⭐</td>
+                    <td>⭐⭐⭐⭐</td>
+                    <td>文本分类、垃圾邮件</td>
+                </tr>
+                <tr>
+                    <td><strong>决策树</strong></td>
+                    <td>⚡⚡⚡⚡</td>
+                    <td>⚡⚡⚡⚡⚡</td>
+                    <td>⭐⭐⭐</td>
+                    <td>⭐⭐⭐⭐⭐</td>
+                    <td>规则明确的分类</td>
+                </tr>
+                <tr>
+                    <td><strong>SVM</strong></td>
+                    <td>⚡⚡</td>
+                    <td>⚡⚡⚡</td>
+                    <td>⭐⭐⭐⭐</td>
+                    <td>⭐⭐</td>
+                    <td>中等规模、高维数据</td>
+                </tr>
+                <tr>
+                    <td><strong>随机森林</strong></td>
+                    <td>⚡⚡⚡</td>
+                    <td>⚡⚡⚡</td>
+                    <td>⭐⭐⭐⭐⭐</td>
+                    <td>⭐⭐⭐</td>
+                    <td>通用、防过拟合</td>
+                </tr>
+                <tr>
+                    <td><strong>XGBoost</strong></td>
+                    <td>⚡⚡</td>
+                    <td>⚡⚡⚡</td>
+                    <td>⭐⭐⭐⭐⭐</td>
+                    <td>⭐⭐</td>
+                    <td>竞赛、高精度需求</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="thinking-box content-box">
+            <h3>🤔 算法选择决策树</h3>
+            <div style="margin-top: 20px; padding: 20px; background: rgba(79, 172, 254, 0.1); border-radius: 10px;">
+                <p style="font-size: 1.1rem; text-align: center; margin-bottom: 20px;">
+                    <strong>从问题特征出发，选择合适的算法</strong>
+                </p>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                    <div>
+                        <h4 style="color: #4facfe;">📊 数据特征</h4>
+                        <ul style="list-style: none; padding: 0;">
+                            <li>• <strong>小数据集</strong> → 朴素贝叶斯、SVM</li>
+                            <li>• <strong>大数据集</strong> → 随机森林、XGBoost</li>
+                            <li>• <strong>高维稀疏</strong> → 朴素贝叶斯、线性SVM</li>
+                            <li>• <strong>非线性复杂</strong> → 核SVM、集成方法</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h4 style="color: #a78bfa;">🎯 需求特征</h4>
+                        <ul style="list-style: none; padding: 0;">
+                            <li>• <strong>要速度</strong> → 朴素贝叶斯、决策树</li>
+                            <li>• <strong>要精度</strong> → 集成学习、深度学习</li>
+                            <li>• <strong>要解释</strong> → 决策树、线性模型</li>
+                            <li>• <strong>要稳定</strong> → 随机森林、Bagging</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 算法选择流程图 -->
+        <div style="background: linear-gradient(135deg, rgba(251, 191, 36, 0.1), rgba(245, 158, 11, 0.05)); padding: 25px; border-radius: 15px; margin: 20px 0; border: 2px solid rgba(251, 191, 36, 0.3);">
+            <h4 style="color: #fbbf24; margin-bottom: 20px;">🗺️ 算法选择路线图</h4>
+
+            <div style="text-align: center; font-size: 1.1rem; line-height: 2;">
+                <p>开始 → 数据量大吗？</p>
+                <p>↙️ 是：样本 > 10万 &nbsp;&nbsp;&nbsp;&nbsp; ↘️ 否：样本 < 10万</p>
+                <p>↓ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ↓</p>
+                <p>需要解释性吗？ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 文本数据吗？</p>
+                <p>↙️ 是 &nbsp;&nbsp; ↘️ 否 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ↙️ 是 &nbsp;&nbsp; ↘️ 否</p>
+                <p>决策树 &nbsp; XGBoost &nbsp;&nbsp; 朴素贝叶斯 &nbsp; SVM</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 9.6 实战：垃圾邮件过滤 -->
+    <div id="practice" class="section-card fade-in section-anchor">
+        <h2 class="section-title">🎯 9.6 实战：垃圾邮件过滤系统</h2>
+
+        <div class="story-box content-box">
+            <h3 style="color: #4facfe;">📧 对抗垃圾邮件的"军备竞赛"</h3>
+            <p style="margin-bottom: 20px;">
+                2004年，比尔·盖茨曾预言：<br>
+                "两年内，垃圾邮件问题将得到解决。"<br><br>
+
+                然而20年过去了，垃圾邮件依然存在...<br>
+                但我们的武器已经进化了很多：<br><br>
+
+                📊 从简单的关键词过滤<br>
+                🧠 到贝叶斯概率模型<br>
+                🤖 再到深度学习...<br><br>
+
+                今天，让我们用<span class="highlight-primary">多种算法</span>构建一个<br>
+                <span class="highlight-secondary">智能垃圾邮件过滤系统</span>，<br>
+                体验不同算法的威力！
+            </p>
+        </div>
+
+        <!-- 项目流程 -->
+        <div style="margin: 30px 0;">
+            <h3 style="color: #a78bfa; margin-bottom: 20px;">🔄 垃圾邮件过滤系统构建流程</h3>
+            <div style="background: linear-gradient(135deg, rgba(79, 172, 254, 0.05), rgba(167, 139, 250, 0.05)); padding: 30px; border-radius: 15px; border: 1px solid rgba(79, 172, 254, 0.3);">
+                <ol style="line-height: 2.5; padding-left: 20px;">
+                    <li><strong>📊 数据准备</strong>：收集垃圾邮件和正常邮件样本</li>
+                    <li><strong>🔤 文本预处理</strong>：分词、去停用词、提取特征</li>
+                    <li><strong>🎯 特征工程</strong>：TF-IDF、词袋模型、n-gram</li>
+                    <li><strong>🤖 模型训练</strong>：尝试多种算法</li>
+                    <li><strong>📈 性能评估</strong>：准确率、召回率、F1分数</li>
+                    <li><strong>🔧 模型优化</strong>：参数调优、特征选择</li>
+                    <li><strong>🚀 系统部署</strong>：实时过滤、用户反馈</li>
+                </ol>
+            </div>
+        </div>
+
+        <!-- 实战代码 -->
+        <div class="code-block">
+            <pre><code><span class="keyword">import</span> numpy <span class="keyword">as</span> np
+<span class="keyword">import</span> pandas <span class="keyword">as</span> pd
+<span class="keyword">from</span> sklearn.feature_extraction.text <span class="keyword">import</span> TfidfVectorizer
+<span class="keyword">from</span> sklearn.model_selection <span class="keyword">import</span> train_test_split, cross_val_score
+<span class="keyword">from</span> sklearn.naive_bayes <span class="keyword">import</span> MultinomialNB
+<span class="keyword">from</span> sklearn.tree <span class="keyword">import</span> DecisionTreeClassifier
+<span class="keyword">from</span> sklearn.svm <span class="keyword">import</span> SVC
+<span class="keyword">from</span> sklearn.ensemble <span class="keyword">import</span> RandomForestClassifier, VotingClassifier
+<span class="keyword">from</span> sklearn.metrics <span class="keyword">import</span> classification_report, confusion_matrix
+<span class="keyword">import</span> matplotlib.pyplot <span class="keyword">as</span> plt
+<span class="keyword">import</span> seaborn <span class="keyword">as</span> sns
+
+<span class="keyword">class</span> <span class="function">SpamFilterSystem</span>:
+    <span class="string">"""垃圾邮件过滤系统 - 多算法集成"""</span>
+
+    <span class="keyword">def</span> <span class="function">__init__</span>(self):
+        self.vectorizer = TfidfVectorizer(
+            max_features=<span class="number">5000</span>,
+            stop_words=<span class="string">'english'</span>,
+            ngram_range=(<span class="number">1</span>, <span class="number">2</span>)  <span class="comment"># 使用1-gram和2-gram</span>
+        )
+        self.models = {}
+        self.best_model = <span class="keyword">None</span>
+        self.ensemble_model = <span class="keyword">None</span>
+
+    <span class="keyword">def</span> <span class="function">preprocess_text</span>(self, text):
+        <span class="string">"""文本预处理"""</span>
+        <span class="comment"># 转小写</span>
+        text = text.lower()
+
+        <span class="comment"># 移除特殊字符（保留字母数字和空格）</span>
+        text = re.sub(r'[^a-zA-Z0-9\s]', '', text)
+
+        <span class="comment"># 移除多余空格</span>
+        text = ' '.join(text.split())
+
+        <span class="keyword">return</span> text
+
+    <span class="keyword">def</span> <span class="function">extract_features</span>(self, emails):
+        <span class="string">"""特征提取 - 添加自定义特征"""</span>
+        features = []
+
+        <span class="keyword">for</span> email <span class="keyword">in</span> emails:
+            <span class="comment"># 基础特征</span>
+            feature_dict = {
+                <span class="string">'length'</span>: len(email),
+                <span class="string">'num_capitals'</span>: sum(<span class="number">1</span> <span class="keyword">for</span> c <span class="keyword">in</span> email <span class="keyword">if</span> c.isupper()),
+                <span class="string">'num_exclamation'</span>: email.count(<span class="string">'!'</span>),
+                <span class="string">'num_question'</span>: email.count(<span class="string">'?'</span>),
+                <span class="string">'num_dollar'</span>: email.count(<span class="string">'</span>),
+                <span class="string">'has_link'</span>: <span class="number">1</span> <span class="keyword">if</span> <span class="string">'http'</span> <span class="keyword">in</span> email.lower() <span class="keyword">else</span> <span class="number">0</span>
+            }
+
+            <span class="comment"># 垃圾邮件关键词</span>
+            spam_keywords = [<span class="string">'free'</span>, <span class="string">'win'</span>, <span class="string">'prize'</span>, <span class="string">'click'</span>,
+                           <span class="string">'buy'</span>, <span class="string">'offer'</span>, <span class="string">'limited'</span>]
+            feature_dict[<span class="string">'spam_word_count'</span>] = sum(
+                <span class="number">1</span> <span class="keyword">for</span> word <span class="keyword">in</span> spam_keywords
+                <span class="keyword">if</span> word <span class="keyword">in</span> email.lower()
+            )
+
+            features.append(list(feature_dict.values()))
+
+        <span class="keyword">return</span> np.array(features)
+
+    <span class="keyword">def</span> <span class="function">train_models</span>(self, X_train, y_train):
+        <span class="string">"""训练多个模型"""</span>
+        print(<span class="string">"🚀 开始训练多个模型...\n"</span>)
+
+        <span class="comment"># 1. 朴素贝叶斯</span>
+        print(<span class="string">"📧 训练朴素贝叶斯..."</span>)
+        nb_model = MultinomialNB(alpha=<span class="number">0.1</span>)
+        nb_scores = cross_val_score(nb_model, X_train, y_train, cv=<span class="number">5</span>)
+        nb_model.fit(X_train, y_train)
+        self.models[<span class="string">'Naive Bayes'</span>] = {
+            <span class="string">'model'</span>: nb_model,
+            <span class="string">'score'</span>: nb_scores.mean()
+        }
+        print(<span class="string">f"   准确率: {nb_scores.mean():.2%} (±{nb_scores.std():.2%})"</span>)
+
+        <span class="comment"># 2. 决策树</span>
+        print(<span class="string">"\n🌳 训练决策树..."</span>)
+        dt_model = DecisionTreeClassifier(max_depth=<span class="number">20</span>, random_state=<span class="number">42</span>)
+        dt_scores = cross_val_score(dt_model, X_train, y_train, cv=<span class="number">5</span>)
+        dt_model.fit(X_train, y_train)
+        self.models[<span class="string">'Decision Tree'</span>] = {
+            <span class="string">'model'</span>: dt_model,
+            <span class="string">'score'</span>: dt_scores.mean()
+        }
+        print(<span class="string">f"   准确率: {dt_scores.mean():.2%} (±{dt_scores.std():.2%})"</span>)
+
+        <span class="comment"># 3. SVM</span>
+        print(<span class="string">"\n⚡ 训练SVM..."</span>)
+        svm_model = SVC(kernel=<span class="string">'linear'</span>, probability=<span class="keyword">True</span>, random_state=<span class="number">42</span>)
+        svm_scores = cross_val_score(svm_model, X_train, y_train, cv=<span class="number">5</span>)
+        svm_model.fit(X_train, y_train)
+        self.models[<span class="string">'SVM'</span>] = {
+            <span class="string">'model'</span>: svm_model,
+            <span class="string">'score'</span>: svm_scores.mean()
+        }
+        print(<span class="string">f"   准确率: {svm_scores.mean():.2%} (±{svm_scores.std():.2%})"</span>)
+
+        <span class="comment"># 4. 随机森林</span>
+        print(<span class="string">"\n🌲 训练随机森林..."</span>)
+        rf_model = RandomForestClassifier(
+            n_estimators=<span class="number">100</span>, max_depth=<span class="number">20</span>, random_state=<span class="number">42</span>
+        )
+        rf_scores = cross_val_score(rf_model, X_train, y_train, cv=<span class="number">5</span>)
+        rf_model.fit(X_train, y_train)
+        self.models[<span class="string">'Random Forest'</span>] = {
+            <span class="string">'model'</span>: rf_model,
+            <span class="string">'score'</span>: rf_scores.mean()
+        }
+        print(<span class="string">f"   准确率: {rf_scores.mean():.2%} (±{rf_scores.std():.2%})"</span>)
+
+        <span class="comment"># 5. 集成模型（投票）</span>
+        print(<span class="string">"\n🎭 构建集成模型..."</span>)
+        self.ensemble_model = VotingClassifier(
+            estimators=[
+                (<span class="string">'nb'</span>, nb_model),
+                (<span class="string">'rf'</span>, rf_model),
+                (<span class="string">'svm'</span>, svm_model)
+            ],
+            voting=<span class="string">'soft'</span>
+        )
+        ensemble_scores = cross_val_score(
+            self.ensemble_model, X_train, y_train, cv=<span class="number">5</span>
+        )
+        self.ensemble_model.fit(X_train, y_train)
+        print(<span class="string">f"   准确率: {ensemble_scores.mean():.2%} (±{ensemble_scores.std():.2%})"</span>)
+
+        <span class="comment"># 选择最佳模型</span>
+        best_name = max(self.models, key=<span class="keyword">lambda</span> x: self.models[x][<span class="string">'score'</span>])
+        self.best_model = self.models[best_name][<span class="string">'model'</span>]
+
+        print(<span class="string">f"\n🏆 最佳单一模型: {best_name} ({self.models[best_name]['score']:.2%})"</span>)
+        <span class="keyword">if</span> ensemble_scores.mean() > self.models[best_name][<span class="string">'score'</span>]:
+            print(<span class="string">f"🎯 但集成模型表现更好: {ensemble_scores.mean():.2%}"</span>)
+
+    <span class="keyword">def</span> <span class="function">evaluate_models</span>(self, X_test, y_test):
+        <span class="string">"""评估所有模型"""</span>
+        print(<span class="string">"\n📊 模型评估结果：\n"</span>)
+
+        results = {}
+
+        <span class="keyword">for</span> name, model_info <span class="keyword">in</span> self.models.items():
+            model = model_info[<span class="string">'model'</span>]
+            y_pred = model.predict(X_test)
+
+            print(<span class="string">f"{'='*50}"</span>)
+            print(<span class="string">f"{name} 性能报告："</span>)
+            print(classification_report(
+                y_test, y_pred,
+                target_names=[<span class="string">'正常邮件'</span>, <span class="string">'垃圾邮件'</span>]
+            ))
+
+            results[name] = {
+                <span class="string">'predictions'</span>: y_pred,
+                <span class="string">'accuracy'</span>: np.mean(y_pred == y_test)
+            }
+
+        <span class="comment"># 集成模型评估</span>
+        y_pred_ensemble = self.ensemble_model.predict(X_test)
+        print(<span class="string">f"{'='*50}"</span>)
+        print(<span class="string">"集成模型 性能报告："</span>)
+        print(classification_report(
+            y_test, y_pred_ensemble,
+            target_names=[<span class="string">'正常邮件'</span>, <span class="string">'垃圾邮件'</span>]
+        ))
+
+        <span class="keyword">return</span> results
+
+    <span class="keyword">def</span> <span class="function">visualize_results</span>(self, results, y_test):
+        <span class="string">"""可视化结果对比"""</span>
+        fig, axes = plt.subplots(<span class="number">2</span>, <span class="number">2</span>, figsize=(<span class="number">15</span>, <span class="number">12</span>))
+        axes = axes.ravel()
+
+        <span class="keyword">for</span> idx, (name, result) <span class="keyword">in</span> enumerate(results.items()):
+            <span class="keyword">if</span> idx >= <span class="number">4</span>:
+                <span class="keyword">break</span>
+
+            <span class="comment"># 混淆矩阵</span>
+            cm = confusion_matrix(y_test, result[<span class="string">'predictions'</span>])
+            sns.heatmap(cm, annot=<span class="keyword">True</span>, fmt=<span class="string">'d'</span>, cmap=<span class="string">'Blues'</span>,
+                       xticklabels=[<span class="string">'正常'</span>, <span class="string">'垃圾'</span>],
+                       yticklabels=[<span class="string">'正常'</span>, <span class="string">'垃圾'</span>],
+                       ax=axes[idx])
+            axes[idx].set_title(<span class="string">f'{name}\n准确率: {result["accuracy"]:.2%}'</span>)
+            axes[idx].set_xlabel(<span class="string">'预测标签'</span>)
+            axes[idx].set_ylabel(<span class="string">'真实标签'</span>)
+
+        plt.tight_layout()
+        plt.show()
+
+    <span class="keyword">def</span> <span class="function">predict_email</span>(self, email_text):
+        <span class="string">"""预测单封邮件"""</span>
+        <span class="comment"># 预处理</span>
+        processed = self.preprocess_text(email_text)
+
+        <span class="comment"># 向量化</span>
+        text_features = self.vectorizer.transform([processed])
+        custom_features = self.extract_features([email_text])
+        features = np.hstack([text_features.toarray(), custom_features])
+
+        <span class="comment"># 使用集成模型预测</span>
+        prediction = self.ensemble_model.predict(features)[<span class="number">0</span>]
+        probabilities = self.ensemble_model.predict_proba(features)[<span class="number">0</span>]
+
+        <span class="keyword">return</span> {
+            <span class="string">'is_spam'</span>: bool(prediction),
+            <span class="string">'spam_probability'</span>: probabilities[<span class="number">1</span>],
+            <span class="string">'confidence'</span>: max(probabilities)
+        }
+
+<span class="comment"># 🚀 使用示例</span>
+<span class="keyword">if</span> __name__ == <span class="string">"__main__"</span>:
+    <span class="comment"># 生成模拟数据</span>
+    np.random.seed(<span class="number">42</span>)
+
+    <span class="comment"># 正常邮件示例</span>
+    normal_emails = [
+        <span class="string">"会议安排在明天下午三点，请准时参加"</span>,
+        <span class="string">"项目进展报告已经发送到您的邮箱"</span>,
+        <span class="string">"请查收本月的工作总结"</span>,
+        <span class="string">"明天的客户会议需要准备PPT"</span>,
+        <span class="string">"团队聚餐定在周五晚上"</span>
+    ] * <span class="number">100</span>
+
+    <span class="comment"># 垃圾邮件示例</span>
+    spam_emails = [
+        <span class="string">"恭喜您中奖了！点击这里领取免费大奖"</span>,
+        <span class="string">"限时优惠！立即购买享受折扣"</span>,
+        <span class="string">"免费试用我们的产品，机会难得"</span>,
+        <span class="string">"点击链接获得$$奖金"</span>,
+        <span class="string">"特价促销！！！买一送一！！！"</span>
+    ] * <span class="number">100</span>
+
+    <span class="comment"># 合并数据</span>
+    all_emails = normal_emails + spam_emails
+    labels = [<span class="number">0</span>] * len(normal_emails) + [<span class="number">1</span>] * len(spam_emails)
+
+    <span class="comment"># 初始化系统</span>
+    spam_filter = SpamFilterSystem()
+
+    <span class="comment"># 预处理文本</span>
+    processed_emails = [spam_filter.preprocess_text(email)
+                       <span class="keyword">for</span> email <span class="keyword">in</span> all_emails]
+
+    <span class="comment"># 特征提取</span>
+    text_features = spam_filter.vectorizer.fit_transform(processed_emails)
+    custom_features = spam_filter.extract_features(all_emails)
+    X = np.hstack([text_features.toarray(), custom_features])
+    y = np.array(labels)
+
+    <span class="comment"># 划分数据集</span>
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=<span class="number">0.2</span>, random_state=<span class="number">42</span>, stratify=y
+    )
+
+    <span class="comment"># 训练模型</span>
+    spam_filter.train_models(X_train, y_train)
+
+    <span class="comment"># 评估模型</span>
+    results = spam_filter.evaluate_models(X_test, y_test)
+
+    <span class="comment"># 可视化结果</span>
+    spam_filter.visualize_results(results, y_test)
+
+    <span class="comment"># 测试新邮件</span>
+    print(<span class="string">"\n📧 测试新邮件："</span>)
+    test_emails = [
+        <span class="string">"恭喜您获得免费iPhone，点击领取"</span>,
+        <span class="string">"明天的会议改到下午四点"</span>,
+        <span class="string">"限时特价！！！立即购买！！！"</span>
+    ]
+
+    <span class="keyword">for</span> email <span class="keyword">in</span> test_emails:
+        result = spam_filter.predict_email(email)
+        print(<span class="string">f"\n邮件: {email}"</span>)
+        print(<span class="string">f"分类: {'垃圾邮件' if result['is_spam'] else '正常邮件'}"</span>)
+        print(<span class="string">f"垃圾邮件概率: {result['spam_probability']:.2%}"</span>)
+        print(<span class="string">f"置信度: {result['confidence']:.2%}"</span>)</code></pre>
+        </div>
+
+        <!-- 实战总结 -->
+        <div style="background: linear-gradient(135deg, rgba(52, 211, 153, 0.1), rgba(34, 197, 94, 0.05)); padding: 25px; border-radius: 15px; margin-top: 30px; border: 2px solid rgba(52, 211, 153, 0.3);">
+            <h4 style="color: #34d399; margin-bottom: 20px;">🎯 垃圾邮件过滤系统的实战经验</h4>
+
+            <div class="metric-cards">
+                <div class="metric-card">
+                    <div class="metric-icon">📊</div>
+                    <div class="metric-name">特征工程很重要</div>
+                    <div class="metric-description">
+                        TF-IDF + 自定义特征<br>
+                        显著提升性能
+                    </div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-icon">🎲</div>
+                    <div class="metric-name">朴素贝叶斯表现优异</div>
+                    <div class="metric-description">
+                        文本分类的天然选择<br>
+                        速度快、效果好
+                    </div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-icon">🎭</div>
+                    <div class="metric-name">集成方法更稳定</div>
+                    <div class="metric-description">
+                        组合多个模型<br>
+                        降低误判率
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 9.7 总结与展望 -->
+    <div id="summary" class="section-card fade-in section-anchor">
+        <h2 class="section-title">🎓 9.7 总结与展望</h2>
+
+        <div class="story-box content-box">
+            <h3 style="color: #4facfe;">🌟 回顾我们的算法之旅</h3>
+            <p style="margin-bottom: 20px;">
+                就像瑞士军刀上的每个工具都有其独特价值，<br>
+                每个监督学习算法都是<span class="highlight-primary">解决特定问题的利器</span>。<br><br>
+
+                在这一章中，我们一起探索了：<br>
+                🎲 <strong>朴素贝叶斯</strong>：概率推理的智慧<br>
+                🌳 <strong>决策树</strong>：规则学习的艺术<br>
+                ⚡ <strong>支持向量机</strong>：间隔最大化的优雅<br>
+                🌲 <strong>集成学习</strong>：群体智慧的力量<br><br>
+
+                更重要的是，我们学会了<span class="highlight-secondary">如何选择合适的算法</span>，<br>
+                以及<span class="highlight-warning">如何将它们组合起来解决实际问题</span>。
+            </p>
+        </div>
+
+        <!-- 核心知识总结 -->
+        <div style="margin: 30px 0;">
+            <h3 style="color: #a78bfa; margin-bottom: 20px;">📚 核心知识点总结</h3>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+                <div style="background: rgba(79, 172, 254, 0.1); padding: 20px; border-radius: 15px; border: 2px solid rgba(79, 172, 254, 0.3);">
+                    <h4 style="color: #4facfe; margin-bottom: 15px;">🎲 朴素贝叶斯</h4>
+                    <ul style="list-style: none; padding: 0;">
+                        <li>✓ 基于贝叶斯定理</li>
+                        <li>✓ 假设特征独立</li>
+                        <li>✓ 适合文本分类</li>
+                        <li>✓ 小数据集表现好</li>
+                    </ul>
+                </div>
+
+                <div style="background: rgba(167, 139, 250, 0.1); padding: 20px; border-radius: 15px; border: 2px solid rgba(167, 139, 250, 0.3);">
+                    <h4 style="color: #a78bfa; margin-bottom: 15px;">🌳 决策树</h4>
+                    <ul style="list-style: none; padding: 0;">
+                        <li>✓ 树形结构决策</li>
+                        <li>✓ 可解释性强</li>
+                        <li>✓ 处理非线性关系</li>
+                        <li>✓ 容易过拟合</li>
+                    </ul>
+                </div>
+
+                <div style="background: rgba(244, 114, 182, 0.1); padding: 20px; border-radius: 15px; border: 2px solid rgba(244, 114, 182, 0.3);">
+                    <h4 style="color: #f472b6; margin-bottom: 15px;">⚡ SVM</h4>
+                    <ul style="list-style: none; padding: 0;">
+                        <li>✓ 最大化间隔</li>
+                        <li>✓ 核技巧处理非线性</li>
+                        <li>✓ 泛化能力强</li>
+                        <li>✓ 大数据集训练慢</li>
+                    </ul>
+                </div>
+
+                <div style="background: rgba(251, 191, 36, 0.1); padding: 20px; border-radius: 15px; border: 2px solid rgba(251, 191, 36, 0.3);">
+                    <h4 style="color: #fbbf24; margin-bottom: 15px;">🌲 集成学习</h4>
+                    <ul style="list-style: none; padding: 0;">
+                        <li>✓ 组合多个模型</li>
+                        <li>✓ Bagging降低方差</li>
+                        <li>✓ Boosting降低偏差</li>
+                        <li>✓ 性能通常最优</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- 算法选择决策树 -->
+        <div class="thinking-box content-box">
+            <h3>💡 算法选择的黄金法则</h3>
+
+            <div style="margin-top: 20px;">
+                <div style="margin-bottom: 15px; padding: 15px; background: rgba(79, 172, 254, 0.1); border-radius: 10px;">
+                    <p><strong>1. 🎯 没有免费的午餐</strong></p>
+                    <p style="margin-left: 20px; color: var(--text-muted);">没有算法在所有问题上都是最好的</p>
+                </div>
+
+                <div style="margin-bottom: 15px; padding: 15px; background: rgba(167, 139, 250, 0.1); border-radius: 10px;">
+                    <p><strong>2. 🔍 了解你的数据</strong></p>
+                    <p style="margin-left: 20px; color: var(--text-muted);">数据特征决定算法选择</p>
+                </div>
+
+                <div style="margin-bottom: 15px; padding: 15px; background: rgba(244, 114, 182, 0.1); border-radius: 10px;">
+                    <p><strong>3. 🧪 多尝试、多比较</strong></p>
+                    <p style="margin-left: 20px; color: var(--text-muted);">实践是检验算法的唯一标准</p>
+                </div>
+
+                <div style="margin-bottom: 15px; padding: 15px; background: rgba(52, 211, 153, 0.1); border-radius: 10px;">
+                    <p><strong>4. 🎭 考虑集成</strong></p>
+                    <p style="margin-left: 20px; color: var(--text-muted);">组合往往优于单一模型</p>
+                </div>
+
+                <div style="padding: 15px; background: rgba(251, 191, 36, 0.1); border-radius: 10px;">
+                    <p><strong>5. ⚖️ 平衡复杂度</strong></p>
+                    <p style="margin-left: 20px; color: var(--text-muted);">性能提升要值得额外的复杂度</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 未来展望 -->
+        <div style="background: linear-gradient(135deg, rgba(251, 191, 36, 0.1), rgba(245, 158, 11, 0.05)); padding: 25px; border-radius: 15px; margin-top: 30px; border: 2px solid rgba(251, 191, 36, 0.3);">
+            <h4 style="color: #fbbf24; margin-bottom: 20px;">🚀 算法的未来：新的可能性</h4>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-top: 20px;">
+                <div style="text-align: center; padding: 20px;">
+                    <div style="font-size: 3rem; margin-bottom: 10px;">🧠</div>
+                    <h5>深度学习集成</h5>
+                    <p style="font-size: 0.9rem; color: var(--text-muted);">
+                        传统算法+深度学习<br>
+                        取长补短，性能更优
+                    </p>
+                </div>
+                <div style="text-align: center; padding: 20px;">
+                    <div style="font-size: 3rem; margin-bottom: 10px;">🤖</div>
+                    <h5>自动机器学习</h5>
+                    <p style="font-size: 0.9rem; color: var(--text-muted);">
+                        AutoML自动选择算法<br>
+                        降低使用门槛
+                    </p>
+                </div>
+                <div style="text-align: center; padding: 20px;">
+                    <div style="font-size: 3rem; margin-bottom: 10px;">💡</div>
+                    <h5>可解释AI</h5>
+                    <p style="font-size: 0.9rem; color: var(--text-muted);">
+                        让复杂算法可解释<br>
+                        增强信任和应用
+                    </p>
+                </div>
+                <div style="text-align: center; padding: 20px;">
+                    <div style="font-size: 3rem; margin-bottom: 10px;">⚡</div>
+                    <h5>量子机器学习</h5>
+                    <p style="font-size: 0.9rem; color: var(--text-muted);">
+                        量子计算加速<br>
+                        突破计算瓶颈
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 结语 -->
+        <div style="margin-top: 40px; text-align: center; padding: 30px; background: linear-gradient(135deg, rgba(79, 172, 254, 0.1), rgba(167, 139, 250, 0.1)); border-radius: 20px;">
+            <h3 style="font-size: 2rem; margin-bottom: 20px; background: linear-gradient(135deg, var(--algo-blue), var(--algo-purple)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">
+                🛠️ 掌握算法，驾驭数据
+            </h3>
+            <p style="font-size: 1.2rem; color: var(--text-secondary); line-height: 1.8;">
+                监督学习算法就像一套精密的工具，<br>
+                每一个都有其独特的<strong>智慧和价值</strong>。<br><br>
+
+                掌握它们，不仅是掌握技术，<br>
+                更是掌握<strong>解决问题的思维方式</strong>。<br><br>
+
+                愿你在机器学习的道路上，<br>
+                <strong>选对工具，解决难题，创造价值</strong>！
+            </p>
+
+            <div style="margin-top: 30px;">
+                <button class="demo-btn" style="font-size: 1.1rem; padding: 15px 40px;">
+                    🚀 开启下一段学习之旅
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 浮动工具栏 -->
+<div class="floating-toolbar">
+    <button class="toolbar-btn" onclick="toggleTheme()" title="切换主题">
+        🌓
+    </button>
+    <button class="toolbar-btn" onclick="scrollToTop()" title="回到顶部">
+        ⬆️
+    </button>
+</div>
+
+<!-- JavaScript代码 -->
+<script>
+    // 导航系统
+    function toggleNav() {
+        document.body.classList.toggle('nav-open');
+    }
+
+    // 导航项激活状态
+    document.querySelectorAll('.nav-item a').forEach(link => {
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+            const targetId = this.getAttribute('href').substring(1);
+            const targetElement = document.getElementById(targetId);
+
+            // 更新激活状态
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            this.parentElement.classList.add('active');
+
+            // 平滑滚动
+            targetElement.scrollIntoView({ behavior: 'smooth' });
+
+            // 移动端自动关闭导航
+            if (window.innerWidth <= 768) {
+                document.body.classList.remove('nav-open');
+            }
+        });
+    });
+
+    // 进度追踪
+    function updateProgress() {
+        const sections = document.querySelectorAll('.section-anchor');
+        const scrollPosition = window.scrollY + 200;
+        let currentSection = 0;
+
+        sections.forEach((section, index) => {
+            if (scrollPosition >= section.offsetTop) {
+                currentSection = index;
+
+                // 更新导航激活状态
+                document.querySelectorAll('.nav-item').forEach(item => {
+                    item.classList.remove('active');
+                });
+                const navItem = document.querySelector(`[data-section="${section.id}"]`);
+                if (navItem) {
+                    navItem.classList.add('active');
+                }
+            }
+        });
+
+        // 更新进度条
+        const progress = ((currentSection + 1) / sections.length) * 100;
+        document.getElementById('progressFill').style.width = progress + '%';
+        document.getElementById('progressText').textContent = Math.round(progress) + '%';
+
+        // 更新已完成的章节
+        document.querySelectorAll('.nav-item').forEach((item, index) => {
+            if (index < currentSection) {
+                item.classList.add('completed');
+            }
+        });
+    }
+
+    window.addEventListener('scroll', updateProgress);
+
+    // 主题切换
+    function toggleTheme() {
+        document.body.classList.toggle('light-theme');
+        localStorage.setItem('theme', document.body.classList.contains('light-theme') ? 'light' : 'dark');
+    }
+
+    // 加载保存的主题
+    if (localStorage.getItem('theme') === 'light') {
+        document.body.classList.add('light-theme');
+    }
+
+    // 回到顶部
+    function scrollToTop() {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // 粒子背景系统
+    class ParticleSystem {
+        constructor(canvasId) {
+            this.canvas = document.getElementById(canvasId);
+            this.ctx = this.canvas.getContext('2d');
+            this.particles = [];
+            this.connections = [];
+            this.mouse = { x: 0, y: 0 };
+
+            this.init();
+            this.animate();
+
+            window.addEventListener('resize', () => this.init());
+            window.addEventListener('mousemove', (e) => {
+                this.mouse.x = e.clientX;
+                this.mouse.y = e.clientY;
+            });
+        }
+
+        init() {
+            this.canvas.width = window.innerWidth;
+            this.canvas.height = window.innerHeight;
+
+            // 创建粒子
+            this.particles = [];
+            const particleCount = Math.floor((this.canvas.width * this.canvas.height) / 15000);
+
+            for (let i = 0; i < particleCount; i++) {
+                this.particles.push({
+                    x: Math.random() * this.canvas.width,
+                    y: Math.random() * this.canvas.height,
+                    vx: (Math.random() - 0.5) * 0.5,
+                    vy: (Math.random() - 0.5) * 0.5,
+                    radius: Math.random() * 2 + 1,
+                    color: `hsla(${200 + Math.random() * 60}, 70%, 60%, 0.3)`
+                });
+            }
+        }
+
+        animate() {
+            this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+            // 更新和绘制粒子
+            this.particles.forEach((particle, i) => {
+                particle.x += particle.vx;
+                particle.y += particle.vy;
+
+                // 边界反弹
+                if (particle.x < 0 || particle.x > this.canvas.width) particle.vx *= -1;
+                if (particle.y < 0 || particle.y > this.canvas.height) particle.vy *= -1;
+
+                // 绘制粒子
+                this.ctx.beginPath();
+                this.ctx.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
+                this.ctx.fillStyle = particle.color;
+                this.ctx.fill();
+
+                // 连接临近粒子
+                for (let j = i + 1; j < this.particles.length; j++) {
+                    const dx = this.particles[j].x - particle.x;
+                    const dy = this.particles[j].y - particle.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+
+                    if (distance < 150) {
+                        this.ctx.beginPath();
+                        this.ctx.moveTo(particle.x, particle.y);
+                        this.ctx.lineTo(this.particles[j].x, this.particles[j].y);
+                        this.ctx.strokeStyle = `rgba(79, 172, 254, ${0.2 * (1 - distance / 150)})`;
+                        this.ctx.stroke();
+                    }
+                }
+
+                // 鼠标交互
+                const mouseDistance = Math.sqrt(
+                    Math.pow(this.mouse.x - particle.x, 2) +
+                    Math.pow(this.mouse.y - particle.y, 2)
+                );
+
+                if (mouseDistance < 100) {
+                    const force = (100 - mouseDistance) / 100;
+                    particle.vx += (this.mouse.x - particle.x) * force * 0.01;
+                    particle.vy += (this.mouse.y - particle.y) * force * 0.01;
+                }
+            });
+
+            requestAnimationFrame(() => this.animate());
+        }
+    }
+
+    // 朴素贝叶斯演示
+    let bayesData = {
+        spam: [],
+        ham: [],
+        wordFreq: {},
+        animationRunning: false
+    };
+
+    function updateBayesDemo() {
+        const samples = document.getElementById('bayesSamples').value;
+        document.getElementById('bayesSamplesValue').textContent = samples;
+    }
+
+    function trainBayes() {
+        // 模拟训练数据
+        const spamWords = ['free', 'win', 'click', 'buy', 'offer', 'prize', 'congratulations', 'limited'];
+        const hamWords = ['meeting', 'project', 'report', 'work', 'team', 'schedule', 'deadline', 'update'];
+
+        bayesData.wordFreq = {
+            spam: {},
+            ham: {}
+        };
+
+        // 统计词频（更真实的概率分布）
+        spamWords.forEach(word => {
+            bayesData.wordFreq.spam[word] = 0.6 + Math.random() * 0.3; // 0.6-0.9
+        });
+
+        hamWords.forEach(word => {
+            bayesData.wordFreq.ham[word] = 0.7 + Math.random() * 0.25; // 0.7-0.95
+        });
+
+        // 添加一些交叉词汇
+        ['click', 'update'].forEach(word => {
+            bayesData.wordFreq.ham[word] = 0.3 + Math.random() * 0.2; // 0.3-0.5
+        });
+
+        drawBayesVisualization();
+
+        // 显示提示信息而不是弹窗
+        document.getElementById('spamProb').textContent = '已训练';
+        document.getElementById('hamProb').textContent = '已训练';
+        document.getElementById('classResult').textContent = '就绪';
+    }
+
+    function testBayes() {
+        const testEmail = document.getElementById('testEmail').value || '免费赢取大奖';
+
+        // 贝叶斯概率计算
+        let spamScore = 0.5; // 先验概率
+        let hamScore = 0.5;
+
+        const words = testEmail.toLowerCase().split(/\s+/);
+
+        // 计算似然概率
+        words.forEach(word => {
+            if (bayesData.wordFreq.spam[word]) {
+                spamScore *= bayesData.wordFreq.spam[word];
+            } else {
+                spamScore *= 0.1; // 平滑处理
+            }
+
+            if (bayesData.wordFreq.ham[word]) {
+                hamScore *= bayesData.wordFreq.ham[word];
+            } else {
+                hamScore *= 0.1;
+            }
+        });
+
+        // 归一化
+        const totalScore = spamScore + hamScore;
+        const spamProb = spamScore / totalScore;
+        const hamProb = hamScore / totalScore;
+
+        document.getElementById('spamProb').textContent = (spamProb * 100).toFixed(1) + '%';
+        document.getElementById('hamProb').textContent = (hamProb * 100).toFixed(1) + '%';
+        document.getElementById('classResult').textContent = spamProb > 0.5 ? '垃圾邮件' : '正常邮件';
+
+        // 高亮显示检测到的词
+        highlightDetectedWords(words);
+    }
+
+    function showWordProbs() {
+        // 显示词频统计详情
+        const canvas = document.getElementById('bayesCanvas');
+        const ctx = canvas.getContext('2d');
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // 绘制标题
+        ctx.fillStyle = '#e8eaed';
+        ctx.font = 'bold 18px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('词汇条件概率分布', canvas.width / 2, 30);
+
+        // 绘制图例
+        ctx.font = '14px Arial';
+        ctx.fillStyle = '#f472b6';
+        ctx.fillRect(canvas.width - 150, 10, 15, 15);
+        ctx.fillText('垃圾邮件', canvas.width - 130, 23);
+
+        ctx.fillStyle = '#4facfe';
+        ctx.fillRect(canvas.width - 150, 30, 15, 15);
+        ctx.fillText('正常邮件', canvas.width - 130, 43);
+
+        // 合并所有词汇
+        const allWords = new Set([
+            ...Object.keys(bayesData.wordFreq.spam),
+            ...Object.keys(bayesData.wordFreq.ham)
+        ]);
+
+        const words = Array.from(allWords);
+        const barWidth = (canvas.width - 100) / (words.length * 2.5);
+        const maxHeight = 250;
+
+        // 绘制词频条形图
+        words.forEach((word, i) => {
+            const x = 50 + i * barWidth * 2.5;
+            const spamProb = bayesData.wordFreq.spam[word] || 0.1;
+            const hamProb = bayesData.wordFreq.ham[word] || 0.1;
+
+            // 垃圾邮件概率
+            const spamHeight = spamProb * maxHeight;
+            ctx.fillStyle = '#f472b6';
+            ctx.fillRect(x, canvas.height - spamHeight - 60, barWidth, spamHeight);
+
+            // 正常邮件概率
+            const hamHeight = hamProb * maxHeight;
+            ctx.fillStyle = '#4facfe';
+            ctx.fillRect(x + barWidth + 3, canvas.height - hamHeight - 60, barWidth, hamHeight);
+
+            // 词汇标签
+            ctx.save();
+            ctx.translate(x + barWidth, canvas.height - 50);
+            ctx.rotate(-Math.PI / 4);
+            ctx.fillStyle = '#e8eaed';
+            ctx.font = '12px Arial';
+            ctx.textAlign = 'right';
+            ctx.fillText(word, 0, 0);
+            ctx.restore();
+
+            // 概率值
+            ctx.fillStyle = '#8b98a8';
+            ctx.font = '10px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(spamProb.toFixed(2), x + barWidth/2, canvas.height - spamHeight - 65);
+            ctx.fillText(hamProb.toFixed(2), x + barWidth * 1.5 + 3, canvas.height - hamHeight - 65);
+        });
+    }
+
+    function animateBayes() {
+        if (bayesData.animationRunning) return;
+        bayesData.animationRunning = true;
+
+        const testEmail = document.getElementById('testEmail').value || '免费赢取大奖';
+        const words = testEmail.toLowerCase().split(/\s+/);
+        const canvas = document.getElementById('bayesCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let currentWordIndex = 0;
+        let spamScore = 0.5;
+        let hamScore = 0.5;
+
+        function animateStep() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 标题
+            ctx.fillStyle = '#e8eaed';
+            ctx.font = 'bold 18px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('贝叶斯推理过程动画', canvas.width / 2, 30);
+
+            // 当前处理的词
+            if (currentWordIndex < words.length) {
+                const word = words[currentWordIndex];
+                ctx.font = 'bold 24px Arial';
+                ctx.fillStyle = '#fbbf24';
+                ctx.fillText(`当前词: "${word}"`, canvas.width / 2, 80);
+
+                // 更新概率
+                const spamWordProb = bayesData.wordFreq.spam[word] || 0.1;
+                const hamWordProb = bayesData.wordFreq.ham[word] || 0.1;
+
+                spamScore *= spamWordProb;
+                hamScore *= hamWordProb;
+
+                // 归一化
+                const total = spamScore + hamScore;
+                const spamProb = spamScore / total;
+                const hamProb = hamScore / total;
+
+                // 绘制概率条
+                const barY = 150;
+                const barHeight = 40;
+                const barWidth = 300;
+
+                // 背景
+                ctx.fillStyle = '#2a2a2a';
+                ctx.fillRect((canvas.width - barWidth) / 2, barY, barWidth, barHeight);
+
+                // 垃圾邮件概率
+                ctx.fillStyle = '#f472b6';
+                ctx.fillRect((canvas.width - barWidth) / 2, barY, barWidth * spamProb, barHeight);
+
+                // 概率文字
+                ctx.fillStyle = '#ffffff';
+                ctx.font = '16px Arial';
+                ctx.textAlign = 'left';
+                ctx.fillText(`垃圾邮件: ${(spamProb * 100).toFixed(1)}%`,
+                    (canvas.width - barWidth) / 2 + 10, barY + 25);
+                ctx.textAlign = 'right';
+                ctx.fillText(`正常邮件: ${(hamProb * 100).toFixed(1)}%`,
+                    (canvas.width + barWidth) / 2 - 10, barY + 25);
+
+                // 显示已处理的词
+                ctx.fillStyle = '#8b98a8';
+                ctx.font = '14px Arial';
+                ctx.textAlign = 'center';
+                const processedWords = words.slice(0, currentWordIndex + 1).join(' → ');
+                ctx.fillText('已处理: ' + processedWords, canvas.width / 2, 250);
+
+                currentWordIndex++;
+
+                if (currentWordIndex < words.length) {
+                    setTimeout(animateStep, 1000);
+                } else {
+                    // 动画结束
+                    ctx.fillStyle = '#34d399';
+                    ctx.font = 'bold 20px Arial';
+                    ctx.fillText(`最终结果: ${spamProb > 0.5 ? '垃圾邮件' : '正常邮件'}`,
+                        canvas.width / 2, 300);
+                    bayesData.animationRunning = false;
+
+                    // 更新界面结果
+                    document.getElementById('spamProb').textContent = (spamProb * 100).toFixed(1) + '%';
+                    document.getElementById('hamProb').textContent = (hamProb * 100).toFixed(1) + '%';
+                    document.getElementById('classResult').textContent = spamProb > 0.5 ? '垃圾邮件' : '正常邮件';
+                }
+            }
+        }
+
+        animateStep();
+    }
+
+    function highlightDetectedWords(words) {
+        const canvas = document.getElementById('bayesCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // 在现有图表上添加高亮
+        ctx.fillStyle = 'rgba(251, 191, 36, 0.3)';
+        ctx.strokeStyle = '#fbbf24';
+        ctx.lineWidth = 2;
+
+        const allWords = Array.from(new Set([
+            ...Object.keys(bayesData.wordFreq.spam),
+            ...Object.keys(bayesData.wordFreq.ham)
+        ]));
+
+        const barWidth = (canvas.width - 100) / (allWords.length * 2.5);
+
+        words.forEach(word => {
+            const index = allWords.indexOf(word);
+            if (index !== -1) {
+                const x = 50 + index * barWidth * 2.5;
+                ctx.fillRect(x - 5, 50, barWidth * 2 + 10, canvas.height - 110);
+                ctx.strokeRect(x - 5, 50, barWidth * 2 + 10, canvas.height - 110);
+            }
+        });
+    }
+
+    function drawBayesVisualization() {
+        const canvas = document.getElementById('bayesCanvas');
+        const ctx = canvas.getContext('2d');
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // 绘制标题
+        ctx.fillStyle = '#e8eaed';
+        ctx.font = 'bold 16px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('词汇概率分布', canvas.width / 2, 30);
+
+        // 合并所有词汇
+        const allWords = new Set([
+            ...Object.keys(bayesData.wordFreq.spam),
+            ...Object.keys(bayesData.wordFreq.ham)
+        ]);
+
+        const words = Array.from(allWords);
+        const barWidth = (canvas.width - 100) / (words.length * 2.5);
+        const maxHeight = 200;
+
+        // 绘制词频条形图
+        words.forEach((word, i) => {
+            const x = 50 + i * barWidth * 2.5;
+            const spamProb = bayesData.wordFreq.spam[word] || 0.1;
+            const hamProb = bayesData.wordFreq.ham[word] || 0.1;
+
+            // 垃圾邮件词频（红色）
+            const spamHeight = spamProb * maxHeight;
+            ctx.fillStyle = '#f472b6';
+            ctx.fillRect(x, canvas.height - spamHeight - 60, barWidth, spamHeight);
+
+            // 正常邮件词频（蓝色）
+            const hamHeight = hamProb * maxHeight;
+            ctx.fillStyle = '#4facfe';
+            ctx.fillRect(x + barWidth + 3, canvas.height - hamHeight - 60, barWidth, hamHeight);
+
+            // 词汇标签
+            ctx.save();
+            ctx.translate(x + barWidth, canvas.height - 45);
+            ctx.rotate(-Math.PI / 6);
+            ctx.fillStyle = '#e8eaed';
+            ctx.font = '11px Arial';
+            ctx.textAlign = 'right';
+            ctx.fillText(word, 0, 0);
+            ctx.restore();
+        });
+
+        // 绘制图例
+        ctx.font = '12px Arial';
+        ctx.fillStyle = '#f472b6';
+        ctx.fillRect(canvas.width - 120, 10, 12, 12);
+        ctx.fillText('垃圾邮件', canvas.width - 100, 21);
+
+        ctx.fillStyle = '#4facfe';
+        ctx.fillRect(canvas.width - 120, 28, 12, 12);
+        ctx.fillText('正常邮件', canvas.width - 100, 39);
+    }
+
+    // 决策树演示
+    let treeData = {
+        nodes: [],
+        edges: []
+    };
+
+    function updateTreeDepth() {
+        const depth = document.getElementById('maxDepth').value;
+        document.getElementById('maxDepthValue').textContent = depth;
+    }
+
+    function updateCriterion() {
+        // 更新分裂准则
+    }
+
+    function generateTreeData() {
+        // 生成决策树数据
+        alert('生成决策树数据 - 待实现');
+    }
+
+    function growTree() {
+        // 生长决策树
+        const canvas = document.getElementById('treeCanvas');
+        const ctx = canvas.getContext('2d');
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // 简单的树形结构绘制
+        drawTreeNode(ctx, canvas.width / 2, 50, '根节点', true);
+        drawTreeNode(ctx, canvas.width / 3, 150, '左子节点', false);
+        drawTreeNode(ctx, 2 * canvas.width / 3, 150, '右子节点', false);
+
+        // 连线
+        ctx.strokeStyle = '#4facfe';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(canvas.width / 2, 80);
+        ctx.lineTo(canvas.width / 3, 120);
+        ctx.moveTo(canvas.width / 2, 80);
+        ctx.lineTo(2 * canvas.width / 3, 120);
+        ctx.stroke();
+
+        alert('决策树已生成！');
+    }
+
+    function drawTreeNode(ctx, x, y, node) {
+        // 如果node是字符串（旧的调用方式），转换为对象
+        if (typeof node === 'string') {
+            node = {
+                type: 'internal',
+                samples: 100,
+                label: node
+            };
+        }
+
+        const width = 120;
+        const height = 40;
+
+        // 节点背景
+        if (node.type === 'leaf') {
+            ctx.fillStyle = node.label === 1 ? '#4facfe' : '#f472b6';
+        } else {
+            ctx.fillStyle = '#a78bfa';
+        }
+
+        ctx.fillRect(x - width/2, y - height/2, width, height);
+
+        // 节点边框
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x - width/2, y - height/2, width, height);
+
+        // 节点文字
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '12px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        if (node.type === 'leaf') {
+            ctx.fillText(`类别: ${node.label}`, x, y - 5);
+            ctx.fillText(`样本: ${node.samples}`, x, y + 10);
+        } else if (node.feature) {
+            const featureName = node.feature === 'x' ? 'X轴' : 'Y轴';
+            ctx.fillText(`${featureName} <= ${node.threshold.toFixed(0)}`, x, y - 5);
+            ctx.fillText(`样本: ${node.samples}`, x, y + 10);
+        } else {
+            // 兼容旧的调用方式
+            ctx.fillText(node.label || '节点', x, y);
+        }
+    }
+
+    function pruneTree() {
+        // 决策树剪枝 - 待实现
+        console.log('决策树剪枝功能待实现');
+    }
+
+    function animateDecision() {
+        // 决策过程动画 - 待实现
+        console.log('决策过程动画待实现');
+    }
+
+    // SVM演示
+    let svmData = {
+        points: [],
+        supportVectors: [],
+        hyperplane: { a: 0, b: 0, c: 0 },
+        animationRunning: false
+    };
+
+    function updateSVM() {
+        // 更新SVM参数时重新训练
+        if (svmData.points.length > 0) {
+            trainSVM();
+        }
+    }
+
+    function updateSVMC() {
+        const c = document.getElementById('svmC').value;
+        document.getElementById('svmCValue').textContent = c;
+
+        if (svmData.points.length > 0) {
+            trainSVM();
+        }
+    }
+
+    function generateSVMData() {
+        const canvas = document.getElementById('svmCanvas');
+        svmData.points = [];
+
+        // 生成线性可分的两类数据
+        const margin = 50;
+        const noise = 30;
+
+        // 第一类（左上）
+        for (let i = 0; i < 20; i++) {
+            svmData.points.push({
+                x: margin + Math.random() * (canvas.width/2 - margin - noise),
+                y: margin + Math.random() * (canvas.height/2 - margin - noise),
+                class: 1
+            });
+        }
+
+        // 第二类（右下）
+        for (let i = 0; i < 20; i++) {
+            svmData.points.push({
+                x: canvas.width/2 + noise + Math.random() * (canvas.width/2 - margin - noise),
+                y: canvas.height/2 + noise + Math.random() * (canvas.height/2 - margin - noise),
+                class: -1
+            });
+        }
+
+        // 添加一些接近边界的点
+        for (let i = 0; i < 5; i++) {
+            const t = Math.random();
+            svmData.points.push({
+                x: canvas.width * t,
+                y: canvas.height * (1 - t) + (Math.random() - 0.5) * 50,
+                class: Math.random() > 0.5 ? 1 : -1
+            });
+        }
+
+        drawSVM();
+    }
+
+    function trainSVM() {
+        if (svmData.points.length === 0) return;
+
+        // 简化的SVM训练（找到最佳分割线）
+        const canvas = document.getElementById('svmCanvas');
+
+        // 分离两类数据
+        const class1 = svmData.points.filter(p => p.class === 1);
+        const class2 = svmData.points.filter(p => p.class === -1);
+
+        // 计算两类的中心
+        const center1 = {
+            x: class1.reduce((sum, p) => sum + p.x, 0) / class1.length,
+            y: class1.reduce((sum, p) => sum + p.y, 0) / class1.length
+        };
+
+        const center2 = {
+            x: class2.reduce((sum, p) => sum + p.x, 0) / class2.length,
+            y: class2.reduce((sum, p) => sum + p.y, 0) / class2.length
+        };
+
+        // 计算分割线的法向量（连接两个中心的向量）
+        const dx = center2.x - center1.x;
+        const dy = center2.y - center1.y;
+        const norm = Math.sqrt(dx * dx + dy * dy);
+
+        // 归一化法向量
+        const nx = dx / norm;
+        const ny = dy / norm;
+
+        // 分割线通过两个中心的中点
+        const midX = (center1.x + center2.x) / 2;
+        const midY = (center1.y + center2.y) / 2;
+
+        // 超平面方程: ax + by + c = 0
+        svmData.hyperplane = {
+            a: nx,
+            b: ny,
+            c: -(nx * midX + ny * midY)
+        };
+
+        // 找到支持向量（距离超平面最近的点）
+        svmData.supportVectors = [];
+
+        const distances = svmData.points.map((point, idx) => {
+            const dist = Math.abs(point.x * nx + point.y * ny + svmData.hyperplane.c);
+            return { idx, dist, class: point.class };
+        });
+
+        // 每类选择最近的几个点作为支持向量
+        const class1Distances = distances.filter(d => svmData.points[d.idx].class === 1)
+            .sort((a, b) => a.dist - b.dist);
+        const class2Distances = distances.filter(d => svmData.points[d.idx].class === -1)
+            .sort((a, b) => a.dist - b.dist);
+
+        // 选择最近的3个点作为支持向量
+        class1Distances.slice(0, 3).forEach(d => svmData.supportVectors.push(d.idx));
+        class2Distances.slice(0, 3).forEach(d => svmData.supportVectors.push(d.idx));
+
+        drawSVM();
+
+        // 在画布上显示完成信息
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#34d399';
+        ctx.font = '16px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('SVM训练完成！', canvas.width / 2, 30);
+    }
+
+    function showSupportVectors() {
+        drawSVM(true);
+    }
+
+    function animateMargin() {
+        if (svmData.animationRunning || svmData.points.length === 0) return;
+
+        svmData.animationRunning = true;
+        const canvas = document.getElementById('svmCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let marginWidth = 0;
+        const maxMargin = 100;
+        const animationSpeed = 2;
+
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 绘制数据点
+            svmData.points.forEach((point, idx) => {
+                ctx.beginPath();
+                ctx.arc(point.x, point.y, 8, 0, Math.PI * 2);
+
+                if (svmData.supportVectors.includes(idx)) {
+                    ctx.strokeStyle = '#fbbf24';
+                    ctx.lineWidth = 3;
+                    ctx.stroke();
+                }
+
+                ctx.fillStyle = point.class === 1 ? '#4facfe' : '#f472b6';
+                ctx.fill();
+            });
+
+            // 绘制超平面和间隔
+            const { a, b, c } = svmData.hyperplane;
+
+            // 主分割线
+            ctx.strokeStyle = '#00f2fe';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+
+            if (Math.abs(b) > 0.01) {
+                const x1 = 0;
+                const y1 = -(a * x1 + c) / b;
+                const x2 = canvas.width;
+                const y2 = -(a * x2 + c) / b;
+                ctx.moveTo(x1, y1);
+                ctx.lineTo(x2, y2);
+            } else {
+                const x = -c / a;
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, canvas.height);
+            }
+            ctx.stroke();
+
+            // 动画间隔线
+            ctx.strokeStyle = `rgba(251, 191, 36, ${1 - marginWidth / maxMargin})`;
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 5]);
+
+            // 上间隔线
+            ctx.beginPath();
+            if (Math.abs(b) > 0.01) {
+                const x1 = 0;
+                const y1 = -(a * x1 + c - marginWidth) / b;
+                const x2 = canvas.width;
+                const y2 = -(a * x2 + c - marginWidth) / b;
+                ctx.moveTo(x1, y1);
+                ctx.lineTo(x2, y2);
+            }
+            ctx.stroke();
+
+            // 下间隔线
+            ctx.beginPath();
+            if (Math.abs(b) > 0.01) {
+                const x1 = 0;
+                const y1 = -(a * x1 + c + marginWidth) / b;
+                const x2 = canvas.width;
+                const y2 = -(a * x2 + c + marginWidth) / b;
+                ctx.moveTo(x1, y1);
+                ctx.lineTo(x2, y2);
+            }
+            ctx.stroke();
+
+            ctx.setLineDash([]);
+
+            // 显示间隔宽度
+            ctx.fillStyle = '#fbbf24';
+            ctx.font = 'bold 16px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(`间隔宽度: ${(marginWidth * 2).toFixed(0)}`, canvas.width / 2, canvas.height - 20);
+
+            marginWidth += animationSpeed;
+
+            if (marginWidth < maxMargin) {
+                requestAnimationFrame(animate);
+            } else {
+                // 动画结束，恢复正常显示
+                setTimeout(() => {
+                    drawSVM(true);
+                    svmData.animationRunning = false;
+                }, 500);
+            }
+        }
+
+        animate();
+    }
+
+    function drawSVM(showSupport = false) {
+        const canvas = document.getElementById('svmCanvas');
+        const ctx = canvas.getContext('2d');
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        if (svmData.hyperplane.a !== 0 || svmData.hyperplane.b !== 0) {
+            const { a, b, c } = svmData.hyperplane;
+
+            // 绘制分割线
+            ctx.strokeStyle = '#00f2fe';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+
+            if (Math.abs(b) > 0.01) {
+                // 计算与画布边界的交点
+                const x1 = 0;
+                const y1 = -(a * x1 + c) / b;
+                const x2 = canvas.width;
+                const y2 = -(a * x2 + c) / b;
+                ctx.moveTo(x1, y1);
+                ctx.lineTo(x2, y2);
+            } else {
+                // 垂直线
+                const x = -c / a;
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, canvas.height);
+            }
+            ctx.stroke();
+
+            // 绘制间隔线
+            if (showSupport && svmData.supportVectors.length > 0) {
+                // 计算间隔宽度
+                let minDist = Infinity;
+                svmData.supportVectors.forEach(idx => {
+                    const point = svmData.points[idx];
+                    const dist = Math.abs(a * point.x + b * point.y + c) / Math.sqrt(a * a + b * b);
+                    minDist = Math.min(minDist, dist);
+                });
+
+                ctx.strokeStyle = '#fbbf24';
+                ctx.lineWidth = 1;
+                ctx.setLineDash([5, 5]);
+
+                // 上间隔
+                ctx.beginPath();
+                if (Math.abs(b) > 0.01) {
+                    const margin = minDist * Math.sqrt(a * a + b * b);
+                    const x1 = 0;
+                    const y1 = -(a * x1 + c - margin) / b;
+                    const x2 = canvas.width;
+                    const y2 = -(a * x2 + c - margin) / b;
+                    ctx.moveTo(x1, y1);
+                    ctx.lineTo(x2, y2);
+                }
+                ctx.stroke();
+
+                // 下间隔
+                ctx.beginPath();
+                if (Math.abs(b) > 0.01) {
+                    const margin = minDist * Math.sqrt(a * a + b * b);
+                    const x1 = 0;
+                    const y1 = -(a * x1 + c + margin) / b;
+                    const x2 = canvas.width;
+                    const y2 = -(a * x2 + c + margin) / b;
+                    ctx.moveTo(x1, y1);
+                    ctx.lineTo(x2, y2);
+                }
+                ctx.stroke();
+
+                ctx.setLineDash([]);
+            }
+        }
+
+        // 绘制数据点
+        svmData.points.forEach((point, idx) => {
+            ctx.beginPath();
+            ctx.arc(point.x, point.y, 8, 0, Math.PI * 2);
+
+            if (showSupport && svmData.supportVectors.includes(idx)) {
+                ctx.strokeStyle = '#fbbf24';
+                ctx.lineWidth = 3;
+                ctx.stroke();
+            }
+
+            ctx.fillStyle = point.class === 1 ? '#4facfe' : '#f472b6';
+            ctx.fill();
+        });
+    }
+
+    // 集成学习演示
+    let ensembleData = {
+        data: [],
+        trees: [],
+        predictions: [],
+        singleTreePred: [],
+        forestPred: []
+    };
+
+    function updateEnsemble() {
+        const nTrees = document.getElementById('nTrees').value;
+        document.getElementById('nTreesValue').textContent = nTrees;
+
+        if (ensembleData.data.length > 0) {
+            trainRandomForest();
+        }
+    }
+
+    function updateSampleRate() {
+        const rate = document.getElementById('sampleRate').value;
+        document.getElementById('sampleRateValue').textContent = rate;
+    }
+
+    function generateEnsembleData() {
+        const canvas = document.getElementById('ensembleCanvas');
+        const ctx = canvas.getContext('2d');
+
+        ensembleData.data = [];
+
+        // 生成非线性可分的数据（月牙形）
+        const numSamples = 200;
+
+        // 第一个月牙
+        for (let i = 0; i < numSamples / 2; i++) {
+            const angle = Math.random() * Math.PI;
+            const r = 150 + (Math.random() - 0.5) * 50;
+            ensembleData.data.push({
+                x: 200 + r * Math.cos(angle),
+                y: 250 + r * Math.sin(angle),
+                label: 0
+            });
+        }
+
+        // 第二个月牙
+        for (let i = 0; i < numSamples / 2; i++) {
+            const angle = Math.random() * Math.PI + Math.PI;
+            const r = 150 + (Math.random() - 0.5) * 50;
+            ensembleData.data.push({
+                x: 400 + r * Math.cos(angle),
+                y: 150 + r * Math.sin(angle),
+                label: 1
+            });
+        }
+
+        // 添加一些噪声点
+        for (let i = 0; i < 20; i++) {
+            ensembleData.data.push({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                label: Math.random() > 0.5 ? 1 : 0
+            });
+        }
+
+        // 绘制数据
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ensembleData.data.forEach(point => {
+            ctx.beginPath();
+            ctx.arc(point.x, point.y, 4, 0, Math.PI * 2);
+            ctx.fillStyle = point.label === 0 ? '#4facfe' : '#f472b6';
+            ctx.fill();
+        });
+
+        ctx.fillStyle = '#34d399';
+        ctx.font = '16px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('数据生成完成！这是一个非线性可分的数据集', canvas.width / 2, 30);
+    }
+
+    function trainSingleTree() {
+        if (ensembleData.data.length === 0) {
+            generateEnsembleData();
+            return;
+        }
+
+        const canvas = document.getElementById('ensembleCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // 模拟单棵决策树的预测（简单的线性分割）
+        ensembleData.singleTreePred = [];
+
+        // 简单的决策边界：斜线
+        const slope = -0.8;
+        const intercept = 350;
+
+        ensembleData.data.forEach(point => {
+            const prediction = point.y < slope * point.x + intercept ? 0 : 1;
+            ensembleData.singleTreePred.push(prediction);
+        });
+
+        // 计算准确率
+        let correct = 0;
+        ensembleData.data.forEach((point, idx) => {
+            if (point.label === ensembleData.singleTreePred[idx]) correct++;
+        });
+        const accuracy = (correct / ensembleData.data.length * 100).toFixed(1);
+
+        document.getElementById('singleAccuracy').textContent = accuracy + '%';
+
+        // 绘制决策边界
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // 绘制决策区域
+        for (let x = 0; x < canvas.width; x += 10) {
+            for (let y = 0; y < canvas.height; y += 10) {
+                const pred = y < slope * x + intercept ? 0 : 1;
+                ctx.fillStyle = pred === 0 ? 'rgba(79, 172, 254, 0.1)' : 'rgba(244, 114, 182, 0.1)';
+                ctx.fillRect(x, y, 10, 10);
+            }
+        }
+
+        // 重新绘制数据点
+        ensembleData.data.forEach(point => {
+            ctx.beginPath();
+            ctx.arc(point.x, point.y, 4, 0, Math.PI * 2);
+            ctx.fillStyle = point.label === 0 ? '#4facfe' : '#f472b6';
+            ctx.fill();
+        });
+
+        // 绘制决策边界线
+        ctx.strokeStyle = '#fbbf24';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(0, intercept);
+        ctx.lineTo(canvas.width, slope * canvas.width + intercept);
+        ctx.stroke();
+
+        ctx.fillStyle = '#34d399';
+        ctx.font = '16px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('单棵决策树训练完成！注意线性边界的局限性', canvas.width / 2, canvas.height - 20);
+    }
+
+    function trainRandomForest() {
+        if (ensembleData.data.length === 0) {
+            generateEnsembleData();
+            return;
+        }
+
+        const canvas = document.getElementById('ensembleCanvas');
+        const ctx = canvas.getContext('2d');
+        const nTrees = parseInt(document.getElementById('nTrees').value);
+        const sampleRate = parseFloat(document.getElementById('sampleRate').value);
+
+        // 训练多棵树
+        ensembleData.trees = [];
+
+        for (let t = 0; t < nTrees; t++) {
+            // Bootstrap采样
+            const sampledData = [];
+            const sampleSize = Math.floor(ensembleData.data.length * sampleRate);
+
+            for (let i = 0; i < sampleSize; i++) {
+                const idx = Math.floor(Math.random() * ensembleData.data.length);
+                sampledData.push(ensembleData.data[idx]);
+            }
+
+            // 每棵树使用不同的随机决策边界
+            const tree = {
+                type: Math.random() > 0.5 ? 'linear' : 'circular',
+                params: {}
+            };
+
+            if (tree.type === 'linear') {
+                // 随机线性边界
+                tree.params.slope = (Math.random() - 0.5) * 2;
+                tree.params.intercept = Math.random() * canvas.height;
+            } else {
+                // 随机圆形边界
+                tree.params.centerX = Math.random() * canvas.width;
+                tree.params.centerY = Math.random() * canvas.height;
+                tree.params.radius = 50 + Math.random() * 150;
+            }
+
+            ensembleData.trees.push(tree);
+        }
+
+        // 集成预测（投票）
+        ensembleData.forestPred = [];
+
+        ensembleData.data.forEach((point, idx) => {
+            const votes = { 0: 0, 1: 0 };
+
+            ensembleData.trees.forEach(tree => {
+                let prediction;
+                if (tree.type === 'linear') {
+                    prediction = point.y < tree.params.slope * point.x + tree.params.intercept ? 0 : 1;
+                } else {
+                    const dist = Math.sqrt(
+                        Math.pow(point.x - tree.params.centerX, 2) +
+                        Math.pow(point.y - tree.params.centerY, 2)
+                    );
+                    prediction = dist < tree.params.radius ? 0 : 1;
+                }
+                votes[prediction]++;
+            });
+
+            ensembleData.forestPred.push(votes[0] > votes[1] ? 0 : 1);
+        });
+
+        // 计算准确率
+        let correct = 0;
+        ensembleData.data.forEach((point, idx) => {
+            if (point.label === ensembleData.forestPred[idx]) correct++;
+        });
+        const accuracy = (correct / ensembleData.data.length * 100).toFixed(1);
+
+        document.getElementById('forestAccuracy').textContent = accuracy + '%';
+
+        // 计算提升
+        const singleAcc = parseFloat(document.getElementById('singleAccuracy').textContent) || 0;
+        const improvement = accuracy - singleAcc;
+        document.getElementById('improvement').textContent = improvement > 0 ? `+${improvement.toFixed(1)}%` : `${improvement.toFixed(1)}%`;
+
+        // 绘制集成决策边界
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // 绘制决策区域（使用集成投票）
+        for (let x = 0; x < canvas.width; x += 5) {
+            for (let y = 0; y < canvas.height; y += 5) {
+                const votes = { 0: 0, 1: 0 };
+
+                ensembleData.trees.forEach(tree => {
+                    let prediction;
+                    if (tree.type === 'linear') {
+                        prediction = y < tree.params.slope * x + tree.params.intercept ? 0 : 1;
+                    } else {
+                        const dist = Math.sqrt(
+                            Math.pow(x - tree.params.centerX, 2) +
+                            Math.pow(y - tree.params.centerY, 2)
+                        );
+                        prediction = dist < tree.params.radius ? 0 : 1;
+                    }
+                    votes[prediction]++;
+                });
+
+                const finalPred = votes[0] > votes[1] ? 0 : 1;
+                const confidence = Math.max(votes[0], votes[1]) / nTrees;
+                const alpha = 0.1 + 0.2 * confidence;
+
+                ctx.fillStyle = finalPred === 0 ?
+                    `rgba(79, 172, 254, ${alpha})` :
+                    `rgba(244, 114, 182, ${alpha})`;
+                ctx.fillRect(x, y, 5, 5);
+            }
+        }
+
+        // 重新绘制数据点
+        ensembleData.data.forEach(point => {
+            ctx.beginPath();
+            ctx.arc(point.x, point.y, 4, 0, Math.PI * 2);
+            ctx.fillStyle = point.label === 0 ? '#4facfe' : '#f472b6';
+            ctx.fill();
+
+            // 标记错误分类的点
+            const idx = ensembleData.data.indexOf(point);
+            if (point.label !== ensembleData.forestPred[idx]) {
+                ctx.strokeStyle = '#ef4444';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            }
+        });
+
+        ctx.fillStyle = '#34d399';
+        ctx.font = '16px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(`随机森林训练完成！${nTrees}棵树的集成效果`, canvas.width / 2, canvas.height - 20);
+    }
+
+    function compareResults() {
+        if (ensembleData.singleTreePred.length === 0 || ensembleData.forestPred.length === 0) {
+            console.log('请先训练单树和随机森林');
+            return;
+        }
+
+        const canvas = document.getElementById('ensembleCanvas');
+        const ctx = canvas.getContext('2d');
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // 左半部分显示单树结果
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(0, 0, canvas.width / 2, canvas.height);
+        ctx.clip();
+
+        // 绘制单树决策边界
+        const slope = -0.8;
+        const intercept = 350;
+
+        for (let x = 0; x < canvas.width / 2; x += 10) {
+            for (let y = 0; y < canvas.height; y += 10) {
+                const pred = y < slope * x + intercept ? 0 : 1;
+                ctx.fillStyle = pred === 0 ? 'rgba(79, 172, 254, 0.2)' : 'rgba(244, 114, 182, 0.2)';
+                ctx.fillRect(x, y, 10, 10);
+            }
+        }
+
+        // 绘制数据点（左半部分）
+        ensembleData.data.forEach((point, idx) => {
+            if (point.x < canvas.width / 2) {
+                ctx.beginPath();
+                ctx.arc(point.x, point.y, 4, 0, Math.PI * 2);
+                ctx.fillStyle = point.label === 0 ? '#4facfe' : '#f472b6';
+                ctx.fill();
+
+                if (point.label !== ensembleData.singleTreePred[idx]) {
+                    ctx.strokeStyle = '#ef4444';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                }
+            }
+        });
+
+        ctx.restore();
+
+        // 右半部分显示随机森林结果
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(canvas.width / 2, 0, canvas.width / 2, canvas.height);
+        ctx.clip();
+
+        // 绘制集成决策边界
+        const nTrees = ensembleData.trees.length;
+        for (let x = canvas.width / 2; x < canvas.width; x += 5) {
+            for (let y = 0; y < canvas.height; y += 5) {
+                const votes = { 0: 0, 1: 0 };
+
+                ensembleData.trees.forEach(tree => {
+                    let prediction;
+                    if (tree.type === 'linear') {
+                        prediction = y < tree.params.slope * x + tree.params.intercept ? 0 : 1;
+                    } else {
+                        const dist = Math.sqrt(
+                            Math.pow(x - tree.params.centerX, 2) +
+                            Math.pow(y - tree.params.centerY, 2)
+                        );
+                        prediction = dist < tree.params.radius ? 0 : 1;
+                    }
+                    votes[prediction]++;
+                });
+
+                const finalPred = votes[0] > votes[1] ? 0 : 1;
+                ctx.fillStyle = finalPred === 0 ? 'rgba(79, 172, 254, 0.3)' : 'rgba(244, 114, 182, 0.3)';
+                ctx.fillRect(x, y, 5, 5);
+            }
+        }
+
+        // 绘制数据点（右半部分）
+        ensembleData.data.forEach((point, idx) => {
+            if (point.x >= canvas.width / 2) {
+                ctx.beginPath();
+                ctx.arc(point.x, point.y, 4, 0, Math.PI * 2);
+                ctx.fillStyle = point.label === 0 ? '#4facfe' : '#f472b6';
+                ctx.fill();
+
+                if (point.label !== ensembleData.forestPred[idx]) {
+                    ctx.strokeStyle = '#ef4444';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                }
+            }
+        });
+
+        ctx.restore();
+
+        // 绘制分割线
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(canvas.width / 2, 0);
+        ctx.lineTo(canvas.width / 2, canvas.height);
+        ctx.stroke();
+
+        // 添加标签
+        ctx.fillStyle = '#e8eaed';
+        ctx.font = 'bold 18px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('单棵决策树', canvas.width / 4, 30);
+        ctx.fillText('随机森林', 3 * canvas.width / 4, 30);
+
+        // 显示准确率
+        ctx.font = '16px Arial';
+        ctx.fillStyle = '#fbbf24';
+        ctx.fillText(`准确率: ${document.getElementById('singleAccuracy').textContent}`, canvas.width / 4, canvas.height - 20);
+        ctx.fillText(`准确率: ${document.getElementById('forestAccuracy').textContent}`, 3 * canvas.width / 4, canvas.height - 20);
+    }
+
+    // 初始化
+    document.addEventListener('DOMContentLoaded', function() {
+        // 创建粒子背景
+        new ParticleSystem('particleSystem');
+
+        // 初始化进度
+        updateProgress();
+
+        // 初始化贝叶斯数据
+        const spamWords = ['free', 'win', 'click', 'buy', 'offer', 'prize', 'congratulations', 'limited'];
+        const hamWords = ['meeting', 'project', 'report', 'work', 'team', 'schedule', 'deadline', 'update'];
+
+        bayesData.wordFreq = {
+            spam: {},
+            ham: {}
+        };
+
+        spamWords.forEach(word => {
+            bayesData.wordFreq.spam[word] = 0.6 + Math.random() * 0.3;
+        });
+
+        hamWords.forEach(word => {
+            bayesData.wordFreq.ham[word] = 0.7 + Math.random() * 0.25;
+        });
+
+        // 添加一些交叉词汇
+        ['click', 'update'].forEach(word => {
+            bayesData.wordFreq.ham[word] = 0.3 + Math.random() * 0.2;
+        });
+
+        drawBayesVisualization();
+
+        // 初始化SVM数据
+        generateSVMData();
+
+        // 初始化各个演示的画布
+        ['treeCanvas', 'ensembleCanvas'].forEach(canvasId => {
+            const canvas = document.getElementById(canvasId);
+            if (canvas) {
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#8b98a8';
+                ctx.font = '16px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('点击上方按钮开始演示', canvas.width / 2, canvas.height / 2);
+            }
+        });
+    });
+</script>
+
+</body>
+</html>

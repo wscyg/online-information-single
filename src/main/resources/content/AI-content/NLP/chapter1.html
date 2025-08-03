@@ -1,0 +1,1817 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>第1章：走进NLP的世界 - 让机器理解人类语言</title>
+    <meta name="description" content="从一个翻译错误引发的故事，深入理解自然语言处理的本质与挑战">
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+
+    <style>
+        /* ===== CSS变量定义 ===== */
+        :root {
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --nlp-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            --story-gradient: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+            --language-gradient: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+            --matrix-gradient: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+            --bg-dark: #0f172a;
+            --bg-section: #1e293b;
+            --bg-card: #1e2439;
+            --text-primary: #f1f5f9;
+            --text-secondary: #cbd5e1;
+            --text-muted: #94a3b8;
+            --text-dim: #64748b;
+            --accent-red: #ef4444;
+            --accent-green: #22c55e;
+            --accent-blue: #3b82f6;
+            --accent-yellow: #fbbf24;
+            --accent-purple: #8b5cf6;
+            --accent-pink: #ec4899;
+            --accent-orange: #f97316;
+            --accent-cyan: #06b6d4;
+            --border-color: rgba(255, 255, 255, 0.1);
+            --shadow-lg: 0 10px 40px rgba(0, 0, 0, 0.3);
+            --glow-pink: rgba(244, 114, 182, 0.5);
+            --glow-cyan: rgba(34, 211, 238, 0.5);
+            --glow-blue: rgba(96, 165, 250, 0.5);
+        }
+
+        /* ===== 全局样式 ===== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        /* ===== 背景动画 ===== */
+        .bg-animation {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            overflow: hidden;
+            z-index: -1;
+        }
+
+        .bg-particle {
+            position: absolute;
+            width: 2px;
+            height: 2px;
+            background: rgba(79, 172, 254, 0.5);
+            border-radius: 50%;
+            animation: float 20s infinite linear;
+        }
+
+        @keyframes float {
+            from { transform: translateY(100vh) translateX(0); }
+            to { transform: translateY(-100px) translateX(100px); }
+        }
+
+        /* ===== 布局组件 ===== */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 1rem;
+        }
+
+        /* ===== 导航栏 ===== */
+        .nav-header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(10px);
+            z-index: 1000;
+            border-bottom: 1px solid var(--border-color);
+            transition: transform 0.3s ease;
+        }
+
+        .nav-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1rem 0;
+        }
+
+        .nav-title h1 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            background: var(--nlp-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .nav-progress {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: var(--nlp-gradient);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        /* ===== 侧边导航 ===== */
+        .sidebar {
+            position: fixed;
+            left: -300px;
+            top: 60px;
+            bottom: 0;
+            width: 300px;
+            background: var(--bg-section);
+            border-right: 1px solid var(--border-color);
+            padding: 2rem;
+            overflow-y: auto;
+            transition: transform 0.3s ease;
+            z-index: 999;
+        }
+
+        .sidebar.open { transform: translateX(300px); }
+
+        .toc-item {
+            display: block;
+            padding: 0.75rem 1rem;
+            color: var(--text-secondary);
+            text-decoration: none;
+            border-radius: 0.5rem;
+            transition: all 0.3s ease;
+            margin-bottom: 0.25rem;
+        }
+
+        .toc-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-primary);
+            transform: translateX(4px);
+        }
+
+        .toc-item.active {
+            background: var(--nlp-gradient);
+            color: #0f172a;
+        }
+
+        /* ===== 主内容 ===== */
+        main {
+            margin-top: 80px;
+            padding-bottom: 4rem;
+        }
+
+        /* ===== 章节标题 ===== */
+        .chapter-hero {
+            background: var(--nlp-gradient);
+            padding: 6rem 0;
+            margin-bottom: 3rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .chapter-hero-content {
+            position: relative;
+            z-index: 2;
+            text-align: center;
+            color: #0f172a;
+        }
+
+        .chapter-hero h1 {
+            font-size: 3.5rem;
+            margin-bottom: 1rem;
+            animation: fadeInUp 0.8s ease;
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ===== 内容卡片 ===== */
+        .section-card {
+            background: var(--bg-section);
+            border-radius: 1rem;
+            padding: 3rem;
+            margin-bottom: 2rem;
+            border: 1px solid var(--border-color);
+            box-shadow: var(--shadow-lg);
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* ===== 故事卡片 ===== */
+        .story-card {
+            background: linear-gradient(135deg, rgba(250, 112, 154, 0.1), rgba(254, 225, 64, 0.1));
+            border: 2px solid rgba(250, 112, 154, 0.2);
+            border-radius: 1rem;
+            padding: 2.5rem;
+            margin: 2rem 0;
+            font-size: 1.1rem;
+            line-height: 1.8;
+        }
+
+        .story-icon {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            display: block;
+        }
+
+        /* ===== 卡片网格 ===== */
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin: 2rem 0;
+        }
+
+        .info-card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 0.75rem;
+            padding: 2rem;
+            border: 1px solid var(--border-color);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .info-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .card-icon {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            display: block;
+        }
+
+        .card-title {
+            color: var(--accent-cyan);
+            margin-bottom: 1rem;
+            font-size: 1.1rem;
+        }
+
+        /* ===== 重要提示框 ===== */
+        .insight-box {
+            background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(6, 182, 212, 0.1));
+            border: 2px solid rgba(34, 197, 94, 0.3);
+            border-radius: 1rem;
+            padding: 2rem;
+            margin: 2rem 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .insight-title {
+            color: var(--accent-green);
+            margin-bottom: 1rem;
+            font-size: 1.3rem;
+        }
+
+        /* ===== 代码示例 ===== */
+        .code-example {
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            overflow-x: auto;
+            position: relative;
+        }
+
+        .code-example::before {
+            content: 'Python';
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            background: var(--accent-purple);
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        /* ===== 矩阵可视化 ===== */
+        .matrix-visualization {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 2rem;
+            flex-wrap: wrap;
+            margin: 2rem 0;
+        }
+
+        .matrix-container {
+            position: relative;
+            display: inline-block;
+            margin: 0.5rem;
+        }
+
+        .matrix-grid {
+            display: grid;
+            gap: 0.5rem;
+            padding: 0.5rem;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 0.5rem;
+        }
+
+        .matrix-cell {
+            width: 3.5rem;
+            height: 2.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            border-radius: 0.25rem;
+            font-size: 0.85rem;
+            transition: all 0.3s ease;
+        }
+
+        .matrix-cell:hover {
+            background: rgba(79, 172, 254, 0.2);
+            transform: scale(1.1);
+        }
+
+        /* ===== 交互式演示 ===== */
+        .interactive-demo {
+            background: linear-gradient(135deg, rgba(6, 182, 212, 0.1), rgba(59, 130, 246, 0.05));
+            border-radius: 1rem;
+            padding: 2rem;
+            margin: 2rem 0;
+            border: 2px solid var(--accent-cyan);
+        }
+
+        /* ===== 思考卡片 ===== */
+        .think-card {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(236, 72, 153, 0.1));
+            border: 2px solid rgba(139, 92, 246, 0.3);
+            border-radius: 1rem;
+            padding: 2rem;
+            margin: 2rem 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .think-card h3 {
+            color: var(--accent-purple);
+            margin-bottom: 1rem;
+        }
+
+        /* ===== 流程图 ===== */
+        .flow-diagram {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 1rem;
+            padding: 2rem;
+            margin: 2rem 0;
+            border: 1px solid var(--border-color);
+        }
+
+        .flow-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .flow-block {
+            background: var(--bg-section);
+            border: 2px solid var(--border-color);
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            text-align: center;
+            min-width: 150px;
+            transition: all 0.3s ease;
+        }
+
+        .flow-block:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .flow-arrow {
+            font-size: 2rem;
+            color: var(--accent-purple);
+        }
+
+        /* ===== 对话展示 ===== */
+        .dialogue-container {
+            background: var(--bg-card);
+            border-radius: 1rem;
+            padding: 2rem;
+            margin: 2rem 0;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .message {
+            margin-bottom: 1rem;
+            padding: 1rem;
+            border-radius: 1rem;
+            position: relative;
+        }
+
+        .message.human {
+            background: rgba(79, 172, 254, 0.2);
+            text-align: right;
+            margin-left: 20%;
+        }
+
+        .message.machine {
+            background: rgba(244, 114, 182, 0.2);
+            margin-right: 20%;
+        }
+
+        .message-label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.25rem;
+        }
+
+        /* ===== 时间线 ===== */
+        .timeline {
+            position: relative;
+            padding: 2rem 0;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 50%;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: var(--border-color);
+        }
+
+        .timeline-item {
+            position: relative;
+            margin: 2rem 0;
+            padding: 0 2rem;
+            opacity: 0;
+            animation: fadeIn 0.5s ease forwards;
+        }
+
+        .timeline-item:nth-child(odd) {
+            text-align: right;
+            padding-right: 50%;
+        }
+
+        .timeline-item:nth-child(even) {
+            padding-left: 50%;
+        }
+
+        .timeline-dot {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 20px;
+            height: 20px;
+            background: var(--nlp-gradient);
+            border-radius: 50%;
+            z-index: 1;
+        }
+
+        /* ===== 语言对比表格 ===== */
+        .language-comparison {
+            background: var(--bg-card);
+            border-radius: 1rem;
+            overflow: hidden;
+            margin: 2rem 0;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .language-comparison table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .language-comparison th {
+            background: var(--language-gradient);
+            color: #0f172a;
+            padding: 1.25rem;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        .language-comparison td {
+            padding: 1.25rem;
+            border-bottom: 1px solid var(--border-color);
+            transition: all 0.3s ease;
+        }
+
+        .language-comparison tr:hover td {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        /* ===== 矩阵动画 ===== */
+        @keyframes matrixPulse {
+            0% { transform: scale(1); box-shadow: 0 0 0 rgba(79, 172, 254, 0); }
+            50% { transform: scale(1.05); box-shadow: 0 0 20px rgba(79, 172, 254, 0.5); }
+            100% { transform: scale(1); box-shadow: 0 0 0 rgba(79, 172, 254, 0); }
+        }
+
+        .matrix-highlight {
+            animation: matrixPulse 2s ease-in-out infinite;
+        }
+
+        /* ===== 词向量空间 ===== */
+        .vector-space {
+            background: rgba(139, 92, 246, 0.05);
+            border: 2px solid rgba(139, 92, 246, 0.2);
+            border-radius: 1rem;
+            padding: 2rem;
+            margin: 2rem 0;
+            text-align: center;
+        }
+
+        /* ===== 提示框 ===== */
+        .tip {
+            display: flex;
+            gap: 1rem;
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            margin: 1.5rem 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .tip::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            width: 4px;
+        }
+
+        .tip.info {
+            background: rgba(79, 172, 254, 0.1);
+            border: 1px solid rgba(79, 172, 254, 0.3);
+        }
+        .tip.info::before { background: var(--accent-blue); }
+
+        .tip.warning {
+            background: rgba(251, 191, 36, 0.1);
+            border: 1px solid rgba(251, 191, 36, 0.3);
+        }
+        .tip.warning::before { background: var(--accent-yellow); }
+
+        .tip.success {
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+        .tip.success::before { background: var(--accent-green); }
+
+        /* ===== 按钮样式 ===== */
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            border: none;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            background: var(--nlp-gradient);
+            color: #0f172a;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(79, 172, 254, 0.3);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        /* ===== 响应式设计 ===== */
+        @media (max-width: 768px) {
+            .chapter-hero h1 { font-size: 2.5rem; }
+            .section-card { padding: 2rem; }
+            .timeline-item:nth-child(odd),
+            .timeline-item:nth-child(even) {
+                padding-left: 3rem;
+                padding-right: 1rem;
+                text-align: left;
+            }
+            .timeline::before { left: 20px; }
+            .timeline-dot { left: 20px; }
+        }
+
+        /* ===== 动画 ===== */
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.05); opacity: 0.8; }
+        }
+
+        .pulse {
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        /* ===== 滚动条美化 ===== */
+        ::-webkit-scrollbar { width: 10px; height: 10px; }
+        ::-webkit-scrollbar-track { background: var(--bg-dark); }
+        ::-webkit-scrollbar-thumb {
+            background: var(--text-muted);
+            border-radius: 5px;
+        }
+        ::-webkit-scrollbar-thumb:hover { background: var(--text-secondary); }
+    </style>
+</head>
+<body>
+
+<!-- 背景动画 -->
+<div class="bg-animation" id="bgAnimation"></div>
+
+<!-- 导航栏 -->
+<nav class="nav-header" role="navigation" aria-label="主导航">
+    <div class="container">
+        <div class="nav-content">
+            <div class="nav-title">
+                <button id="toggle-sidebar" class="btn btn-secondary" style="margin-right: 1rem;">
+                    ☰ 目录
+                </button>
+                <h1>第1章：走进NLP的世界</h1>
+            </div>
+            <div>
+                <button id="toggle-theme" class="btn btn-secondary">🌙</button>
+            </div>
+        </div>
+        <div class="nav-progress">
+            <div class="progress-bar" id="progress-bar"></div>
+        </div>
+    </div>
+</nav>
+
+<!-- 侧边栏目录 -->
+<aside class="sidebar" id="sidebar">
+    <h3 style="margin-bottom: 1.5rem; color: var(--accent-cyan);">📚 本章导航</h3>
+    <nav>
+        <a href="#intro" class="toc-item active">序言：一个翻译错误引发的故事</a>
+        <a href="#what-is-nlp" class="toc-item">什么是自然语言处理</a>
+        <a href="#language-complexity" class="toc-item">语言的复杂性</a>
+        <a href="#human-vs-machine" class="toc-item">人类 vs 机器：理解的差异</a>
+        <a href="#nlp-challenges" class="toc-item">NLP的三大挑战</a>
+        <a href="#vector-representation" class="toc-item">词向量：语言的数学表示</a>
+        <a href="#first-nlp-program" class="toc-item">你的第一个NLP程序</a>
+        <a href="#applications" class="toc-item">NLP改变世界</a>
+        <a href="#summary" class="toc-item">本章总结</a>
+    </nav>
+</aside>
+
+<!-- 主内容 -->
+<main>
+    <!-- 章节标题 -->
+    <section class="chapter-hero">
+        <div class="container">
+            <div class="chapter-hero-content">
+                <h1>走进NLP的世界</h1>
+                <p style="font-size: 1.5rem; margin-bottom: 2rem;">让机器理解人类语言的奇妙之旅</p>
+                <p style="font-size: 1.2rem;">从一个翻译错误开始，探索语言理解的本质</p>
+            </div>
+        </div>
+    </section>
+
+    <div class="container">
+        <!-- 序言：一个翻译错误引发的故事 -->
+        <section id="intro" class="section-card">
+            <h2 style="color: var(--accent-pink); margin-bottom: 2rem;">📖 序言：一个翻译错误引发的故事</h2>
+
+            <div class="story-card">
+                <span class="story-icon">🌙</span>
+                <p>
+                    <strong>2021年3月，美国阿拉斯加。</strong>
+                </p>
+                <p style="margin-top: 1rem;">
+                    中美高层战略对话的会议室里，气氛异常紧张。当中方代表说出"中国人不吃这一套"时，现场的同声传译员愣了一下...
+                </p>
+                <p style="margin-top: 1rem;">
+                    她该如何翻译？直译成"Chinese people don't eat this set"？外国人能理解吗？
+                </p>
+                <p style="margin-top: 1rem;">
+                    最终，她选择了意译："The Chinese people won't buy it"（中国人不会买账）。
+                </p>
+                <p style="margin-top: 1.5rem; text-align: center; font-size: 1.2rem; color: var(--accent-yellow);">
+                    💡 这个瞬间，完美诠释了人类语言的复杂性和机器理解语言的挑战。
+                </p>
+            </div>
+
+            <div class="dialogue-container">
+                <div class="message human">
+                    <div class="message-label">中文原话</div>
+                    <p>"中国人不吃这一套"</p>
+                </div>
+
+                <div class="message machine">
+                    <div class="message-label">机器直译</div>
+                    <p>"Chinese people don't eat this set" ❌</p>
+                </div>
+
+                <div class="message human">
+                    <div class="message-label">人类意译</div>
+                    <p>"The Chinese people won't buy it" ✓</p>
+                </div>
+            </div>
+
+            <div class="think-card" style="margin-top: 2rem;">
+                <h3>🤔 思考：为什么机器翻译会失败？</h3>
+                <ul style="margin-top: 1rem;">
+                    <li><strong>"吃"</strong> → 字面意思是eat，但这里表示"接受"</li>
+                    <li><strong>"这一套"</strong> → 不是指餐具set，而是指"这种做法"</li>
+                    <li><strong>文化背景</strong> → "吃这一套"是中文特有的表达方式</li>
+                    <li><strong>语境理解</strong> → 需要理解这是在外交场合的强硬表态</li>
+                </ul>
+                <p style="margin-top: 1rem; text-align: center; color: var(--accent-cyan);">
+                    这就是自然语言处理（NLP）要解决的核心问题！
+                </p>
+            </div>
+        </section>
+
+        <!-- 什么是自然语言处理 -->
+        <section id="what-is-nlp" class="section-card">
+            <h2 style="color: var(--accent-blue); margin-bottom: 2rem;">🎯 什么是自然语言处理？</h2>
+
+            <div style="background: linear-gradient(135deg, rgba(79, 172, 254, 0.1), rgba(0, 242, 254, 0.1)); border-radius: 1rem; padding: 2rem; margin-bottom: 2rem;">
+                <h3 style="color: var(--accent-cyan); margin-bottom: 1rem;">定义</h3>
+                <p style="font-size: 1.2rem; line-height: 1.8;">
+                    <strong>自然语言处理（Natural Language Processing, NLP）</strong>是人工智能的一个分支，致力于让计算机能够理解、解释和生成人类语言。
+                </p>
+            </div>
+
+            <div class="flow-diagram">
+                <h4 style="text-align: center; color: var(--accent-purple); margin-bottom: 2rem;">NLP的本质：搭建人与机器的语言桥梁</h4>
+                <div class="flow-container">
+                    <div class="flow-block" style="border-color: var(--accent-green);">
+                        <div style="font-size: 2rem;">👤</div>
+                        <div style="color: var(--accent-green);">人类</div>
+                        <div style="font-size: 0.875rem; color: var(--text-secondary);">自然语言</div>
+                    </div>
+                    <div class="flow-arrow">→</div>
+                    <div class="flow-block" style="border-color: var(--accent-purple);">
+                        <div style="font-size: 2rem;">🌉</div>
+                        <div style="color: var(--accent-purple);">NLP</div>
+                        <div style="font-size: 0.875rem; color: var(--text-secondary);">理解与转换</div>
+                    </div>
+                    <div class="flow-arrow">→</div>
+                    <div class="flow-block" style="border-color: var(--accent-cyan);">
+                        <div style="font-size: 2rem;">🤖</div>
+                        <div style="color: var(--accent-cyan);">机器</div>
+                        <div style="font-size: 0.875rem; color: var(--text-secondary);">结构化数据</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card-grid" style="margin-top: 2rem;">
+                <div class="info-card">
+                    <span class="card-icon">📥</span>
+                    <h3 class="card-title">输入</h3>
+                    <p>人类的自然语言</p>
+                    <ul style="margin-top: 0.5rem; font-size: 0.9rem;">
+                        <li>文字（中文、英文...）</li>
+                        <li>语音（普通话、方言...）</li>
+                        <li>手语、表情</li>
+                    </ul>
+                </div>
+
+                <div class="info-card">
+                    <span class="card-icon">⚙️</span>
+                    <h3 class="card-title">处理</h3>
+                    <p>理解和分析</p>
+                    <ul style="margin-top: 0.5rem; font-size: 0.9rem;">
+                        <li>词汇分析</li>
+                        <li>语法解析</li>
+                        <li>语义理解</li>
+                        <li>情感判断</li>
+                    </ul>
+                </div>
+
+                <div class="info-card">
+                    <span class="card-icon">📤</span>
+                    <h3 class="card-title">输出</h3>
+                    <p>机器的响应</p>
+                    <ul style="margin-top: 0.5rem; font-size: 0.9rem;">
+                        <li>文本生成</li>
+                        <li>语音合成</li>
+                        <li>翻译结果</li>
+                        <li>情感标签</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- 语言的复杂性 -->
+        <section id="language-complexity" class="section-card">
+            <h2 style="color: var(--accent-orange); margin-bottom: 2rem;">🌐 语言的复杂性：为什么理解语言这么难？</h2>
+
+            <div class="language-comparison">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>语言现象</th>
+                        <th>例子</th>
+                        <th>机器理解的困难</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td><strong>一词多义</strong></td>
+                        <td>
+                            "他在<span style="color: var(--accent-yellow);">银行</span>工作"<br>
+                            "小船停在河<span style="color: var(--accent-yellow);">岸</span>边"<br>
+                            (bank = 银行/河岸)
+                        </td>
+                        <td>需要根据上下文判断词义</td>
+                    </tr>
+                    <tr>
+                        <td><strong>歧义句</strong></td>
+                        <td>
+                            "我用望远镜看见了那个拿枪的猎人"<br>
+                            <span style="font-size: 0.9rem; color: var(--text-secondary);">
+                                    谁拿着望远镜？我还是猎人？
+                                </span>
+                        </td>
+                        <td>句法结构可能有多种解析</td>
+                    </tr>
+                    <tr>
+                        <td><strong>指代消解</strong></td>
+                        <td>
+                            "小明告诉小李，<span style="color: var(--accent-cyan);">他</span>考上了北大"<br>
+                            <span style="font-size: 0.9rem; color: var(--text-secondary);">
+                                    "他"指小明还是小李？
+                                </span>
+                        </td>
+                        <td>需要理解语境和常识</td>
+                    </tr>
+                    <tr>
+                        <td><strong>隐喻和比喻</strong></td>
+                        <td>
+                            "时间就是金钱"<br>
+                            "这个想法很<span style="color: var(--accent-pink);">幼稚</span>"<br>
+                            <span style="font-size: 0.9rem; color: var(--text-secondary);">
+                                    抽象概念的形象化表达
+                                </span>
+                        </td>
+                        <td>需要理解抽象映射关系</td>
+                    </tr>
+                    <tr>
+                        <td><strong>文化特定表达</strong></td>
+                        <td>
+                            "他是个<span style="color: var(--accent-green);">老司机</span>"<br>
+                            <span style="font-size: 0.9rem; color: var(--text-secondary);">
+                                    网络用语：指经验丰富的人
+                                </span>
+                        </td>
+                        <td>需要文化背景知识</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="insight-box" style="margin-top: 2rem;">
+                <h3 class="insight-title">💡 关键洞察：语言不只是词汇的组合</h3>
+                <p>理解语言需要：</p>
+                <ul style="margin-top: 1rem;">
+                    <li>🧩 <strong>词汇知识</strong>：知道每个词的含义</li>
+                    <li>📐 <strong>语法规则</strong>：理解词汇如何组合</li>
+                    <li>🌍 <strong>世界知识</strong>：了解常识和背景</li>
+                    <li>🎭 <strong>语境理解</strong>：根据场景解释含义</li>
+                    <li>🎨 <strong>文化背景</strong>：理解特定的表达方式</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- 人类 vs 机器 -->
+        <section id="human-vs-machine" class="section-card">
+            <h2 style="color: var(--accent-purple); margin-bottom: 2rem;">🤖 人类 vs 机器：理解的差异</h2>
+
+            <div class="card-grid">
+                <div class="info-card" style="background: linear-gradient(135deg, rgba(34, 197, 94, 0.05), rgba(6, 182, 212, 0.05));">
+                    <span class="card-icon">👤</span>
+                    <h3 class="card-title" style="color: var(--accent-green);">人类理解语言</h3>
+                    <ul style="margin-top: 1rem;">
+                        <li><strong>整体感知</strong>：瞬间理解句子含义</li>
+                        <li><strong>经验推理</strong>：基于生活经验</li>
+                        <li><strong>情感共鸣</strong>：理解说话人的情绪</li>
+                        <li><strong>创造性</strong>：能理解新词新用法</li>
+                        <li><strong>容错性高</strong>：能理解错别字和病句</li>
+                    </ul>
+                </div>
+
+                <div class="info-card" style="background: linear-gradient(135deg, rgba(244, 114, 182, 0.05), rgba(254, 225, 64, 0.05));">
+                    <span class="card-icon">🤖</span>
+                    <h3 class="card-title" style="color: var(--accent-pink);">机器理解语言</h3>
+                    <ul style="margin-top: 1rem;">
+                        <li><strong>符号处理</strong>：将文本转换为数字</li>
+                        <li><strong>统计学习</strong>：从大量数据中学习模式</li>
+                        <li><strong>规则匹配</strong>：基于预定义的规则</li>
+                        <li><strong>概率计算</strong>：计算最可能的含义</li>
+                        <li><strong>需要规范</strong>：对格式要求严格</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="interactive-demo" style="margin-top: 2rem;">
+                <h3 style="text-align: center; color: var(--accent-cyan); margin-bottom: 1.5rem;">🎮 互动体验：测试理解能力</h3>
+
+                <div style="background: var(--bg-card); padding: 2rem; border-radius: 0.75rem;">
+                    <p style="font-size: 1.2rem; text-align: center; margin-bottom: 1.5rem;">
+                        请判断这句话的情感倾向：<br>
+                        <strong style="color: var(--accent-yellow);">"这家餐厅的服务真是没话说"</strong>
+                    </p>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 2rem;">
+                        <div style="text-align: center;">
+                            <h4 style="color: var(--accent-green); margin-bottom: 1rem;">👤 人类理解</h4>
+                            <p>立即识别：这是<strong>赞美</strong></p>
+                            <p style="font-size: 0.9rem; color: var(--text-secondary); margin-top: 0.5rem;">
+                                "没话说" = 好到无可挑剔
+                            </p>
+                        </div>
+
+                        <div style="text-align: center;">
+                            <h4 style="color: var(--accent-pink); margin-bottom: 1rem;">🤖 机器理解</h4>
+                            <p>可能误判：这是<strong>负面</strong></p>
+                            <p style="font-size: 0.9rem; color: var(--text-secondary); margin-top: 0.5rem;">
+                                "没" = 否定词 → 负面？
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- NLP的三大挑战 -->
+        <section id="nlp-challenges" class="section-card">
+            <h2 style="color: var(--accent-red); margin-bottom: 2rem;">🎯 NLP的三大挑战</h2>
+
+            <div class="card-grid">
+                <div class="info-card" style="border-top: 4px solid var(--accent-red);">
+                    <span class="card-icon">🎭</span>
+                    <h3 class="card-title" style="color: var(--accent-red);">挑战一：歧义性</h3>
+                    <p><strong>同一句话，多种理解</strong></p>
+
+                    <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 0.5rem; margin-top: 1rem;">
+                        <p style="font-size: 0.9rem;">"我看见了那个人用望远镜"</p>
+                        <ul style="margin-top: 0.5rem; font-size: 0.85rem;">
+                            <li>我用望远镜看见了那个人？</li>
+                            <li>我看见那个人在用望远镜？</li>
+                        </ul>
+                    </div>
+
+                    <p style="margin-top: 1rem; color: var(--accent-yellow);">
+                        💡 解决方案：依靠上下文和常识推理
+                    </p>
+                </div>
+
+                <div class="info-card" style="border-top: 4px solid var(--accent-blue);">
+                    <span class="card-icon">🌍</span>
+                    <h3 class="card-title" style="color: var(--accent-blue);">挑战二：多样性</h3>
+                    <p><strong>同一意思，千种表达</strong></p>
+
+                    <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 0.5rem; margin-top: 1rem;">
+                        <p style="font-size: 0.9rem;">表达"喜欢"：</p>
+                        <ul style="margin-top: 0.5rem; font-size: 0.85rem;">
+                            <li>我喜欢你</li>
+                            <li>我对你有好感</li>
+                            <li>你是我的菜</li>
+                            <li>我中意你（粤语）</li>
+                        </ul>
+                    </div>
+
+                    <p style="margin-top: 1rem; color: var(--accent-cyan);">
+                        💡 解决方案：学习语言的深层语义
+                    </p>
+                </div>
+
+                <div class="info-card" style="border-top: 4px solid var(--accent-green);">
+                    <span class="card-icon">🔄</span>
+                    <h3 class="card-title" style="color: var(--accent-green);">挑战三：演化性</h3>
+                    <p><strong>语言不断变化发展</strong></p>
+
+                    <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 0.5rem; margin-top: 1rem;">
+                        <p style="font-size: 0.9rem;">网络新词：</p>
+                        <ul style="margin-top: 0.5rem; font-size: 0.85rem;">
+                            <li>yyds（永远的神）</li>
+                            <li>内卷</li>
+                            <li>躺平</li>
+                            <li>破防了</li>
+                        </ul>
+                    </div>
+
+                    <p style="margin-top: 1rem; color: var(--accent-purple);">
+                        💡 解决方案：持续学习和更新
+                    </p>
+                </div>
+            </div>
+
+            <div class="tip warning" style="margin-top: 2rem;">
+                <span style="font-size: 1.5rem;">⚠️</span>
+                <div>
+                    <strong>核心难题</strong>
+                    <p style="margin-top: 0.5rem;">
+                        这三大挑战相互交织，使得NLP成为AI领域最具挑战性的方向之一。即使是今天最先进的模型，仍然会在这些问题上犯错。
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 词向量：语言的数学表示 -->
+        <section id="vector-representation" class="section-card">
+            <h2 style="color: var(--accent-cyan); margin-bottom: 2rem;">🔢 词向量：语言的数学表示</h2>
+
+            <div class="story-card" style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(96, 165, 250, 0.1));">
+                <span class="story-icon">💭</span>
+                <p>
+                    <strong>问题：</strong>计算机只认识0和1，怎么理解"爱"、"恨"、"美"这样的抽象概念？
+                </p>
+                <p style="margin-top: 1rem;">
+                    <strong>答案：</strong>把每个词映射成一个数学向量！
+                </p>
+            </div>
+
+            <!-- 新增：思维引导过程 -->
+            <div class="think-card" style="background: linear-gradient(135deg, rgba(79, 172, 254, 0.1), rgba(147, 51, 234, 0.1)); margin: 2rem 0;">
+                <h3>🤔 等等，为什么是向量？让我们一步步思考</h3>
+
+                <div style="margin-top: 1.5rem;">
+                    <h4 style="color: var(--accent-yellow); margin-bottom: 1rem;">第一步：计算机需要数字</h4>
+                    <div style="background: rgba(0,0,0,0.2); padding: 1.5rem; border-radius: 0.5rem; margin-bottom: 1.5rem;">
+                        <p>💭 <strong>思考：</strong>计算机如何存储"苹果"这个词？</p>
+                        <ul style="margin-top: 0.5rem;">
+                            <li>❌ 存储图片？太复杂，而且"苹果"可以指水果或公司</li>
+                            <li>❌ 存储定义？"一种水果..."，但定义里又有其他词</li>
+                            <li>✓ <strong>存储数字！</strong>但是什么样的数字？</li>
+                        </ul>
+                    </div>
+
+                    <h4 style="color: var(--accent-green); margin-bottom: 1rem;">第二步：一个数字够吗？</h4>
+                    <div style="background: rgba(0,0,0,0.2); padding: 1.5rem; border-radius: 0.5rem; margin-bottom: 1.5rem;">
+                        <p>🎯 <strong>尝试1：</strong>给每个词分配一个编号</p>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin: 1rem 0;">
+                            <div style="text-align: center;">苹果 = 1</div>
+                            <div style="text-align: center;">香蕉 = 2</div>
+                            <div style="text-align: center;">汽车 = 3</div>
+                            <div style="text-align: center;">飞机 = 4</div>
+                        </div>
+                        <p style="color: var(--accent-red); margin-top: 1rem;">
+                            ❌ <strong>问题：</strong>这样的编号无法体现词语之间的关系！<br>
+                            为什么"苹果"和"香蕉"的编号差是1，"苹果"和"汽车"的差是2？<br>
+                            难道苹果和香蕉的关系比苹果和汽车更近一倍吗？
+                        </p>
+                    </div>
+
+                    <h4 style="color: var(--accent-purple); margin-bottom: 1rem;">第三步：我们需要表达关系！</h4>
+                    <div style="background: rgba(0,0,0,0.2); padding: 1.5rem; border-radius: 0.5rem; margin-bottom: 1.5rem;">
+                        <p>💡 <strong>灵感：</strong>现实世界中，我们如何描述事物的位置？</p>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 1rem;">
+                            <div>
+                                <h5 style="color: var(--accent-cyan); margin-bottom: 0.5rem;">🗺️ 地理位置</h5>
+                                <p>北京的位置：</p>
+                                <ul style="font-size: 0.9rem;">
+                                    <li>经度：116.4°</li>
+                                    <li>纬度：39.9°</li>
+                                </ul>
+                                <p style="margin-top: 0.5rem; font-size: 0.9rem;">用两个数字就能表示地球上任何位置！</p>
+                            </div>
+
+                            <div>
+                                <h5 style="color: var(--accent-pink); margin-bottom: 0.5rem;">🎨 颜色空间</h5>
+                                <p>红色的表示：</p>
+                                <ul style="font-size: 0.9rem;">
+                                    <li>R（红）：255</li>
+                                    <li>G（绿）：0</li>
+                                    <li>B（蓝）：0</li>
+                                </ul>
+                                <p style="margin-top: 0.5rem; font-size: 0.9rem;">用三个数字就能表示任何颜色！</p>
+                            </div>
+                        </div>
+
+                        <p style="margin-top: 1.5rem; text-align: center; font-size: 1.1rem; color: var(--accent-yellow);">
+                            💡 <strong>关键洞察：</strong>多个数字组成的向量可以在"空间"中定位一个点！
+                        </p>
+                    </div>
+
+                    <h4 style="color: var(--accent-cyan); margin-bottom: 1rem;">第四步：词语也可以有"位置"！</h4>
+                    <div style="background: rgba(0,0,0,0.2); padding: 1.5rem; border-radius: 0.5rem;">
+                        <p>🌟 <strong>突破性想法：</strong>如果我们创建一个"语义空间"呢？</p>
+
+                        <div style="margin-top: 1rem; text-align: center;">
+                            <svg width="400" height="300" viewBox="0 0 400 300" style="max-width: 100%;">
+                                <!-- 坐标轴 -->
+                                <line x1="50" y1="250" x2="350" y2="250" stroke="var(--text-dim)" stroke-width="2"/>
+                                <line x1="50" y1="250" x2="50" y2="50" stroke="var(--text-dim)" stroke-width="2"/>
+
+                                <!-- 轴标签 -->
+                                <text x="200" y="280" text-anchor="middle" fill="var(--text-secondary)" font-size="12">生物 ← → 非生物</text>
+                                <text x="20" y="150" text-anchor="middle" fill="var(--text-secondary)" font-size="12" transform="rotate(-90 20 150)">可食用 ← → 不可食用</text>
+
+                                <!-- 词语位置 -->
+                                <circle cx="100" cy="100" r="5" fill="var(--accent-green)"/>
+                                <text x="100" y="90" text-anchor="middle" fill="var(--accent-green)" font-size="12">苹果</text>
+
+                                <circle cx="120" cy="110" r="5" fill="var(--accent-green)"/>
+                                <text x="120" y="100" text-anchor="middle" fill="var(--accent-green)" font-size="12">香蕉</text>
+
+                                <circle cx="280" cy="200" r="5" fill="var(--accent-blue)"/>
+                                <text x="280" y="190" text-anchor="middle" fill="var(--accent-blue)" font-size="12">汽车</text>
+
+                                <circle cx="300" cy="210" r="5" fill="var(--accent-blue)"/>
+                                <text x="300" y="235" text-anchor="middle" fill="var(--accent-blue)" font-size="12">飞机</text>
+
+                                <!-- 相似性圈 -->
+                                <circle cx="110" cy="105" r="30" fill="none" stroke="var(--accent-yellow)" stroke-width="1" stroke-dasharray="5,5" opacity="0.5"/>
+                                <circle cx="290" cy="205" r="30" fill="none" stroke="var(--accent-cyan)" stroke-width="1" stroke-dasharray="5,5" opacity="0.5"/>
+                            </svg>
+                        </div>
+
+                        <p style="margin-top: 1rem; text-align: center;">
+                            相似的词语在空间中距离近，不同类的词语距离远！
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="insight-box" style="background: linear-gradient(135deg, rgba(250, 112, 154, 0.1), rgba(254, 225, 64, 0.1)); margin: 2rem 0;">
+                <h3 class="insight-title">🎯 向量的妙处：不只是位置，还有方向！</h3>
+                <div style="margin-top: 1.5rem;">
+                    <p><strong>关键发现：</strong>向量不仅能表示位置，还能表示关系的方向</p>
+
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; margin-top: 1.5rem;">
+                        <div style="text-align: center;">
+                            <div style="font-size: 2rem;">👑→👸</div>
+                            <p style="margin-top: 0.5rem;">国王 → 女王</p>
+                            <p style="font-size: 0.9rem; color: var(--text-secondary);">性别维度的变化</p>
+                        </div>
+
+                        <div style="text-align: center;">
+                            <div style="font-size: 2rem;">🇨🇳→🇯🇵</div>
+                            <p style="margin-top: 0.5rem;">北京 → 东京</p>
+                            <p style="font-size: 0.9rem; color: var(--text-secondary);">国家维度的变化</p>
+                        </div>
+
+                        <div style="text-align: center;">
+                            <div style="font-size: 2rem;">🐕→🐈</div>
+                            <p style="margin-top: 0.5rem;">小狗 → 小猫</p>
+                            <p style="font-size: 0.9rem; color: var(--text-secondary);">动物种类的变化</p>
+                        </div>
+                    </div>
+
+                    <p style="margin-top: 1.5rem; text-align: center; font-size: 1.1rem; color: var(--accent-purple);">
+                        💡 这些"变化的方向"可以通过向量运算来捕获！
+                    </p>
+                </div>
+            </div>
+
+            <div class="vector-space">
+                <h3 style="color: var(--accent-purple); margin-bottom: 1.5rem;">词向量的神奇之处</h3>
+
+                <div class="matrix-visualization">
+                    <div class="matrix-container">
+                        <h4 style="color: var(--accent-cyan); margin-bottom: 1rem;">简化的词向量示例（3维）</h4>
+                        <table style="margin: 0 auto; border-collapse: collapse;">
+                            <tr>
+                                <th style="padding: 0.75rem; border: 1px solid var(--border-color); background: rgba(139, 92, 246, 0.2);">词汇</th>
+                                <th style="padding: 0.75rem; border: 1px solid var(--border-color); background: rgba(139, 92, 246, 0.2);">性别维度</th>
+                                <th style="padding: 0.75rem; border: 1px solid var(--border-color); background: rgba(139, 92, 246, 0.2);">皇室维度</th>
+                                <th style="padding: 0.75rem; border: 1px solid var(--border-color); background: rgba(139, 92, 246, 0.2);">年龄维度</th>
+                            </tr>
+                            <tr>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-color);">国王</td>
+                                <td class="matrix-cell">-0.9</td>
+                                <td class="matrix-cell">0.9</td>
+                                <td class="matrix-cell">0.5</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-color);">女王</td>
+                                <td class="matrix-cell">0.9</td>
+                                <td class="matrix-cell">0.9</td>
+                                <td class="matrix-cell">0.5</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-color);">男人</td>
+                                <td class="matrix-cell">-0.8</td>
+                                <td class="matrix-cell">-0.1</td>
+                                <td class="matrix-cell">0.3</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-color);">女人</td>
+                                <td class="matrix-cell">0.8</td>
+                                <td class="matrix-cell">-0.1</td>
+                                <td class="matrix-cell">0.3</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- 新增：向量运算的直观理解 -->
+                <div class="think-card" style="margin-top: 2rem;">
+                    <h3>🤯 等一下，为什么向量减法和加法能表达概念转换？</h3>
+
+                    <div style="margin-top: 1.5rem;">
+                        <h4 style="color: var(--accent-green); margin-bottom: 1rem;">让我们用更直观的方式理解</h4>
+
+                        <div style="background: rgba(0,0,0,0.2); padding: 1.5rem; border-radius: 0.5rem;">
+                            <p><strong>类比思考：</strong>从北京到上海的"方向"</p>
+
+                            <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 2rem; margin-top: 1rem; align-items: center;">
+                                <div>
+                                    <p>📍 <strong>地理空间：</strong></p>
+                                    <p style="font-size: 0.9rem;">上海 - 北京 = 向南的方向</p>
+                                    <p style="font-size: 0.9rem;">广州 = 北京 + 2×(向南的方向)</p>
+                                </div>
+
+                                <div>
+                                    <p>💭 <strong>语义空间：</strong></p>
+                                    <p style="font-size: 0.9rem;">女王 - 国王 = 性别差异向量</p>
+                                    <p style="font-size: 0.9rem;">女人 = 男人 + 性别差异向量</p>
+                                </div>
+                            </div>
+
+                            <p style="margin-top: 1.5rem; text-align: center; color: var(--accent-yellow);">
+                                💡 向量的减法提取了"关系"，加法应用了这个"关系"！
+                            </p>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 1.5rem;">
+                        <h4 style="color: var(--accent-purple); margin-bottom: 1rem;">分解理解：国王 → 女王的转换</h4>
+
+                        <div style="text-align: center;">
+                            <svg width="100%" height="200" viewBox="0 0 600 200" style="max-width: 600px;">
+                                <!-- 第一步：提取性别无关的"统治者"概念 -->
+                                <g transform="translate(0, 50)">
+                                    <rect x="20" y="20" width="80" height="40" fill="rgba(139,92,246,0.2)" stroke="var(--accent-purple)" stroke-width="2" rx="5"/>
+                                    <text x="60" y="45" text-anchor="middle" fill="var(--text-primary)" font-size="14">国王</text>
+
+                                    <text x="120" y="45" text-anchor="middle" fill="var(--text-secondary)" font-size="20">-</text>
+
+                                    <rect x="140" y="20" width="80" height="40" fill="rgba(79,172,254,0.2)" stroke="var(--accent-blue)" stroke-width="2" rx="5"/>
+                                    <text x="180" y="45" text-anchor="middle" fill="var(--text-primary)" font-size="14">男人</text>
+
+                                    <text x="240" y="45" text-anchor="middle" fill="var(--text-secondary)" font-size="20">=</text>
+
+                                    <rect x="260" y="20" width="100" height="40" fill="rgba(251,191,36,0.2)" stroke="var(--accent-yellow)" stroke-width="2" rx="5"/>
+                                    <text x="310" y="45" text-anchor="middle" fill="var(--text-primary)" font-size="14">统治者属性</text>
+                                </g>
+
+                                <!-- 第二步：加上女性属性 -->
+                                <g transform="translate(0, 120)">
+                                    <rect x="20" y="20" width="100" height="40" fill="rgba(251,191,36,0.2)" stroke="var(--accent-yellow)" stroke-width="2" rx="5"/>
+                                    <text x="70" y="45" text-anchor="middle" fill="var(--text-primary)" font-size="14">统治者属性</text>
+
+                                    <text x="140" y="45" text-anchor="middle" fill="var(--text-secondary)" font-size="20">+</text>
+
+                                    <rect x="160" y="20" width="80" height="40" fill="rgba(244,114,182,0.2)" stroke="var(--accent-pink)" stroke-width="2" rx="5"/>
+                                    <text x="200" y="45" text-anchor="middle" fill="var(--text-primary)" font-size="14">女人</text>
+
+                                    <text x="260" y="45" text-anchor="middle" fill="var(--text-secondary)" font-size="20">=</text>
+
+                                    <rect x="280" y="20" width="80" height="40" fill="rgba(34,197,94,0.2)" stroke="var(--accent-green)" stroke-width="2" rx="5"/>
+                                    <text x="320" y="45" text-anchor="middle" fill="var(--text-primary)" font-size="14">女王</text>
+                                </g>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="insight-box" style="margin-top: 2rem; background: linear-gradient(135deg, rgba(79, 172, 254, 0.1), rgba(147, 51, 234, 0.1));">
+                    <h3 class="insight-title">🎯 向量运算的魔法</h3>
+                    <div style="text-align: center; margin: 1.5rem 0;">
+                        <p style="font-size: 1.5rem; color: var(--accent-purple);">
+                            vec(国王) - vec(男人) + vec(女人) ≈ vec(女王)
+                        </p>
+                    </div>
+                    <p>具体计算：</p>
+                    <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 0.5rem; margin-top: 1rem; font-family: monospace;">
+                        <p>vec(国王) = [-0.9, 0.9, 0.5]</p>
+                        <p>vec(男人) = [-0.8, -0.1, 0.3]</p>
+                        <p>vec(女人) = [0.8, -0.1, 0.3]</p>
+                        <p style="margin-top: 0.5rem; color: var(--accent-yellow);">
+                            结果 = [-0.9, 0.9, 0.5] - [-0.8, -0.1, 0.3] + [0.8, -0.1, 0.3]<br>
+                            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;= [-0.1, 1.0, 0.2] + [0.8, -0.1, 0.3]<br>
+                            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;= [0.7, 0.9, 0.5] ≈ vec(女王)
+                        </p>
+                    </div>
+
+                    <div style="margin-top: 1.5rem; padding: 1rem; background: rgba(34,197,94,0.1); border-radius: 0.5rem;">
+                        <p style="text-align: center;">
+                            <strong>深层含义：</strong>词向量不仅编码了词的"身份"，还编码了词之间的"关系"！<br>
+                            这就是为什么机器能够"理解"类比和推理。
+                        </p>
+                    </div>
+                </div>
+
+                <div class="card-grid" style="margin-top: 2rem;">
+                    <div class="info-card">
+                        <h4 style="color: var(--accent-green);">语义相似度</h4>
+                        <p>相似的词，向量距离近</p>
+                        <ul style="margin-top: 0.5rem; font-size: 0.9rem;">
+                            <li>猫 ↔ 狗：0.8</li>
+                            <li>猫 ↔ 汽车：0.1</li>
+                        </ul>
+                    </div>
+
+                    <div class="info-card">
+                        <h4 style="color: var(--accent-blue);">类比关系</h4>
+                        <p>向量运算捕获关系</p>
+                        <ul style="margin-top: 0.5rem; font-size: 0.9rem;">
+                            <li>北京 - 中国 + 日本 = 东京</li>
+                            <li>大 - 小 + 冷 = 热</li>
+                        </ul>
+                    </div>
+
+                    <div class="info-card">
+                        <h4 style="color: var(--accent-purple);">维度含义</h4>
+                        <p>每个维度代表某种特征</p>
+                        <ul style="margin-top: 0.5rem; font-size: 0.9rem;">
+                            <li>性别、年龄</li>
+                            <li>情感、正式程度</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 你的第一个NLP程序 -->
+        <section id="first-nlp-program" class="section-card">
+            <h2 style="color: var(--accent-green); margin-bottom: 2rem;">💻 你的第一个NLP程序</h2>
+
+            <div class="code-example">
+                <pre><code># 一个简单的情感分析程序
+import jieba  # 中文分词工具
+
+class SimpleSentimentAnalyzer:
+    """简单的中文情感分析器"""
+
+    def __init__(self):
+        # 情感词典
+        self.positive_words = {
+            '喜欢', '爱', '开心', '快乐', '美好', '优秀',
+            '棒', '赞', '好', '不错', '满意', '舒服'
+        }
+        self.negative_words = {
+            '讨厌', '恨', '难过', '伤心', '糟糕', '差劲',
+            '烂', '坏', '失望', '不满', '难受', '垃圾'
+        }
+
+        # 程度副词
+        self.degree_words = {
+            '非常': 2.0, '很': 1.5, '比较': 1.2, '稍微': 0.8,
+            '极其': 2.5, '最': 2.3, '更': 1.5, '太': 2.0
+        }
+
+        # 否定词
+        self.negation_words = {'不', '没', '无', '非', '别'}
+
+    def analyze(self, text):
+        """分析文本情感"""
+        # 1. 分词
+        words = jieba.lcut(text)
+        print(f"分词结果: {words}")
+
+        # 2. 计算情感分数
+        score = 0
+        degree = 1.0  # 程度系数
+        negation = False  # 是否有否定
+
+        for i, word in enumerate(words):
+            # 检查否定词
+            if word in self.negation_words:
+                negation = not negation
+                print(f"  发现否定词: {word}")
+
+            # 检查程度副词
+            if word in self.degree_words:
+                degree = self.degree_words[word]
+                print(f"  发现程度词: {word} (系数={degree})")
+
+            # 计算情感值
+            if word in self.positive_words:
+                word_score = 1 * degree
+                if negation:
+                    word_score = -word_score
+                score += word_score
+                print(f"  正面词: {word} (得分={word_score})")
+
+            elif word in self.negative_words:
+                word_score = -1 * degree
+                if negation:
+                    word_score = -word_score
+                score += word_score
+                print(f"  负面词: {word} (得分={word_score})")
+
+            # 重置状态
+            if word in self.positive_words or word in self.negative_words:
+                degree = 1.0
+                negation = False
+
+        # 3. 返回结果
+        print(f"\n总分: {score}")
+
+        if score > 0.5:
+            return "正面", score
+        elif score < -0.5:
+            return "负面", score
+        else:
+            return "中性", score
+
+# 使用示例
+analyzer = SimpleSentimentAnalyzer()
+
+# 测试不同的句子
+test_sentences = [
+    "这个产品真的很棒！",
+    "我不太喜欢这个设计",
+    "还可以吧，没什么特别的",
+    "非常失望，完全不值这个价格",
+    "不是不好，就是感觉一般"
+]
+
+print("="*50)
+for sentence in test_sentences:
+    print(f"\n分析: '{sentence}'")
+    sentiment, score = analyzer.analyze(sentence)
+    print(f"情感: {sentiment}")
+    print("="*50)</code></pre>
+            </div>
+
+            <div class="think-card" style="margin-top: 2rem;">
+                <h3>🤔 思考与改进</h3>
+                <p>这个简单的程序展示了NLP的基本思路，但还有很多局限：</p>
+                <ul style="margin-top: 1rem;">
+                    <li><strong>词典覆盖度：</strong>只包含了少量情感词</li>
+                    <li><strong>语境理解：</strong>无法理解"没话说"这种特殊表达</li>
+                    <li><strong>句法分析：</strong>不理解词语之间的修饰关系</li>
+                    <li><strong>领域适应：</strong>不同领域的情感表达不同</li>
+                </ul>
+                <p style="margin-top: 1rem; text-align: center; color: var(--accent-cyan);">
+                    💡 这就是为什么我们需要更高级的NLP技术！
+                </p>
+            </div>
+
+            <div class="interactive-demo" style="margin-top: 2rem;">
+                <h3 style="text-align: center; color: var(--accent-purple); margin-bottom: 1.5rem;">🎮 在线体验</h3>
+                <div style="background: var(--bg-card); padding: 2rem; border-radius: 0.75rem;">
+                    <div style="margin-bottom: 1.5rem;">
+                        <label for="user-input" style="display: block; margin-bottom: 0.5rem;">输入一句话试试：</label>
+                        <input type="text" id="user-input" placeholder="例如：这个教程真的很有帮助"
+                               style="width: 100%; padding: 0.75rem; border-radius: 0.5rem; border: 1px solid var(--border-color);
+                                      background: var(--bg-section); color: var(--text-primary);">
+                    </div>
+                    <button class="btn btn-primary" onclick="analyzeUserInput()">分析情感</button>
+                    <div id="analysis-result" style="margin-top: 1.5rem;"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- NLP改变世界 -->
+        <section id="applications" class="section-card">
+            <h2 style="color: var(--accent-yellow); margin-bottom: 2rem;">🌟 NLP改变世界</h2>
+
+            <div class="timeline">
+                <div class="timeline-item">
+                    <div class="timeline-dot"></div>
+                    <h4 style="color: var(--accent-pink);">搜索引擎</h4>
+                    <p><strong>Google、百度</strong></p>
+                    <p>理解用户查询意图，返回最相关结果</p>
+                </div>
+
+                <div class="timeline-item">
+                    <div class="timeline-dot"></div>
+                    <h4 style="color: var(--accent-blue);">智能助手</h4>
+                    <p><strong>Siri、小爱同学</strong></p>
+                    <p>语音识别 + 意图理解 + 任务执行</p>
+                </div>
+
+                <div class="timeline-item">
+                    <div class="timeline-dot"></div>
+                    <h4 style="color: var(--accent-green);">机器翻译</h4>
+                    <p><strong>Google翻译、DeepL</strong></p>
+                    <p>打破语言障碍，连接全球</p>
+                </div>
+
+                <div class="timeline-item">
+                    <div class="timeline-dot"></div>
+                    <h4 style="color: var(--accent-purple);">内容推荐</h4>
+                    <p><strong>抖音、小红书</strong></p>
+                    <p>理解内容和用户兴趣，精准推荐</p>
+                </div>
+
+                <div class="timeline-item">
+                    <div class="timeline-dot"></div>
+                    <h4 style="color: var(--accent-orange);">AI对话</h4>
+                    <p><strong>ChatGPT、文心一言</strong></p>
+                    <p>自然对话、知识问答、创意写作</p>
+                </div>
+            </div>
+
+            <div class="card-grid" style="margin-top: 3rem;">
+                <div class="info-card" style="background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(6, 182, 212, 0.1));">
+                    <span class="card-icon">🏥</span>
+                    <h3 class="card-title">医疗健康</h3>
+                    <p>病历分析、智能问诊、医学文献翻译</p>
+                </div>
+
+                <div class="info-card" style="background: linear-gradient(135deg, rgba(251, 191, 36, 0.1), rgba(252, 176, 69, 0.1));">
+                    <span class="card-icon">📚</span>
+                    <h3 class="card-title">教育学习</h3>
+                    <p>智能批改、个性化辅导、语言学习</p>
+                </div>
+
+                <div class="info-card" style="background: linear-gradient(135deg, rgba(244, 114, 182, 0.1), rgba(245, 87, 108, 0.1));">
+                    <span class="card-icon">💼</span>
+                    <h3 class="card-title">商业智能</h3>
+                    <p>舆情监控、客户反馈分析、智能客服</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 本章总结 -->
+        <section id="summary" class="section-card">
+            <h2 style="color: var(--accent-purple); margin-bottom: 2rem;">📝 本章总结</h2>
+
+            <div class="insight-box">
+                <h3 class="insight-title">✨ 重要收获</h3>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; margin-top: 1.5rem;">
+                    <div>
+                        <h4 style="color: var(--accent-cyan); margin-bottom: 0.5rem;">理解了什么</h4>
+                        <ul>
+                            <li>NLP是让机器理解人类语言的技术</li>
+                            <li>语言理解面临歧义、多样性、演化性挑战</li>
+                            <li>词向量将语言转换为数学表示</li>
+                        </ul>
+                    </div>
+
+                    <div>
+                        <h4 style="color: var(--accent-pink); margin-bottom: 0.5rem;">学会了什么</h4>
+                        <ul>
+                            <li>识别NLP任务的核心难点</li>
+                            <li>编写简单的情感分析程序</li>
+                            <li>理解词向量的基本原理</li>
+                        </ul>
+                    </div>
+
+                    <div>
+                        <h4 style="color: var(--accent-green); margin-bottom: 0.5rem;">准备做什么</h4>
+                        <ul>
+                            <li>深入学习文本预处理技术</li>
+                            <li>掌握更高级的NLP模型</li>
+                            <li>构建实际的NLP应用</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="think-card" style="margin-top: 2rem;">
+                <h3>🚀 下一步学习建议</h3>
+                <ol style="margin-top: 1rem;">
+                    <li><strong>动手实践：</strong>改进情感分析程序，处理更复杂的情况</li>
+                    <li><strong>深入理解：</strong>学习分词、词性标注等基础技术</li>
+                    <li><strong>拓展视野：</strong>了解当前NLP的前沿应用</li>
+                    <li><strong>保持好奇：</strong>观察生活中的语言现象，思考机器如何理解</li>
+                </ol>
+            </div>
+
+            <div class="tip success" style="margin-top: 2rem;">
+                <span style="font-size: 1.5rem;">💡</span>
+                <div>
+                    <strong>记住</strong>
+                    <p style="margin-top: 0.5rem;">
+                        NLP不仅是一门技术，更是连接人与机器的桥梁。每一次技术突破，都让机器更懂人类一点，让世界的沟通更顺畅一点。
+                    </p>
+                    <p style="margin-top: 1rem; text-align: center; font-size: 1.1rem; color: var(--accent-cyan);">
+                        让我们一起踏上这段奇妙的语言理解之旅！
+                    </p>
+                </div>
+            </div>
+        </section>
+    </div>
+</main>
+
+<!-- 页脚 -->
+<footer style="background: var(--bg-section); padding: 3rem 0; border-top: 1px solid var(--border-color);">
+    <div class="container">
+        <div style="text-align: center; color: var(--text-secondary);">
+            <p style="margin-bottom: 1rem; font-size: 1.1rem;">
+                📚 NLP入门教程 | 第1章：走进NLP的世界
+            </p>
+            <p>© 2024 NLP Tutorial Series. 教育目的使用。</p>
+        </div>
+    </div>
+</footer>
+
+<script>
+    // 主要交互功能
+    (function() {
+        'use strict';
+
+        // 导航功能
+        const toggleSidebar = document.getElementById('toggle-sidebar');
+        const sidebar = document.getElementById('sidebar');
+
+        toggleSidebar.addEventListener('click', () => {
+            sidebar.classList.toggle('open');
+        });
+
+        // 进度条
+        window.addEventListener('scroll', () => {
+            const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+            const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+            const scrolled = (winScroll / height) * 100;
+            document.getElementById('progress-bar').style.width = scrolled + '%';
+
+            // 更新侧边栏高亮
+            updateSidebarHighlight();
+        });
+
+        // 更新侧边栏高亮
+        function updateSidebarHighlight() {
+            const sections = document.querySelectorAll('section[id]');
+            const tocItems = document.querySelectorAll('.toc-item');
+            let current = '';
+
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                if (pageYOffset >= sectionTop - 200) {
+                    current = section.getAttribute('id');
+                }
+            });
+
+            tocItems.forEach(item => {
+                item.classList.remove('active');
+                if (item.getAttribute('href') === `#${current}`) {
+                    item.classList.add('active');
+                }
+            });
+        }
+
+        // 简单的情感分析函数
+        window.analyzeUserInput = function() {
+            const input = document.getElementById('user-input').value;
+            const resultDiv = document.getElementById('analysis-result');
+
+            if (!input.trim()) {
+                resultDiv.innerHTML = '<p style="color: var(--accent-red);">请输入一些文字！</p>';
+                return;
+            }
+
+            // 简单的规则匹配
+            const positiveWords = ['好', '棒', '喜欢', '爱', '优秀', '满意', '开心', '快乐', '赞'];
+            const negativeWords = ['差', '烂', '讨厌', '失望', '糟糕', '不满', '难过', '伤心'];
+
+            let positiveCount = 0;
+            let negativeCount = 0;
+
+            positiveWords.forEach(word => {
+                if (input.includes(word)) positiveCount++;
+            });
+
+            negativeWords.forEach(word => {
+                if (input.includes(word)) negativeCount++;
+            });
+
+            // 检查否定词
+            const hasNegation = ['不', '没', '无'].some(word => input.includes(word));
+
+            let sentiment = '中性';
+            let emoji = '😐';
+            let explanation = '';
+
+            if (positiveCount > negativeCount) {
+                if (hasNegation) {
+                    sentiment = '负面';
+                    emoji = '😢';
+                    explanation = '检测到正面词汇，但有否定词修饰';
+                } else {
+                    sentiment = '正面';
+                    emoji = '😊';
+                    explanation = `检测到 ${positiveCount} 个正面词汇`;
+                }
+            } else if (negativeCount > positiveCount) {
+                if (hasNegation) {
+                    sentiment = '正面';
+                    emoji = '😊';
+                    explanation = '检测到负面词汇，但有否定词修饰（双重否定）';
+                } else {
+                    sentiment = '负面';
+                    emoji = '😢';
+                    explanation = `检测到 ${negativeCount} 个负面词汇`;
+                }
+            } else {
+                explanation = '未检测到明显的情感词汇';
+            }
+
+            resultDiv.innerHTML = `
+                <div style="background: rgba(255, 255, 255, 0.05); padding: 1.5rem; border-radius: 0.5rem;">
+                    <p style="font-size: 2rem; text-align: center; margin-bottom: 1rem;">${emoji}</p>
+                    <p style="text-align: center; font-size: 1.2rem; color: var(--accent-cyan);">
+                        情感判断：<strong>${sentiment}</strong>
+                    </p>
+                    <p style="text-align: center; margin-top: 0.5rem; color: var(--text-secondary);">
+                        ${explanation}
+                    </p>
+                    <p style="margin-top: 1rem; text-align: center; font-size: 0.9rem; color: var(--text-dim);">
+                        注：这是一个简化的规则系统，实际的NLP系统会更加复杂和准确
+                    </p>
+                </div>
+            `;
+        };
+
+        // 平滑滚动
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function(e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        });
+
+        // 背景动画
+        const bgAnimation = document.getElementById('bgAnimation');
+        for (let i = 0; i < 50; i++) {
+            const particle = document.createElement('div');
+            particle.className = 'bg-particle';
+            particle.style.left = Math.random() * 100 + '%';
+            particle.style.animationDelay = Math.random() * 20 + 's';
+            particle.style.animationDuration = (20 + Math.random() * 10) + 's';
+            bgAnimation.appendChild(particle);
+        }
+
+        // 矩阵单元格高亮效果
+        const matrixCells = document.querySelectorAll('.matrix-cell');
+        matrixCells.forEach(cell => {
+            cell.addEventListener('mouseenter', function() {
+                this.classList.add('matrix-highlight');
+            });
+
+            cell.addEventListener('mouseleave', function() {
+                this.classList.remove('matrix-highlight');
+            });
+        });
+
+    })();
+</script>
+
+<!-- 外部依赖加载 -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+<script>
+    // 代码高亮
+    if (window.hljs) {
+        hljs.highlightAll();
+    }
+
+    // 数学公式渲染
+    if (window.renderMathInElement) {
+        renderMathInElement(document.body, {
+            delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '$', right: '$', display: false}
+            ],
+            throwOnError: false
+        });
+    }
+</script>
+
+</body>
+</html>

@@ -1,0 +1,3780 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>第8章：信息抽取 - 从文本中挖掘知识宝藏</title>
+    <meta name="description" content="将非结构化文本转化为结构化知识">
+
+    <!-- 数学公式支持 -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+            onload="renderMathInElement(document.body, {
+                delimiters: [
+                    {left: '$$', right: '$$', display: true},
+                    {left: '$', right: '$', display: false}
+                ]
+            });"></script>
+
+    <style>
+        /* ===== CSS变量定义 ===== */
+        :root {
+            /* 渐变色 */
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --hero-gradient: linear-gradient(135deg, #f5af19 0%, #f12711 100%);
+            --card-gradient: linear-gradient(135deg, rgba(245, 175, 25, 0.1), rgba(241, 39, 17, 0.05));
+            --success-gradient: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            --info-gradient: linear-gradient(135deg, #2af598 0%, #009efd 100%);
+
+            /* 主题色 */
+            --primary: #667eea;
+            --primary-light: #818cf8;
+            --primary-dark: #4c1d95;
+            --secondary: #f5af19;
+            --accent: #38ef7d;
+
+            /* 功能色 */
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --info: #3b82f6;
+
+            /* 背景色 */
+            --bg-dark: #0f0f1e;
+            --bg-section: #1a1a2e;
+            --bg-card: #252542;
+            --bg-code: #1e1e2e;
+
+            /* 文字色 */
+            --text-primary: #e0e0e0;
+            --text-secondary: #a0a0a0;
+            --text-muted: #666680;
+
+            /* 其他 */
+            --border-color: rgba(255, 255, 255, 0.1);
+            --shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+            --shadow-lg: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+            --radius: 1rem;
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* ===== 全局样式 ===== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            line-height: 1.7;
+            font-size: 16px;
+            overflow-x: hidden;
+        }
+
+        /* ===== 背景效果 ===== */
+        .bg-pattern {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            opacity: 0.03;
+            background-image:
+                    radial-gradient(circle at 20% 80%, var(--primary) 0%, transparent 50%),
+                    radial-gradient(circle at 80% 20%, var(--secondary) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .floating-shapes {
+            position: fixed;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            z-index: 0;
+        }
+
+        .shape {
+            position: absolute;
+            border-radius: 50%;
+            background: var(--primary-gradient);
+            opacity: 0.1;
+            animation: float 20s infinite ease-in-out;
+        }
+
+        .shape:nth-child(1) {
+            width: 80px;
+            height: 80px;
+            left: 10%;
+            top: 20%;
+            animation-delay: 0s;
+        }
+
+        .shape:nth-child(2) {
+            width: 120px;
+            height: 120px;
+            left: 70%;
+            top: 60%;
+            background: var(--hero-gradient);
+            animation-delay: 5s;
+        }
+
+        .shape:nth-child(3) {
+            width: 60px;
+            height: 60px;
+            left: 40%;
+            top: 80%;
+            background: var(--success-gradient);
+            animation-delay: 10s;
+        }
+
+        @keyframes float {
+            0%, 100% {
+                transform: translateY(0) rotate(0deg);
+            }
+            33% {
+                transform: translateY(-30px) rotate(120deg);
+            }
+            66% {
+                transform: translateY(30px) rotate(240deg);
+            }
+        }
+
+        /* ===== 布局 ===== */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 1.5rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ===== 导航栏 ===== */
+        .nav-header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: rgba(26, 26, 46, 0.9);
+            backdrop-filter: blur(20px);
+            z-index: 1000;
+            border-bottom: 1px solid var(--border-color);
+            transition: var(--transition);
+        }
+
+        .nav-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1rem 0;
+        }
+
+        .nav-title {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .nav-title h1 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .nav-menu {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        /* 进度条 */
+        .progress-container {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: var(--primary-gradient);
+            width: 0;
+            transition: width 0.3s ease;
+        }
+
+        /* ===== 侧边栏 ===== */
+        .sidebar {
+            position: fixed;
+            left: -300px;
+            top: 60px;
+            bottom: 0;
+            width: 300px;
+            background: var(--bg-section);
+            border-right: 1px solid var(--border-color);
+            padding: 2rem;
+            overflow-y: auto;
+            transition: transform 0.3s ease;
+            z-index: 999;
+            box-shadow: 5px 0 25px rgba(0, 0, 0, 0.5);
+        }
+
+        .sidebar.open {
+            transform: translateX(300px);
+        }
+
+        .toc-title {
+            color: var(--primary-light);
+            margin-bottom: 1.5rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .toc-section {
+            margin-bottom: 1.5rem;
+        }
+
+        .toc-section-title {
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.5rem;
+            padding-left: 0.5rem;
+        }
+
+        .toc-item {
+            display: block;
+            padding: 0.75rem 1rem;
+            color: var(--text-secondary);
+            text-decoration: none;
+            border-radius: 0.5rem;
+            transition: all 0.3s ease;
+            margin-bottom: 0.25rem;
+            font-size: 0.95rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .toc-item::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: var(--primary);
+            transform: translateX(-100%);
+            transition: transform 0.3s ease;
+        }
+
+        .toc-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-primary);
+            padding-left: 1.5rem;
+        }
+
+        .toc-item.active {
+            background: var(--card-gradient);
+            color: var(--primary-light);
+        }
+
+        .toc-item.active::before {
+            transform: translateX(0);
+        }
+
+        /* ===== 按钮样式 ===== */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            font-size: 0.95rem;
+            font-weight: 500;
+            text-decoration: none;
+            transition: var(--transition);
+            cursor: pointer;
+            border: none;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            transition: width 0.5s, height 0.5s;
+        }
+
+        .btn:hover::before {
+            width: 300px;
+            height: 300px;
+        }
+
+        .btn-primary {
+            background: var(--primary-gradient);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-icon {
+            background: transparent;
+            padding: 0.5rem;
+            color: var(--text-secondary);
+        }
+
+        /* ===== 主内容 ===== */
+        main {
+            margin-top: 80px;
+            padding-bottom: 4rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ===== 章节头部 ===== */
+        .chapter-hero {
+            background: var(--hero-gradient);
+            padding: 6rem 0;
+            margin-bottom: 3rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .chapter-hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background:
+                    radial-gradient(circle at 30% 50%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
+                    radial-gradient(circle at 70% 50%, rgba(255, 255, 255, 0.1) 0%, transparent 50%);
+            animation: pulse 4s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 0.8; }
+        }
+
+        .chapter-hero-content {
+            text-align: center;
+            color: white;
+            position: relative;
+            z-index: 1;
+        }
+
+        .chapter-hero h1 {
+            font-size: 3.5rem;
+            margin-bottom: 1rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            animation: fadeInUp 0.8s ease;
+        }
+
+        .chapter-hero p {
+            font-size: 1.5rem;
+            opacity: 0.95;
+            animation: fadeInUp 0.8s ease 0.2s both;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* ===== 内容卡片 ===== */
+        .section-card {
+            background: var(--bg-section);
+            border-radius: var(--radius);
+            padding: 3rem;
+            margin-bottom: 2rem;
+            box-shadow: var(--shadow);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .section-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--primary-gradient);
+            transform: scaleX(0);
+            transform-origin: left;
+            transition: transform 0.5s ease;
+        }
+
+        .section-card:hover::before {
+            transform: scaleX(1);
+        }
+
+        .section-card h2 {
+            color: var(--primary-light);
+            margin-bottom: 2rem;
+            font-size: 2.25rem;
+            font-weight: 700;
+        }
+
+        .section-card h3 {
+            color: var(--text-primary);
+            margin: 2rem 0 1rem;
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        /* ===== 故事卡片 ===== */
+        .story-card {
+            background: linear-gradient(135deg, rgba(245, 175, 25, 0.1), rgba(241, 39, 17, 0.1));
+            border: 2px solid rgba(245, 175, 25, 0.3);
+            border-radius: var(--radius);
+            padding: 2.5rem;
+            margin: 2rem 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .story-card::after {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            background: var(--hero-gradient);
+            z-index: -1;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            border-radius: var(--radius);
+        }
+
+        .story-card:hover::after {
+            opacity: 0.3;
+        }
+
+        .story-icon {
+            font-size: 3rem;
+            display: block;
+            margin-bottom: 1rem;
+            animation: bounce 2s ease-in-out infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        /* ===== 代码块 ===== */
+        .code-block {
+            background: var(--bg-code);
+            border: 1px solid #30363d;
+            border-radius: 0.75rem;
+            margin: 1.5rem 0;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .code-header {
+            background: #161b22;
+            padding: 1rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #30363d;
+        }
+
+        .code-lang {
+            color: var(--primary-light);
+            font-size: 0.875rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .code-lang::before {
+            content: '';
+            width: 12px;
+            height: 12px;
+            background: var(--primary);
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .code-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .code-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: var(--text-secondary);
+            padding: 0.375rem 0.875rem;
+            border-radius: 0.375rem;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+
+        .code-btn:hover {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+            transform: translateY(-1px);
+        }
+
+        .code-content {
+            padding: 1.5rem;
+            overflow-x: auto;
+            font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', monospace;
+            font-size: 0.875rem;
+            line-height: 1.7;
+        }
+
+        .code-content pre {
+            margin: 0;
+            color: #e6edf3;
+        }
+
+        .code-content.collapsed {
+            max-height: 300px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .code-content.collapsed::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 100px;
+            background: linear-gradient(transparent, var(--bg-code));
+        }
+
+        /* 代码高亮 */
+        .keyword { color: #ff79c6; }
+        .string { color: #f1fa8c; }
+        .comment { color: #6272a4; }
+        .function { color: #50fa7b; }
+        .number { color: #bd93f9; }
+
+        /* ===== 卡片网格 ===== */
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin: 2rem 0;
+        }
+
+        .info-card {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 2rem;
+            border: 1px solid var(--border-color);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .info-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: var(--primary-gradient);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .info-card:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--shadow-lg);
+            border-color: var(--primary);
+        }
+
+        .info-card:hover::before {
+            opacity: 0.05;
+        }
+
+        .card-icon {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            display: block;
+        }
+
+        .card-title {
+            color: var(--primary-light);
+            margin-bottom: 1rem;
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+        /* ===== 信息过载展示 ===== */
+        .info-overload {
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(245, 158, 11, 0.1));
+            border: 2px solid rgba(239, 68, 68, 0.3);
+            border-radius: var(--radius);
+            padding: 2rem;
+            margin: 2rem 0;
+            text-align: center;
+        }
+
+        .overload-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 2rem;
+            margin: 2rem 0;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: var(--danger);
+            display: block;
+        }
+
+        .stat-label {
+            color: var(--text-muted);
+            font-size: 0.875rem;
+            margin-top: 0.5rem;
+        }
+
+        /* ===== 抽取示例 ===== */
+        .extraction-demo {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 2rem;
+            margin: 2rem 0;
+        }
+
+        .text-display {
+            background: var(--bg-code);
+            padding: 1.5rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1.5rem;
+            line-height: 1.8;
+            font-size: 1.1rem;
+        }
+
+        .entity-tag {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            margin: 0 0.25rem;
+            border-radius: 0.25rem;
+            font-weight: 500;
+            position: relative;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .entity-tag:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .entity-person {
+            background: rgba(59, 130, 246, 0.2);
+            border: 1px solid #3b82f6;
+            color: #93bbfc;
+        }
+
+        .entity-org {
+            background: rgba(16, 185, 129, 0.2);
+            border: 1px solid #10b981;
+            color: #6ee7b7;
+        }
+
+        .entity-location {
+            background: rgba(245, 158, 11, 0.2);
+            border: 1px solid #f59e0b;
+            color: #fcd34d;
+        }
+
+        .entity-time {
+            background: rgba(139, 92, 246, 0.2);
+            border: 1px solid #8b5cf6;
+            color: #c4b5fd;
+        }
+
+        /* ===== 知识图谱可视化 ===== */
+        .knowledge-graph {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 2rem;
+            margin: 2rem 0;
+            height: 400px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .graph-canvas {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+
+        .graph-node {
+            position: absolute;
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+        }
+
+        .graph-node:hover {
+            transform: scale(1.1);
+            z-index: 10;
+        }
+
+        .node-person {
+            background: var(--info-gradient);
+        }
+
+        .node-org {
+            background: var(--success-gradient);
+        }
+
+        .node-location {
+            background: var(--hero-gradient);
+        }
+
+        .graph-edge {
+            position: absolute;
+            height: 2px;
+            background: var(--text-muted);
+            transform-origin: left center;
+            z-index: -1;
+        }
+
+        .edge-label {
+            position: absolute;
+            top: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--bg-section);
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        /* ===== 深度思考框 ===== */
+        .deep-think-box {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+            border: 2px solid rgba(102, 126, 234, 0.3);
+            border-radius: var(--radius);
+            padding: 2.5rem;
+            margin: 3rem 0;
+            position: relative;
+        }
+
+        .deep-think-box::before {
+            content: '🧠';
+            position: absolute;
+            top: -18px;
+            left: 30px;
+            font-size: 2.5rem;
+            background: var(--bg-section);
+            padding: 0 0.75rem;
+        }
+
+        .deep-think-box h4 {
+            color: var(--primary-light);
+            margin-bottom: 1.25rem;
+            font-size: 1.25rem;
+        }
+
+        .think-item {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 1.25rem;
+            border-radius: 0.75rem;
+            margin-bottom: 1rem;
+            border-left: 3px solid var(--primary);
+        }
+
+        .think-item h5 {
+            color: var(--primary-light);
+            margin-bottom: 0.5rem;
+        }
+
+        /* ===== 提示框 ===== */
+        .tip {
+            padding: 1.5rem 2rem;
+            border-radius: var(--radius);
+            margin: 2rem 0;
+            border-left: 4px solid;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .tip::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            opacity: 0.05;
+            background: currentColor;
+        }
+
+        .tip-icon {
+            font-size: 1.5rem;
+            margin-right: 1rem;
+            vertical-align: middle;
+        }
+
+        .tip.info {
+            background: rgba(59, 130, 246, 0.1);
+            border-color: var(--info);
+            color: var(--text-primary);
+        }
+
+        .tip.warning {
+            background: rgba(245, 158, 11, 0.1);
+            border-color: var(--warning);
+            color: var(--text-primary);
+        }
+
+        .tip.success {
+            background: rgba(16, 185, 129, 0.1);
+            border-color: var(--success);
+            color: var(--text-primary);
+        }
+
+        .tip.danger {
+            background: rgba(239, 68, 68, 0.1);
+            border-color: var(--danger);
+            color: var(--text-primary);
+        }
+
+        /* ===== 快速导航 ===== */
+        .quick-nav {
+            position: fixed;
+            right: 2rem;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .quick-nav-item {
+            width: 12px;
+            height: 12px;
+            background: var(--text-muted);
+            border-radius: 50%;
+            transition: all 0.3s;
+            position: relative;
+            cursor: pointer;
+        }
+
+        .quick-nav-item:hover,
+        .quick-nav-item.active {
+            background: var(--primary);
+            transform: scale(1.5);
+        }
+
+        .quick-nav-tooltip {
+            position: absolute;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: var(--bg-dark);
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+            border: 1px solid var(--border-color);
+            font-size: 0.875rem;
+        }
+
+        .quick-nav-item:hover .quick-nav-tooltip {
+            opacity: 1;
+        }
+
+        /* ===== 表格样式 ===== */
+        .comparison-table {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            overflow: hidden;
+            margin: 2rem 0;
+            box-shadow: var(--shadow);
+        }
+
+        .comparison-table table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .comparison-table th {
+            background: var(--primary-gradient);
+            color: white;
+            padding: 1.25rem;
+            text-align: left;
+            font-weight: 600;
+            font-size: 0.95rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .comparison-table td {
+            padding: 1.25rem;
+            border-bottom: 1px solid var(--border-color);
+            transition: all 0.3s ease;
+        }
+
+        .comparison-table tr:hover td {
+            background: rgba(102, 126, 234, 0.05);
+        }
+
+        .comparison-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* ===== 流程图 ===== */
+        .pipeline-diagram {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 2rem;
+            margin: 2rem 0;
+            overflow-x: auto;
+        }
+
+        .pipeline-flow {
+            display: flex;
+            align-items: center;
+            gap: 2rem;
+            min-width: 800px;
+            padding: 1rem;
+        }
+
+        .pipeline-step {
+            flex: 1;
+            background: var(--bg-section);
+            border: 2px solid var(--border-color);
+            border-radius: var(--radius);
+            padding: 1.5rem;
+            text-align: center;
+            position: relative;
+            transition: all 0.3s;
+        }
+
+        .pipeline-step:hover {
+            transform: translateY(-5px);
+            border-color: var(--primary);
+            box-shadow: var(--shadow);
+        }
+
+        .pipeline-step::after {
+            content: '→';
+            position: absolute;
+            right: -30px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1.5rem;
+            color: var(--primary);
+        }
+
+        .pipeline-step:last-child::after {
+            display: none;
+        }
+
+        .step-icon {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            display: block;
+        }
+
+        .step-title {
+            color: var(--primary-light);
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        /* ===== 交互演示 ===== */
+        .interactive-demo {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 2rem;
+            margin: 2rem 0;
+        }
+
+        .demo-controls {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .demo-output {
+            background: var(--bg-code);
+            padding: 1.5rem;
+            border-radius: 0.5rem;
+            min-height: 200px;
+        }
+
+        /* ===== 响应式设计 ===== */
+        @media (max-width: 768px) {
+            .chapter-hero h1 {
+                font-size: 2.5rem;
+            }
+
+            .section-card {
+                padding: 2rem;
+            }
+
+            .quick-nav {
+                display: none;
+            }
+
+            .pipeline-flow {
+                flex-direction: column;
+                min-width: auto;
+            }
+
+            .pipeline-step::after {
+                content: '↓';
+                right: 50%;
+                bottom: -30px;
+                top: auto;
+                transform: translateX(50%);
+            }
+
+            .graph-node {
+                width: 60px;
+                height: 60px;
+                font-size: 0.75rem;
+            }
+        }
+
+        /* ===== 工具类 ===== */
+        .text-center { text-align: center; }
+        .text-muted { color: var(--text-muted); }
+        .mt-1 { margin-top: 0.5rem; }
+        .mt-2 { margin-top: 1rem; }
+        .mt-3 { margin-top: 1.5rem; }
+        .mt-4 { margin-top: 2rem; }
+        .mb-1 { margin-bottom: 0.5rem; }
+        .mb-2 { margin-bottom: 1rem; }
+        .mb-3 { margin-bottom: 1.5rem; }
+        .mb-4 { margin-bottom: 2rem; }
+
+        /* ===== 参数显示 ===== */
+        .param-display {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+
+        .param-item {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 1rem;
+            border-radius: 0.5rem;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .param-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .param-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: var(--primary-light);
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+
+        .param-label {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+        }
+
+        /* ===== 关系类型 ===== */
+        .relation-types {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin: 2rem 0;
+        }
+
+        .relation-item {
+            background: var(--bg-code);
+            padding: 1rem;
+            border-radius: 0.5rem;
+            border-left: 3px solid var(--primary);
+        }
+
+        .relation-example {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            margin-top: 0.5rem;
+        }
+
+        /* ===== 结果展示 ===== */
+        .result-display {
+            background: var(--bg-code);
+            border-radius: var(--radius);
+            padding: 1.5rem;
+            margin: 1rem 0;
+            font-family: monospace;
+        }
+
+        .result-item {
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .result-item:last-child {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+
+        .result-label {
+            color: var(--primary-light);
+            font-weight: 600;
+            margin-right: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+
+<!-- 背景效果 -->
+<div class="bg-pattern"></div>
+<div class="floating-shapes">
+    <div class="shape"></div>
+    <div class="shape"></div>
+    <div class="shape"></div>
+</div>
+
+<!-- 导航栏 -->
+<nav class="nav-header">
+    <div class="container">
+        <div class="nav-content">
+            <div class="nav-title">
+                <button id="toggle-sidebar" class="btn btn-icon">
+                    <svg width="20" height="20" fill="currentColor">
+                        <path d="M3 5h14M3 10h14M3 15h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </button>
+                <h1>第8章：信息抽取</h1>
+            </div>
+            <div class="nav-menu">
+                <button class="btn btn-icon" id="theme-toggle">🌙</button>
+                <a href="#summary" class="btn btn-secondary">章节总结</a>
+            </div>
+        </div>
+        <div class="progress-container">
+            <div class="progress-bar" id="progress-bar"></div>
+        </div>
+    </div>
+</nav>
+
+<!-- 侧边栏 -->
+<aside class="sidebar" id="sidebar">
+    <h3 class="toc-title">
+        <span>📚</span>
+        <span>本章导航</span>
+    </h3>
+
+    <div class="toc-section">
+        <div class="toc-section-title">引言</div>
+        <a href="#intro" class="toc-item active">信息过载的挑战</a>
+        <a href="#what-is-ie" class="toc-item">什么是信息抽取</a>
+    </div>
+
+    <div class="toc-section">
+        <div class="toc-section-title">核心技术</div>
+        <a href="#ner" class="toc-item">命名实体识别</a>
+        <a href="#relation-extraction" class="toc-item">关系抽取</a>
+        <a href="#event-extraction" class="toc-item">事件抽取</a>
+    </div>
+
+    <div class="toc-section">
+        <div class="toc-section-title">高级技术</div>
+        <a href="#attribute-extraction" class="toc-item">属性抽取</a>
+        <a href="#knowledge-graph" class="toc-item">知识图谱构建</a>
+        <a href="#joint-extraction" class="toc-item">联合抽取</a>
+    </div>
+
+    <div class="toc-section">
+        <div class="toc-section-title">方法与实现</div>
+        <a href="#traditional-methods" class="toc-item">传统方法</a>
+        <a href="#deep-learning" class="toc-item">深度学习方法</a>
+        <a href="#evaluation" class="toc-item">评估指标</a>
+    </div>
+
+    <div class="toc-section">
+        <div class="toc-section-title">应用与实践</div>
+        <a href="#applications" class="toc-item">实际应用</a>
+        <a href="#best-practices" class="toc-item">最佳实践</a>
+    </div>
+
+    <div class="toc-section">
+        <div class="toc-section-title">总结</div>
+        <a href="#summary" class="toc-item">本章总结</a>
+        <a href="#future" class="toc-item">未来展望</a>
+    </div>
+</aside>
+
+<!-- 快速导航 -->
+<div class="quick-nav" id="quick-nav">
+    <div class="quick-nav-item active" data-section="intro">
+        <span class="quick-nav-tooltip">引言</span>
+    </div>
+    <div class="quick-nav-item" data-section="ner">
+        <span class="quick-nav-tooltip">命名实体识别</span>
+    </div>
+    <div class="quick-nav-item" data-section="relation-extraction">
+        <span class="quick-nav-tooltip">关系抽取</span>
+    </div>
+    <div class="quick-nav-item" data-section="knowledge-graph">
+        <span class="quick-nav-tooltip">知识图谱</span>
+    </div>
+    <div class="quick-nav-item" data-section="applications">
+        <span class="quick-nav-tooltip">应用实践</span>
+    </div>
+    <div class="quick-nav-item" data-section="summary">
+        <span class="quick-nav-tooltip">总结</span>
+    </div>
+</div>
+
+<!-- 主内容 -->
+<main>
+    <!-- 章节标题 -->
+    <section class="chapter-hero">
+        <div class="container">
+            <div class="chapter-hero-content">
+                <h1>信息抽取</h1>
+                <p>从海量文本中挖掘结构化知识</p>
+            </div>
+        </div>
+    </section>
+
+    <div class="container">
+        <!-- 引言：信息过载的挑战 -->
+        <section id="intro" class="section-card">
+            <h2>📊 信息过载的挑战</h2>
+
+            <div class="story-card">
+                <span class="story-icon">🌊</span>
+                <p><strong>被信息淹没的时代</strong></p>
+                <p class="mt-2">
+                    想象一下：每天有250万篇文章发布，50亿条社交媒体更新，无数的新闻、报告、邮件...
+                    我们如何从这个信息海洋中找到真正有价值的知识？
+                </p>
+            </div>
+
+            <div class="info-overload">
+                <h3>每分钟产生的数据</h3>
+                <div class="overload-stats">
+                    <div class="stat-item">
+                        <span class="stat-value">500K</span>
+                        <span class="stat-label">推文发送</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value">350K</span>
+                        <span class="stat-label">Instagram上传</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value">4.5M</span>
+                        <span class="stat-label">YouTube观看</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value">188M</span>
+                        <span class="stat-label">邮件发送</span>
+                    </div>
+                </div>
+                <p class="mt-3 text-muted">
+                    人类已经无法手动处理这么多信息，我们需要自动化的解决方案！
+                </p>
+            </div>
+
+            <div class="deep-think-box">
+                <h4>核心问题</h4>
+                <div class="think-item">
+                    <h5>📚 非结构化的困境</h5>
+                    <ul>
+                        <li>80%的数据是非结构化文本</li>
+                        <li>无法直接用于分析和决策</li>
+                        <li>隐藏着大量有价值的信息</li>
+                        <li>人工处理成本高昂</li>
+                    </ul>
+                </div>
+                <div class="think-item">
+                    <h5>🎯 我们需要什么</h5>
+                    <ul>
+                        <li>自动识别文本中的重要实体</li>
+                        <li>发现实体之间的关系</li>
+                        <li>提取关键事件和属性</li>
+                        <li>构建结构化的知识库</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="extraction-demo">
+                <h3 class="mb-3">一个简单的例子</h3>
+                <div class="text-display">
+                    <strong>原始文本：</strong><br>
+                    "2023年10月，马斯克的SpaceX公司在德克萨斯州成功发射了星舰飞船，
+                    这是人类探索火星计划的重要里程碑。"
+                </div>
+                <div class="result-display">
+                    <div class="result-item">
+                        <span class="result-label">实体：</span>
+                        <span class="entity-tag entity-person">马斯克</span>
+                        <span class="entity-tag entity-org">SpaceX公司</span>
+                        <span class="entity-tag entity-location">德克萨斯州</span>
+                        <span class="entity-tag entity-time">2023年10月</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">关系：</span>
+                        马斯克 → 创办 → SpaceX公司
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">事件：</span>
+                        发射事件（时间：2023年10月，地点：德克萨斯州，对象：星舰飞船）
+                    </div>
+                </div>
+            </div>
+
+            <div class="tip info mt-4">
+                <span class="tip-icon">💡</span>
+                <strong>信息抽取的价值</strong>
+                <p class="mt-2">
+                    通过信息抽取，我们可以将海量的非结构化文本转化为结构化的知识，
+                    让机器能够"理解"和"利用"这些信息，为智能搜索、问答系统、
+                    决策支持等应用提供基础。
+                </p>
+            </div>
+        </section>
+
+        <!-- 什么是信息抽取 -->
+        <section id="what-is-ie" class="section-card">
+            <h2>🔍 什么是信息抽取</h2>
+
+            <div class="story-card">
+                <span class="story-icon">🎯</span>
+                <p><strong>从文本到知识的桥梁</strong></p>
+                <p class="mt-2">
+                    信息抽取（Information Extraction, IE）就像一个智能的"挖矿机"，
+                    从文本的"矿石"中提炼出结构化的"黄金"——知识。
+                </p>
+            </div>
+
+            <div class="pipeline-diagram">
+                <h3 class="text-center mb-3">信息抽取流程</h3>
+                <div class="pipeline-flow">
+                    <div class="pipeline-step">
+                        <span class="step-icon">📄</span>
+                        <div class="step-title">原始文本</div>
+                        <div class="text-muted">非结构化数据</div>
+                    </div>
+                    <div class="pipeline-step">
+                        <span class="step-icon">🏷️</span>
+                        <div class="step-title">实体识别</div>
+                        <div class="text-muted">人名、地名、机构</div>
+                    </div>
+                    <div class="pipeline-step">
+                        <span class="step-icon">🔗</span>
+                        <div class="step-title">关系抽取</div>
+                        <div class="text-muted">实体间联系</div>
+                    </div>
+                    <div class="pipeline-step">
+                        <span class="step-icon">📅</span>
+                        <div class="step-title">事件抽取</div>
+                        <div class="text-muted">发生了什么</div>
+                    </div>
+                    <div class="pipeline-step">
+                        <span class="step-icon">💎</span>
+                        <div class="step-title">结构化知识</div>
+                        <div class="text-muted">可查询数据库</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card-grid mt-4">
+                <div class="info-card">
+                    <span class="card-icon">🎯</span>
+                    <h4 class="card-title">核心任务</h4>
+                    <ul>
+                        <li>命名实体识别（NER）</li>
+                        <li>关系抽取（RE）</li>
+                        <li>事件抽取（EE）</li>
+                        <li>属性抽取</li>
+                    </ul>
+                </div>
+
+                <div class="info-card">
+                    <span class="card-icon">🛠️</span>
+                    <h4 class="card-title">技术方法</h4>
+                    <ul>
+                        <li>规则匹配</li>
+                        <li>统计模型</li>
+                        <li>深度学习</li>
+                        <li>预训练模型</li>
+                    </ul>
+                </div>
+
+                <div class="info-card">
+                    <span class="card-icon">💼</span>
+                    <h4 class="card-title">应用领域</h4>
+                    <ul>
+                        <li>知识图谱构建</li>
+                        <li>智能问答系统</li>
+                        <li>舆情分析</li>
+                        <li>金融风控</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="deep-think-box mt-4">
+                <h4>信息抽取的层次</h4>
+                <div class="think-item">
+                    <h5>📝 词汇级别</h5>
+                    <p>识别文本中的基本信息单元：</p>
+                    <ul>
+                        <li>命名实体（人名、地名、机构名等）</li>
+                        <li>时间表达（日期、时间、持续时间）</li>
+                        <li>数值信息（金额、百分比、数量）</li>
+                    </ul>
+                </div>
+                <div class="think-item">
+                    <h5>🔗 句子级别</h5>
+                    <p>理解句子中的语义关系：</p>
+                    <ul>
+                        <li>实体间关系（工作于、位于、创建等）</li>
+                        <li>语义角色（施事、受事、工具等）</li>
+                        <li>属性描述（年龄、职位、特征等）</li>
+                    </ul>
+                </div>
+                <div class="think-item">
+                    <h5>📰 篇章级别</h5>
+                    <p>把握全文的主要信息：</p>
+                    <ul>
+                        <li>事件脉络（触发词、参与者、时间地点）</li>
+                        <li>主题归纳（文档分类、关键词提取）</li>
+                        <li>观点态度（情感倾向、立场分析）</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="tip success mt-4">
+                <span class="tip-icon">🎯</span>
+                <strong>信息抽取的目标</strong>
+                <p class="mt-2">
+                    将自由文本中的信息转化为结构化、机器可理解的形式，
+                    让计算机能够"读懂"文本，为下游应用提供高质量的知识输入。
+                </p>
+            </div>
+        </section>
+
+        <!-- 命名实体识别 -->
+        <section id="ner" class="section-card">
+            <h2>🏷️ 命名实体识别（NER）</h2>
+
+            <div class="story-card">
+                <span class="story-icon">🔍</span>
+                <p><strong>找出文本中的"主角"</strong></p>
+                <p class="mt-2">
+                    如果文本是一部戏剧，那么命名实体就是其中的主要角色。
+                    NER的任务就是找出这些"主角"，并给他们贴上正确的标签。
+                </p>
+            </div>
+
+            <div class="extraction-demo">
+                <h3 class="mb-3">NER实例演示</h3>
+                <div class="text-display">
+                    <span>昨天，</span>
+                    <span class="entity-tag entity-person">李明</span>
+                    <span>从</span>
+                    <span class="entity-tag entity-location">北京</span>
+                    <span>飞往</span>
+                    <span class="entity-tag entity-location">上海</span>
+                    <span>，参加</span>
+                    <span class="entity-tag entity-org">阿里巴巴</span>
+                    <span>举办的</span>
+                    <span class="entity-tag entity-time">2024年</span>
+                    <span>云计算大会。</span>
+                </div>
+
+                <div class="param-display mt-3">
+                    <div class="param-item">
+                        <span class="param-value">PER</span>
+                        <span class="param-label">人名</span>
+                    </div>
+                    <div class="param-item">
+                        <span class="param-value">LOC</span>
+                        <span class="param-label">地名</span>
+                    </div>
+                    <div class="param-item">
+                        <span class="param-value">ORG</span>
+                        <span class="param-label">机构名</span>
+                    </div>
+                    <div class="param-item">
+                        <span class="param-value">TIME</span>
+                        <span class="param-label">时间</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="deep-think-box">
+                <h4>NER的核心挑战</h4>
+                <div class="think-item">
+                    <h5>🎭 实体边界识别</h5>
+                    <ul>
+                        <li><strong>嵌套实体：</strong>"北京大学"中的"北京"</li>
+                        <li><strong>复合实体：</strong>"微软亚洲研究院"</li>
+                        <li><strong>缩写处理：</strong>"北大"vs"北京大学"</li>
+                    </ul>
+                </div>
+                <div class="think-item">
+                    <h5>🌐 实体歧义消解</h5>
+                    <ul>
+                        <li><strong>一词多义：</strong>"苹果"（公司/水果）</li>
+                        <li><strong>上下文依赖：</strong>"乔丹"（篮球/学者）</li>
+                        <li><strong>跨语言实体：</strong>"Apple"/"苹果公司"</li>
+                    </ul>
+                </div>
+                <div class="think-item">
+                    <h5>📊 数据稀疏问题</h5>
+                    <ul>
+                        <li><strong>新实体涌现：</strong>新公司、新产品</li>
+                        <li><strong>长尾实体：</strong>罕见人名地名</li>
+                        <li><strong>领域特异性：</strong>医学、法律术语</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="code-block">
+                <div class="code-header">
+                    <span class="code-lang">Python - 基于深度学习的NER实现</span>
+                    <div class="code-actions">
+                        <button class="code-btn" onclick="toggleCode(this)">展开</button>
+                        <button class="code-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+                </div>
+                <div class="code-content collapsed">
+                    <pre><span class="keyword">import</span> torch
+<span class="keyword">import</span> torch.nn <span class="keyword">as</span> nn
+<span class="keyword">from</span> transformers <span class="keyword">import</span> BertModel, BertTokenizer
+<span class="keyword">import</span> numpy <span class="keyword">as</span> np
+
+<span class="keyword">class</span> <span class="function">BERT_BiLSTM_CRF</span>(nn.Module):
+    <span class="string">"""
+    BERT + BiLSTM + CRF 的NER模型
+    结合了预训练模型的语义理解能力和CRF的序列标注能力
+    """</span>
+    <span class="keyword">def</span> <span class="function">__init__</span>(self, bert_model_name, num_tags, lstm_hidden_size=256):
+        super().__init__()
+
+        <span class="comment"># BERT编码器</span>
+        self.bert = BertModel.from_pretrained(bert_model_name)
+        bert_hidden_size = self.bert.config.hidden_size
+
+        <span class="comment"># BiLSTM层</span>
+        self.lstm = nn.LSTM(
+            bert_hidden_size,
+            lstm_hidden_size // 2,
+            num_layers=2,
+            bidirectional=True,
+            batch_first=True,
+            dropout=0.3
+        )
+
+        <span class="comment"># 分类层</span>
+        self.hidden2tag = nn.Linear(lstm_hidden_size, num_tags)
+        self.dropout = nn.Dropout(0.3)
+
+        <span class="comment"># CRF层</span>
+        self.crf = CRF(num_tags, batch_first=True)
+
+    <span class="keyword">def</span> <span class="function">forward</span>(self, input_ids, attention_mask, labels=None):
+        <span class="comment"># BERT编码</span>
+        bert_outputs = self.bert(
+            input_ids=input_ids,
+            attention_mask=attention_mask
+        )
+        sequence_output = bert_outputs.last_hidden_state
+
+        <span class="comment"># BiLSTM编码</span>
+        lstm_output, _ = self.lstm(sequence_output)
+        lstm_output = self.dropout(lstm_output)
+
+        <span class="comment"># 发射分数</span>
+        emissions = self.hidden2tag(lstm_output)
+
+        <span class="keyword">if</span> labels <span class="keyword">is not</span> None:
+            <span class="comment"># 训练模式：计算损失</span>
+            loss = -self.crf(
+                emissions,
+                labels,
+                mask=attention_mask.byte(),
+                reduction=<span class="string">'mean'</span>
+            )
+            <span class="keyword">return</span> loss
+        <span class="keyword">else</span>:
+            <span class="comment"># 推理模式：解码最优路径</span>
+            predictions = self.crf.decode(
+                emissions,
+                mask=attention_mask.byte()
+            )
+            <span class="keyword">return</span> predictions
+
+<span class="keyword">class</span> <span class="function">NERDataProcessor</span>:
+    <span class="string">"""
+    NER数据处理器
+    """</span>
+    <span class="keyword">def</span> <span class="function">__init__</span>(self, tokenizer, label_list):
+        self.tokenizer = tokenizer
+        self.label_list = label_list
+        self.label2id = {label: i <span class="keyword">for</span> i, label <span class="keyword">in</span> enumerate(label_list)}
+        self.id2label = {i: label <span class="keyword">for</span> i, label <span class="keyword">in</span> enumerate(label_list)}
+
+    <span class="keyword">def</span> <span class="function">process_text</span>(self, text, labels=None, max_length=128):
+        <span class="string">"""
+        处理单个样本
+        """</span>
+        <span class="comment"># 分词</span>
+        tokens = []
+        label_ids = []
+
+        <span class="keyword">for</span> i, char <span class="keyword">in</span> enumerate(text):
+            token = self.tokenizer.tokenize(char)
+            tokens.extend(token)
+
+            <span class="keyword">if</span> labels:
+                <span class="comment"># 处理标签（考虑分词后的扩展）</span>
+                label = labels[i]
+                label_ids.extend([self.label2id[label]] * len(token))
+
+        <span class="comment"># 截断或填充</span>
+        <span class="keyword">if</span> len(tokens) > max_length - 2:
+            tokens = tokens[:max_length - 2]
+            label_ids = label_ids[:max_length - 2] <span class="keyword">if</span> labels <span class="keyword">else</span> None
+
+        <span class="comment"># 添加特殊标记</span>
+        tokens = [<span class="string">'[CLS]'</span>] + tokens + [<span class="string">'[SEP]'</span>]
+        <span class="keyword">if</span> labels:
+            label_ids = [self.label2id[<span class="string">'O'</span>]] + label_ids + [self.label2id[<span class="string">'O'</span>]]
+
+        <span class="comment"># 转换为ID</span>
+        input_ids = self.tokenizer.convert_tokens_to_ids(tokens)
+        attention_mask = [1] * len(input_ids)
+
+        <span class="comment"># 填充</span>
+        padding_length = max_length - len(input_ids)
+        input_ids += [0] * padding_length
+        attention_mask += [0] * padding_length
+        <span class="keyword">if</span> labels:
+            label_ids += [self.label2id[<span class="string">'O'</span>]] * padding_length
+
+        <span class="keyword">return</span> {
+            <span class="string">'input_ids'</span>: torch.tensor(input_ids),
+            <span class="string">'attention_mask'</span>: torch.tensor(attention_mask),
+            <span class="string">'labels'</span>: torch.tensor(label_ids) <span class="keyword">if</span> labels <span class="keyword">else</span> None
+        }
+
+<span class="keyword">class</span> <span class="function">NERPredictor</span>:
+    <span class="string">"""
+    NER预测器
+    """</span>
+    <span class="keyword">def</span> <span class="function">__init__</span>(self, model, processor):
+        self.model = model
+        self.processor = processor
+        self.model.eval()
+
+    <span class="keyword">def</span> <span class="function">predict</span>(self, text):
+        <span class="string">"""
+        预测文本中的实体
+        """</span>
+        <span class="comment"># 处理输入</span>
+        inputs = self.processor.process_text(text)
+
+        <span class="comment"># 预测</span>
+        <span class="keyword">with</span> torch.no_grad():
+            predictions = self.model(
+                inputs[<span class="string">'input_ids'</span>].unsqueeze(0),
+                inputs[<span class="string">'attention_mask'</span>].unsqueeze(0)
+            )[0]
+
+        <span class="comment"># 解析结果</span>
+        entities = self._extract_entities(text, predictions)
+        <span class="keyword">return</span> entities
+
+    <span class="keyword">def</span> <span class="function">_extract_entities</span>(self, text, label_ids):
+        <span class="string">"""
+        从标签序列中提取实体
+        """</span>
+        entities = []
+        current_entity = None
+
+        <span class="keyword">for</span> i, (char, label_id) <span class="keyword">in</span> enumerate(zip(text, label_ids[1:len(text)+1])):
+            label = self.processor.id2label[label_id]
+
+            <span class="keyword">if</span> label.startswith(<span class="string">'B-'</span>):
+                <span class="comment"># 开始新实体</span>
+                <span class="keyword">if</span> current_entity:
+                    entities.append(current_entity)
+                current_entity = {
+                    <span class="string">'text'</span>: char,
+                    <span class="string">'type'</span>: label[2:],
+                    <span class="string">'start'</span>: i,
+                    <span class="string">'end'</span>: i + 1
+                }
+            <span class="keyword">elif</span> label.startswith(<span class="string">'I-'</span>) <span class="keyword">and</span> current_entity:
+                <span class="comment"># 继续当前实体</span>
+                <span class="keyword">if</span> label[2:] == current_entity[<span class="string">'type'</span>]:
+                    current_entity[<span class="string">'text'</span>] += char
+                    current_entity[<span class="string">'end'</span>] = i + 1
+            <span class="keyword">else</span>:
+                <span class="comment"># 非实体或实体结束</span>
+                <span class="keyword">if</span> current_entity:
+                    entities.append(current_entity)
+                    current_entity = None
+
+        <span class="keyword">if</span> current_entity:
+            entities.append(current_entity)
+
+        <span class="keyword">return</span> entities
+
+<span class="comment"># ========== 使用示例 ==========</span>
+<span class="keyword">def</span> <span class="function">train_ner_model</span>(train_data, val_data, epochs=10):
+    <span class="string">"""
+    训练NER模型
+    """</span>
+    <span class="comment"># 初始化</span>
+    tokenizer = BertTokenizer.from_pretrained(<span class="string">'bert-base-chinese'</span>)
+    label_list = [<span class="string">'O'</span>, <span class="string">'B-PER'</span>, <span class="string">'I-PER'</span>, <span class="string">'B-LOC'</span>, <span class="string">'I-LOC'</span>,
+                  <span class="string">'B-ORG'</span>, <span class="string">'I-ORG'</span>, <span class="string">'B-TIME'</span>, <span class="string">'I-TIME'</span>]
+
+    model = BERT_BiLSTM_CRF(
+        bert_model_name=<span class="string">'bert-base-chinese'</span>,
+        num_tags=len(label_list)
+    )
+
+    processor = NERDataProcessor(tokenizer, label_list)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=2e-5)
+
+    <span class="comment"># 训练循环</span>
+    <span class="keyword">for</span> epoch <span class="keyword">in</span> range(epochs):
+        model.train()
+        total_loss = 0
+
+        <span class="keyword">for</span> batch <span class="keyword">in</span> train_data:
+            optimizer.zero_grad()
+
+            loss = model(
+                batch[<span class="string">'input_ids'</span>],
+                batch[<span class="string">'attention_mask'</span>],
+                batch[<span class="string">'labels'</span>]
+            )
+
+            loss.backward()
+            optimizer.step()
+            total_loss += loss.item()
+
+        <span class="comment"># 验证</span>
+        model.eval()
+        val_f1 = evaluate_ner(model, val_data, processor)
+
+        print(<span class="string">f"Epoch {epoch+1}: Loss = {total_loss/len(train_data):.4f}, Val F1 = {val_f1:.4f}"</span>)
+
+    <span class="keyword">return</span> model
+
+<span class="comment"># 演示预测</span>
+text = <span class="string">"马云创办的阿里巴巴总部位于杭州。"</span>
+predictor = NERPredictor(model, processor)
+entities = predictor.predict(text)
+
+<span class="keyword">for</span> entity <span class="keyword">in</span> entities:
+    print(<span class="string">f"{entity['text']} ({entity['type']})"</span>)</pre>
+                </div>
+            </div>
+
+            <div class="comparison-table mt-4">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>方法</th>
+                        <th>优势</th>
+                        <th>劣势</th>
+                        <th>适用场景</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td>规则匹配</td>
+                        <td>精确、可解释</td>
+                        <td>覆盖率低、维护成本高</td>
+                        <td>特定领域、规范文本</td>
+                    </tr>
+                    <tr>
+                        <td>CRF</td>
+                        <td>考虑标签依赖</td>
+                        <td>特征工程复杂</td>
+                        <td>序列标注任务</td>
+                    </tr>
+                    <tr>
+                        <td>BiLSTM-CRF</td>
+                        <td>自动学习特征</td>
+                        <td>需要大量数据</td>
+                        <td>通用NER任务</td>
+                    </tr>
+                    <tr>
+                        <td>BERT-CRF</td>
+                        <td>强大的语义理解</td>
+                        <td>计算资源消耗大</td>
+                        <td>高精度要求场景</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="tip info mt-4">
+                <span class="tip-icon">💡</span>
+                <strong>NER最佳实践</strong>
+                <ul class="mt-2">
+                    <li>使用BIO或BIOES标注模式</li>
+                    <li>考虑使用预训练语言模型</li>
+                    <li>处理类别不平衡问题</li>
+                    <li>增加领域词典提升效果</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- 关系抽取 -->
+        <section id="relation-extraction" class="section-card">
+            <h2>🔗 关系抽取</h2>
+
+            <div class="story-card">
+                <span class="story-icon">🌐</span>
+                <p><strong>连接知识的纽带</strong></p>
+                <p class="mt-2">
+                    如果说实体是知识图谱中的"节点"，那么关系就是连接这些节点的"边"。
+                    关系抽取的任务就是发现并识别实体之间的语义联系。
+                </p>
+            </div>
+
+            <div class="knowledge-graph">
+                <h3 class="text-center mb-3">关系示例</h3>
+                <div class="graph-canvas" id="relation-graph">
+                    <!-- JavaScript将在这里绘制关系图 -->
+                    <div class="graph-node node-person" style="left: 20%; top: 40%;">马云</div>
+                    <div class="graph-node node-org" style="left: 60%; top: 20%;">阿里巴巴</div>
+                    <div class="graph-node node-location" style="left: 60%; top: 60%;">杭州</div>
+                    <div class="graph-edge" style="left: 25%; top: 45%; width: 150px; transform: rotate(-20deg);">
+                        <div class="edge-label">创始人</div>
+                    </div>
+                    <div class="graph-edge" style="left: 65%; top: 25%; width: 100px; transform: rotate(60deg);">
+                        <div class="edge-label">总部位于</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="relation-types">
+                <h3 class="mb-3">常见关系类型</h3>
+                <div class="relation-item">
+                    <strong>组织关系</strong>
+                    <div class="relation-example">创始人、CEO、员工、子公司</div>
+                </div>
+                <div class="relation-item">
+                    <strong>地理关系</strong>
+                    <div class="relation-example">位于、出生地、总部所在地</div>
+                </div>
+                <div class="relation-item">
+                    <strong>社会关系</strong>
+                    <div class="relation-example">配偶、父母、朋友、同事</div>
+                </div>
+                <div class="relation-item">
+                    <strong>事件关系</strong>
+                    <div class="relation-example">参与、举办、发生于</div>
+                </div>
+            </div>
+
+            <div class="deep-think-box mt-4">
+                <h4>关系抽取的挑战</h4>
+                <div class="think-item">
+                    <h5>🎯 关系识别</h5>
+                    <ul>
+                        <li><strong>隐式关系：</strong>"马云的阿里巴巴"（创办关系）</li>
+                        <li><strong>远距离依赖：</strong>实体相距很远</li>
+                        <li><strong>多跳推理：</strong>需要推理得出的关系</li>
+                    </ul>
+                </div>
+                <div class="think-item">
+                    <h5>🔄 关系分类</h5>
+                    <ul>
+                        <li><strong>多标签问题：</strong>两个实体可能有多种关系</li>
+                        <li><strong>层次关系：</strong>上下位关系处理</li>
+                        <li><strong>方向性：</strong>主客体的确定</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="code-block mt-4">
+                <div class="code-header">
+                    <span class="code-lang">Python - 基于BERT的关系抽取</span>
+                    <div class="code-actions">
+                        <button class="code-btn" onclick="toggleCode(this)">展开</button>
+                        <button class="code-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+                </div>
+                <div class="code-content collapsed">
+                    <pre><span class="keyword">import</span> torch
+<span class="keyword">import</span> torch.nn <span class="keyword">as</span> nn
+<span class="keyword">from</span> transformers <span class="keyword">import</span> BertModel
+
+<span class="keyword">class</span> <span class="function">EntityMarkerBERT</span>(nn.Module):
+    <span class="string">"""
+    基于实体标记的BERT关系抽取模型
+    通过特殊标记突出实体位置，提升关系识别效果
+    """</span>
+    <span class="keyword">def</span> <span class="function">__init__</span>(self, bert_model_name, num_relations, dropout=0.3):
+        super().__init__()
+
+        <span class="comment"># BERT编码器</span>
+        self.bert = BertModel.from_pretrained(bert_model_name)
+        hidden_size = self.bert.config.hidden_size
+
+        <span class="comment"># 关系分类层</span>
+        self.relation_classifier = nn.Sequential(
+            nn.Linear(hidden_size * 3, hidden_size),  <span class="comment"># [CLS] + entity1 + entity2</span>
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(hidden_size, num_relations)
+        )
+
+    <span class="keyword">def</span> <span class="function">forward</span>(self, input_ids, attention_mask, entity1_mask, entity2_mask):
+        <span class="string">"""
+        前向传播
+
+        Args:
+            input_ids: 输入token IDs
+            attention_mask: 注意力掩码
+            entity1_mask: 实体1的位置掩码
+            entity2_mask: 实体2的位置掩码
+        """</span>
+        <span class="comment"># BERT编码</span>
+        outputs = self.bert(
+            input_ids=input_ids,
+            attention_mask=attention_mask
+        )
+
+        sequence_output = outputs.last_hidden_state
+        pooled_output = outputs.pooler_output  <span class="comment"># [CLS]表示</span>
+
+        <span class="comment"># 提取实体表示（平均池化）</span>
+        entity1_hidden = self._entity_average(sequence_output, entity1_mask)
+        entity2_hidden = self._entity_average(sequence_output, entity2_mask)
+
+        <span class="comment"># 拼接特征</span>
+        concat_hidden = torch.cat([
+            pooled_output,
+            entity1_hidden,
+            entity2_hidden
+        ], dim=-1)
+
+        <span class="comment"># 关系分类</span>
+        logits = self.relation_classifier(concat_hidden)
+
+        <span class="keyword">return</span> logits
+
+    <span class="keyword">def</span> <span class="function">_entity_average</span>(self, hidden_states, entity_mask):
+        <span class="string">"""
+        计算实体的平均表示
+        """</span>
+        entity_mask = entity_mask.unsqueeze(-1).expand_as(hidden_states)
+        entity_hidden = hidden_states * entity_mask
+
+        <span class="comment"># 平均池化</span>
+        entity_lengths = entity_mask.sum(dim=1)
+        entity_lengths = torch.clamp(entity_lengths, min=1)  <span class="comment"># 避免除零</span>
+
+        entity_rep = entity_hidden.sum(dim=1) / entity_lengths
+
+        <span class="keyword">return</span> entity_rep
+
+<span class="keyword">class</span> <span class="function">RelationDataProcessor</span>:
+    <span class="string">"""
+    关系抽取数据处理器
+    """</span>
+    <span class="keyword">def</span> <span class="function">__init__</span>(self, tokenizer, relation_labels):
+        self.tokenizer = tokenizer
+        self.relation_labels = relation_labels
+        self.label2id = {label: i <span class="keyword">for</span> i, label <span class="keyword">in</span> enumerate(relation_labels)}
+        self.id2label = {i: label <span class="keyword">for</span> i, label <span class="keyword">in</span> enumerate(relation_labels)}
+
+        <span class="comment"># 实体标记符</span>
+        self.entity_markers = {
+            <span class="string">'entity1_start'</span>: <span class="string">'[E1]'</span>,
+            <span class="string">'entity1_end'</span>: <span class="string">'[/E1]'</span>,
+            <span class="string">'entity2_start'</span>: <span class="string">'[E2]'</span>,
+            <span class="string">'entity2_end'</span>: <span class="string">'[/E2]'</span>
+        }
+
+        <span class="comment"># 添加特殊标记到词表</span>
+        self.tokenizer.add_special_tokens({
+            <span class="string">'additional_special_tokens'</span>: list(self.entity_markers.values())
+        })
+
+    <span class="keyword">def</span> <span class="function">process_example</span>(self, text, entity1, entity2, relation=None, max_length=128):
+        <span class="string">"""
+        处理单个样本
+        """</span>
+        <span class="comment"># 标记实体位置</span>
+        marked_text = self._mark_entities(text, entity1, entity2)
+
+        <span class="comment"># 分词</span>
+        encoding = self.tokenizer(
+            marked_text,
+            max_length=max_length,
+            padding=<span class="string">'max_length'</span>,
+            truncation=True,
+            return_tensors=<span class="string">'pt'</span>
+        )
+
+        <span class="comment"># 获取实体掩码</span>
+        entity1_mask = self._get_entity_mask(
+            encoding.input_ids[0],
+            self.entity_markers[<span class="string">'entity1_start'</span>],
+            self.entity_markers[<span class="string">'entity1_end'</span>]
+        )
+
+        entity2_mask = self._get_entity_mask(
+            encoding.input_ids[0],
+            self.entity_markers[<span class="string">'entity2_start'</span>],
+            self.entity_markers[<span class="string">'entity2_end'</span>]
+        )
+
+        result = {
+            <span class="string">'input_ids'</span>: encoding.input_ids[0],
+            <span class="string">'attention_mask'</span>: encoding.attention_mask[0],
+            <span class="string">'entity1_mask'</span>: entity1_mask,
+            <span class="string">'entity2_mask'</span>: entity2_mask
+        }
+
+        <span class="keyword">if</span> relation:
+            result[<span class="string">'label'</span>] = torch.tensor(self.label2id[relation])
+
+        <span class="keyword">return</span> result
+
+    <span class="keyword">def</span> <span class="function">_mark_entities</span>(self, text, entity1, entity2):
+        <span class="string">"""
+        在文本中标记实体位置
+        """</span>
+        <span class="comment"># 找到实体位置</span>
+        e1_start = text.find(entity1[<span class="string">'text'</span>])
+        e1_end = e1_start + len(entity1[<span class="string">'text'</span>])
+
+        e2_start = text.find(entity2[<span class="string">'text'</span>])
+        e2_end = e2_start + len(entity2[<span class="string">'text'</span>])
+
+        <span class="comment"># 插入标记（注意顺序，避免位置偏移）</span>
+        positions = [
+            (e1_start, self.entity_markers[<span class="string">'entity1_start'</span>], True),
+            (e1_end, self.entity_markers[<span class="string">'entity1_end'</span>], False),
+            (e2_start, self.entity_markers[<span class="string">'entity2_start'</span>], True),
+            (e2_end, self.entity_markers[<span class="string">'entity2_end'</span>], False)
+        ]
+
+        <span class="comment"># 按位置排序（从后往前插入）</span>
+        positions.sort(key=<span class="keyword">lambda</span> x: x[0], reverse=True)
+
+        marked_text = text
+        <span class="keyword">for</span> pos, marker, is_start <span class="keyword">in</span> positions:
+            <span class="keyword">if</span> is_start:
+                marked_text = marked_text[:pos] + marker + <span class="string">' '</span> + marked_text[pos:]
+            <span class="keyword">else</span>:
+                marked_text = marked_text[:pos] + <span class="string">' '</span> + marker + marked_text[pos:]
+
+        <span class="keyword">return</span> marked_text
+
+    <span class="keyword">def</span> <span class="function">_get_entity_mask</span>(self, input_ids, start_marker, end_marker):
+        <span class="string">"""
+        获取实体的位置掩码
+        """</span>
+        start_id = self.tokenizer.convert_tokens_to_ids(start_marker)
+        end_id = self.tokenizer.convert_tokens_to_ids(end_marker)
+
+        mask = torch.zeros_like(input_ids)
+
+        <span class="comment"># 找到实体标记位置</span>
+        start_pos = (input_ids == start_id).nonzero(as_tuple=True)[0]
+        end_pos = (input_ids == end_id).nonzero(as_tuple=True)[0]
+
+        <span class="keyword">if</span> len(start_pos) > 0 <span class="keyword">and</span> len(end_pos) > 0:
+            start_idx = start_pos[0].item() + 1
+            end_idx = end_pos[0].item()
+            mask[start_idx:end_idx] = 1
+
+        <span class="keyword">return</span> mask
+
+<span class="keyword">class</span> <span class="function">RelationExtractor</span>:
+    <span class="string">"""
+    关系抽取器
+    """</span>
+    <span class="keyword">def</span> <span class="function">__init__</span>(self, model, processor):
+        self.model = model
+        self.processor = processor
+        self.model.eval()
+
+    <span class="keyword">def</span> <span class="function">extract_relations</span>(self, text, entities):
+        <span class="string">"""
+        从文本中抽取实体间的关系
+        """</span>
+        relations = []
+
+        <span class="comment"># 对每对实体进行关系预测</span>
+        <span class="keyword">for</span> i <span class="keyword">in</span> range(len(entities)):
+            <span class="keyword">for</span> j <span class="keyword">in</span> range(i + 1, len(entities)):
+                entity1 = entities[i]
+                entity2 = entities[j]
+
+                <span class="comment"># 正向关系</span>
+                relation = self._predict_relation(text, entity1, entity2)
+                <span class="keyword">if</span> relation != <span class="string">'无关系'</span>:
+                    relations.append({
+                        <span class="string">'subject'</span>: entity1[<span class="string">'text'</span>],
+                        <span class="string">'relation'</span>: relation,
+                        <span class="string">'object'</span>: entity2[<span class="string">'text'</span>],
+                        <span class="string">'confidence'</span>: 0.95  <span class="comment"># 示例置信度</span>
+                    })
+
+                <span class="comment"># 反向关系（如果需要）</span>
+                relation_rev = self._predict_relation(text, entity2, entity1)
+                <span class="keyword">if</span> relation_rev != <span class="string">'无关系'</span>:
+                    relations.append({
+                        <span class="string">'subject'</span>: entity2[<span class="string">'text'</span>],
+                        <span class="string">'relation'</span>: relation_rev,
+                        <span class="string">'object'</span>: entity1[<span class="string">'text'</span>],
+                        <span class="string">'confidence'</span>: 0.93
+                    })
+
+        <span class="keyword">return</span> relations
+
+    <span class="keyword">def</span> <span class="function">_predict_relation</span>(self, text, entity1, entity2):
+        <span class="string">"""
+        预测两个实体间的关系
+        """</span>
+        <span class="comment"># 处理输入</span>
+        inputs = self.processor.process_example(text, entity1, entity2)
+
+        <span class="comment"># 预测</span>
+        <span class="keyword">with</span> torch.no_grad():
+            logits = self.model(
+                inputs[<span class="string">'input_ids'</span>].unsqueeze(0),
+                inputs[<span class="string">'attention_mask'</span>].unsqueeze(0),
+                inputs[<span class="string">'entity1_mask'</span>].unsqueeze(0),
+                inputs[<span class="string">'entity2_mask'</span>].unsqueeze(0)
+            )
+
+            pred_id = torch.argmax(logits, dim=-1).item()
+            relation = self.processor.id2label[pred_id]
+
+        <span class="keyword">return</span> relation
+
+<span class="comment"># ========== 使用示例 ==========</span>
+<span class="comment"># 初始化</span>
+tokenizer = BertTokenizer.from_pretrained(<span class="string">'bert-base-chinese'</span>)
+relation_labels = [<span class="string">'无关系'</span>, <span class="string">'创办'</span>, <span class="string">'位于'</span>, <span class="string">'工作于'</span>, <span class="string">'子公司'</span>]
+
+model = EntityMarkerBERT(
+    bert_model_name=<span class="string">'bert-base-chinese'</span>,
+    num_relations=len(relation_labels)
+)
+
+processor = RelationDataProcessor(tokenizer, relation_labels)
+extractor = RelationExtractor(model, processor)
+
+<span class="comment"># 示例抽取</span>
+text = <span class="string">"马云创办的阿里巴巴总部位于杭州，旗下有淘宝和天猫等子公司。"</span>
+entities = [
+    {<span class="string">'text'</span>: <span class="string">'马云'</span>, <span class="string">'type'</span>: <span class="string">'PER'</span>},
+    {<span class="string">'text'</span>: <span class="string">'阿里巴巴'</span>, <span class="string">'type'</span>: <span class="string">'ORG'</span>},
+    {<span class="string">'text'</span>: <span class="string">'杭州'</span>, <span class="string">'type'</span>: <span class="string">'LOC'</span>},
+    {<span class="string">'text'</span>: <span class="string">'淘宝'</span>, <span class="string">'type'</span>: <span class="string">'ORG'</span>}
+]
+
+relations = extractor.extract_relations(text, entities)
+<span class="keyword">for</span> rel <span class="keyword">in</span> relations:
+    print(<span class="string">f"{rel['subject']} --{rel['relation']}--> {rel['object']}"</span>)</pre>
+                </div>
+            </div>
+
+            <div class="tip success mt-4">
+                <span class="tip-icon">✅</span>
+                <strong>关系抽取技巧</strong>
+                <ul class="mt-2">
+                    <li>使用实体标记增强模型对实体的感知</li>
+                    <li>考虑句子级和文档级的关系抽取</li>
+                    <li>处理重叠关系和多关系问题</li>
+                    <li>利用外部知识库提升效果</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- 事件抽取 -->
+        <section id="event-extraction" class="section-card">
+            <h2>📅 事件抽取</h2>
+
+            <div class="story-card">
+                <span class="story-icon">🎬</span>
+                <p><strong>捕捉文本中的"故事情节"</strong></p>
+                <p class="mt-2">
+                    事件是现实世界中发生的具体事情。事件抽取就是要从文本中识别出
+                    "谁在什么时间什么地点做了什么事"这样的结构化信息。
+                </p>
+            </div>
+
+            <div class="extraction-demo">
+                <h3 class="mb-3">事件抽取示例</h3>
+                <div class="text-display">
+                    <strong>文本：</strong>2024年3月15日，特斯拉在上海工厂举行了新车型Model Y的发布会，
+                    CEO马斯克亲自主持，吸引了超过1000名媒体记者参加。
+                </div>
+
+                <div class="result-display mt-3">
+                    <div class="result-item">
+                        <span class="result-label">事件类型：</span>产品发布
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">触发词：</span>发布会
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">事件要素：</span>
+                        <ul class="mt-2">
+                            <li><strong>时间：</strong>2024年3月15日</li>
+                            <li><strong>地点：</strong>上海工厂</li>
+                            <li><strong>主体：</strong>特斯拉</li>
+                            <li><strong>产品：</strong>Model Y</li>
+                            <li><strong>主持人：</strong>马斯克</li>
+                            <li><strong>参与者：</strong>1000名媒体记者</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="deep-think-box">
+                <h4>事件抽取的要素</h4>
+                <div class="think-item">
+                    <h5>🎯 事件识别</h5>
+                    <ul>
+                        <li><strong>触发词检测：</strong>识别表示事件的关键词</li>
+                        <li><strong>事件分类：</strong>确定事件类型</li>
+                        <li><strong>边界确定：</strong>事件描述的范围</li>
+                    </ul>
+                </div>
+                <div class="think-item">
+                    <h5>🧩 论元抽取</h5>
+                    <ul>
+                        <li><strong>角色识别：</strong>谁是参与者</li>
+                        <li><strong>角色分类：</strong>施事者、受事者等</li>
+                        <li><strong>属性填充：</strong>时间、地点、方式等</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="card-grid mt-4">
+                <div class="info-card">
+                    <span class="card-icon">💼</span>
+                    <h4 class="card-title">商业事件</h4>
+                    <ul>
+                        <li>并购收购</li>
+                        <li>产品发布</li>
+                        <li>人事变动</li>
+                        <li>财报发布</li>
+                    </ul>
+                </div>
+
+                <div class="info-card">
+                    <span class="card-icon">⚖️</span>
+                    <h4 class="card-title">法律事件</h4>
+                    <ul>
+                        <li>诉讼案件</li>
+                        <li>判决结果</li>
+                        <li>法规发布</li>
+                        <li>违法行为</li>
+                    </ul>
+                </div>
+
+                <div class="info-card">
+                    <span class="card-icon">🌍</span>
+                    <h4 class="card-title">社会事件</h4>
+                    <ul>
+                        <li>自然灾害</li>
+                        <li>社会活动</li>
+                        <li>政治选举</li>
+                        <li>公共卫生</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="tip warning mt-4">
+                <span class="tip-icon">⚠️</span>
+                <strong>事件抽取的挑战</strong>
+                <ul class="mt-2">
+                    <li>事件边界模糊</li>
+                    <li>嵌套事件处理</li>
+                    <li>跨句事件识别</li>
+                    <li>隐式事件推理</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- 属性抽取 -->
+        <section id="attribute-extraction" class="section-card">
+            <h2>🏷️ 属性抽取</h2>
+
+            <div class="story-card">
+                <span class="story-icon">📋</span>
+                <p><strong>为实体建立"档案"</strong></p>
+                <p class="mt-2">
+                    每个实体都有自己的属性，就像每个人都有身高、年龄、职业等信息。
+                    属性抽取就是要从文本中提取这些描述性信息。
+                </p>
+            </div>
+
+            <div class="extraction-demo">
+                <h3 class="mb-3">属性抽取示例</h3>
+                <div class="result-display">
+                    <div class="result-item">
+                        <span class="result-label">实体：</span>iPhone 15 Pro
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">属性：</span>
+                        <ul class="mt-2">
+                            <li><strong>品牌：</strong>Apple</li>
+                            <li><strong>屏幕尺寸：</strong>6.1英寸</li>
+                            <li><strong>处理器：</strong>A17 Pro</li>
+                            <li><strong>存储容量：</strong>128GB/256GB/512GB/1TB</li>
+                            <li><strong>颜色：</strong>钛金属原色、钛金属蓝色、钛金属白色、钛金属黑色</li>
+                            <li><strong>发布日期：</strong>2023年9月</li>
+                            <li><strong>起售价：</strong>999美元</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card-grid mt-4">
+                <div class="info-card">
+                    <span class="card-icon">👤</span>
+                    <h4 class="card-title">人物属性</h4>
+                    <ul>
+                        <li>年龄、性别</li>
+                        <li>职业、职位</li>
+                        <li>教育背景</li>
+                        <li>成就荣誉</li>
+                    </ul>
+                </div>
+
+                <div class="info-card">
+                    <span class="card-icon">🏢</span>
+                    <h4 class="card-title">组织属性</h4>
+                    <ul>
+                        <li>成立时间</li>
+                        <li>注册资本</li>
+                        <li>员工规模</li>
+                        <li>主营业务</li>
+                    </ul>
+                </div>
+
+                <div class="info-card">
+                    <span class="card-icon">📦</span>
+                    <h4 class="card-title">产品属性</h4>
+                    <ul>
+                        <li>规格参数</li>
+                        <li>价格信息</li>
+                        <li>功能特性</li>
+                        <li>用户评价</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- 知识图谱构建 -->
+        <section id="knowledge-graph" class="section-card">
+            <h2>🌐 知识图谱构建</h2>
+
+            <div class="story-card">
+                <span class="story-icon">🗺️</span>
+                <p><strong>编织知识的网络</strong></p>
+                <p class="mt-2">
+                    知识图谱是将抽取的实体、关系、属性组织成一个巨大的语义网络，
+                    让知识可查询、可推理、可发现。
+                </p>
+            </div>
+
+            <div class="pipeline-diagram">
+                <h3 class="text-center mb-3">知识图谱构建流程</h3>
+                <div class="pipeline-flow">
+                    <div class="pipeline-step">
+                        <span class="step-icon">📚</span>
+                        <div class="step-title">数据采集</div>
+                        <div class="text-muted">多源异构数据</div>
+                    </div>
+                    <div class="pipeline-step">
+                        <span class="step-icon">🔍</span>
+                        <div class="step-title">信息抽取</div>
+                        <div class="text-muted">实体关系事件</div>
+                    </div>
+                    <div class="pipeline-step">
+                        <span class="step-icon">🔗</span>
+                        <div class="step-title">知识融合</div>
+                        <div class="text-muted">实体对齐消歧</div>
+                    </div>
+                    <div class="pipeline-step">
+                        <span class="step-icon">✅</span>
+                        <div class="step-title">质量控制</div>
+                        <div class="text-muted">一致性检查</div>
+                    </div>
+                    <div class="pipeline-step">
+                        <span class="step-icon">💾</span>
+                        <div class="step-title">存储管理</div>
+                        <div class="text-muted">图数据库</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="deep-think-box mt-4">
+                <h4>知识图谱的价值</h4>
+                <div class="think-item">
+                    <h5>🔍 智能搜索</h5>
+                    <p>基于语义理解的精准搜索</p>
+                </div>
+                <div class="think-item">
+                    <h5>🤖 智能问答</h5>
+                    <p>多跳推理回答复杂问题</p>
+                </div>
+                <div class="think-item">
+                    <h5>💡 知识推理</h5>
+                    <p>发现隐含的知识和规律</p>
+                </div>
+                <div class="think-item">
+                    <h5>📊 决策支持</h5>
+                    <p>为业务决策提供知识基础</p>
+                </div>
+            </div>
+
+            <div class="code-block mt-4">
+                <div class="code-header">
+                    <span class="code-lang">Python - 知识图谱构建示例</span>
+                </div>
+                <div class="code-content">
+                    <pre><span class="keyword">from</span> py2neo <span class="keyword">import</span> Graph, Node, Relationship
+
+<span class="comment"># 连接Neo4j图数据库</span>
+graph = Graph(<span class="string">"bolt://localhost:7687"</span>, auth=(<span class="string">"neo4j"</span>, <span class="string">"password"</span>))
+
+<span class="comment"># 创建实体节点</span>
+person = Node(<span class="string">"Person"</span>, name=<span class="string">"马云"</span>, age=59)
+company = Node(<span class="string">"Company"</span>, name=<span class="string">"阿里巴巴"</span>, founded=1999)
+city = Node(<span class="string">"City"</span>, name=<span class="string">"杭州"</span>)
+
+<span class="comment"># 创建关系</span>
+founded = Relationship(person, <span class="string">"FOUNDED"</span>, company)
+located = Relationship(company, <span class="string">"LOCATED_IN"</span>, city)
+
+<span class="comment"># 添加到图谱</span>
+graph.create(person)
+graph.create(company)
+graph.create(city)
+graph.create(founded)
+graph.create(located)
+
+<span class="comment"># 查询示例</span>
+query = <span class="string">"""
+MATCH (p:Person)-[:FOUNDED]->(c:Company)-[:LOCATED_IN]->(city:City)
+WHERE p.name = '马云'
+RETURN p.name, c.name, city.name
+"""</span>
+results = graph.run(query).data()
+print(results)</pre>
+                </div>
+            </div>
+
+            <div class="tip info mt-4">
+                <span class="tip-icon">💡</span>
+                <strong>构建高质量知识图谱的关键</strong>
+                <ul class="mt-2">
+                    <li>数据源的多样性和可靠性</li>
+                    <li>信息抽取的准确性</li>
+                    <li>实体消歧和对齐</li>
+                    <li>持续更新和维护</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- 联合抽取 -->
+        <section id="joint-extraction" class="section-card">
+            <h2>🔄 联合抽取</h2>
+
+            <div class="story-card">
+                <span class="story-icon">🎯</span>
+                <p><strong>一箭多雕的智慧</strong></p>
+                <p class="mt-2">
+                    传统的流水线方法存在错误传播问题。联合抽取通过同时识别实体和关系，
+                    让各个任务相互促进，提升整体效果。
+                </p>
+            </div>
+
+            <div class="deep-think-box">
+                <h4>联合抽取的优势</h4>
+                <div class="think-item">
+                    <h5>🎯 避免错误传播</h5>
+                    <p>端到端学习，减少级联错误</p>
+                </div>
+                <div class="think-item">
+                    <h5>🤝 任务互促进</h5>
+                    <p>实体信息帮助关系识别，关系约束实体边界</p>
+                </div>
+                <div class="think-item">
+                    <h5>⚡ 效率提升</h5>
+                    <p>一次前向传播完成多个任务</p>
+                </div>
+            </div>
+
+            <div class="tip success mt-4">
+                <span class="tip-icon">✅</span>
+                <strong>联合抽取方法</strong>
+                <ul class="mt-2">
+                    <li>参数共享：共享底层表示</li>
+                    <li>联合解码：CRF联合标注</li>
+                    <li>多任务学习：统一损失函数</li>
+                    <li>端到端模型：Transformer统一建模</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- 传统方法 -->
+        <section id="traditional-methods" class="section-card">
+            <h2>📏 传统方法</h2>
+
+            <div class="story-card">
+                <span class="story-icon">🔧</span>
+                <p><strong>经典但不过时</strong></p>
+                <p class="mt-2">
+                    虽然深度学习方法占据主流，但传统方法在某些场景下仍有独特优势：
+                    可解释性强、不需要大量标注数据、领域适应性好。
+                </p>
+            </div>
+
+            <div class="card-grid">
+                <div class="info-card">
+                    <span class="card-icon">📐</span>
+                    <h4 class="card-title">规则方法</h4>
+                    <ul>
+                        <li>正则表达式</li>
+                        <li>词典匹配</li>
+                        <li>模板填充</li>
+                        <li>语法分析</li>
+                    </ul>
+                    <p class="mt-2 text-muted">
+                        优点：精确、可控<br>
+                        缺点：覆盖率有限
+                    </p>
+                </div>
+
+                <div class="info-card">
+                    <span class="card-icon">📊</span>
+                    <h4 class="card-title">统计方法</h4>
+                    <ul>
+                        <li>隐马尔可夫模型</li>
+                        <li>条件随机场</li>
+                        <li>最大熵模型</li>
+                        <li>支持向量机</li>
+                    </ul>
+                    <p class="mt-2 text-muted">
+                        优点：理论完善<br>
+                        缺点：特征工程复杂
+                    </p>
+                </div>
+
+                <div class="info-card">
+                    <span class="card-icon">🔀</span>
+                    <h4 class="card-title">混合方法</h4>
+                    <ul>
+                        <li>规则+统计</li>
+                        <li>远程监督</li>
+                        <li>Bootstrapping</li>
+                        <li>主动学习</li>
+                    </ul>
+                    <p class="mt-2 text-muted">
+                        优点：互补优势<br>
+                        缺点：系统复杂
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 深度学习方法 -->
+        <section id="deep-learning" class="section-card">
+            <h2>🧠 深度学习方法</h2>
+
+            <div class="story-card">
+                <span class="story-icon">🚀</span>
+                <p><strong>AI时代的利器</strong></p>
+                <p class="mt-2">
+                    深度学习彻底改变了信息抽取的游戏规则。从CNN到RNN，从Transformer到预训练模型，
+                    每一次技术革新都带来了性能的飞跃。
+                </p>
+            </div>
+
+            <div class="comparison-table">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>模型架构</th>
+                        <th>特点</th>
+                        <th>适用任务</th>
+                        <th>代表模型</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td>CNN</td>
+                        <td>局部特征提取</td>
+                        <td>短文本分类</td>
+                        <td>TextCNN</td>
+                    </tr>
+                    <tr>
+                        <td>RNN/LSTM</td>
+                        <td>序列建模</td>
+                        <td>序列标注</td>
+                        <td>BiLSTM-CRF</td>
+                    </tr>
+                    <tr>
+                        <td>Transformer</td>
+                        <td>全局注意力</td>
+                        <td>各类任务</td>
+                        <td>BERT、GPT</td>
+                    </tr>
+                    <tr>
+                        <td>图神经网络</td>
+                        <td>结构化推理</td>
+                        <td>关系抽取</td>
+                        <td>GCN、GAT</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="deep-think-box mt-4">
+                <h4>预训练模型的应用</h4>
+                <div class="think-item">
+                    <h5>🎯 BERT系列</h5>
+                    <ul>
+                        <li>BERT-NER：实体识别</li>
+                        <li>BERT-CRF：序列标注</li>
+                        <li>SpanBERT：跨度预测</li>
+                    </ul>
+                </div>
+                <div class="think-item">
+                    <h5>🚀 最新进展</h5>
+                    <ul>
+                        <li>提示学习：少样本抽取</li>
+                        <li>生成式抽取：GPT风格</li>
+                        <li>多模态抽取：文本+图像</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- 评估指标 -->
+        <section id="evaluation" class="section-card">
+            <h2>📊 评估指标</h2>
+
+            <div class="story-card">
+                <span class="story-icon">📏</span>
+                <p><strong>衡量优劣的标尺</strong></p>
+                <p class="mt-2">
+                    好的评估体系是改进的基础。信息抽取任务有其特定的评估指标，
+                    需要综合考虑准确率、召回率和效率。
+                </p>
+            </div>
+
+            <div class="param-display">
+                <div class="param-item">
+                    <span class="param-value">P</span>
+                    <span class="param-label">精确率</span>
+                </div>
+                <div class="param-item">
+                    <span class="param-value">R</span>
+                    <span class="param-label">召回率</span>
+                </div>
+                <div class="param-item">
+                    <span class="param-value">F1</span>
+                    <span class="param-label">F1分数</span>
+                </div>
+                <div class="param-item">
+                    <span class="param-value">ACC</span>
+                    <span class="param-label">准确率</span>
+                </div>
+            </div>
+
+            <div class="code-block mt-4">
+                <div class="code-header">
+                    <span class="code-lang">Python - 评估指标计算</span>
+                </div>
+                <div class="code-content">
+                    <pre><span class="keyword">def</span> <span class="function">evaluate_ner</span>(predictions, labels):
+    <span class="string">"""计算NER的评估指标"""</span>
+    tp, fp, fn = 0, 0, 0
+
+    <span class="keyword">for</span> pred, label <span class="keyword">in</span> zip(predictions, labels):
+        pred_set = set(pred)
+        label_set = set(label)
+
+        tp += len(pred_set & label_set)
+        fp += len(pred_set - label_set)
+        fn += len(label_set - pred_set)
+
+    precision = tp / (tp + fp) <span class="keyword">if</span> tp + fp >0 else 0
+    recall = tp / (tp + fn) if tp + fn > 0 else 0
+    f1 = 2 * precision * recall / (precision + recall) if precision + recall > 0 else 0
+
+    return {
+        'precision': precision,
+        'recall': recall,
+        'f1': f1
+    }
+
+def evaluate_relation_extraction(predictions, labels):
+    """计算关系抽取的评估指标"""
+    correct = 0
+    total = len(predictions)
+
+    # 计算每个关系类别的指标
+    class_metrics = {}
+
+    for pred, label in zip(predictions, labels):
+        if pred['subject'] == label['subject'] and \
+           pred['relation'] == label['relation'] and \
+           pred['object'] == label['object']:
+            correct += 1
+
+        # 统计各类别
+        if label['relation'] not in class_metrics:
+            class_metrics[label['relation']] = {'tp': 0, 'fp': 0, 'fn': 0}
+
+        if pred['relation'] == label['relation']:
+            class_metrics[label['relation']]['tp'] += 1
+        else:
+            if pred['relation'] in class_metrics:
+                class_metrics[pred['relation']]['fp'] += 1
+            class_metrics[label['relation']]['fn'] += 1
+
+    # 计算总体准确率
+    accuracy = correct / total if total > 0 else 0
+
+    # 计算每个类别的F1
+    for rel_type in class_metrics:
+        tp = class_metrics[rel_type]['tp']
+        fp = class_metrics[rel_type]['fp']
+        fn = class_metrics[rel_type]['fn']
+
+        precision = tp / (tp + fp) if tp + fp > 0 else 0
+        recall = tp / (tp + fn) if tp + fn > 0 else 0
+        f1 = 2 * precision * recall / (precision + recall) if precision + recall > 0 else 0
+
+        class_metrics[rel_type]['precision'] = precision
+        class_metrics[rel_type]['recall'] = recall
+        class_metrics[rel_type]['f1'] = f1
+
+    return {
+        'accuracy': accuracy,
+        'class_metrics': class_metrics
+    }</pre>
+                </div>
+            </div>
+
+            <div class="deep-think-box mt-4">
+                <h4>评估的注意事项</h4>
+                <div class="think-item">
+                    <h5>🎯 边界问题</h5>
+                    <ul>
+                        <li><strong>严格匹配：</strong>实体边界必须完全一致</li>
+                        <li><strong>宽松匹配：</strong>允许部分重叠</li>
+                        <li><strong>类型匹配：</strong>考虑实体类型是否正确</li>
+                    </ul>
+                </div>
+                <div class="think-item">
+                    <h5>📊 类别不平衡</h5>
+                    <ul>
+                        <li><strong>宏平均：</strong>各类别平等对待</li>
+                        <li><strong>微平均：</strong>考虑类别频率</li>
+                        <li><strong>加权平均：</strong>根据重要性加权</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="tip warning mt-4">
+                <span class="tip-icon">⚠️</span>
+                <strong>评估陷阱</strong>
+                <ul class="mt-2">
+                    <li>不要只看整体指标，要分析各类别表现</li>
+                    <li>考虑数据集偏差对评估的影响</li>
+                    <li>注意训练集和测试集的分布差异</li>
+                    <li>评估时要考虑实际应用场景的需求</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- 实际应用 -->
+        <section id="applications" class="section-card">
+            <h2>💼 实际应用</h2>
+
+            <div class="story-card">
+                <span class="story-icon">🌟</span>
+                <p><strong>从技术到价值</strong></p>
+                <p class="mt-2">
+                    信息抽取技术已经广泛应用于各行各业，帮助企业和组织从海量文本中
+                    挖掘价值，提升决策效率。
+                </p>
+            </div>
+
+            <div class="card-grid">
+                <div class="info-card">
+                    <span class="card-icon">💰</span>
+                    <h4 class="card-title">金融领域</h4>
+                    <ul>
+                        <li><strong>风险监控：</strong>从新闻中提取风险事件</li>
+                        <li><strong>投资研究：</strong>分析公司公告和财报</li>
+                        <li><strong>舆情分析：</strong>监控市场情绪变化</li>
+                        <li><strong>合规审查：</strong>自动审核交易文档</li>
+                    </ul>
+                </div>
+
+                <div class="info-card">
+                    <span class="card-icon">🏥</span>
+                    <h4 class="card-title">医疗健康</h4>
+                    <ul>
+                        <li><strong>病历分析：</strong>提取症状、诊断、用药</li>
+                        <li><strong>文献挖掘：</strong>发现药物相互作用</li>
+                        <li><strong>临床试验：</strong>分析试验报告</li>
+                        <li><strong>知识库构建：</strong>医学知识图谱</li>
+                    </ul>
+                </div>
+
+                <div class="info-card">
+                    <span class="card-icon">⚖️</span>
+                    <h4 class="card-title">法律领域</h4>
+                    <ul>
+                        <li><strong>案例分析：</strong>提取判决要素</li>
+                        <li><strong>合同审查：</strong>识别关键条款</li>
+                        <li><strong>法规解读：</strong>构建法律知识库</li>
+                        <li><strong>纠纷预警：</strong>风险条款识别</li>
+                    </ul>
+                </div>
+
+                <div class="info-card">
+                    <span class="card-icon">🛒</span>
+                    <h4 class="card-title">电子商务</h4>
+                    <ul>
+                        <li><strong>商品信息：</strong>提取产品属性</li>
+                        <li><strong>用户评论：</strong>观点和情感分析</li>
+                        <li><strong>竞品分析：</strong>监控竞争对手</li>
+                        <li><strong>推荐系统：</strong>用户兴趣挖掘</li>
+                    </ul>
+                </div>
+
+                <div class="info-card">
+                    <span class="card-icon">📰</span>
+                    <h4 class="card-title">新闻媒体</h4>
+                    <ul>
+                        <li><strong>自动摘要：</strong>提取关键信息</li>
+                        <li><strong>事件追踪：</strong>新闻事件时间线</li>
+                        <li><strong>人物画像：</strong>构建人物关系网</li>
+                        <li><strong>热点发现：</strong>话题趋势分析</li>
+                    </ul>
+                </div>
+
+                <div class="info-card">
+                    <span class="card-icon">🏛️</span>
+                    <h4 class="card-title">政府服务</h4>
+                    <ul>
+                        <li><strong>政策解读：</strong>提取政策要点</li>
+                        <li><strong>民意收集：</strong>分析公众反馈</li>
+                        <li><strong>应急响应：</strong>事件监测预警</li>
+                        <li><strong>智慧城市：</strong>城市知识图谱</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="interactive-demo mt-4">
+                <h3 class="mb-3">应用案例：金融风险事件抽取</h3>
+                <div class="demo-controls">
+                    <button class="btn btn-primary" onclick="showFinanceDemo()">
+                        <span>📈</span> 分析财经新闻
+                    </button>
+                    <button class="btn btn-secondary" onclick="showMedicalDemo()">
+                        <span>🏥</span> 分析医疗报告
+                    </button>
+                    <button class="btn btn-secondary" onclick="showLegalDemo()">
+                        <span>⚖️</span> 分析法律文书
+                    </button>
+                </div>
+                <div class="demo-output" id="application-demo">
+                    <div class="text-display mb-3">
+                        <strong>原始新闻：</strong><br>
+                        据报道，某科技公司因涉嫌违反数据保护法规，被监管部门处以1000万美元罚款。
+                        该公司CEO在声明中表示，将全面配合调查并加强合规管理。
+                        受此影响，该公司股价下跌5%。
+                    </div>
+                    <div class="result-display">
+                        <div class="result-item">
+                            <span class="result-label">风险类型：</span>监管处罚
+                        </div>
+                        <div class="result-item">
+                            <span class="result-label">涉事主体：</span>某科技公司
+                        </div>
+                        <div class="result-item">
+                            <span class="result-label">处罚金额：</span>1000万美元
+                        </div>
+                        <div class="result-item">
+                            <span class="result-label">影响：</span>股价下跌5%
+                        </div>
+                        <div class="result-item">
+                            <span class="result-label">风险等级：</span>
+                            <span style="color: #ef4444;">高风险</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="deep-think-box mt-4">
+                <h4>成功应用的关键</h4>
+                <div class="think-item">
+                    <h5>🎯 领域适配</h5>
+                    <ul>
+                        <li>领域词典构建</li>
+                        <li>专业知识融入</li>
+                        <li>场景化定制</li>
+                        <li>持续优化迭代</li>
+                    </ul>
+                </div>
+                <div class="think-item">
+                    <h5>💡 价值实现</h5>
+                    <ul>
+                        <li>明确业务需求</li>
+                        <li>关注投入产出比</li>
+                        <li>重视用户体验</li>
+                        <li>建立反馈机制</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="tip success mt-4">
+                <span class="tip-icon">✅</span>
+                <strong>应用建议</strong>
+                <p class="mt-2">
+                    成功的信息抽取应用需要技术与业务的深度结合。
+                    从小场景开始，快速验证价值，逐步扩展应用范围。
+                </p>
+            </div>
+        </section>
+
+        <!-- 最佳实践 -->
+        <section id="best-practices" class="section-card">
+            <h2>🎯 最佳实践</h2>
+
+            <div class="story-card">
+                <span class="story-icon">💡</span>
+                <p><strong>经验之谈</strong></p>
+                <p class="mt-2">
+                    多年的实践经验告诉我们，成功的信息抽取项目不仅需要先进的技术，
+                    更需要正确的方法论和工程实践。
+                </p>
+            </div>
+
+            <div class="deep-think-box">
+                <h4>数据准备最佳实践</h4>
+                <div class="think-item">
+                    <h5>📊 数据标注</h5>
+                    <ul>
+                        <li><strong>标注指南：</strong>制定详细的标注规范</li>
+                        <li><strong>质量控制：</strong>多人标注和一致性检查</li>
+                        <li><strong>迭代优化：</strong>根据反馈更新指南</li>
+                        <li><strong>工具支持：</strong>使用专业标注平台</li>
+                    </ul>
+                </div>
+                <div class="think-item">
+                    <h5>🔄 数据增强</h5>
+                    <ul>
+                        <li><strong>同义词替换：</strong>增加词汇多样性</li>
+                        <li><strong>回译增强：</strong>通过翻译生成新样本</li>
+                        <li><strong>规则生成：</strong>基于模板创建数据</li>
+                        <li><strong>对抗训练：</strong>提升模型鲁棒性</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="pipeline-diagram mt-4">
+                <h3 class="text-center mb-3">信息抽取项目流程</h3>
+                <div class="pipeline-flow">
+                    <div class="pipeline-step">
+                        <span class="step-icon">📋</span>
+                        <div class="step-title">需求分析</div>
+                        <div class="text-muted">明确目标和范围</div>
+                    </div>
+                    <div class="pipeline-step">
+                        <span class="step-icon">🗃️</span>
+                        <div class="step-title">数据准备</div>
+                        <div class="text-muted">收集和标注</div>
+                    </div>
+                    <div class="pipeline-step">
+                        <span class="step-icon">🔬</span>
+                        <div class="step-title">模型开发</div>
+                        <div class="text-muted">训练和优化</div>
+                    </div>
+                    <div class="pipeline-step">
+                        <span class="step-icon">🧪</span>
+                        <div class="step-title">测试验证</div>
+                        <div class="text-muted">评估和调整</div>
+                    </div>
+                    <div class="pipeline-step">
+                        <span class="step-icon">🚀</span>
+                        <div class="step-title">部署运维</div>
+                        <div class="text-muted">上线和监控</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card-grid mt-4">
+                <div class="info-card">
+                    <span class="card-icon">🏗️</span>
+                    <h4 class="card-title">架构设计</h4>
+                    <ul>
+                        <li>模块化设计</li>
+                        <li>接口标准化</li>
+                        <li>可扩展架构</li>
+                        <li>容错机制</li>
+                    </ul>
+                </div>
+
+                <div class="info-card">
+                    <span class="card-icon">⚡</span>
+                    <h4 class="card-title">性能优化</h4>
+                    <ul>
+                        <li>模型压缩</li>
+                        <li>批处理推理</li>
+                        <li>缓存策略</li>
+                        <li>并行处理</li>
+                    </ul>
+                </div>
+
+                <div class="info-card">
+                    <span class="card-icon">🔍</span>
+                    <h4 class="card-title">质量保证</h4>
+                    <ul>
+                        <li>A/B测试</li>
+                        <li>人工审核</li>
+                        <li>异常检测</li>
+                        <li>持续监控</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="code-block mt-4">
+                <div class="code-header">
+                    <span class="code-lang">Python - 生产环境部署示例</span>
+                    <div class="code-actions">
+                        <button class="code-btn" onclick="toggleCode(this)">展开</button>
+                        <button class="code-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+                </div>
+                <div class="code-content collapsed">
+                    <pre><span class="keyword">import</span> torch
+<span class="keyword">from</span> flask <span class="keyword">import</span> Flask, request, jsonify
+<span class="keyword">from</span> functools <span class="keyword">import</span> lru_cache
+<span class="keyword">import</span> logging
+<span class="keyword">import</span> time
+
+<span class="keyword">class</span> <span class="function">ProductionIEService</span>:
+    <span class="string">"""
+    生产环境的信息抽取服务
+    """</span>
+    <span class="keyword">def</span> <span class="function">__init__</span>(self, model_path, config):
+        self.config = config
+        self.logger = self._setup_logger()
+
+        <span class="comment"># 加载模型</span>
+        self.model = self._load_model(model_path)
+        self.model.eval()
+
+        <span class="comment"># 性能优化</span>
+        <span class="keyword">if</span> config.get(<span class="string">'use_gpu'</span>) <span class="keyword">and</span> torch.cuda.is_available():
+            self.device = torch.device(<span class="string">'cuda'</span>)
+            self.model = self.model.to(self.device)
+
+            <span class="comment"># 使用半精度推理</span>
+            <span class="keyword">if</span> config.get(<span class="string">'use_fp16'</span>):
+                self.model = self.model.half()
+        <span class="keyword">else</span>:
+            self.device = torch.device(<span class="string">'cpu'</span>)
+
+        <span class="comment"># 预热模型</span>
+        self._warmup()
+
+    <span class="keyword">def</span> <span class="function">_setup_logger</span>(self):
+        <span class="string">"""配置日志"""</span>
+        logger = logging.getLogger(__name__)
+        logger.setLevel(logging.INFO)
+
+        handler = logging.FileHandler(<span class="string">'ie_service.log'</span>)
+        handler.setFormatter(
+            logging.Formatter(<span class="string">'%(asctime)s - %(levelname)s - %(message)s'</span>)
+        )
+        logger.addHandler(handler)
+
+        <span class="keyword">return</span> logger
+
+    <span class="keyword">def</span> <span class="function">_load_model</span>(self, model_path):
+        <span class="string">"""加载模型"""</span>
+        <span class="keyword">try</span>:
+            model = torch.load(model_path, map_location=<span class="string">'cpu'</span>)
+            self.logger.info(<span class="string">f"模型加载成功: {model_path}"</span>)
+            <span class="keyword">return</span> model
+        <span class="keyword">except</span> Exception <span class="keyword">as</span> e:
+            self.logger.error(<span class="string">f"模型加载失败: {e}"</span>)
+            <span class="keyword">raise</span>
+
+    <span class="keyword">def</span> <span class="function">_warmup</span>(self):
+        <span class="string">"""模型预热"""</span>
+        dummy_text = <span class="string">"这是一个测试文本。"</span>
+        <span class="keyword">try</span>:
+            self.extract(dummy_text)
+            self.logger.info(<span class="string">"模型预热完成"</span>)
+        <span class="keyword">except</span>:
+            <span class="keyword">pass</span>
+
+    @lru_cache(maxsize=1000)
+    <span class="keyword">def</span> <span class="function">extract</span>(self, text):
+        <span class="string">"""
+        执行信息抽取（带缓存）
+        """</span>
+        <span class="keyword">if</span> <span class="keyword">not</span> text <span class="keyword">or</span> len(text.strip()) == 0:
+            <span class="keyword">return</span> {<span class="string">'entities'</span>: [], <span class="string">'relations'</span>: [], <span class="string">'events'</span>: []}
+
+        <span class="comment"># 文本预处理</span>
+        text = self._preprocess(text)
+
+        <span class="comment"># 长文本分段处理</span>
+        <span class="keyword">if</span> len(text) > self.config.get(<span class="string">'max_length'</span>, 512):
+            results = self._extract_long_text(text)
+        <span class="keyword">else</span>:
+            results = self._extract_single(text)
+
+        <span class="comment"># 后处理</span>
+        results = self._postprocess(results)
+
+        <span class="keyword">return</span> results
+
+    <span class="keyword">def</span> <span class="function">_preprocess</span>(self, text):
+        <span class="string">"""文本预处理"""</span>
+        <span class="comment"># 去除特殊字符</span>
+        text = text.replace(<span class="string">'\n'</span>, <span class="string">' '</span>).replace(<span class="string">'\t'</span>, <span class="string">' '</span>)
+
+        <span class="comment"># 处理空格</span>
+        text = <span class="string">' '</span>.join(text.split())
+
+        <span class="keyword">return</span> text
+
+    <span class="keyword">def</span> <span class="function">_extract_single</span>(self, text):
+        <span class="string">"""单段文本抽取"""</span>
+        start_time = time.time()
+
+        <span class="keyword">try</span>:
+            <span class="keyword">with</span> torch.no_grad():
+                <span class="comment"># 执行抽取</span>
+                entities = self.model.extract_entities(text)
+                relations = self.model.extract_relations(text, entities)
+                events = self.model.extract_events(text)
+
+            elapsed = time.time() - start_time
+            self.logger.info(<span class="string">f"抽取完成，耗时: {elapsed:.3f}s"</span>)
+
+            <span class="keyword">return</span> {
+                <span class="string">'entities'</span>: entities,
+                <span class="string">'relations'</span>: relations,
+                <span class="string">'events'</span>: events,
+                <span class="string">'processing_time'</span>: elapsed
+            }
+
+        <span class="keyword">except</span> Exception <span class="keyword">as</span> e:
+            self.logger.error(<span class="string">f"抽取失败: {e}"</span>)
+            <span class="keyword">return</span> {<span class="string">'error'</span>: str(e)}
+
+    <span class="keyword">def</span> <span class="function">_extract_long_text</span>(self, text):
+        <span class="string">"""长文本分段抽取"""</span>
+        <span class="comment"># 智能分句</span>
+        sentences = self._split_sentences(text)
+
+        <span class="comment"># 滑动窗口处理</span>
+        window_size = 5  <span class="comment"># 每次处理5个句子</span>
+        stride = 3       <span class="comment"># 步长为3，保证重叠</span>
+
+        all_entities = []
+        all_relations = []
+        all_events = []
+
+        <span class="keyword">for</span> i <span class="keyword">in</span> range(0, len(sentences), stride):
+            window_text = <span class="string">' '</span>.join(sentences[i:i+window_size])
+            results = self._extract_single(window_text)
+
+            <span class="keyword">if</span> <span class="string">'error'</span> <span class="keyword">not in</span> results:
+                all_entities.extend(results[<span class="string">'entities'</span>])
+                all_relations.extend(results[<span class="string">'relations'</span>])
+                all_events.extend(results[<span class="string">'events'</span>])
+
+        <span class="comment"># 去重和合并</span>
+        <span class="keyword">return</span> {
+            <span class="string">'entities'</span>: self._merge_entities(all_entities),
+            <span class="string">'relations'</span>: self._merge_relations(all_relations),
+            <span class="string">'events'</span>: self._merge_events(all_events)
+        }
+
+    <span class="keyword">def</span> <span class="function">_postprocess</span>(self, results):
+        <span class="string">"""结果后处理"""</span>
+        <span class="comment"># 过滤低置信度结果</span>
+        min_confidence = self.config.get(<span class="string">'min_confidence'</span>, 0.7)
+
+        <span class="keyword">if</span> <span class="string">'entities'</span> <span class="keyword">in</span> results:
+            results[<span class="string">'entities'</span>] = [
+                e <span class="keyword">for</span> e <span class="keyword">in</span> results[<span class="string">'entities'</span>]
+                <span class="keyword">if</span> e.get(<span class="string">'confidence'</span>, 1.0) >= min_confidence
+            ]
+
+        <span class="comment"># 添加元信息</span>
+        results[<span class="string">'timestamp'</span>] = time.time()
+        results[<span class="string">'version'</span>] = self.config.get(<span class="string">'model_version'</span>, <span class="string">'1.0'</span>)
+
+        <span class="keyword">return</span> results
+
+    <span class="keyword">def</span> <span class="function">batch_extract</span>(self, texts, batch_size=32):
+        <span class="string">"""批量抽取"""</span>
+        results = []
+
+        <span class="keyword">for</span> i <span class="keyword">in</span> range(0, len(texts), batch_size):
+            batch = texts[i:i+batch_size]
+            batch_results = []
+
+            <span class="keyword">for</span> text <span class="keyword">in</span> batch:
+                result = self.extract(text)
+                batch_results.append(result)
+
+            results.extend(batch_results)
+
+        <span class="keyword">return</span> results
+
+<span class="comment"># ========== Flask API ==========</span>
+app = Flask(__name__)
+ie_service = None
+
+@app.before_first_request
+<span class="keyword">def</span> <span class="function">initialize</span>():
+    <span class="string">"""初始化服务"""</span>
+    <span class="keyword">global</span> ie_service
+
+    config = {
+        <span class="string">'use_gpu'</span>: True,
+        <span class="string">'use_fp16'</span>: True,
+        <span class="string">'max_length'</span>: 512,
+        <span class="string">'min_confidence'</span>: 0.7,
+        <span class="string">'model_version'</span>: <span class="string">'2.0'</span>
+    }
+
+    ie_service = ProductionIEService(<span class="string">'model.pt'</span>, config)
+
+@app.route(<span class="string">'/extract'</span>, methods=[<span class="string">'POST'</span>])
+<span class="keyword">def</span> <span class="function">extract</span>():
+    <span class="string">"""信息抽取API"""</span>
+    <span class="keyword">try</span>:
+        data = request.json
+        text = data.get(<span class="string">'text'</span>, <span class="string">''</span>)
+
+        <span class="keyword">if</span> <span class="keyword">not</span> text:
+            <span class="keyword">return</span> jsonify({<span class="string">'error'</span>: <span class="string">'文本不能为空'</span>}), 400
+
+        results = ie_service.extract(text)
+
+        <span class="keyword">return</span> jsonify(results)
+
+    <span class="keyword">except</span> Exception <span class="keyword">as</span> e:
+        app.logger.error(<span class="string">f"处理请求失败: {e}"</span>)
+        <span class="keyword">return</span> jsonify({<span class="string">'error'</span>: <span class="string">'内部服务错误'</span>}), 500
+
+@app.route(<span class="string">'/health'</span>, methods=[<span class="string">'GET'</span>])
+<span class="keyword">def</span> <span class="function">health_check</span>():
+    <span class="string">"""健康检查"""</span>
+    <span class="keyword">return</span> jsonify({<span class="string">'status'</span>: <span class="string">'healthy'</span>})
+
+<span class="keyword">if</span> __name__ == <span class="string">'__main__'</span>:
+    app.run(host=<span class="string">'0.0.0.0'</span>, port=5000, threaded=True)</pre>
+                </div>
+            </div>
+
+            <div class="tip info mt-4">
+                <span class="tip-icon">💡</span>
+                <strong>部署建议</strong>
+                <ul class="mt-2">
+                    <li>使用容器化部署（Docker/Kubernetes）</li>
+                    <li>配置负载均衡和自动扩缩容</li>
+                    <li>建立完善的监控和告警机制</li>
+                    <li>定期备份模型和数据</li>
+                    <li>实施灰度发布策略</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- 本章总结 -->
+        <section id="summary" class="section-card">
+            <h2>📚 本章总结</h2>
+
+            <div class="story-card">
+                <span class="story-icon">🎓</span>
+                <p><strong>知识的结晶</strong></p>
+                <p class="mt-2">
+                    通过本章的学习，我们系统地了解了信息抽取技术，
+                    从基础概念到前沿方法，从理论到实践，构建了完整的知识体系。
+                </p>
+            </div>
+
+            <div class="deep-think-box">
+                <h4>核心要点回顾</h4>
+                <div class="think-item">
+                    <h5>🎯 基础任务</h5>
+                    <ul>
+                        <li><strong>命名实体识别：</strong>识别文本中的实体及其类型</li>
+                        <li><strong>关系抽取：</strong>发现实体之间的语义关系</li>
+                        <li><strong>事件抽取：</strong>识别事件及其要素</li>
+                        <li><strong>属性抽取：</strong>提取实体的属性信息</li>
+                    </ul>
+                </div>
+                <div class="think-item">
+                    <h5>🛠️ 技术方法</h5>
+                    <ul>
+                        <li><strong>传统方法：</strong>规则、统计、机器学习</li>
+                        <li><strong>深度学习：</strong>CNN、RNN、Transformer</li>
+                        <li><strong>预训练模型：</strong>BERT及其变体</li>
+                        <li><strong>联合学习：</strong>端到端统一建模</li>
+                    </ul>
+                </div>
+                <div class="think-item">
+                    <h5>💼 实践经验</h5>
+                    <ul>
+                        <li><strong>数据质量：</strong>高质量标注是基础</li>
+                        <li><strong>领域适配：</strong>结合业务特点定制</li>
+                        <li><strong>工程实践：</strong>性能、稳定性、可维护性</li>
+                        <li><strong>持续优化：</strong>建立反馈和迭代机制</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="card-grid mt-4">
+                <div class="info-card">
+                    <span class="card-icon">✅</span>
+                    <h4 class="card-title">已掌握</h4>
+                    <ul>
+                        <li>信息抽取的基本概念</li>
+                        <li>主要任务和方法</li>
+                        <li>深度学习实现</li>
+                        <li>实际应用案例</li>
+                    </ul>
+                </div>
+
+                <div class="info-card">
+                    <span class="card-icon">🎯</span>
+                    <h4 class="card-title">需深入</h4>
+                    <ul>
+                        <li>复杂场景处理</li>
+                        <li>跨语言抽取</li>
+                        <li>少样本学习</li>
+                        <li>知识融合技术</li>
+                    </ul>
+                </div>
+
+                <div class="info-card">
+                    <span class="card-icon">🚀</span>
+                    <h4 class="card-title">下一步</h4>
+                    <ul>
+                        <li>动手实践项目</li>
+                        <li>阅读前沿论文</li>
+                        <li>参与开源社区</li>
+                        <li>探索创新应用</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="tip success mt-4">
+                <span class="tip-icon">🎉</span>
+                <strong>学习成果</strong>
+                <p class="mt-2">
+                    恭喜你完成了信息抽取章节的学习！你已经掌握了从非结构化文本中
+                    提取结构化知识的核心技术，这将为你在NLP领域的深入探索打下坚实基础。
+                </p>
+            </div>
+        </section>
+
+        <!-- 未来展望 -->
+        <section id="future" class="section-card">
+            <h2>🔮 未来展望</h2>
+
+            <div class="story-card">
+                <span class="story-icon">🌟</span>
+                <p><strong>技术的未来</strong></p>
+                <p class="mt-2">
+                    信息抽取技术正在快速发展，新的方法和应用不断涌现。
+                    让我们一起展望这个激动人心的未来。
+                </p>
+            </div>
+
+            <div class="card-grid">
+                <div class="info-card">
+                    <span class="card-icon">🧠</span>
+                    <h4 class="card-title">大模型时代</h4>
+                    <p>GPT、ChatGPT等大模型为信息抽取带来新范式：</p>
+                    <ul class="mt-2">
+                        <li>Zero-shot抽取</li>
+                        <li>提示工程</li>
+                        <li>指令微调</li>
+                        <li>思维链推理</li>
+                    </ul>
+                </div>
+
+                <div class="info-card">
+                    <span class="card-icon">🌐</span>
+                    <h4 class="card-title">多模态融合</h4>
+                    <p>不仅仅是文本，还包括：</p>
+                    <ul class="mt-2">
+                        <li>图文联合抽取</li>
+                        <li>视频事件理解</li>
+                        <li>语音信息提取</li>
+                        <li>跨模态知识图谱</li>
+                    </ul>
+                </div>
+
+                <div class="info-card">
+                    <span class="card-icon">🤖</span>
+                    <h4 class="card-title">智能化升级</h4>
+                    <p>更智能的信息抽取系统：</p>
+                    <ul class="mt-2">
+                        <li>自适应学习</li>
+                        <li>主动学习</li>
+                        <li>终身学习</li>
+                        <li>可解释AI</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="deep-think-box mt-4">
+                <h4>研究前沿</h4>
+                <div class="think-item">
+                    <h5>🔬 技术突破</h5>
+                    <ul>
+                        <li><strong>少样本学习：</strong>降低标注成本</li>
+                        <li><strong>跨语言迁移：</strong>支持小语种</li>
+                        <li><strong>持续学习：</strong>适应新知识</li>
+                        <li><strong>因果推理：</strong>深层理解</li>
+                    </ul>
+                </div>
+                <div class="think-item">
+                    <h5>🌍 应用拓展</h5>
+                    <ul>
+                        <li><strong>科学发现：</strong>加速科研进程</li>
+                        <li><strong>智慧医疗：</strong>精准诊疗</li>
+                        <li><strong>智能教育：</strong>个性化学习</li>
+                        <li><strong>社会治理：</strong>智慧决策</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="tip info mt-4">
+                <span class="tip-icon">🚀</span>
+                <strong>行动建议</strong>
+                <p class="mt-2">
+                    保持学习热情，关注技术前沿，勇于创新实践。
+                    信息抽取技术的未来充满机遇，期待你的贡献！
+                </p>
+            </div>
+
+            <div class="text-center mt-4">
+                <a href="#intro" class="btn btn-primary">
+                    <span>🔄</span> 回到开始
+                </a>
+                <a href="chapter9.html" class="btn btn-secondary">
+                    <span>➡️</span> 下一章
+                </a>
+            </div>
+        </section>
+    </div>
+</main>
+
+<!-- JavaScript -->
+<script>
+    // 侧边栏切换
+    document.getElementById('toggle-sidebar').addEventListener('click', function() {
+        document.getElementById('sidebar').classList.toggle('open');
+    });
+
+    // 进度条更新
+    function updateProgressBar() {
+        const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+        const scrollHeight = document.documentElement.scrollHeight - window.innerHeight;
+        const progress = (scrollTop / scrollHeight) * 100;
+        document.getElementById('progress-bar').style.width = progress + '%';
+    }
+
+    window.addEventListener('scroll', updateProgressBar);
+
+    // 目录高亮
+    function updateTOC() {
+        const sections = document.querySelectorAll('section[id]');
+        const tocItems = document.querySelectorAll('.toc-item');
+        const quickNavItems = document.querySelectorAll('.quick-nav-item');
+
+        let currentSection = '';
+
+        sections.forEach(section => {
+            const rect = section.getBoundingClientRect();
+            if (rect.top <= 100 && rect.bottom >= 100) {
+                currentSection = section.id;
+            }
+        });
+
+        tocItems.forEach(item => {
+            item.classList.remove('active');
+            if (item.getAttribute('href') === '#' + currentSection) {
+                item.classList.add('active');
+            }
+        });
+
+        quickNavItems.forEach(item => {
+            item.classList.remove('active');
+            if (item.getAttribute('data-section') === currentSection) {
+                item.classList.add('active');
+            }
+        });
+    }
+
+    window.addEventListener('scroll', updateTOC);
+
+    // 平滑滚动
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener('click', function (e) {
+            e.preventDefault();
+            const target = document.querySelector(this.getAttribute('href'));
+            if (target) {
+                target.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start'
+                });
+            }
+        });
+    });
+
+    // 代码块功能
+    function toggleCode(button) {
+        const codeContent = button.closest('.code-block').querySelector('.code-content');
+        const isCollapsed = codeContent.classList.contains('collapsed');
+
+        if (isCollapsed) {
+            codeContent.classList.remove('collapsed');
+            button.textContent = '收起';
+        } else {
+            codeContent.classList.add('collapsed');
+            button.textContent = '展开';
+        }
+    }
+
+    function copyCode(button) {
+        const codeContent = button.closest('.code-block').querySelector('pre').textContent;
+        navigator.clipboard.writeText(codeContent).then(() => {
+            button.textContent = '已复制';
+            setTimeout(() => {
+                button.textContent = '复制';
+            }, 2000);
+        });
+    }
+
+    // 应用演示
+    function showFinanceDemo() {
+        document.getElementById('application-demo').innerHTML = `
+            <div class="text-display mb-3">
+                <strong>原始新闻：</strong><br>
+                据报道，某科技公司因涉嫌违反数据保护法规，被监管部门处以1000万美元罚款。
+                该公司CEO在声明中表示，将全面配合调查并加强合规管理。
+                受此影响，该公司股价下跌5%。
+            </div>
+            <div class="result-display">
+                <div class="result-item">
+                    <span class="result-label">风险类型：</span>监管处罚
+                </div>
+                <div class="result-item">
+                    <span class="result-label">涉事主体：</span>某科技公司
+                </div>
+                <div class="result-item">
+                    <span class="result-label">处罚金额：</span>1000万美元
+                </div>
+                <div class="result-item">
+                    <span class="result-label">影响：</span>股价下跌5%
+                </div>
+                <div class="result-item">
+                    <span class="result-label">风险等级：</span>
+                    <span style="color: #ef4444;">高风险</span>
+                </div>
+            </div>
+        `;
+    }
+
+    function showMedicalDemo() {
+        document.getElementById('application-demo').innerHTML = `
+            <div class="text-display mb-3">
+                <strong>病历记录：</strong><br>
+                患者张某，男，45岁，主诉头痛、发热3天。
+                体温38.5℃，血压130/85mmHg。
+                诊断：上呼吸道感染。
+                处方：阿莫西林胶囊，每次0.5g，每日3次，连服5天。
+            </div>
+            <div class="result-display">
+                <div class="result-item">
+                    <span class="result-label">患者信息：</span>张某，男，45岁
+                </div>
+                <div class="result-item">
+                    <span class="result-label">症状：</span>头痛、发热
+                </div>
+                <div class="result-item">
+                    <span class="result-label">体征：</span>体温38.5℃，血压130/85mmHg
+                </div>
+                <div class="result-item">
+                    <span class="result-label">诊断：</span>上呼吸道感染
+                </div>
+                <div class="result-item">
+                    <span class="result-label">用药：</span>阿莫西林胶囊 0.5g tid×5d
+                </div>
+            </div>
+        `;
+    }
+
+    function showLegalDemo() {
+        document.getElementById('application-demo').innerHTML = `
+            <div class="text-display mb-3">
+                <strong>判决书摘要：</strong><br>
+                原告李某诉被告王某民间借贷纠纷一案，
+                本院于2024年3月1日立案受理。
+                经审理查明，被告王某于2023年6月向原告李某借款10万元，
+                约定月利率2%，借款期限6个月。
+                判决被告王某返还原告李某借款本金10万元及利息1.2万元。
+            </div>
+            <div class="result-display">
+                <div class="result-item">
+                    <span class="result-label">案件类型：</span>民间借贷纠纷
+                </div>
+                <div class="result-item">
+                    <span class="result-label">原告：</span>李某
+                </div>
+                <div class="result-item">
+                    <span class="result-label">被告：</span>王某
+                </div>
+                <div class="result-item">
+                    <span class="result-label">借款金额：</span>10万元
+                </div>
+                <div class="result-item">
+                    <span class="result-label">判决结果：</span>返还本金10万元+利息1.2万元
+                </div>
+            </div>
+        `;
+    }
+
+    // 初始化
+    updateProgressBar();
+    updateTOC();
+
+    // 添加动画效果
+    const observerOptions = {
+        threshold: 0.1,
+        rootMargin: '0px 0px -50px 0px'
+    };
+
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.style.opacity = '1';
+                entry.target.style.transform = 'translateY(0)';
+            }
+        });
+    }, observerOptions);
+
+    document.querySelectorAll('.section-card').forEach(card => {
+        card.style.opacity = '0';
+        card.style.transform = 'translateY(20px)';
+        card.style.transition = 'all 0.6s ease-out';
+        observer.observe(card);
+    });
+</script>
+
+</body>
+</html>

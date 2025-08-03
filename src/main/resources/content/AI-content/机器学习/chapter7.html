@@ -1,0 +1,3242 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>第7章：感知机 - 神经网络的起源</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        /* CSS 变量定义主题颜色 */
+        :root {
+            /* 深色主题（默认） */
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-card: rgba(30, 41, 59, 0.8);
+            --bg-card-solid: rgba(30, 41, 59, 0.95);
+            --bg-code: #1a1a2e;
+            --bg-demo: #0f172a;
+
+            --text-primary: #e2e8f0;
+            --text-secondary: #cbd5e1;
+            --text-muted: #94a3b8;
+            --text-dim: #64748b;
+
+            --border-primary: rgba(102, 126, 234, 0.3);
+            --border-secondary: rgba(102, 126, 234, 0.2);
+            --border-muted: rgba(148, 163, 184, 0.1);
+
+            --grid-color: #2d3748;
+            --grid-light: #4a5568;
+
+            --shadow-sm: rgba(0,0,0,0.3);
+            --shadow-md: rgba(0,0,0,0.4);
+            --shadow-lg: rgba(0,0,0,0.5);
+
+            --gradient-primary: linear-gradient(135deg, #667eea, #764ba2);
+            --gradient-bg: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+
+            /* 新增感知机主题色 */
+            --neural-blue: #00bcd4;
+            --neural-purple: #9c27b0;
+            --neural-pink: #e91e63;
+        }
+
+        /* 浅色主题 */
+        body.light-theme {
+            --bg-primary: #f8fafc;
+            --bg-secondary: #e2e8f0;
+            --bg-card: rgba(255, 255, 255, 0.9);
+            --bg-card-solid: rgba(255, 255, 255, 0.95);
+            --bg-code: #f3f4f6;
+            --bg-demo: #ffffff;
+
+            --text-primary: #1e293b;
+            --text-secondary: #334155;
+            --text-muted: #475569;
+            --text-dim: #64748b;
+
+            --border-primary: rgba(102, 126, 234, 0.4);
+            --border-secondary: rgba(102, 126, 234, 0.3);
+            --border-muted: rgba(203, 213, 225, 0.5);
+
+            --grid-color: #e5e7eb;
+            --grid-light: #d1d5db;
+
+            --shadow-sm: rgba(0,0,0,0.1);
+            --shadow-md: rgba(0,0,0,0.15);
+            --shadow-lg: rgba(0,0,0,0.2);
+
+            --gradient-primary: linear-gradient(135deg, #667eea, #764ba2);
+            --gradient-bg: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+        }
+
+        /* 主题过渡动画 */
+        body,
+        body * {
+            transition: background-color 0.3s ease,
+            color 0.3s ease,
+            border-color 0.3s ease,
+            box-shadow 0.3s ease;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: var(--gradient-bg);
+            color: var(--text-primary);
+            line-height: 1.8;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* 当导航展开时，内容区右移 */
+        body.nav-open .container {
+            margin-left: 360px;
+        }
+
+        /* 动态背景效果 - 神经网络风格 */
+        .dynamic-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            z-index: -1;
+        }
+
+        .neural-network-bg {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* 优化的智能导航样式 */
+        .smart-nav {
+            position: fixed;
+            left: -340px;
+            top: 0;
+            width: 340px;
+            height: 100vh;
+            background: linear-gradient(135deg, rgba(15, 23, 42, 0.98) 0%, rgba(30, 41, 59, 0.95) 100%);
+            backdrop-filter: blur(20px);
+            border-right: 1px solid var(--border-primary);
+            box-shadow: 4px 0 30px rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            overflow: hidden;
+        }
+
+        body.nav-open .smart-nav {
+            left: 0;
+        }
+
+        /* 导航背景装饰 */
+        .nav-bg-decoration {
+            position: absolute;
+            top: -100px;
+            right: -100px;
+            width: 300px;
+            height: 300px;
+            background: radial-gradient(circle, var(--neural-blue) 0%, transparent 70%);
+            opacity: 0.1;
+            animation: pulse 4s ease-in-out infinite;
+        }
+
+        /* 导航触发按钮 - 优化设计 */
+        .nav-trigger {
+            position: fixed;
+            left: 20px;
+            top: 20px;
+            width: 56px;
+            height: 56px;
+            background: linear-gradient(135deg, rgba(0, 188, 212, 0.1), rgba(156, 39, 176, 0.1));
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(0, 188, 212, 0.3);
+            border-radius: 16px;
+            cursor: pointer;
+            z-index: 1001;
+            transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        body.nav-open .nav-trigger {
+            left: 290px;
+            background: linear-gradient(135deg, rgba(233, 30, 99, 0.1), rgba(156, 39, 176, 0.1));
+            border-color: rgba(233, 30, 99, 0.5);
+        }
+
+        .nav-trigger:hover {
+            transform: scale(1.1);
+            box-shadow: 0 8px 25px rgba(0, 188, 212, 0.4);
+        }
+
+        /* 汉堡菜单动画 */
+        .nav-trigger-icon {
+            width: 24px;
+            height: 20px;
+            position: relative;
+            transform: rotate(0deg);
+            transition: 0.5s ease-in-out;
+        }
+
+        .nav-trigger-icon span {
+            display: block;
+            position: absolute;
+            height: 3px;
+            width: 100%;
+            background: linear-gradient(90deg, var(--neural-blue), var(--neural-purple));
+            border-radius: 3px;
+            opacity: 1;
+            left: 0;
+            transform: rotate(0deg);
+            transition: 0.25s ease-in-out;
+        }
+
+        .nav-trigger-icon span:nth-child(1) {
+            top: 0px;
+        }
+
+        .nav-trigger-icon span:nth-child(2) {
+            top: 8px;
+        }
+
+        .nav-trigger-icon span:nth-child(3) {
+            top: 16px;
+        }
+
+        body.nav-open .nav-trigger-icon span:nth-child(1) {
+            top: 8px;
+            transform: rotate(135deg);
+        }
+
+        body.nav-open .nav-trigger-icon span:nth-child(2) {
+            opacity: 0;
+            left: -60px;
+        }
+
+        body.nav-open .nav-trigger-icon span:nth-child(3) {
+            top: 8px;
+            transform: rotate(-135deg);
+        }
+
+        /* 导航头部 - 优化设计 */
+        .nav-header {
+            padding: 30px;
+            background: linear-gradient(135deg, rgba(0, 188, 212, 0.1), rgba(156, 39, 176, 0.05));
+            border-bottom: 1px solid rgba(0, 188, 212, 0.2);
+            position: relative;
+        }
+
+        .nav-header h3 {
+            font-size: 1.4rem;
+            background: linear-gradient(135deg, var(--neural-blue), var(--neural-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 700;
+        }
+
+        .nav-subtitle {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-top: 5px;
+        }
+
+        /* 章节进度环 */
+        .chapter-progress {
+            position: absolute;
+            right: 30px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 50px;
+            height: 50px;
+        }
+
+        .progress-ring {
+            transform: rotate(-90deg);
+        }
+
+        .progress-ring-bg {
+            fill: none;
+            stroke: rgba(0, 188, 212, 0.1);
+            stroke-width: 4;
+        }
+
+        .progress-ring-fill {
+            fill: none;
+            stroke: url(#progressGradient);
+            stroke-width: 4;
+            stroke-dasharray: 138.23;
+            stroke-dashoffset: 138.23;
+            transition: stroke-dashoffset 1s ease;
+        }
+
+        .progress-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 0.9rem;
+            font-weight: bold;
+            color: var(--neural-blue);
+        }
+
+        /* 导航列表 - 优化样式 */
+        .nav-list {
+            list-style: none;
+            padding: 20px 0;
+            max-height: calc(100vh - 300px);
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        .nav-list::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .nav-list::-webkit-scrollbar-track {
+            background: rgba(0, 188, 212, 0.05);
+            border-radius: 3px;
+        }
+
+        .nav-list::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, var(--neural-blue), var(--neural-purple));
+            border-radius: 3px;
+        }
+
+        /* 导航项 - 全新设计 */
+        .nav-item {
+            position: relative;
+            margin: 8px 15px;
+            border-radius: 12px;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .nav-item::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 0;
+            background: linear-gradient(90deg, var(--neural-blue), var(--neural-purple));
+            transition: width 0.3s ease;
+            opacity: 0.8;
+        }
+
+        .nav-item:hover::before {
+            width: 4px;
+        }
+
+        .nav-item.active::before {
+            width: 4px;
+            opacity: 1;
+            box-shadow: 0 0 12px var(--neural-blue);
+        }
+
+        .nav-item a {
+            display: flex;
+            align-items: center;
+            padding: 14px 20px;
+            color: var(--text-muted);
+            text-decoration: none;
+            transition: all 0.3s ease;
+            position: relative;
+            background: rgba(0, 0, 0, 0);
+        }
+
+        .nav-item:hover a {
+            color: var(--text-primary);
+            background: rgba(0, 188, 212, 0.05);
+            padding-left: 28px;
+        }
+
+        .nav-item.active a {
+            color: var(--text-primary);
+            background: linear-gradient(90deg, rgba(0, 188, 212, 0.1), rgba(156, 39, 176, 0.05));
+            padding-left: 28px;
+            font-weight: 600;
+        }
+
+        /* 导航图标动画 */
+        .nav-icon {
+            font-size: 1.4rem;
+            margin-right: 14px;
+            flex-shrink: 0;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            background: rgba(0, 188, 212, 0.1);
+            border-radius: 8px;
+        }
+
+        .nav-item:hover .nav-icon {
+            transform: scale(1.1) rotate(10deg);
+            background: rgba(0, 188, 212, 0.2);
+        }
+
+        .nav-item.active .nav-icon {
+            background: linear-gradient(135deg, rgba(0, 188, 212, 0.3), rgba(156, 39, 176, 0.2));
+            animation: iconPulse 2s ease-in-out infinite;
+        }
+
+        @keyframes iconPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        /* 导航文本和时间 */
+        .nav-content {
+            flex: 1;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .nav-text {
+            font-size: 0.95rem;
+            font-weight: 500;
+        }
+
+        .nav-meta {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .nav-time {
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            background: rgba(0, 188, 212, 0.1);
+            padding: 2px 8px;
+            border-radius: 12px;
+        }
+
+        .nav-status {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #4a5568;
+            transition: all 0.3s ease;
+        }
+
+        .nav-item.completed .nav-status {
+            background: #10b981;
+            box-shadow: 0 0 8px #10b981;
+        }
+
+        .nav-item.active .nav-status {
+            background: var(--neural-blue);
+            box-shadow: 0 0 8px var(--neural-blue);
+            animation: statusPulse 2s ease-in-out infinite;
+        }
+
+        @keyframes statusPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* 导航底部统计 */
+        .nav-footer {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 25px;
+            background: linear-gradient(to top, rgba(15, 23, 42, 0.98), transparent);
+            border-top: 1px solid rgba(0, 188, 212, 0.2);
+        }
+
+        .learning-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: rgba(0, 188, 212, 0.05);
+            padding: 12px;
+            border-radius: 10px;
+            border: 1px solid rgba(0, 188, 212, 0.2);
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: var(--neural-blue);
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        /* 主标题样式 */
+        .main-header {
+            text-align: center;
+            margin: 60px 0;
+            position: relative;
+        }
+
+        .main-title {
+            font-size: 4rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, var(--neural-blue) 0%, var(--neural-purple) 50%, var(--neural-pink) 100%);
+            background-size: 200% 200%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: gradient-flow 6s ease infinite;
+            text-shadow: 0 0 80px rgba(0, 188, 212, 0.5);
+            margin-bottom: 20px;
+        }
+
+        @keyframes gradient-flow {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .subtitle {
+            font-size: 1.6rem;
+            color: #94a3b8;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+        }
+
+        /* 章节卡片样式 */
+        .section-card {
+            background: var(--bg-card);
+            backdrop-filter: blur(10px);
+            border-radius: 24px;
+            padding: 40px;
+            margin: 30px 0;
+            border: 1px solid var(--border-secondary);
+            box-shadow: 0 20px 40px var(--shadow-sm);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .section-card::before {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            background: linear-gradient(45deg, var(--neural-blue), var(--neural-purple), var(--neural-pink));
+            border-radius: 24px;
+            opacity: 0;
+            z-index: -1;
+            transition: opacity 0.3s ease;
+        }
+
+        .section-card:hover::before {
+            opacity: 0.5;
+            animation: borderRotate 4s linear infinite;
+        }
+
+        @keyframes borderRotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .section-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 30px 60px var(--shadow-md);
+        }
+
+        .section-title {
+            font-size: 2.5rem;
+            background: linear-gradient(135deg, var(--neural-blue), var(--neural-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 30px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        /* 故事框样式 */
+        .story-box {
+            background: linear-gradient(135deg, rgba(0, 188, 212, 0.1), rgba(0, 150, 136, 0.05));
+            border-radius: 20px;
+            padding: 30px;
+            margin: 30px 0;
+            border: 2px solid rgba(0, 188, 212, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .story-box::after {
+            content: '🧠';
+            position: absolute;
+            top: -20px;
+            right: 20px;
+            font-size: 4rem;
+            opacity: 0.08;
+            z-index: 0;
+        }
+
+        /* 思考题框样式 */
+        .thinking-box {
+            background: linear-gradient(135deg, rgba(156, 39, 176, 0.1), rgba(103, 58, 183, 0.05));
+            border-radius: 20px;
+            padding: 30px;
+            margin: 30px 0;
+            border: 2px solid rgba(156, 39, 176, 0.3);
+            position: relative;
+        }
+
+        .thinking-box::before {
+            content: '💡';
+            position: absolute;
+            top: -15px;
+            left: 20px;
+            font-size: 2rem;
+            background: var(--bg-card-solid);
+            padding: 5px 15px;
+            border-radius: 50%;
+            opacity: 0.3;
+            z-index: 1;
+        }
+
+        /* 公式容器样式 */
+        .formula-box {
+            background: linear-gradient(135deg, rgba(233, 30, 99, 0.1), rgba(244, 67, 54, 0.05));
+            border-radius: 20px;
+            padding: 35px;
+            margin: 30px 0;
+            text-align: center;
+            border: 2px solid rgba(233, 30, 99, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .formula-box::before {
+            content: '∑';
+            position: absolute;
+            top: -30px;
+            right: 30px;
+            font-size: 6rem;
+            opacity: 0.03;
+            transform: rotate(15deg);
+            z-index: 0;
+        }
+
+        .math-formula {
+            font-family: 'Times New Roman', serif;
+            font-size: 1.8rem;
+            color: var(--text-primary);
+            margin: 20px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        /* 高亮样式 */
+        .highlight-primary {
+            color: var(--neural-blue);
+            font-weight: bold;
+            background: rgba(0, 188, 212, 0.1);
+            padding: 2px 8px;
+            border-radius: 6px;
+            border: 1px solid rgba(0, 188, 212, 0.3);
+        }
+
+        .highlight-success {
+            color: #10b981;
+            font-weight: bold;
+            background: rgba(16, 185, 129, 0.1);
+            padding: 2px 8px;
+            border-radius: 6px;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .highlight-warning {
+            color: #f59e0b;
+            font-weight: bold;
+            background: rgba(245, 158, 11, 0.1);
+            padding: 2px 8px;
+            border-radius: 6px;
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+        .highlight-danger {
+            color: var(--neural-pink);
+            font-weight: bold;
+            background: rgba(233, 30, 99, 0.1);
+            padding: 2px 8px;
+            border-radius: 6px;
+            border: 1px solid rgba(233, 30, 99, 0.3);
+        }
+
+        /* 真值表样式 */
+        .truth-table {
+            margin: 20px auto;
+            border-collapse: collapse;
+            background: var(--bg-card);
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px var(--shadow-sm);
+        }
+
+        .truth-table th {
+            background: linear-gradient(135deg, var(--neural-blue), var(--neural-purple));
+            color: white;
+            padding: 12px 20px;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        .truth-table td {
+            padding: 10px 20px;
+            text-align: center;
+            border-bottom: 1px solid var(--border-muted);
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+
+        .truth-table tr:hover td {
+            background: rgba(0, 188, 212, 0.05);
+        }
+
+        .truth-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* 交互式演示区域 */
+        .demo-container {
+            background: linear-gradient(135deg, rgba(15, 23, 42, 0.9), rgba(30, 41, 59, 0.8));
+            border-radius: 20px;
+            padding: 30px;
+            margin: 30px 0;
+            border: 2px solid rgba(0, 188, 212, 0.3);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .demo-canvas {
+            background: #0f172a;
+            border-radius: 10px;
+            margin: 20px auto;
+            display: block;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            cursor: crosshair;
+        }
+
+        .demo-controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin: 20px 0;
+        }
+
+        .demo-btn {
+            background: linear-gradient(135deg, var(--neural-blue), var(--neural-purple));
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(0, 188, 212, 0.3);
+        }
+
+        .demo-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 188, 212, 0.4);
+        }
+
+        .demo-btn:active {
+            transform: translateY(0);
+        }
+
+        /* 感知机网络可视化 */
+        .perceptron-visual {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 30px 0;
+            padding: 30px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 15px;
+        }
+
+        /* 代码区域样式 */
+        .code-block {
+            background: #1a1a2e;
+            border-radius: 15px;
+            padding: 25px;
+            margin: 25px 0;
+            overflow-x: auto;
+            position: relative;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            border: 1px solid rgba(0, 188, 212, 0.2);
+        }
+
+        .code-block::before {
+            content: 'Python';
+            position: absolute;
+            top: -12px;
+            left: 20px;
+            background: linear-gradient(135deg, var(--neural-blue), var(--neural-purple));
+            color: white;
+            padding: 5px 15px;
+            border-radius: 15px;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .code-block pre {
+            color: #f8f8f2;
+            font-family: 'Fira Code', 'Consolas', monospace;
+            line-height: 1.6;
+            margin: 0;
+        }
+
+        /* 语法高亮 */
+        .keyword { color: #ff79c6; }
+        .string { color: #f1fa8c; }
+        .comment { color: #6272a4; }
+        .number { color: #bd93f9; }
+        .function { color: #50fa7b; }
+
+        /* 神经元动画 */
+        .neuron {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: radial-gradient(circle, var(--neural-blue) 0%, var(--neural-purple) 100%);
+            box-shadow: 0 0 20px rgba(0, 188, 212, 0.5);
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 1.2rem;
+            margin: 10px;
+            animation: neuronPulse 2s ease-in-out infinite;
+        }
+
+        @keyframes neuronPulse {
+            0%, 100% {
+                transform: scale(1);
+                box-shadow: 0 0 20px rgba(0, 188, 212, 0.5);
+            }
+            50% {
+                transform: scale(1.1);
+                box-shadow: 0 0 30px rgba(0, 188, 212, 0.8);
+            }
+        }
+
+        /* 连接线 */
+        .synapse {
+            stroke: var(--neural-blue);
+            stroke-width: 3;
+            fill: none;
+            opacity: 0.8;
+            stroke-dasharray: 5, 5;
+            animation: synapseFlow 2s linear infinite;
+        }
+
+        @keyframes synapseFlow {
+            from { stroke-dashoffset: 0; }
+            to { stroke-dashoffset: -10; }
+        }
+
+        /* 进度指示器 */
+        .progress-indicator {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, rgba(0, 188, 212, 0.1), rgba(156, 39, 176, 0.1));
+            padding: 15px 25px;
+            border-radius: 50px;
+            border: 2px solid rgba(0, 188, 212, 0.3);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            backdrop-filter: blur(10px);
+            z-index: 1000;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px var(--shadow-sm);
+        }
+
+        .progress-bar {
+            width: 150px;
+            height: 6px;
+            background: rgba(0, 188, 212, 0.2);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--neural-blue), var(--neural-purple));
+            border-radius: 3px;
+            transition: width 0.3s ease;
+        }
+
+        /* 浮动工具栏 */
+        .floating-toolbar {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 1000;
+        }
+
+        .toolbar-btn {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--neural-blue), var(--neural-purple));
+            color: white;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(0, 188, 212, 0.3);
+        }
+
+        .toolbar-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 8px 25px rgba(0, 188, 212, 0.4);
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 1400px) {
+            body.nav-open .container {
+                margin-left: 0;
+                padding-left: 360px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .main-title {
+                font-size: 2.5rem;
+            }
+
+            .section-title {
+                font-size: 1.8rem;
+            }
+
+            .section-card {
+                padding: 25px;
+            }
+
+            .demo-controls {
+                flex-direction: column;
+            }
+
+            .smart-nav {
+                width: 100%;
+                left: -100%;
+            }
+
+            body.nav-open .smart-nav {
+                left: 0;
+            }
+
+            body.nav-open .container {
+                margin-left: 0;
+                padding-left: 20px;
+            }
+
+            body.nav-open .nav-trigger {
+                left: auto;
+                right: 20px;
+            }
+        }
+
+        /* 动画效果 */
+        .fade-in {
+            opacity: 0;
+            transform: translateY(30px);
+            animation: fadeInUp 0.6s ease forwards;
+        }
+
+        @keyframes fadeInUp {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* 脉冲动画 */
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .pulse {
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        /* 章节锚点偏移 */
+        .section-anchor {
+            scroll-margin-top: 100px;
+        }
+
+        /* 逻辑门图标 */
+        .gate-icon {
+            display: inline-block;
+            width: 80px;
+            height: 50px;
+            margin: 0 10px;
+            position: relative;
+        }
+
+        /* 参数控制面板 */
+        .param-panel {
+            background: rgba(0, 188, 212, 0.05);
+            border: 1px solid rgba(0, 188, 212, 0.3);
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .param-slider {
+            width: 100%;
+            margin: 10px 0;
+        }
+
+        .param-value {
+            display: inline-block;
+            width: 60px;
+            text-align: center;
+            color: var(--neural-blue);
+            font-weight: bold;
+        }
+
+        /* 感知机状态指示器 */
+        .perceptron-status {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin: 20px 0;
+        }
+
+        .status-item {
+            text-align: center;
+        }
+
+        .status-label {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            margin-bottom: 5px;
+        }
+
+        .status-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--neural-blue);
+        }
+
+        /* 训练过程动画 */
+        @keyframes training {
+            0% { opacity: 0.3; }
+            50% { opacity: 1; }
+            100% { opacity: 0.3; }
+        }
+
+        .training-active {
+            animation: training 1s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body>
+<!-- 动态背景 -->
+<div class="dynamic-bg">
+    <canvas id="neuralNetworkBg" class="neural-network-bg"></canvas>
+</div>
+
+<!-- 导航触发按钮 -->
+<button class="nav-trigger" onclick="toggleNav()">
+    <div class="nav-trigger-icon">
+        <span></span>
+        <span></span>
+        <span></span>
+    </div>
+</button>
+
+<!-- 智能导航系统 -->
+<nav class="smart-nav">
+    <div class="nav-bg-decoration"></div>
+
+    <div class="nav-header">
+        <h3>🧠 感知机学习指南</h3>
+        <p class="nav-subtitle">探索神经网络的起源</p>
+
+        <div class="chapter-progress">
+            <svg width="50" height="50">
+                <defs>
+                    <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" style="stop-color:#00bcd4;stop-opacity:1" />
+                        <stop offset="100%" style="stop-color:#9c27b0;stop-opacity:1" />
+                    </linearGradient>
+                </defs>
+                <circle cx="25" cy="25" r="22" class="progress-ring progress-ring-bg"></circle>
+                <circle cx="25" cy="25" r="22" class="progress-ring progress-ring-fill" id="progressRing"></circle>
+            </svg>
+            <div class="progress-text" id="progressPercent">0%</div>
+        </div>
+    </div>
+
+    <ul class="nav-list">
+        <li class="nav-item active" data-section="intro">
+            <a href="#intro">
+                <span class="nav-icon">🧪</span>
+                <div class="nav-content">
+                    <span class="nav-text">引言：AI的第一步</span>
+                    <div class="nav-meta">
+                        <span class="nav-time">3 min</span>
+                        <span class="nav-status"></span>
+                    </div>
+                </div>
+            </a>
+        </li>
+        <li class="nav-item" data-section="concept">
+            <a href="#concept">
+                <span class="nav-icon">⚡</span>
+                <div class="nav-content">
+                    <span class="nav-text">1.1 感知机的概念</span>
+                    <div class="nav-meta">
+                        <span class="nav-time">5 min</span>
+                        <span class="nav-status"></span>
+                    </div>
+                </div>
+            </a>
+        </li>
+        <li class="nav-item" data-section="logic-gates">
+            <a href="#logic-gates">
+                <span class="nav-icon">🔌</span>
+                <div class="nav-content">
+                    <span class="nav-text">1.2 简单逻辑电路</span>
+                    <div class="nav-meta">
+                        <span class="nav-time">8 min</span>
+                        <span class="nav-status"></span>
+                    </div>
+                </div>
+            </a>
+        </li>
+        <li class="nav-item" data-section="implementation">
+            <a href="#implementation">
+                <span class="nav-icon">💻</span>
+                <div class="nav-content">
+                    <span class="nav-text">1.3 感知机的实现</span>
+                    <div class="nav-meta">
+                        <span class="nav-time">6 min</span>
+                        <span class="nav-status"></span>
+                    </div>
+                </div>
+            </a>
+        </li>
+        <li class="nav-item" data-section="limitations">
+            <a href="#limitations">
+                <span class="nav-icon">🚧</span>
+                <div class="nav-content">
+                    <span class="nav-text">1.4 感知机的局限</span>
+                    <div class="nav-meta">
+                        <span class="nav-time">5 min</span>
+                        <span class="nav-status"></span>
+                    </div>
+                </div>
+            </a>
+        </li>
+        <li class="nav-item" data-section="multilayer">
+            <a href="#multilayer">
+                <span class="nav-icon">🏗️</span>
+                <div class="nav-content">
+                    <span class="nav-text">1.5 多层感知机</span>
+                    <div class="nav-meta">
+                        <span class="nav-time">6 min</span>
+                        <span class="nav-status"></span>
+                    </div>
+                </div>
+            </a>
+        </li>
+        <li class="nav-item" data-section="practice">
+            <a href="#practice">
+                <span class="nav-icon">🎮</span>
+                <div class="nav-content">
+                    <span class="nav-text">1.6 实战：构建AI大脑</span>
+                    <div class="nav-meta">
+                        <span class="nav-time">8 min</span>
+                        <span class="nav-status"></span>
+                    </div>
+                </div>
+            </a>
+        </li>
+        <li class="nav-item" data-section="summary">
+            <a href="#summary">
+                <span class="nav-icon">🎯</span>
+                <div class="nav-content">
+                    <span class="nav-text">1.7 总结与展望</span>
+                    <div class="nav-meta">
+                        <span class="nav-time">3 min</span>
+                        <span class="nav-status"></span>
+                    </div>
+                </div>
+            </a>
+        </li>
+    </ul>
+
+    <div class="nav-footer">
+        <div class="learning-stats">
+            <div class="stat-card">
+                <div class="stat-value" id="totalTime">44</div>
+                <div class="stat-label">总时长(分钟)</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="completedSections">0/8</div>
+                <div class="stat-label">完成章节</div>
+            </div>
+        </div>
+
+        <div style="text-align: center; margin-top: 15px;">
+            <kbd style="background: rgba(0, 188, 212, 0.1); padding: 4px 8px; border-radius: 4px;">Alt</kbd> +
+            <kbd style="background: rgba(0, 188, 212, 0.1); padding: 4px 8px; border-radius: 4px;">N</kbd>
+            <span style="color: var(--text-muted); font-size: 0.8rem;">切换导航</span>
+        </div>
+    </div>
+</nav>
+
+<!-- 进度指示器 -->
+<div class="progress-indicator">
+    <span>学习进度</span>
+    <div class="progress-bar">
+        <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+    </div>
+    <span id="progressText">0%</span>
+</div>
+
+<!-- 主容器 -->
+<div class="container">
+    <!-- 标题部分 -->
+    <div class="main-header fade-in">
+        <h1 class="main-title">第7章：感知机</h1>
+        <p class="subtitle">🧠 神经网络的起源，AI革命的第一步</p>
+    </div>
+
+    <!-- 引言：AI的第一步 -->
+    <div id="intro" class="section-card fade-in section-anchor">
+        <h2 class="section-title">🧪 引言：人工智能的第一步</h2>
+
+        <div class="story-box">
+            <h3 style="color: #00bcd4; margin-bottom: 20px;">📖 1957年的实验室</h3>
+            <p style="font-size: 1.1rem; line-height: 1.8;">
+                康奈尔大学的实验室里，弗兰克·罗森布拉特（Frank Rosenblatt）正在调试一台奇特的机器。<br><br>
+                这台名为<span class="highlight-primary">Mark I Perceptron</span>的机器有400个光电管作为"眼睛"，<br>
+                能够识别简单的图形——这是<span class="highlight-warning">人类第一次</span>让机器"看见"世界！<br><br>
+                今天，让我们重现这个<span class="highlight-danger">改变世界的发明</span>。
+            </p>
+            <div style="background: rgba(0, 188, 212, 0.1); padding: 20px; border-radius: 10px; margin-top: 20px; border: 1px solid rgba(0, 188, 212, 0.3);">
+                <p style="text-align: center; font-size: 1.2rem; color: #00bcd4;">
+                    💡 感知机——现代深度学习的<strong>基石</strong><br>
+                    从简单的0和1，到识别猫狗、理解语言、驾驶汽车
+                </p>
+            </div>
+        </div>
+
+        <div class="thinking-box">
+            <h3>思考：生物神经元 vs 人工神经元</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px;">
+                <div style="background: rgba(0, 188, 212, 0.1); padding: 20px; border-radius: 10px;">
+                    <h4 style="color: #00bcd4; margin-bottom: 10px;">🧬 生物神经元</h4>
+                    <ul style="list-style: none; padding: 0;">
+                        <li>✓ 树突接收信号</li>
+                        <li>✓ 细胞体处理信息</li>
+                        <li>✓ 轴突传递信号</li>
+                        <li>✓ 突触连接其他神经元</li>
+                    </ul>
+                </div>
+                <div style="background: rgba(156, 39, 176, 0.1); padding: 20px; border-radius: 10px;">
+                    <h4 style="color: #9c27b0; margin-bottom: 10px;">🤖 人工神经元</h4>
+                    <ul style="list-style: none; padding: 0;">
+                        <li>✓ 输入接收数据</li>
+                        <li>✓ 权重控制重要性</li>
+                        <li>✓ 求和计算总输入</li>
+                        <li>✓ 激活函数决定输出</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 1.1 感知机的概念 -->
+    <div id="concept" class="section-card fade-in section-anchor">
+        <h2 class="section-title">⚡ 1.1 感知机的概念</h2>
+
+        <div class="thinking-box">
+            <h3>什么是感知机？</h3>
+            <p>感知机（Perceptron）是一个<span class="highlight-primary">二分类模型</span>，它接收多个输入信号，输出一个信号。</p>
+            <p>就像一个简单的决策者：根据多个因素，做出"是"或"否"的判断。</p>
+        </div>
+
+        <!-- 感知机结构可视化 -->
+        <div class="demo-container">
+            <h3 style="color: #00bcd4; text-align: center; margin-bottom: 20px;">🧠 感知机结构可视化</h3>
+            <canvas id="perceptronCanvas" class="demo-canvas" width="800" height="400"></canvas>
+            <div class="perceptron-status">
+                <div class="status-item">
+                    <div class="status-label">输入 x₁</div>
+                    <div class="status-value" id="input1">0</div>
+                </div>
+                <div class="status-item">
+                    <div class="status-label">输入 x₂</div>
+                    <div class="status-value" id="input2">0</div>
+                </div>
+                <div class="status-item">
+                    <div class="status-label">加权和</div>
+                    <div class="status-value" id="weightedSum">0.0</div>
+                </div>
+                <div class="status-item">
+                    <div class="status-label">输出 y</div>
+                    <div class="status-value" id="output">0</div>
+                </div>
+            </div>
+            <div class="demo-controls">
+                <button class="demo-btn" onclick="setInputs(0, 0)">输入 (0,0)</button>
+                <button class="demo-btn" onclick="setInputs(0, 1)">输入 (0,1)</button>
+                <button class="demo-btn" onclick="setInputs(1, 0)">输入 (1,0)</button>
+                <button class="demo-btn" onclick="setInputs(1, 1)">输入 (1,1)</button>
+            </div>
+        </div>
+
+        <!-- 数学表达式 -->
+        <div class="formula-box">
+            <h3 style="color: #e91e63; margin-bottom: 20px;">📐 感知机的数学表达</h3>
+            <div class="math-formula">
+                y = { 1, if w₁x₁ + w₂x₂ + ... + wₙxₙ > θ<br>
+                { 0, otherwise
+            </div>
+            <p style="margin-top: 20px; color: var(--text-secondary);">
+                其中：x 是输入，w 是权重，θ 是阈值，y 是输出
+            </p>
+        </div>
+
+        <!-- 核心概念说明 -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-top: 30px;">
+            <div style="background: rgba(0, 188, 212, 0.1); padding: 20px; border-radius: 15px; border: 1px solid rgba(0, 188, 212, 0.3);">
+                <h4 style="color: #00bcd4; margin-bottom: 10px;">📥 输入信号</h4>
+                <p>多个输入 x₁, x₂, ..., xₙ<br>通常是二进制值 (0 或 1)</p>
+            </div>
+            <div style="background: rgba(156, 39, 176, 0.1); padding: 20px; border-radius: 15px; border: 1px solid rgba(156, 39, 176, 0.3);">
+                <h4 style="color: #9c27b0; margin-bottom: 10px;">⚖️ 权重参数</h4>
+                <p>控制各输入的重要性<br>权重越大，影响越大</p>
+            </div>
+            <div style="background: rgba(233, 30, 99, 0.1); padding: 20px; border-radius: 15px; border: 1px solid rgba(233, 30, 99, 0.3);">
+                <h4 style="color: #e91e63; margin-bottom: 10px;">🎯 阈值判断</h4>
+                <p>加权和超过阈值时激活<br>输出1，否则输出0</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 1.2 简单逻辑电路 -->
+    <div id="logic-gates" class="section-card fade-in section-anchor">
+        <h2 class="section-title">🔌 1.2 简单逻辑电路</h2>
+
+        <div class="story-box">
+            <h3 style="color: #00bcd4;">🎮 从逻辑门开始</h3>
+            <p>
+                逻辑门是数字电路的基础，也是计算机的基石。<br>
+                让我们看看感知机如何实现这些基本的逻辑运算！
+            </p>
+        </div>
+
+        <!-- 1.2.1 与门 -->
+        <div style="margin: 30px 0;">
+            <h3 style="color: #9c27b0; margin-bottom: 20px;">1.2.1 与门（AND Gate）</h3>
+            <p style="margin-bottom: 20px;">与门：只有当<span class="highlight-primary">所有输入都为1</span>时，输出才为1。</p>
+
+            <table class="truth-table">
+                <thead>
+                <tr>
+                    <th>x₁</th>
+                    <th>x₂</th>
+                    <th>y (AND)</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr>
+                    <td>0</td>
+                    <td>0</td>
+                    <td>0</td>
+                </tr>
+                <tr>
+                    <td>0</td>
+                    <td>1</td>
+                    <td>0</td>
+                </tr>
+                <tr>
+                    <td>1</td>
+                    <td>0</td>
+                    <td>0</td>
+                </tr>
+                <tr>
+                    <td>1</td>
+                    <td>1</td>
+                    <td style="color: #10b981; font-weight: bold;">1</td>
+                </tr>
+                </tbody>
+            </table>
+
+            <p style="margin-top: 20px;">
+                满足条件的参数：<span class="highlight-success">w₁ = 0.5, w₂ = 0.5, θ = 0.7</span>
+            </p>
+        </div>
+
+        <!-- 1.2.2 与非门 -->
+        <div style="margin: 30px 0;">
+            <h3 style="color: #9c27b0; margin-bottom: 20px;">1.2.2 与非门（NAND Gate）</h3>
+            <p style="margin-bottom: 20px;">与非门：与门的<span class="highlight-warning">反向输出</span>。</p>
+
+            <table class="truth-table">
+                <thead>
+                <tr>
+                    <th>x₁</th>
+                    <th>x₂</th>
+                    <th>y (NAND)</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr>
+                    <td>0</td>
+                    <td>0</td>
+                    <td style="color: #10b981; font-weight: bold;">1</td>
+                </tr>
+                <tr>
+                    <td>0</td>
+                    <td>1</td>
+                    <td style="color: #10b981; font-weight: bold;">1</td>
+                </tr>
+                <tr>
+                    <td>1</td>
+                    <td>0</td>
+                    <td style="color: #10b981; font-weight: bold;">1</td>
+                </tr>
+                <tr>
+                    <td>1</td>
+                    <td>1</td>
+                    <td>0</td>
+                </tr>
+                </tbody>
+            </table>
+
+            <p style="margin-top: 20px;">
+                满足条件的参数：<span class="highlight-success">w₁ = -0.5, w₂ = -0.5, θ = -0.7</span>
+            </p>
+        </div>
+
+        <!-- 1.2.3 或门 -->
+        <div style="margin: 30px 0;">
+            <h3 style="color: #9c27b0; margin-bottom: 20px;">1.2.3 或门（OR Gate）</h3>
+            <p style="margin-bottom: 20px;">或门：只要<span class="highlight-primary">有一个输入为1</span>，输出就为1。</p>
+
+            <table class="truth-table">
+                <thead>
+                <tr>
+                    <th>x₁</th>
+                    <th>x₂</th>
+                    <th>y (OR)</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr>
+                    <td>0</td>
+                    <td>0</td>
+                    <td>0</td>
+                </tr>
+                <tr>
+                    <td>0</td>
+                    <td>1</td>
+                    <td style="color: #10b981; font-weight: bold;">1</td>
+                </tr>
+                <tr>
+                    <td>1</td>
+                    <td>0</td>
+                    <td style="color: #10b981; font-weight: bold;">1</td>
+                </tr>
+                <tr>
+                    <td>1</td>
+                    <td>1</td>
+                    <td style="color: #10b981; font-weight: bold;">1</td>
+                </tr>
+                </tbody>
+            </table>
+
+            <p style="margin-top: 20px;">
+                满足条件的参数：<span class="highlight-success">w₁ = 0.5, w₂ = 0.5, θ = 0.3</span>
+            </p>
+        </div>
+
+        <!-- 交互式逻辑门演示 -->
+        <div class="demo-container">
+            <h3 style="color: #00bcd4; text-align: center; margin-bottom: 20px;">🎯 逻辑门交互式演示</h3>
+            <canvas id="gatesCanvas" class="demo-canvas" width="800" height="500"></canvas>
+            <div class="demo-controls">
+                <button class="demo-btn" onclick="showGate('AND')">与门 (AND)</button>
+                <button class="demo-btn" onclick="showGate('NAND')">与非门 (NAND)</button>
+                <button class="demo-btn" onclick="showGate('OR')">或门 (OR)</button>
+            </div>
+            <div class="param-panel">
+                <h4 style="color: #00bcd4; margin-bottom: 15px;">参数调整</h4>
+                <div>
+                    <label>权重 w₁: <span class="param-value" id="w1Value">0.5</span></label>
+                    <input type="range" class="param-slider" id="w1Slider" min="-2" max="2" step="0.1" value="0.5" oninput="updateWeights()">
+                </div>
+                <div>
+                    <label>权重 w₂: <span class="param-value" id="w2Value">0.5</span></label>
+                    <input type="range" class="param-slider" id="w2Slider" min="-2" max="2" step="0.1" value="0.5" oninput="updateWeights()">
+                </div>
+                <div>
+                    <label>阈值 θ: <span class="param-value" id="thetaValue">0.7</span></label>
+                    <input type="range" class="param-slider" id="thetaSlider" min="-2" max="2" step="0.1" value="0.7" oninput="updateWeights()">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 1.3 感知机的实现 -->
+    <div id="implementation" class="section-card fade-in section-anchor">
+        <h2 class="section-title">💻 1.3 感知机的实现</h2>
+
+        <!-- 1.3.1 简单实现 -->
+        <div style="margin-bottom: 40px;">
+            <h3 style="color: #9c27b0; margin-bottom: 20px;">1.3.1 简单实现</h3>
+            <p style="margin-bottom: 20px;">让我们用代码实现一个与门：</p>
+
+            <div class="code-block">
+                    <pre><code><span class="keyword">def</span> <span class="function">AND</span>(x1, x2):
+    <span class="string">"""简单的与门实现"""</span>
+    w1, w2, theta = <span class="number">0.5</span>, <span class="number">0.5</span>, <span class="number">0.7</span>
+    res = x1 * w1 + x2 * w2
+
+    <span class="keyword">if</span> res <= theta:
+        <span class="keyword">return</span> <span class="number">0</span>
+    <span class="keyword">else</span>:
+        <span class="keyword">return</span> <span class="number">1</span>
+
+<span class="comment"># 测试与门</span>
+print(AND(<span class="number">0</span>, <span class="number">0</span>))  <span class="comment"># 输出: 0</span>
+print(AND(<span class="number">1</span>, <span class="number">0</span>))  <span class="comment"># 输出: 0</span>
+print(AND(<span class="number">0</span>, <span class="number">1</span>))  <span class="comment"># 输出: 0</span>
+print(AND(<span class="number">1</span>, <span class="number">1</span>))  <span class="comment"># 输出: 1</span></code></pre>
+            </div>
+        </div>
+
+        <!-- 1.3.2 导入权重和偏置 -->
+        <div>
+            <h3 style="color: #9c27b0; margin-bottom: 20px;">1.3.2 导入权重和偏置</h3>
+
+            <div class="formula-box">
+                <h4 style="color: #e91e63;">🔄 参数变换</h4>
+                <div style="display: flex; justify-content: center; align-items: center; gap: 30px; margin: 20px 0;">
+                    <div>
+                        <p>原式：y = {1 if Σwᵢxᵢ > θ}</p>
+                    </div>
+                    <div style="font-size: 2rem;">→</div>
+                    <div>
+                        <p>新式：y = {1 if Σwᵢxᵢ + b > 0}</p>
+                        <p style="font-size: 0.9rem; margin-top: 10px;">其中 b = -θ (偏置)</p>
+                    </div>
+                </div>
+            </div>
+
+            <p style="margin: 20px 0;">使用NumPy的向量化实现：</p>
+
+            <div class="code-block">
+                    <pre><code><span class="keyword">import</span> numpy <span class="keyword">as</span> np
+
+<span class="keyword">def</span> <span class="function">AND</span>(x1, x2):
+    <span class="string">"""使用NumPy的与门实现"""</span>
+    x = np.array([x1, x2])
+    w = np.array([<span class="number">0.5</span>, <span class="number">0.5</span>])
+    b = <span class="number">-0.7</span>
+
+    tmp = np.sum(w * x) + b
+
+    <span class="keyword">if</span> tmp <= <span class="number">0</span>:
+        <span class="keyword">return</span> <span class="number">0</span>
+    <span class="keyword">else</span>:
+        <span class="keyword">return</span> <span class="number">1</span>
+
+<span class="keyword">def</span> <span class="function">NAND</span>(x1, x2):
+    <span class="string">"""与非门实现"""</span>
+    x = np.array([x1, x2])
+    w = np.array([<span class="number">-0.5</span>, <span class="number">-0.5</span>])  <span class="comment"># 注意权重是负的</span>
+    b = <span class="number">0.7</span>
+
+    tmp = np.sum(w * x) + b
+    <span class="keyword">return</span> <span class="number">0</span> <span class="keyword">if</span> tmp <= <span class="number">0</span> <span class="keyword">else</span> <span class="number">1</span>
+
+<span class="keyword">def</span> <span class="function">OR</span>(x1, x2):
+    <span class="string">"""或门实现"""</span>
+    x = np.array([x1, x2])
+    w = np.array([<span class="number">0.5</span>, <span class="number">0.5</span>])
+    b = <span class="number">-0.2</span>
+
+    tmp = np.sum(w * x) + b
+    <span class="keyword">return</span> <span class="number">0</span> <span class="keyword">if</span> tmp <= <span class="number">0</span> <span class="keyword">else</span> <span class="number">1</span></code></pre>
+            </div>
+
+            <div style="background: rgba(0, 188, 212, 0.1); padding: 25px; border-radius: 15px; margin-top: 30px; border: 2px solid rgba(0, 188, 212, 0.3);">
+                <h4 style="color: #00bcd4;">💡 重要概念</h4>
+                <p><strong>权重 (w)</strong>：控制输入信号的重要性</p>
+                <p><strong>偏置 (b)</strong>：调整神经元被激活的容易程度</p>
+                <p style="margin-top: 15px;">
+                    与门、与非门、或门具有<span class="highlight-primary">相同的结构</span>，
+                    区别仅在于<span class="highlight-warning">参数值不同</span>！
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 1.4 感知机的局限 -->
+    <div id="limitations" class="section-card fade-in section-anchor">
+        <h2 class="section-title">🚧 1.4 感知机的局限</h2>
+
+        <div class="thinking-box">
+            <h3>异或门的挑战</h3>
+            <p>现在让我们尝试一个更复杂的逻辑门——<span class="highlight-danger">异或门（XOR）</span>。</p>
+            <p>异或门：当输入不同时输出1，相同时输出0。</p>
+        </div>
+
+        <!-- 异或门真值表 -->
+        <div style="margin: 30px 0;">
+            <table class="truth-table" style="margin: 0 auto;">
+                <thead>
+                <tr>
+                    <th>x₁</th>
+                    <th>x₂</th>
+                    <th>y (XOR)</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr>
+                    <td>0</td>
+                    <td>0</td>
+                    <td>0</td>
+                </tr>
+                <tr>
+                    <td>0</td>
+                    <td>1</td>
+                    <td style="color: #10b981; font-weight: bold;">1</td>
+                </tr>
+                <tr>
+                    <td>1</td>
+                    <td>0</td>
+                    <td style="color: #10b981; font-weight: bold;">1</td>
+                </tr>
+                <tr>
+                    <td>1</td>
+                    <td>1</td>
+                    <td>0</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 线性可分性演示 -->
+        <div class="demo-container">
+            <h3 style="color: #00bcd4; text-align: center; margin-bottom: 20px;">📊 线性可分性可视化</h3>
+            <canvas id="linearityCanvas" class="demo-canvas" width="800" height="400"></canvas>
+            <div class="demo-controls">
+                <button class="demo-btn" onclick="showLinearity('AND')">与门（线性可分）</button>
+                <button class="demo-btn" onclick="showLinearity('OR')">或门（线性可分）</button>
+                <button class="demo-btn" onclick="showLinearity('XOR')">异或门（非线性）</button>
+            </div>
+            <p style="text-align: center; margin-top: 15px; color: var(--text-muted);">
+                💡 观察：异或门无法用一条直线分割！
+            </p>
+        </div>
+
+        <div style="background: rgba(233, 30, 99, 0.1); padding: 25px; border-radius: 15px; margin-top: 30px; border: 2px solid rgba(233, 30, 99, 0.3);">
+            <h4 style="color: #e91e63;">⚠️ 感知机的根本局限</h4>
+            <p>感知机只能表示<span class="highlight-danger">线性可分</span>的问题。</p>
+            <ul style="margin-top: 15px; padding-left: 20px;">
+                <li><strong>线性空间</strong>：可以用一条直线（或超平面）分割的空间</li>
+                <li><strong>非线性空间</strong>：需要曲线或更复杂的边界分割的空间</li>
+            </ul>
+            <p style="margin-top: 15px;">
+                这个发现在1969年由Minsky和Papert证明，一度让AI研究陷入"寒冬"。
+            </p>
+        </div>
+    </div>
+
+    <!-- 1.5 多层感知机 -->
+    <div id="multilayer" class="section-card fade-in section-anchor">
+        <h2 class="section-title">🏗️ 1.5 多层感知机</h2>
+
+        <div class="story-box">
+            <h3 style="color: #00bcd4;">🎨 组合的力量</h3>
+            <p>
+                单个感知机无法解决异或问题，但如果我们<span class="highlight-primary">组合多个感知机</span>呢？<br>
+                就像用简单的积木搭建复杂的城堡！
+            </p>
+        </div>
+
+        <!-- 异或门的构建 -->
+        <div style="margin: 30px 0;">
+            <h3 style="color: #9c27b0;">构建异或门的秘密</h3>
+            <div class="formula-box">
+                <h4 style="color: #e91e63;">🔧 分解思路</h4>
+                <div class="math-formula">
+                    XOR(x₁, x₂) = AND(NAND(x₁, x₂), OR(x₁, x₂))
+                </div>
+                <p style="margin-top: 20px; font-size: 1rem;">
+                    异或 = "不同时为1" AND "至少有一个为1"
+                </p>
+            </div>
+        </div>
+
+        <!-- 多层感知机网络可视化 -->
+        <div class="demo-container">
+            <h3 style="color: #00bcd4; text-align: center; margin-bottom: 20px;">🌐 多层感知机网络结构</h3>
+            <canvas id="networkCanvas" class="demo-canvas" width="800" height="500"></canvas>
+            <div class="demo-controls">
+                <button class="demo-btn" onclick="animateSignal()">信号传播动画</button>
+                <button class="demo-btn" onclick="resetNetwork()">重置网络</button>
+            </div>
+            <div class="perceptron-status" style="margin-top: 20px;">
+                <div class="status-item">
+                    <div class="status-label">第0层（输入）</div>
+                    <div class="status-value" id="layer0">x₁, x₂</div>
+                </div>
+                <div class="status-item">
+                    <div class="status-label">第1层（隐藏）</div>
+                    <div class="status-value" id="layer1">NAND, OR</div>
+                </div>
+                <div class="status-item">
+                    <div class="status-label">第2层（输出）</div>
+                    <div class="status-value" id="layer2">AND → XOR</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 异或门实现代码 -->
+        <div class="code-block">
+                <pre><code><span class="keyword">import</span> numpy <span class="keyword">as</span> np
+
+<span class="comment"># 之前实现的基本逻辑门</span>
+<span class="keyword">def</span> <span class="function">AND</span>(x1, x2):
+    x = np.array([x1, x2])
+    w = np.array([<span class="number">0.5</span>, <span class="number">0.5</span>])
+    b = <span class="number">-0.7</span>
+    tmp = np.sum(w * x) + b
+    <span class="keyword">return</span> <span class="number">0</span> <span class="keyword">if</span> tmp <= <span class="number">0</span> <span class="keyword">else</span> <span class="number">1</span>
+
+<span class="keyword">def</span> <span class="function">NAND</span>(x1, x2):
+    x = np.array([x1, x2])
+    w = np.array([<span class="number">-0.5</span>, <span class="number">-0.5</span>])
+    b = <span class="number">0.7</span>
+    tmp = np.sum(w * x) + b
+    <span class="keyword">return</span> <span class="number">0</span> <span class="keyword">if</span> tmp <= <span class="number">0</span> <span class="keyword">else</span> <span class="number">1</span>
+
+<span class="keyword">def</span> <span class="function">OR</span>(x1, x2):
+    x = np.array([x1, x2])
+    w = np.array([<span class="number">0.5</span>, <span class="number">0.5</span>])
+    b = <span class="number">-0.2</span>
+    tmp = np.sum(w * x) + b
+    <span class="keyword">return</span> <span class="number">0</span> <span class="keyword">if</span> tmp <= <span class="number">0</span> <span class="keyword">else</span> <span class="number">1</span>
+
+<span class="keyword">def</span> <span class="function">XOR</span>(x1, x2):
+    <span class="string">"""使用多层感知机实现异或门"""</span>
+    <span class="comment"># 第一层</span>
+    s1 = NAND(x1, x2)
+    s2 = OR(x1, x2)
+
+    <span class="comment"># 第二层</span>
+    y = AND(s1, s2)
+
+    <span class="keyword">return</span> y
+
+<span class="comment"># 测试异或门</span>
+print(XOR(<span class="number">0</span>, <span class="number">0</span>))  <span class="comment"># 输出: 0</span>
+print(XOR(<span class="number">1</span>, <span class="number">0</span>))  <span class="comment"># 输出: 1</span>
+print(XOR(<span class="number">0</span>, <span class="number">1</span>))  <span class="comment"># 输出: 1</span>
+print(XOR(<span class="number">1</span>, <span class="number">1</span>))  <span class="comment"># 输出: 0</span></code></pre>
+        </div>
+
+        <div style="background: rgba(0, 188, 212, 0.1); padding: 25px; border-radius: 15px; margin-top: 30px; border: 2px solid rgba(0, 188, 212, 0.3);">
+            <h4 style="color: #00bcd4;">🚀 突破性发现</h4>
+            <p>通过<span class="highlight-primary">叠加层</span>，感知机能够：</p>
+            <ul style="margin-top: 15px; padding-left: 20px;">
+                <li>✅ 表示非线性函数</li>
+                <li>✅ 解决更复杂的问题</li>
+                <li>✅ 理论上可以逼近任意函数（通用逼近定理）</li>
+            </ul>
+            <p style="margin-top: 15px;">
+                这就是<span class="highlight-warning">深度学习</span>的基础！
+            </p>
+        </div>
+    </div>
+
+    <!-- 1.6 实战：构建AI大脑 -->
+    <div id="practice" class="section-card fade-in section-anchor">
+        <h2 class="section-title">🎮 1.6 实战：构建你的AI大脑</h2>
+
+        <div class="story-box">
+            <h3 style="color: #00bcd4;">🎯 挑战：数字识别器</h3>
+            <p>
+                让我们用感知机构建一个简单的数字识别系统！<br>
+                虽然比不上现代深度学习，但这是理解AI的第一步。
+            </p>
+        </div>
+
+        <!-- 交互式数字识别演示 -->
+        <div class="demo-container">
+            <h3 style="color: #00bcd4; text-align: center; margin-bottom: 20px;">✏️ 简单数字识别器</h3>
+            <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 30px;">
+                <div>
+                    <canvas id="digitDrawCanvas" width="200" height="200" style="background: white; border: 2px solid #00bcd4; border-radius: 10px; cursor: crosshair;"></canvas>
+                    <div class="demo-controls" style="margin-top: 10px;">
+                        <button class="demo-btn" onclick="clearDigitCanvas()">清除</button>
+                        <button class="demo-btn" onclick="recognizeDigit()">识别</button>
+                    </div>
+                </div>
+                <div>
+                    <h4 style="color: #9c27b0; margin-bottom: 15px;">感知机网络输出</h4>
+                    <div id="digitResults" style="background: rgba(0, 0, 0, 0.3); padding: 20px; border-radius: 10px; min-height: 200px;">
+                        <p style="color: var(--text-muted); text-align: center;">在左侧画布上画一个简单的形状...</p>
+                    </div>
+                </div>
+            </div>
+            <p style="text-align: center; margin-top: 20px; color: var(--text-muted);">
+                💡 这个简单的感知机只能识别基本形状，但原理与现代AI相同！
+            </p>
+        </div>
+
+        <!-- 完整的感知机类实现 -->
+        <div class="code-block">
+                <pre><code><span class="keyword">import</span> numpy <span class="keyword">as</span> np
+
+<span class="keyword">class</span> <span class="function">Perceptron</span>:
+    <span class="string">"""感知机类的完整实现"""</span>
+
+    <span class="keyword">def</span> <span class="function">__init__</span>(self, n_features, learning_rate=<span class="number">0.01</span>, n_iterations=<span class="number">100</span>):
+        self.n_features = n_features
+        self.learning_rate = learning_rate
+        self.n_iterations = n_iterations
+        self.weights = None
+        self.bias = None
+
+    <span class="keyword">def</span> <span class="function">fit</span>(self, X, y):
+        <span class="string">"""训练感知机"""</span>
+        n_samples = X.shape[<span class="number">0</span>]
+
+        <span class="comment"># 初始化权重和偏置</span>
+        self.weights = np.zeros(self.n_features)
+        self.bias = <span class="number">0</span>
+
+        <span class="comment"># 训练过程</span>
+        <span class="keyword">for</span> _ <span class="keyword">in</span> range(self.n_iterations):
+            <span class="keyword">for</span> idx <span class="keyword">in</span> range(n_samples):
+                <span class="comment"># 计算预测值</span>
+                linear_output = np.dot(X[idx], self.weights) + self.bias
+                y_predicted = self._activation(linear_output)
+
+                <span class="comment"># 更新权重和偏置</span>
+                update = self.learning_rate * (y[idx] - y_predicted)
+                self.weights += update * X[idx]
+                self.bias += update
+
+    <span class="keyword">def</span> <span class="function">predict</span>(self, X):
+        <span class="string">"""预测新数据"""</span>
+        linear_output = np.dot(X, self.weights) + self.bias
+        y_predicted = self._activation(linear_output)
+        <span class="keyword">return</span> y_predicted
+
+    <span class="keyword">def</span> <span class="function">_activation</span>(self, x):
+        <span class="string">"""阶跃激活函数"""</span>
+        <span class="keyword">return</span> np.where(x >= <span class="number">0</span>, <span class="number">1</span>, <span class="number">0</span>)
+
+<span class="comment"># 使用示例：训练一个AND门</span>
+X = np.array([[<span class="number">0</span>, <span class="number">0</span>], [<span class="number">0</span>, <span class="number">1</span>], [<span class="number">1</span>, <span class="number">0</span>], [<span class="number">1</span>, <span class="number">1</span>]])
+y = np.array([<span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">1</span>])  <span class="comment"># AND门的输出</span>
+
+perceptron = Perceptron(n_features=<span class="number">2</span>)
+perceptron.fit(X, y)
+
+<span class="comment"># 测试</span>
+<span class="keyword">for</span> i <span class="keyword">in</span> range(len(X)):
+    prediction = perceptron.predict(X[i].reshape(<span class="number">1</span>, <span class="number">-1</span>))
+    print(<span class="string">f"输入: {X[i]}, 预测: {prediction[0]}, 实际: {y[i]}"</span>)</code></pre>
+        </div>
+
+        <!-- 学习算法可视化 -->
+        <div class="demo-container">
+            <h3 style="color: #00bcd4; text-align: center; margin-bottom: 20px;">📈 感知机学习过程可视化</h3>
+            <canvas id="learningCanvas" class="demo-canvas" width="800" height="400"></canvas>
+            <div class="demo-controls">
+                <button class="demo-btn" onclick="startLearning()">开始训练</button>
+                <button class="demo-btn" onclick="pauseLearning()">暂停</button>
+                <button class="demo-btn" onclick="resetLearning()">重置</button>
+                <button class="demo-btn" onclick="addTrainingData()">添加数据点</button>
+            </div>
+            <div class="perceptron-status">
+                <div class="status-item">
+                    <div class="status-label">迭代次数</div>
+                    <div class="status-value" id="iteration">0</div>
+                </div>
+                <div class="status-item">
+                    <div class="status-label">错误率</div>
+                    <div class="status-value" id="errorRate">100%</div>
+                </div>
+                <div class="status-item">
+                    <div class="status-label">学习率</div>
+                    <div class="status-value" id="learningRate">0.01</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 1.7 总结与展望 -->
+    <div id="summary" class="section-card fade-in section-anchor">
+        <h2 class="section-title">🎯 1.7 总结与展望</h2>
+
+        <div class="thinking-box">
+            <h3>回顾：从感知机到深度学习</h3>
+            <div style="margin-top: 20px;">
+                <p>1️⃣ <span class="highlight-primary">基本概念</span>：输入、权重、阈值、输出</p>
+                <p>2️⃣ <span class="highlight-success">逻辑门实现</span>：AND、OR、NAND的参数设置</p>
+                <p>3️⃣ <span class="highlight-warning">线性局限</span>：单层感知机无法解决XOR</p>
+                <p>4️⃣ <span class="highlight-danger">多层突破</span>：组合感知机实现复杂功能</p>
+                <p>5️⃣ <span class="highlight-primary">学习算法</span>：自动调整权重的机制</p>
+            </div>
+        </div>
+
+        <!-- 历史与影响 -->
+        <div style="background: linear-gradient(135deg, rgba(0, 188, 212, 0.1), rgba(156, 39, 176, 0.05)); padding: 30px; border-radius: 20px; margin: 30px 0; border: 2px solid rgba(0, 188, 212, 0.3);">
+            <h3 style="color: #00bcd4; margin-bottom: 20px;">📚 感知机的历史影响</h3>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
+                <div style="text-align: center;">
+                    <div style="font-size: 2rem; margin-bottom: 10px;">1957</div>
+                    <p>Rosenblatt发明感知机</p>
+                </div>
+                <div style="text-align: center;">
+                    <div style="font-size: 2rem; margin-bottom: 10px;">1969</div>
+                    <p>Minsky指出XOR问题</p>
+                </div>
+                <div style="text-align: center;">
+                    <div style="font-size: 2rem; margin-bottom: 10px;">1986</div>
+                    <p>反向传播算法突破</p>
+                </div>
+                <div style="text-align: center;">
+                    <div style="font-size: 2rem; margin-bottom: 10px;">2012</div>
+                    <p>深度学习革命开始</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 核心要点总结 -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin: 30px 0;">
+            <div class="pulse" style="background: linear-gradient(135deg, rgba(0, 188, 212, 0.2), rgba(0, 150, 136, 0.1)); padding: 25px; border-radius: 15px; border: 2px solid rgba(0, 188, 212, 0.4); text-align: center;">
+                <h4 style="color: #00bcd4; margin-bottom: 15px;">🧮 数学基础</h4>
+                <p>线性加权求和<br>阶跃激活函数<br>参数学习算法</p>
+            </div>
+            <div class="pulse" style="background: linear-gradient(135deg, rgba(156, 39, 176, 0.2), rgba(103, 58, 183, 0.1)); padding: 25px; border-radius: 15px; border: 2px solid rgba(156, 39, 176, 0.4); text-align: center; animation-delay: 0.3s;">
+                <h4 style="color: #9c27b0; margin-bottom: 15px;">💡 关键洞察</h4>
+                <p>线性可分性<br>多层的威力<br>通用逼近能力</p>
+            </div>
+            <div class="pulse" style="background: linear-gradient(135deg, rgba(233, 30, 99, 0.2), rgba(244, 67, 54, 0.1)); padding: 25px; border-radius: 15px; border: 2px solid rgba(233, 30, 99, 0.4); text-align: center; animation-delay: 0.6s;">
+                <h4 style="color: #e91e63; margin-bottom: 15px;">🚀 现代应用</h4>
+                <p>深度神经网络<br>卷积神经网络<br>Transformer架构</p>
+            </div>
+        </div>
+
+        <!-- 深度思考题 -->
+        <div style="background: rgba(156, 39, 176, 0.1); padding: 30px; border-radius: 20px; margin: 30px 0; border: 2px solid rgba(156, 39, 176, 0.3);">
+            <h3 style="color: #9c27b0; margin-bottom: 20px;">🤔 深度思考题</h3>
+            <ol style="line-height: 2; padding-left: 20px;">
+                <li><strong>生物学启发</strong>：感知机与真实神经元的相似和不同之处是什么？</li>
+                <li><strong>表达能力</strong>：为什么多层感知机能够表示非线性函数？需要多少层？</li>
+                <li><strong>学习机制</strong>：感知机学习算法的收敛条件是什么？如何证明？</li>
+                <li><strong>现代发展</strong>：从感知机到Transformer，核心改进有哪些？</li>
+                <li><strong>哲学思考</strong>：机器真的能"学习"吗？还是只是在拟合数据？</li>
+            </ol>
+        </div>
+
+        <!-- 下一步学习建议 -->
+        <div style="background: linear-gradient(135deg, rgba(0, 188, 212, 0.1), rgba(0, 150, 136, 0.05)); padding: 30px; border-radius: 20px; border: 2px solid rgba(0, 188, 212, 0.3);">
+            <h3 style="color: #00bcd4; margin-bottom: 20px;">📚 延伸学习路径</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div>
+                    <h4 style="color: #9c27b0;">理论深化</h4>
+                    <ul style="list-style: none; padding: 0;">
+                        <li>📖 神经网络与反向传播</li>
+                        <li>🧮 激活函数的选择</li>
+                        <li>🔬 优化算法（SGD、Adam）</li>
+                        <li>📊 正则化与泛化</li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 style="color: #e91e63;">实践项目</h4>
+                    <ul style="list-style: none; padding: 0;">
+                        <li>🎨 手写数字识别（MNIST）</li>
+                        <li>🖼️ 图像分类（CIFAR-10）</li>
+                        <li>💬 情感分析</li>
+                        <li>🎮 强化学习游戏AI</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 结语 -->
+    <div class="section-card fade-in" style="text-align: center; background: linear-gradient(135deg, rgba(0, 188, 212, 0.1), rgba(156, 39, 176, 0.05)); border: 3px solid rgba(0, 188, 212, 0.4);">
+        <h2 style="font-size: 3rem; background: linear-gradient(135deg, #00bcd4, #9c27b0, #e91e63); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 30px;">
+            🎉 恭喜完成感知机学习！
+        </h2>
+        <p style="font-size: 1.3rem; color: #cbd5e1; line-height: 1.8; margin-bottom: 40px;">
+            从简单的逻辑门到复杂的神经网络<br>
+            你已经迈出了理解人工智能的第一步<br>
+            感知机——开启智能时代的钥匙
+        </p>
+        <div class="demo-controls">
+            <button class="demo-btn" onclick="downloadNotes()" style="font-size: 1.1rem; padding: 15px 30px;">
+                📥 下载学习笔记
+            </button>
+            <button class="demo-btn" onclick="startQuiz()" style="font-size: 1.1rem; padding: 15px 30px;">
+                🧠 开始知识测验
+            </button>
+            <button class="demo-btn" onclick="shareAchievement()" style="font-size: 1.1rem; padding: 15px 30px;">
+                🎊 分享学习成就
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- 浮动工具栏 -->
+<div class="floating-toolbar">
+    <button class="toolbar-btn theme-toggle-btn" onclick="toggleTheme()" title="切换主题">
+        <span class="theme-icon">🌓</span>
+    </button>
+    <button class="toolbar-btn" onclick="scrollToTop()" title="回到顶部">⬆️</button>
+    <button class="toolbar-btn" onclick="toggleHelp()" title="帮助">❓</button>
+</div>
+
+<script>
+    // 全局变量
+    let navOpen = false;
+    let sectionsRead = new Set();
+    let totalSections = 8;
+    let currentGate = 'AND';
+    let perceptronWeights = { w1: 0.5, w2: 0.5, theta: 0.7 };
+    let isDrawing = false;
+    let learningAnimation = null;
+
+    // 导航系统功能
+    function toggleNav() {
+        navOpen = !navOpen;
+        document.body.classList.toggle('nav-open', navOpen);
+    }
+
+    // 键盘快捷键
+    document.addEventListener('keydown', function(e) {
+        if (e.altKey && e.key === 'n') {
+            e.preventDefault();
+            toggleNav();
+        }
+        if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+            e.preventDefault();
+            downloadNotes();
+        }
+    });
+
+    // 初始化导航
+    function initNavigation() {
+        const navItems = document.querySelectorAll('.nav-item a');
+        navItems.forEach(item => {
+            item.addEventListener('click', function(e) {
+                e.preventDefault();
+                const targetId = this.getAttribute('href').substring(1);
+                const targetElement = document.getElementById(targetId);
+
+                if (targetElement) {
+                    targetElement.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+
+                    document.querySelectorAll('.nav-item').forEach(ni => ni.classList.remove('active'));
+                    this.parentElement.classList.add('active');
+                }
+            });
+        });
+
+        updateNavigationOnScroll();
+    }
+
+    // 更新导航状态
+    function updateNavigationOnScroll() {
+        const sections = document.querySelectorAll('.section-anchor');
+        const navItems = document.querySelectorAll('.nav-item');
+
+        window.addEventListener('scroll', function() {
+            const scrollPosition = window.scrollY + 150;
+
+            updateProgress();
+
+            sections.forEach((section, index) => {
+                const sectionTop = section.offsetTop;
+                const sectionBottom = sectionTop + section.offsetHeight;
+
+                if (scrollPosition >= sectionTop && scrollPosition < sectionBottom) {
+                    navItems.forEach(item => item.classList.remove('active'));
+                    if (navItems[index]) {
+                        navItems[index].classList.add('active');
+
+                        const sectionId = section.id;
+                        if (!sectionsRead.has(sectionId)) {
+                            sectionsRead.add(sectionId);
+                            navItems[index].classList.add('completed');
+                            updateReadingStats();
+                        }
+                    }
+                }
+            });
+        });
+    }
+
+    // 更新阅读统计
+    function updateReadingStats() {
+        const sectionsReadCount = sectionsRead.size;
+        document.getElementById('completedSections').textContent = `${sectionsReadCount}/${totalSections}`;
+
+        const percentage = Math.round((sectionsReadCount / totalSections) * 100);
+        document.getElementById('progressPercent').textContent = percentage + '%';
+
+        // 更新进度环
+        const circumference = 2 * Math.PI * 22;
+        const offset = circumference - (percentage / 100) * circumference;
+        document.getElementById('progressRing').style.strokeDashoffset = offset;
+    }
+
+    // 更新进度条
+    function updateProgress() {
+        const scrolled = window.scrollY;
+        const total = document.documentElement.scrollHeight - window.innerHeight;
+        const progress = Math.min((scrolled / total) * 100, 100);
+
+        document.getElementById('progressFill').style.width = progress + '%';
+        document.getElementById('progressText').textContent = Math.round(progress) + '%';
+    }
+
+    // 感知机结构可视化
+    let perceptronCanvas, perceptronCtx;
+
+    function initPerceptronDemo() {
+        perceptronCanvas = document.getElementById('perceptronCanvas');
+        if (!perceptronCanvas) return;
+
+        perceptronCtx = perceptronCanvas.getContext('2d');
+        drawPerceptron();
+    }
+
+    function drawPerceptron() {
+        if (!perceptronCtx) return;
+
+        const colors = getCanvasColors();
+
+        // 清除画布
+        perceptronCtx.fillStyle = colors.background;
+        perceptronCtx.fillRect(0, 0, perceptronCanvas.width, perceptronCanvas.height);
+
+        // 绘制输入节点
+        const inputY = perceptronCanvas.height / 2;
+        const neuronRadius = 30;
+
+        // 输入节点
+        drawNeuron(perceptronCtx, 150, inputY - 50, 'x₁', colors.neural1);
+        drawNeuron(perceptronCtx, 150, inputY + 50, 'x₂', colors.neural1);
+
+        // 中间神经元
+        drawNeuron(perceptronCtx, 400, inputY, '∑', colors.neural2);
+
+        // 输出节点
+        drawNeuron(perceptronCtx, 650, inputY, 'y', colors.neural3);
+
+        // 绘制连接线和权重
+        drawConnection(perceptronCtx, 150 + neuronRadius, inputY - 50, 400 - neuronRadius, inputY, 'w₁', colors);
+        drawConnection(perceptronCtx, 150 + neuronRadius, inputY + 50, 400 - neuronRadius, inputY, 'w₂', colors);
+        drawConnection(perceptronCtx, 400 + neuronRadius, inputY, 650 - neuronRadius, inputY, '', colors);
+
+        // 绘制阈值
+        perceptronCtx.fillStyle = colors.text;
+        perceptronCtx.font = '16px Arial';
+        perceptronCtx.fillText('θ = ' + perceptronWeights.theta.toFixed(1), 380, inputY - 60);
+    }
+
+    function drawNeuron(ctx, x, y, label, color) {
+        // 神经元圆圈
+        ctx.beginPath();
+        ctx.arc(x, y, 30, 0, 2 * Math.PI);
+        ctx.fillStyle = color;
+        ctx.fill();
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // 标签
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 18px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(label, x, y);
+    }
+
+    function drawConnection(ctx, x1, y1, x2, y2, label, colors) {
+        // 连接线
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.strokeStyle = colors.neural1;
+        ctx.lineWidth = 3;
+        ctx.stroke();
+
+        // 权重标签
+        if (label) {
+            const midX = (x1 + x2) / 2;
+            const midY = (y1 + y2) / 2;
+            ctx.fillStyle = colors.text;
+            ctx.font = '14px Arial';
+            ctx.fillText(label, midX, midY - 10);
+        }
+    }
+
+    // 设置输入值
+    function setInputs(x1, x2) {
+        document.getElementById('input1').textContent = x1;
+        document.getElementById('input2').textContent = x2;
+
+        const weighted = x1 * perceptronWeights.w1 + x2 * perceptronWeights.w2;
+        document.getElementById('weightedSum').textContent = weighted.toFixed(2);
+
+        const output = weighted > perceptronWeights.theta ? 1 : 0;
+        document.getElementById('output').textContent = output;
+
+        // 更新可视化
+        animatePerceptron(x1, x2, output);
+    }
+
+    function animatePerceptron(x1, x2, output) {
+        // 添加动画效果
+        const outputEl = document.getElementById('output');
+        outputEl.style.color = output === 1 ? '#10b981' : '#ef4444';
+        outputEl.style.transform = 'scale(1.5)';
+        setTimeout(() => {
+            outputEl.style.transform = 'scale(1)';
+        }, 300);
+    }
+
+    // 逻辑门演示
+    let gatesCanvas, gatesCtx;
+
+    function initGatesDemo() {
+        gatesCanvas = document.getElementById('gatesCanvas');
+        if (!gatesCanvas) return;
+
+        gatesCtx = gatesCanvas.getContext('2d');
+        showGate('AND');
+    }
+
+    function showGate(gateType) {
+        currentGate = gateType;
+
+        // 更新参数滑块
+        switch(gateType) {
+            case 'AND':
+                updateSliders(0.5, 0.5, 0.7);
+                break;
+            case 'NAND':
+                updateSliders(-0.5, -0.5, -0.7);
+                break;
+            case 'OR':
+                updateSliders(0.5, 0.5, 0.3);
+                break;
+        }
+
+        drawGateVisualization();
+    }
+
+    function updateSliders(w1, w2, theta) {
+        document.getElementById('w1Slider').value = w1;
+        document.getElementById('w2Slider').value = w2;
+        document.getElementById('thetaSlider').value = theta;
+        document.getElementById('w1Value').textContent = w1.toFixed(1);
+        document.getElementById('w2Value').textContent = w2.toFixed(1);
+        document.getElementById('thetaValue').textContent = theta.toFixed(1);
+
+        perceptronWeights = { w1, w2, theta };
+    }
+
+    function updateWeights() {
+        perceptronWeights.w1 = parseFloat(document.getElementById('w1Slider').value);
+        perceptronWeights.w2 = parseFloat(document.getElementById('w2Slider').value);
+        perceptronWeights.theta = parseFloat(document.getElementById('thetaSlider').value);
+
+        document.getElementById('w1Value').textContent = perceptronWeights.w1.toFixed(1);
+        document.getElementById('w2Value').textContent = perceptronWeights.w2.toFixed(1);
+        document.getElementById('thetaValue').textContent = perceptronWeights.theta.toFixed(1);
+
+        drawGateVisualization();
+    }
+
+    function drawGateVisualization() {
+        if (!gatesCtx) return;
+
+        const colors = getCanvasColors();
+
+        // 清除画布
+        gatesCtx.fillStyle = colors.background;
+        gatesCtx.fillRect(0, 0, gatesCanvas.width, gatesCanvas.height);
+
+        // 绘制坐标系
+        const padding = 50;
+        const width = gatesCanvas.width - 2 * padding;
+        const height = gatesCanvas.height - 2 * padding;
+
+        // 坐标轴
+        gatesCtx.strokeStyle = colors.axis;
+        gatesCtx.lineWidth = 2;
+        gatesCtx.beginPath();
+        gatesCtx.moveTo(padding, padding + height);
+        gatesCtx.lineTo(padding + width, padding + height);
+        gatesCtx.moveTo(padding, padding);
+        gatesCtx.lineTo(padding, padding + height);
+        gatesCtx.stroke();
+
+        // 绘制数据点
+        const points = [[0, 0], [0, 1], [1, 0], [1, 1]];
+        points.forEach(([x1, x2]) => {
+            const output = (x1 * perceptronWeights.w1 + x2 * perceptronWeights.w2) > perceptronWeights.theta ? 1 : 0;
+            const pixelX = padding + x1 * width;
+            const pixelY = padding + height - x2 * height;
+
+            gatesCtx.beginPath();
+            gatesCtx.arc(pixelX, pixelY, 15, 0, 2 * Math.PI);
+            gatesCtx.fillStyle = output === 1 ? colors.success : colors.danger;
+            gatesCtx.fill();
+            gatesCtx.strokeStyle = colors.background;
+            gatesCtx.lineWidth = 2;
+            gatesCtx.stroke();
+
+            // 标签
+            gatesCtx.fillStyle = colors.text;
+            gatesCtx.font = '12px Arial';
+            gatesCtx.fillText(`(${x1},${x2})`, pixelX - 15, pixelY + 30);
+        });
+
+        // 绘制决策边界
+        if (perceptronWeights.w2 !== 0) {
+            const x1_0 = 0;
+            const x2_0 = (perceptronWeights.theta - perceptronWeights.w1 * x1_0) / perceptronWeights.w2;
+            const x1_1 = 1;
+            const x2_1 = (perceptronWeights.theta - perceptronWeights.w1 * x1_1) / perceptronWeights.w2;
+
+            gatesCtx.strokeStyle = colors.neural2;
+            gatesCtx.lineWidth = 2;
+            gatesCtx.setLineDash([5, 5]);
+            gatesCtx.beginPath();
+            gatesCtx.moveTo(padding + x1_0 * width, padding + height - x2_0 * height);
+            gatesCtx.lineTo(padding + x1_1 * width, padding + height - x2_1 * height);
+            gatesCtx.stroke();
+            gatesCtx.setLineDash([]);
+        }
+
+        // 标题
+        gatesCtx.fillStyle = colors.text;
+        gatesCtx.font = 'bold 20px Arial';
+        gatesCtx.textAlign = 'center';
+        gatesCtx.fillText(currentGate + ' Gate', gatesCanvas.width / 2, 30);
+    }
+
+    // 线性可分性演示
+    let linearityCanvas, linearityCtx;
+
+    function initLinearityDemo() {
+        linearityCanvas = document.getElementById('linearityCanvas');
+        if (!linearityCanvas) return;
+
+        linearityCtx = linearityCanvas.getContext('2d');
+        showLinearity('AND');
+    }
+
+    function showLinearity(gateType) {
+        if (!linearityCtx) return;
+
+        const colors = getCanvasColors();
+
+        // 清除画布
+        linearityCtx.fillStyle = colors.background;
+        linearityCtx.fillRect(0, 0, linearityCanvas.width, linearityCanvas.height);
+
+        // 绘制标题
+        linearityCtx.fillStyle = colors.text;
+        linearityCtx.font = 'bold 20px Arial';
+        linearityCtx.textAlign = 'center';
+        linearityCtx.fillText(gateType + ' Gate - ' + (gateType === 'XOR' ? '非线性' : '线性可分'), linearityCanvas.width / 2, 30);
+
+        // 绘制数据点
+        const centerX = linearityCanvas.width / 2;
+        const centerY = linearityCanvas.height / 2;
+        const scale = 150;
+
+        const points = [
+            { x: 0, y: 0, label: '(0,0)' },
+            { x: 0, y: 1, label: '(0,1)' },
+            { x: 1, y: 0, label: '(1,0)' },
+            { x: 1, y: 1, label: '(1,1)' }
+        ];
+
+        // 获取输出值
+        const outputs = points.map(p => {
+            switch(gateType) {
+                case 'AND': return p.x && p.y;
+                case 'OR': return p.x || p.y;
+                case 'XOR': return p.x !== p.y;
+                default: return 0;
+            }
+        });
+
+        // 绘制点
+        points.forEach((p, i) => {
+            const px = centerX + (p.x - 0.5) * scale * 2;
+            const py = centerY - (p.y - 0.5) * scale * 2;
+
+            linearityCtx.beginPath();
+            linearityCtx.arc(px, py, 20, 0, 2 * Math.PI);
+            linearityCtx.fillStyle = outputs[i] ? colors.success : colors.danger;
+            linearityCtx.fill();
+            linearityCtx.strokeStyle = '#fff';
+            linearityCtx.lineWidth = 3;
+            linearityCtx.stroke();
+
+            // 标签
+            linearityCtx.fillStyle = colors.text;
+            linearityCtx.font = '14px Arial';
+            linearityCtx.textAlign = 'center';
+            linearityCtx.fillText(p.label, px, py + 40);
+        });
+
+        // 绘制分割线（如果可能）
+        linearityCtx.strokeStyle = colors.neural2;
+        linearityCtx.lineWidth = 3;
+        linearityCtx.setLineDash([10, 5]);
+
+        if (gateType === 'AND') {
+            // AND门的分割线
+            linearityCtx.beginPath();
+            linearityCtx.moveTo(centerX - scale, centerY + scale);
+            linearityCtx.lineTo(centerX + scale, centerY - scale);
+            linearityCtx.stroke();
+        } else if (gateType === 'OR') {
+            // OR门的分割线
+            linearityCtx.beginPath();
+            linearityCtx.moveTo(centerX - scale * 1.5, centerY);
+            linearityCtx.lineTo(centerX, centerY + scale * 1.5);
+            linearityCtx.stroke();
+        } else if (gateType === 'XOR') {
+            // XOR需要曲线
+            linearityCtx.strokeStyle = colors.danger;
+            linearityCtx.font = '18px Arial';
+            linearityCtx.textAlign = 'center';
+            linearityCtx.fillStyle = colors.danger;
+            linearityCtx.fillText('无法用直线分割！', centerX, centerY);
+
+            // 绘制曲线示意
+            linearityCtx.beginPath();
+            linearityCtx.arc(centerX - scale/2, centerY - scale/2, scale * 0.7, 0, Math.PI/2);
+            linearityCtx.stroke();
+            linearityCtx.beginPath();
+            linearityCtx.arc(centerX + scale/2, centerY + scale/2, scale * 0.7, Math.PI, Math.PI * 1.5);
+            linearityCtx.stroke();
+        }
+
+        linearityCtx.setLineDash([]);
+    }
+
+    // 多层感知机网络可视化
+    let networkCanvas, networkCtx;
+    let networkAnimation = null;
+
+    function initNetworkDemo() {
+        networkCanvas = document.getElementById('networkCanvas');
+        if (!networkCanvas) return;
+
+        networkCtx = networkCanvas.getContext('2d');
+        drawNetwork();
+    }
+
+    function drawNetwork() {
+        if (!networkCtx) return;
+
+        const colors = getCanvasColors();
+
+        // 清除画布
+        networkCtx.fillStyle = colors.background;
+        networkCtx.fillRect(0, 0, networkCanvas.width, networkCanvas.height);
+
+        // 网络结构
+        const layers = [
+            { neurons: 2, y: networkCanvas.height / 2, label: '输入层' },
+            { neurons: 2, y: networkCanvas.height / 2, label: '隐藏层' },
+            { neurons: 1, y: networkCanvas.height / 2, label: '输出层' }
+        ];
+
+        const layerX = [200, 400, 600];
+        const neuronSpacing = 100;
+
+        // 绘制连接
+        for (let i = 0; i < layers.length - 1; i++) {
+            const fromLayer = layers[i];
+            const toLayer = layers[i + 1];
+
+            for (let j = 0; j < fromLayer.neurons; j++) {
+                for (let k = 0; k < toLayer.neurons; k++) {
+                    const fromY = fromLayer.y + (j - (fromLayer.neurons - 1) / 2) * neuronSpacing;
+                    const toY = toLayer.y + (k - (toLayer.neurons - 1) / 2) * neuronSpacing;
+
+                    networkCtx.beginPath();
+                    networkCtx.moveTo(layerX[i] + 30, fromY);
+                    networkCtx.lineTo(layerX[i + 1] - 30, toY);
+                    networkCtx.strokeStyle = colors.neural1;
+                    networkCtx.lineWidth = 2;
+                    networkCtx.globalAlpha = 0.5;
+                    networkCtx.stroke();
+                    networkCtx.globalAlpha = 1;
+                }
+            }
+        }
+
+        // 绘制神经元
+        const neuronLabels = [
+            ['x₁', 'x₂'],
+            ['NAND', 'OR'],
+            ['XOR']
+        ];
+
+        layers.forEach((layer, layerIndex) => {
+            for (let i = 0; i < layer.neurons; i++) {
+                const y = layer.y + (i - (layer.neurons - 1) / 2) * neuronSpacing;
+
+                // 神经元圆圈
+                networkCtx.beginPath();
+                networkCtx.arc(layerX[layerIndex], y, 30, 0, 2 * Math.PI);
+
+                const gradient = networkCtx.createRadialGradient(
+                    layerX[layerIndex], y, 0,
+                    layerX[layerIndex], y, 30
+                );
+                gradient.addColorStop(0, layerIndex === 0 ? colors.neural1 :
+                    layerIndex === 1 ? colors.neural2 : colors.neural3);
+                gradient.addColorStop(1, 'rgba(0,0,0,0.3)');
+
+                networkCtx.fillStyle = gradient;
+                networkCtx.fill();
+                networkCtx.strokeStyle = '#fff';
+                networkCtx.lineWidth = 2;
+                networkCtx.stroke();
+
+                // 标签
+                networkCtx.fillStyle = '#fff';
+                networkCtx.font = 'bold 16px Arial';
+                networkCtx.textAlign = 'center';
+                networkCtx.textBaseline = 'middle';
+                networkCtx.fillText(neuronLabels[layerIndex][i], layerX[layerIndex], y);
+            }
+
+            // 层标签
+            networkCtx.fillStyle = colors.text;
+            networkCtx.font = '14px Arial';
+            networkCtx.textAlign = 'center';
+            networkCtx.fillText(layer.label, layerX[layerIndex], networkCanvas.height - 40);
+        });
+    }
+
+    function animateSignal() {
+        // 模拟信号传播动画
+        let progress = 0;
+        const animate = () => {
+            drawNetwork();
+
+            // 绘制传播的信号
+            const colors = getCanvasColors();
+            networkCtx.fillStyle = colors.neural2;
+            networkCtx.globalAlpha = 0.8;
+
+            // 在连接线上绘制移动的点
+            const signalX = 200 + progress * 400;
+            networkCtx.beginPath();
+            networkCtx.arc(signalX, networkCanvas.height / 2, 10, 0, 2 * Math.PI);
+            networkCtx.fill();
+
+            networkCtx.globalAlpha = 1;
+
+            progress += 0.02;
+            if (progress <= 1) {
+                networkAnimation = requestAnimationFrame(animate);
+            }
+        };
+
+        if (networkAnimation) cancelAnimationFrame(networkAnimation);
+        animate();
+    }
+
+    function resetNetwork() {
+        if (networkAnimation) {
+            cancelAnimationFrame(networkAnimation);
+            networkAnimation = null;
+        }
+        drawNetwork();
+    }
+
+    // 数字识别演示
+    let digitDrawCanvas, digitDrawCtx;
+
+    function initDigitDemo() {
+        digitDrawCanvas = document.getElementById('digitDrawCanvas');
+        if (!digitDrawCanvas) return;
+
+        digitDrawCtx = digitDrawCanvas.getContext('2d');
+        digitDrawCtx.fillStyle = 'white';
+        digitDrawCtx.fillRect(0, 0, digitDrawCanvas.width, digitDrawCanvas.height);
+
+        digitDrawCanvas.addEventListener('mousedown', startDrawingDigit);
+        digitDrawCanvas.addEventListener('mousemove', drawDigit);
+        digitDrawCanvas.addEventListener('mouseup', stopDrawingDigit);
+        digitDrawCanvas.addEventListener('touchstart', handleDigitTouch);
+        digitDrawCanvas.addEventListener('touchmove', handleDigitTouch);
+        digitDrawCanvas.addEventListener('touchend', stopDrawingDigit);
+    }
+
+    function startDrawingDigit(e) {
+        isDrawing = true;
+        drawDigit(e);
+    }
+
+    function drawDigit(e) {
+        if (!isDrawing) return;
+
+        const rect = digitDrawCanvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+        digitDrawCtx.fillStyle = 'black';
+        digitDrawCtx.beginPath();
+        digitDrawCtx.arc(x, y, 10, 0, 2 * Math.PI);
+        digitDrawCtx.fill();
+    }
+
+    function stopDrawingDigit() {
+        isDrawing = false;
+    }
+
+    function handleDigitTouch(e) {
+        e.preventDefault();
+        const touch = e.touches[0];
+        const mouseEvent = new MouseEvent(e.type === 'touchstart' ? 'mousedown' :
+            e.type === 'touchmove' ? 'mousemove' : 'mouseup', {
+            clientX: touch.clientX,
+            clientY: touch.clientY
+        });
+        digitDrawCanvas.dispatchEvent(mouseEvent);
+    }
+
+    function clearDigitCanvas() {
+        digitDrawCtx.fillStyle = 'white';
+        digitDrawCtx.fillRect(0, 0, digitDrawCanvas.width, digitDrawCanvas.height);
+        document.getElementById('digitResults').innerHTML =
+            '<p style="color: var(--text-muted); text-align: center;">在左侧画布上画一个简单的形状...</p>';
+    }
+
+    function recognizeDigit() {
+        // 模拟感知机识别
+        const results = {
+            '圆形': Math.random() * 0.3,
+            '线条': Math.random() * 0.3,
+            'L形': Math.random() * 0.3,
+            'T形': Math.random() * 0.3
+        };
+
+        let html = '<h5 style="color: #00bcd4; margin-bottom: 15px;">感知机输出：</h5>';
+
+        Object.entries(results).forEach(([shape, confidence]) => {
+            const percentage = (confidence * 100).toFixed(1);
+            const barWidth = percentage;
+
+            html += `
+                    <div style="margin-bottom: 15px;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                            <span>${shape}</span>
+                            <span>${percentage}%</span>
+                        </div>
+                        <div style="background: rgba(255,255,255,0.1); height: 20px; border-radius: 10px; overflow: hidden;">
+                            <div style="background: linear-gradient(90deg, #00bcd4, #9c27b0); height: 100%; width: ${barWidth}%; transition: width 0.5s ease;"></div>
+                        </div>
+                    </div>
+                `;
+        });
+
+        html += '<p style="color: #f59e0b; margin-top: 20px; font-size: 0.9rem;">注意：这是简化的演示，真实的感知机需要训练才能识别！</p>';
+
+        document.getElementById('digitResults').innerHTML = html;
+    }
+
+    // 学习过程可视化
+    let learningCanvas, learningCtx;
+    let trainingData = [];
+    let perceptronModel = null;
+    let iteration = 0;
+
+    function initLearningDemo() {
+        learningCanvas = document.getElementById('learningCanvas');
+        if (!learningCanvas) return;
+
+        learningCtx = learningCanvas.getContext('2d');
+
+        // 初始化训练数据
+        generateTrainingData();
+        drawLearningVisualization();
+    }
+
+    function generateTrainingData() {
+        trainingData = [];
+
+        // 生成两类数据
+        for (let i = 0; i < 20; i++) {
+            // 类别0 - 左下角
+            trainingData.push({
+                x: Math.random() * 0.5,
+                y: Math.random() * 0.5,
+                label: 0
+            });
+
+            // 类别1 - 右上角
+            trainingData.push({
+                x: 0.5 + Math.random() * 0.5,
+                y: 0.5 + Math.random() * 0.5,
+                label: 1
+            });
+        }
+    }
+
+    function drawLearningVisualization() {
+        if (!learningCtx) return;
+
+        const colors = getCanvasColors();
+
+        // 清除画布
+        learningCtx.fillStyle = colors.background;
+        learningCtx.fillRect(0, 0, learningCanvas.width, learningCanvas.height);
+
+        // 绘制数据点
+        trainingData.forEach(point => {
+            const x = point.x * learningCanvas.width;
+            const y = (1 - point.y) * learningCanvas.height;
+
+            learningCtx.beginPath();
+            learningCtx.arc(x, y, 8, 0, 2 * Math.PI);
+            learningCtx.fillStyle = point.label === 0 ? colors.danger : colors.success;
+            learningCtx.fill();
+            learningCtx.strokeStyle = colors.background;
+            learningCtx.lineWidth = 2;
+            learningCtx.stroke();
+        });
+
+        // 绘制决策边界（如果有模型）
+        if (perceptronModel) {
+            drawDecisionBoundary();
+        }
+    }
+
+    function drawDecisionBoundary() {
+        const colors = getCanvasColors();
+        learningCtx.strokeStyle = colors.neural2;
+        learningCtx.lineWidth = 3;
+        learningCtx.setLineDash([5, 5]);
+
+        // 简化的决策边界
+        learningCtx.beginPath();
+        learningCtx.moveTo(0, learningCanvas.height);
+        learningCtx.lineTo(learningCanvas.width, 0);
+        learningCtx.stroke();
+        learningCtx.setLineDash([]);
+    }
+
+    function startLearning() {
+        iteration = 0;
+        const learn = () => {
+            iteration++;
+            document.getElementById('iteration').textContent = iteration;
+
+            // 模拟错误率下降
+            const errorRate = Math.max(0, 100 - iteration * 5);
+            document.getElementById('errorRate').textContent = errorRate + '%';
+
+            drawLearningVisualization();
+
+            if (errorRate > 0 && iteration < 50) {
+                learningAnimation = setTimeout(learn, 100);
+            }
+        };
+
+        if (learningAnimation) clearTimeout(learningAnimation);
+        learn();
+    }
+
+    function pauseLearning() {
+        if (learningAnimation) {
+            clearTimeout(learningAnimation);
+            learningAnimation = null;
+        }
+    }
+
+    function resetLearning() {
+        pauseLearning();
+        iteration = 0;
+        document.getElementById('iteration').textContent = '0';
+        document.getElementById('errorRate').textContent = '100%';
+        generateTrainingData();
+        drawLearningVisualization();
+    }
+
+    function addTrainingData() {
+        // 添加随机数据点
+        trainingData.push({
+            x: Math.random(),
+            y: Math.random(),
+            label: Math.random() > 0.5 ? 1 : 0
+        });
+        drawLearningVisualization();
+    }
+
+    // 神经网络背景动画
+    function initNeuralNetworkBackground() {
+        const canvas = document.getElementById('neuralNetworkBg');
+        if (!canvas) return;
+
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        const nodes = [];
+        const connections = [];
+
+        // 创建节点
+        for (let i = 0; i < 50; i++) {
+            nodes.push({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                vx: (Math.random() - 0.5) * 0.5,
+                vy: (Math.random() - 0.5) * 0.5,
+                radius: Math.random() * 3 + 2
+            });
+        }
+
+        function animate() {
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.05)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // 更新节点位置
+            nodes.forEach(node => {
+                node.x += node.vx;
+                node.y += node.vy;
+
+                if (node.x < 0 || node.x > canvas.width) node.vx *= -1;
+                if (node.y < 0 || node.y > canvas.height) node.vy *= -1;
+            });
+
+            // 绘制连接
+            ctx.strokeStyle = 'rgba(0, 188, 212, 0.1)';
+            ctx.lineWidth = 1;
+
+            for (let i = 0; i < nodes.length; i++) {
+                for (let j = i + 1; j < nodes.length; j++) {
+                    const dx = nodes[i].x - nodes[j].x;
+                    const dy = nodes[i].y - nodes[j].y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+
+                    if (distance < 150) {
+                        ctx.beginPath();
+                        ctx.moveTo(nodes[i].x, nodes[i].y);
+                        ctx.lineTo(nodes[j].x, nodes[j].y);
+                        ctx.globalAlpha = 1 - distance / 150;
+                        ctx.stroke();
+                        ctx.globalAlpha = 1;
+                    }
+                }
+            }
+
+            // 绘制节点
+            nodes.forEach(node => {
+                ctx.beginPath();
+                ctx.arc(node.x, node.y, node.radius, 0, 2 * Math.PI);
+                ctx.fillStyle = 'rgba(0, 188, 212, 0.5)';
+                ctx.fill();
+            });
+
+            requestAnimationFrame(animate);
+        }
+
+        animate();
+
+        // 窗口大小改变时调整画布
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+    }
+
+    // 获取画布颜色
+    function getCanvasColors() {
+        const isLight = document.body.classList.contains('light-theme');
+        return {
+            background: isLight ? '#ffffff' : '#0f172a',
+            grid: isLight ? '#e5e7eb' : '#2d3748',
+            text: isLight ? '#1e293b' : '#cbd5e1',
+            axis: isLight ? '#64748b' : '#4a5568',
+            neural1: '#00bcd4',
+            neural2: '#9c27b0',
+            neural3: '#e91e63',
+            success: '#10b981',
+            warning: '#f59e0b',
+            danger: '#ef4444'
+        };
+    }
+
+    // 主题切换
+    function initTheme() {
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        if (savedTheme === 'light') {
+            document.body.classList.add('light-theme');
+            updateThemeIcon('light');
+        }
+    }
+
+    function toggleTheme() {
+        const isLight = document.body.classList.contains('light-theme');
+
+        if (isLight) {
+            document.body.classList.remove('light-theme');
+            localStorage.setItem('theme', 'dark');
+            updateThemeIcon('dark');
+        } else {
+            document.body.classList.add('light-theme');
+            localStorage.setItem('theme', 'light');
+            updateThemeIcon('light');
+        }
+
+        // 重绘所有canvas
+        updateAllCanvas();
+    }
+
+    function updateThemeIcon(theme) {
+        const icon = document.querySelector('.theme-icon');
+        if (icon) {
+            icon.textContent = theme === 'light' ? '🌙' : '☀️';
+        }
+    }
+
+    function updateAllCanvas() {
+        drawPerceptron();
+        drawGateVisualization();
+        drawNetwork();
+        drawLearningVisualization();
+        if (typeof showLinearity === 'function') {
+            showLinearity('AND');
+        }
+    }
+
+    // 工具函数
+    function scrollToTop() {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function toggleHelp() {
+        alert('使用提示：\n1. 点击导航项快速跳转到相应章节\n2. 使用交互式演示理解感知机原理\n3. Alt+N 切换导航栏\n4. Ctrl+S 保存学习笔记\n5. 点击主题按钮切换深色/浅色模式');
+    }
+
+    function downloadNotes() {
+        const notes = `
+第7章：感知机学习笔记
+
+一、感知机的概念
+- 感知机是二分类的线性分类模型
+- 输入：多个信号 x1, x2, ..., xn
+- 权重：控制各输入重要性的参数 w1, w2, ..., wn
+- 阈值：决定是否激活的界限值 θ
+- 输出：0 或 1
+
+二、数学表达
+y = {
+    1, if w1*x1 + w2*x2 + ... + wn*xn > θ
+    0, otherwise
+}
+
+三、逻辑门实现
+1. 与门（AND）：w1=0.5, w2=0.5, θ=0.7
+2. 与非门（NAND）：w1=-0.5, w2=-0.5, θ=-0.7
+3. 或门（OR）：w1=0.5, w2=0.5, θ=0.3
+
+四、感知机的局限
+- 只能表示线性可分的问题
+- 无法解决异或门（XOR）问题
+- 1969年Minsky和Papert的证明导致第一次AI寒冬
+
+五、多层感知机
+- 通过组合多个感知机突破线性限制
+- XOR = AND(NAND(x1,x2), OR(x1,x2))
+- 理论上可以逼近任意函数
+
+六、学习算法
+1. 初始化权重和偏置
+2. 对每个训练样本：
+   - 计算输出
+   - 更新权重：w = w + α(y_true - y_pred)x
+   - 更新偏置：b = b + α(y_true - y_pred)
+3. 重复直到收敛
+
+七、重要意义
+- 神经网络和深度学习的基础
+- 启发了反向传播算法
+- 奠定了机器学习的理论基础
+
+学习进度：${document.getElementById('progressPercent').textContent}
+完成章节：${document.getElementById('completedSections').textContent}
+学习时间：${new Date().toLocaleString()}
+            `;
+
+        const blob = new Blob([notes], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = '感知机学习笔记.txt';
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+
+    function startQuiz() {
+        const questions = [
+            {
+                question: "感知机的输出值是什么？",
+                options: ["任意实数", "0到1之间的概率", "只有0或1", "-1或1"],
+                correct: 2,
+                explanation: "感知机是二分类模型，输出只有0或1两种值"
+            },
+            {
+                question: "以下哪个逻辑门单层感知机无法实现？",
+                options: ["与门(AND)", "或门(OR)", "异或门(XOR)", "与非门(NAND)"],
+                correct: 2,
+                explanation: "异或门不是线性可分的，需要多层感知机才能实现"
+            },
+            {
+                question: "感知机中权重的作用是什么？",
+                options: ["决定输出值", "控制输入重要性", "设定阈值", "激活神经元"],
+                correct: 1,
+                explanation: "权重控制各个输入信号的重要性，权重越大，对应输入的影响越大"
+            },
+            {
+                question: "实现异或门需要几层感知机？",
+                options: ["1层", "2层", "3层", "4层"],
+                correct: 1,
+                explanation: "需要2层：第一层实现NAND和OR，第二层实现AND，组合成XOR"
+            },
+            {
+                question: "感知机学习算法的本质是什么？",
+                options: ["随机搜索", "梯度下降", "遗传算法", "贪心算法"],
+                correct: 1,
+                explanation: "感知机学习算法通过梯度下降不断调整权重，最小化分类错误"
+            }
+        ];
+
+        let score = 0;
+        let currentQuestion = 0;
+
+        function showQuestion() {
+            if (currentQuestion >= questions.length) {
+                showResult();
+                return;
+            }
+
+            const q = questions[currentQuestion];
+            const html = `
+                    <div style="background: rgba(30, 41, 59, 0.9); padding: 30px; border-radius: 20px; max-width: 600px; margin: 50px auto;">
+                        <h3 style="color: #00bcd4; margin-bottom: 20px;">问题 ${currentQuestion + 1}/${questions.length}</h3>
+                        <p style="font-size: 1.2rem; margin-bottom: 20px;">${q.question}</p>
+                        <div style="display: grid; gap: 10px;">
+                            ${q.options.map((opt, i) => `
+                                <button onclick="selectAnswer(${i})" style="background: rgba(0, 188, 212, 0.1); border: 2px solid rgba(0, 188, 212, 0.3); color: #e2e8f0; padding: 15px; border-radius: 10px; cursor: pointer; text-align: left; transition: all 0.3s;">
+                                    ${String.fromCharCode(65 + i)}. ${opt}
+                                </button>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+
+            document.body.insertAdjacentHTML('beforeend', `<div id="quizModal" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 10000; display: flex; align-items: center; justify-content: center;">${html}</div>`);
+        }
+
+        window.selectAnswer = function(index) {
+            const q = questions[currentQuestion];
+            if (index === q.correct) {
+                score++;
+                alert('✅ 正确！\n\n' + q.explanation);
+            } else {
+                alert('❌ 错误！\n\n正确答案是：' + q.options[q.correct] + '\n\n' + q.explanation);
+            }
+            currentQuestion++;
+            document.getElementById('quizModal').remove();
+            showQuestion();
+        };
+
+        function showResult() {
+            const percentage = (score / questions.length * 100).toFixed(0);
+            const html = `
+                    <div style="background: rgba(30, 41, 59, 0.9); padding: 40px; border-radius: 20px; max-width: 600px; margin: 50px auto; text-align: center;">
+                        <h2 style="color: #00bcd4; margin-bottom: 30px;">测验完成！</h2>
+                        <div style="font-size: 4rem; margin-bottom: 20px;">
+                            ${percentage >= 80 ? '🎉' : percentage >= 60 ? '👍' : '💪'}
+                        </div>
+                        <p style="font-size: 2rem; color: #10b981; margin-bottom: 10px;">
+                            得分：${score}/${questions.length}
+                        </p>
+                        <p style="font-size: 1.5rem; color: #94a3b8; margin-bottom: 30px;">
+                            正确率：${percentage}%
+                        </p>
+                        <button onclick="document.getElementById('quizModal').remove()" style="background: linear-gradient(135deg, #00bcd4, #9c27b0); color: white; border: none; padding: 15px 30px; border-radius: 25px; cursor: pointer; font-size: 1.1rem;">
+                            关闭
+                        </button>
+                    </div>
+                `;
+
+            document.getElementById('quizModal').innerHTML = html;
+        }
+
+        showQuestion();
+    }
+
+    function shareAchievement() {
+        const text = `🎉 我刚刚完成了感知机的学习！
+
+📚 学习内容：
+- 感知机的基本概念和数学原理
+- 逻辑门的实现（AND、OR、NAND）
+- 线性可分性和XOR问题
+- 多层感知机的突破
+- 从感知机到深度学习的发展历程
+
+学习进度：${document.getElementById('progressPercent').textContent}
+已完成章节：${document.getElementById('completedSections').textContent}
+
+感知机——AI革命的第一步！
+
+#机器学习 #感知机 #神经网络 #深度学习`;
+
+        if (navigator.share) {
+            navigator.share({
+                title: '感知机学习成就',
+                text: text,
+                url: window.location.href
+            }).catch(err => console.log('分享取消'));
+        } else {
+            navigator.clipboard.writeText(text).then(() => {
+                alert('学习成就已复制到剪贴板！');
+            });
+        }
+    }
+
+    // 页面加载时初始化
+    document.addEventListener('DOMContentLoaded', function() {
+        // 初始化主题
+        initTheme();
+
+        // 初始化导航
+        initNavigation();
+
+        // 初始化所有演示
+        initPerceptronDemo();
+        initGatesDemo();
+        initLinearityDemo();
+        initNetworkDemo();
+        initDigitDemo();
+        initLearningDemo();
+        initNeuralNetworkBackground();
+
+        // 渐入动画
+        const cards = document.querySelectorAll('.fade-in');
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach((entry, index) => {
+                if (entry.isIntersecting) {
+                    setTimeout(() => {
+                        entry.target.style.opacity = '1';
+                        entry.target.style.transform = 'translateY(0)';
+                    }, index * 100);
+                }
+            });
+        });
+
+        cards.forEach(card => {
+            observer.observe(card);
+        });
+    });
+
+    // 平滑滚动
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener('click', function(e) {
+            e.preventDefault();
+            const target = document.querySelector(this.getAttribute('href'));
+            if (target) {
+                target.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start'
+                });
+            }
+        });
+    });
+
+    // 控制台彩蛋
+    console.log('%c🧠 感知机学习系统已加载！', 'color: #00bcd4; font-size: 20px; font-weight: bold;');
+    console.log('%c探索AI的起源，理解智能的本质', 'color: #9c27b0; font-size: 16px;');
+    console.log('%c提示：Alt+N 切换导航，Ctrl+S 保存笔记', 'color: #e91e63; font-size: 14px;');
+</script>
+</body>
+</html>

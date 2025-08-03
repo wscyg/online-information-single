@@ -1,0 +1,4774 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>第6章：现代CNN - 深度、宽度与捷径 | 深度学习架构革命</title>
+    <meta name="description" content="从VGG到ResNet，探索如何通过残差学习突破深度极限，理解现代CNN架构的设计艺术">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+    <style>
+        /* ===== CSS变量定义 ===== */
+        :root {
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --resnet-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            --depth-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            --bg-dark: #0f172a;
+            --bg-section: #1e293b;
+            --text-primary: #f1f5f9;
+            --text-secondary: #cbd5e1;
+            --text-muted: #94a3b8;
+            --accent-red: #ef4444;
+            --accent-green: #22c55e;
+            --accent-blue: #06b6d4;
+            --accent-yellow: #fbbf24;
+            --accent-purple: #8b5cf6;
+            --accent-pink: #ec4899;
+            --accent-orange: #f97316;
+            --accent-cyan: #06b6d4;
+            --border-color: rgba(255, 255, 255, 0.1);
+            --shadow-lg: 0 10px 40px rgba(0, 0, 0, 0.3);
+            --animation-duration: 0.3s;
+            --content-max-width: 1200px;
+        }
+
+        /* 亮色主题 */
+        [data-theme="light"] {
+            --bg-dark: #ffffff;
+            --bg-section: #f8fafc;
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --text-muted: #64748b;
+            --border-color: rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 10px 40px rgba(0, 0, 0, 0.1);
+        }
+
+        /* ===== 全局样式 ===== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            line-height: 1.6;
+            overflow-x: hidden;
+            transition: background-color var(--animation-duration) ease;
+        }
+
+        /* ===== 布局组件 ===== */
+        .container {
+            max-width: var(--content-max-width);
+            margin: 0 auto;
+            padding: 0 1rem;
+        }
+
+        /* ===== 导航栏 ===== */
+        .nav-header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(10px);
+            z-index: 1000;
+            border-bottom: 1px solid var(--border-color);
+            transition: transform 0.3s ease;
+        }
+
+        .nav-header.hidden {
+            transform: translateY(-100%);
+        }
+
+        .nav-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1rem 0;
+        }
+
+        .nav-title {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .nav-title h1 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            background: var(--resnet-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .nav-controls {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .btn-control {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 0.5rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: all var(--animation-duration) ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+        }
+
+        .btn-control:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .nav-progress {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: var(--resnet-gradient);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        /* ===== 侧边导航 ===== */
+        .sidebar {
+            position: fixed;
+            left: -300px;
+            top: 60px;
+            bottom: 0;
+            width: 300px;
+            background: var(--bg-section);
+            border-right: 1px solid var(--border-color);
+            padding: 2rem;
+            overflow-y: auto;
+            transition: transform 0.3s ease;
+            z-index: 999;
+        }
+
+        .sidebar.open {
+            transform: translateX(300px);
+        }
+
+        .sidebar-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            z-index: 998;
+        }
+
+        .sidebar-overlay.active {
+            display: block;
+        }
+
+        .toc-item {
+            display: block;
+            padding: 0.75rem 1rem;
+            color: var(--text-secondary);
+            text-decoration: none;
+            border-radius: 0.5rem;
+            transition: all var(--animation-duration) ease;
+            margin-bottom: 0.25rem;
+        }
+
+        .toc-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-primary);
+            transform: translateX(4px);
+        }
+
+        .toc-item.active {
+            background: var(--resnet-gradient);
+            color: white;
+        }
+
+        /* ===== 主内容区 ===== */
+        main {
+            margin-top: 80px;
+            padding-bottom: 4rem;
+        }
+
+        /* ===== 章节卡片 ===== */
+        .chapter-hero {
+            background: var(--resnet-gradient);
+            padding: 4rem 0;
+            margin-bottom: 3rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .chapter-hero::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+            animation: pulse 10s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1) rotate(0deg); }
+            50% { transform: scale(1.1) rotate(180deg); }
+        }
+
+        .chapter-hero-content {
+            position: relative;
+            z-index: 2;
+            text-align: center;
+            color: white;
+        }
+
+        .chapter-hero h1 {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            animation: fadeInUp 0.8s ease;
+        }
+
+        .chapter-hero p {
+            font-size: 1.25rem;
+            opacity: 0.9;
+            max-width: 600px;
+            margin: 0 auto;
+            animation: fadeInUp 0.8s ease 0.2s both;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* ===== 内容区块 ===== */
+        .section-card {
+            background: var(--bg-section);
+            border-radius: 1rem;
+            padding: 2.5rem;
+            margin-bottom: 2rem;
+            border: 1px solid var(--border-color);
+            box-shadow: var(--shadow-lg);
+            transition: transform var(--animation-duration) ease;
+        }
+
+        .section-card:hover {
+            transform: translateY(-2px);
+        }
+
+        /* ===== 故事卡片 ===== */
+        .story-card {
+            background: linear-gradient(135deg, rgba(240, 147, 251, 0.15), rgba(245, 87, 108, 0.1));
+            border-radius: 1rem;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            border: 2px solid rgba(240, 147, 251, 0.2);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .story-card::before {
+            content: '🏗️';
+            position: absolute;
+            top: -20px;
+            right: -20px;
+            font-size: 5rem;
+            opacity: 0.1;
+            transform: rotate(15deg);
+        }
+
+        /* ===== 对话框 ===== */
+        .dialogue-box {
+            background: rgba(255, 255, 255, 0.05);
+            border-left: 4px solid var(--accent-pink);
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            border-radius: 0 0.5rem 0.5rem 0;
+            position: relative;
+        }
+
+        .dialogue-box .speaker {
+            font-weight: bold;
+            color: var(--accent-pink);
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .dialogue-box .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+
+        /* ===== 概念网格 ===== */
+        .concept-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin: 2rem 0;
+        }
+
+        .concept-card {
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            transition: all var(--animation-duration) ease;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .concept-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: var(--resnet-gradient);
+            transform: scaleX(0);
+            transition: transform var(--animation-duration) ease;
+        }
+
+        .concept-card:hover::before {
+            transform: scaleX(1);
+        }
+
+        .concept-card.why {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .concept-card.what {
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+
+        .concept-card.how {
+            background: rgba(6, 182, 212, 0.1);
+            border: 1px solid rgba(6, 182, 212, 0.3);
+        }
+
+        .concept-card.pitfall {
+            background: rgba(251, 191, 36, 0.1);
+            border: 1px solid rgba(251, 191, 36, 0.3);
+        }
+
+        /* ===== 数学容器 - 增强版 ===== */
+        .math-container {
+            background: linear-gradient(135deg, rgba(240, 147, 251, 0.1), rgba(245, 87, 108, 0.05));
+            border: 2px solid rgba(240, 147, 251, 0.3);
+            border-radius: 1rem;
+            padding: 2.5rem;
+            margin: 2rem 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .math-container::before {
+            content: '∇';
+            position: absolute;
+            top: -30px;
+            right: 20px;
+            font-size: 6rem;
+            opacity: 0.05;
+            font-family: 'Times New Roman', serif;
+        }
+
+        /* 美化的数学公式 */
+        .math-formula {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 0.75rem;
+            padding: 2rem;
+            margin: 1.5rem 0;
+            text-align: center;
+            font-size: 1.2rem;
+            overflow-x: auto;
+            position: relative;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .math-formula-title {
+            position: absolute;
+            top: -12px;
+            left: 2rem;
+            background: var(--bg-section);
+            padding: 0 1rem;
+            font-size: 0.875rem;
+            color: var(--accent-pink);
+            font-weight: 600;
+        }
+
+        /* ===== 残差块可视化 ===== */
+        .residual-block-viz {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 2rem;
+            position: relative;
+        }
+
+        .residual-path {
+            display: flex;
+            align-items: center;
+            gap: 2rem;
+        }
+
+        .residual-main {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .residual-layer {
+            background: rgba(240, 147, 251, 0.2);
+            border: 2px solid rgba(240, 147, 251, 0.5);
+            padding: 1rem 2rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .residual-layer:hover {
+            transform: scale(1.05);
+            background: rgba(240, 147, 251, 0.3);
+            box-shadow: 0 8px 16px rgba(240, 147, 251, 0.2);
+        }
+
+        .residual-skip {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--accent-green);
+            transform: translateY(-50%);
+            z-index: -1;
+        }
+
+        .residual-skip::before,
+        .residual-skip::after {
+            content: '';
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background: var(--accent-green);
+            border-radius: 50%;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .residual-skip::before {
+            left: -5px;
+        }
+
+        .residual-skip::after {
+            right: -5px;
+        }
+
+        /* ===== 深度对比图 ===== */
+        .depth-comparison {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 2rem;
+            margin: 2rem 0;
+        }
+
+        .depth-item {
+            text-align: center;
+            padding: 1.5rem;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .depth-item:hover {
+            transform: translateY(-4px);
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .depth-bar {
+            width: 60px;
+            margin: 0 auto 1rem;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 0.5rem;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .depth-fill {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--depth-gradient);
+            transition: height 1s ease;
+        }
+
+        /* ===== 架构演化时间线 ===== */
+        .timeline {
+            position: relative;
+            padding: 2rem 0;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 50%;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: var(--border-color);
+            transform: translateX(-50%);
+        }
+
+        .timeline-item {
+            display: flex;
+            align-items: center;
+            margin: 2rem 0;
+            position: relative;
+        }
+
+        .timeline-item:nth-child(even) {
+            flex-direction: row-reverse;
+        }
+
+        .timeline-content {
+            width: 45%;
+            padding: 1.5rem;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 1rem;
+            border: 1px solid var(--border-color);
+            transition: all 0.3s ease;
+        }
+
+        .timeline-content:hover {
+            transform: scale(1.02);
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .timeline-dot {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 20px;
+            height: 20px;
+            background: var(--resnet-gradient);
+            border-radius: 50%;
+            border: 3px solid var(--bg-dark);
+            z-index: 10;
+        }
+
+        .timeline-year {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            top: -30px;
+            font-weight: bold;
+            color: var(--accent-pink);
+        }
+
+        /* ===== 梯度流动画 ===== */
+        .gradient-flow-container {
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid var(--border-color);
+            border-radius: 1rem;
+            padding: 2rem;
+            margin: 2rem 0;
+            position: relative;
+        }
+
+        .gradient-path {
+            stroke-dasharray: 5, 5;
+            animation: flow 2s linear infinite;
+        }
+
+        @keyframes flow {
+            to {
+                stroke-dashoffset: -10;
+            }
+        }
+
+        /* ===== 训练曲线 ===== */
+        .training-curves {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin: 2rem 0;
+        }
+
+        .curve-container {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            position: relative;
+        }
+
+        .curve-title {
+            font-weight: 600;
+            color: var(--accent-cyan);
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        /* ===== 思考盒子 ===== */
+        .think-box {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(124, 58, 237, 0.1));
+            border: 2px solid rgba(139, 92, 246, 0.3);
+            border-radius: 1rem;
+            padding: 2rem;
+            margin: 2rem 0;
+            position: relative;
+        }
+
+        .think-box::before {
+            content: '🤔';
+            position: absolute;
+            top: -15px;
+            left: 30px;
+            font-size: 2rem;
+            background: var(--bg-section);
+            padding: 0 10px;
+        }
+
+        /* ===== 代码容器 ===== */
+        .code-container {
+            margin: 2rem 0;
+            border-radius: 0.75rem;
+            overflow: hidden;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .code-header {
+            background: #1a1a2e;
+            padding: 1rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .code-header-left {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .code-header-right {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .code-tab {
+            padding: 0.5rem 1rem;
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            border-radius: 0.5rem;
+            transition: all var(--animation-duration) ease;
+        }
+
+        .code-tab.active {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-primary);
+        }
+
+        .code-action {
+            padding: 0.5rem 1rem;
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            cursor: pointer;
+            border-radius: 0.5rem;
+            transition: all var(--animation-duration) ease;
+            font-size: 0.875rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .code-action:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateY(-1px);
+        }
+
+        .code-content {
+            background: #0d1117;
+            overflow-x: auto;
+            position: relative;
+        }
+
+        .code-content pre {
+            margin: 0;
+            padding: 1.5rem;
+        }
+
+        .code-content code {
+            font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', monospace;
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+
+        .code-output {
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin-top: 1rem;
+            font-family: monospace;
+            font-size: 0.875rem;
+            display: none;
+        }
+
+        .code-output.show {
+            display: block;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* ===== 可视化容器 ===== */
+        .visualization-container {
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid var(--border-color);
+            border-radius: 1rem;
+            padding: 2rem;
+            margin: 2rem 0;
+            position: relative;
+        }
+
+        .viz-controls {
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        .viz-control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .viz-control-group label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        input[type="range"] {
+            width: 150px;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            background: var(--resnet-gradient);
+            border-radius: 50%;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+
+        .slider-value {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 0.25rem 0.75rem;
+            border-radius: 0.5rem;
+            font-family: monospace;
+            min-width: 50px;
+            text-align: center;
+        }
+
+        canvas {
+            display: block;
+            margin: 0 auto;
+            border-radius: 0.5rem;
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        /* ===== 参数对比表格 ===== */
+        .comparison-table {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 1rem;
+            overflow: hidden;
+            margin: 2rem 0;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .comparison-table table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .comparison-table th {
+            background: var(--resnet-gradient);
+            color: white;
+            padding: 1rem;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        .comparison-table td {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .comparison-table tr:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .comparison-table .highlight {
+            color: var(--accent-green);
+            font-weight: bold;
+        }
+
+        /* ===== 架构对比 ===== */
+        .arch-comparison {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 2rem;
+            margin: 2rem 0;
+        }
+
+        .arch-model {
+            text-align: center;
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 1rem;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .arch-model:hover {
+            transform: translateY(-4px);
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .model-layers {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            margin: 1rem 0;
+            height: 200px;
+            justify-content: flex-end;
+        }
+
+        .model-layer {
+            background: var(--depth-gradient);
+            height: 4px;
+            border-radius: 2px;
+            opacity: 0.8;
+        }
+
+        /* ===== 按钮样式 ===== */
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            border: none;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all var(--animation-duration) ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            background: var(--resnet-gradient);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(240, 147, 251, 0.3);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        /* ===== 提示框 ===== */
+        .tip {
+            display: flex;
+            gap: 1rem;
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            margin: 1.5rem 0;
+        }
+
+        .tip-icon {
+            font-size: 1.5rem;
+            flex-shrink: 0;
+        }
+
+        .tip-content {
+            flex: 1;
+        }
+
+        .tip.info {
+            background: rgba(6, 182, 212, 0.1);
+            border: 1px solid rgba(6, 182, 212, 0.3);
+        }
+
+        .tip.warning {
+            background: rgba(251, 191, 36, 0.1);
+            border: 1px solid rgba(251, 191, 36, 0.3);
+        }
+
+        .tip.error {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .tip.success {
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+
+        /* ===== 动作清单 ===== */
+        .action-checklist {
+            background: rgba(251, 191, 36, 0.1);
+            border: 1px solid rgba(251, 191, 36, 0.3);
+            border-radius: 1rem;
+            padding: 2rem;
+            margin: 2rem 0;
+        }
+
+        .checklist-item {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem;
+            margin: 0.5rem 0;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 0.5rem;
+            transition: all var(--animation-duration) ease;
+        }
+
+        .checklist-item:hover {
+            background: rgba(255, 255, 255, 0.08);
+            transform: translateX(4px);
+        }
+
+        .checklist-checkbox {
+            width: 24px;
+            height: 24px;
+            border: 2px solid var(--accent-yellow);
+            border-radius: 0.25rem;
+            cursor: pointer;
+            transition: all var(--animation-duration) ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .checklist-checkbox.checked {
+            background: var(--accent-yellow);
+        }
+
+        .checklist-checkbox.checked::after {
+            content: '✓';
+            color: var(--bg-dark);
+            font-weight: bold;
+        }
+
+        /* ===== 响应式设计 ===== */
+        @media (max-width: 1024px) {
+            .chapter-hero h1 {
+                font-size: 2.5rem;
+            }
+
+            .concept-grid {
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            }
+
+            .timeline-item,
+            .timeline-item:nth-child(even) {
+                flex-direction: column;
+            }
+
+            .timeline-content {
+                width: 100%;
+            }
+
+            .training-curves {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .nav-title h1 {
+                font-size: 1rem;
+            }
+
+            .section-card {
+                padding: 1.5rem;
+            }
+
+            .chapter-hero {
+                padding: 3rem 0;
+            }
+
+            .chapter-hero h1 {
+                font-size: 2rem;
+            }
+
+            .chapter-hero p {
+                font-size: 1rem;
+            }
+
+            .viz-controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            input[type="range"] {
+                width: 100%;
+            }
+
+            .comparison-table {
+                overflow-x: auto;
+            }
+
+            .comparison-table table {
+                min-width: 600px;
+            }
+
+            .arch-comparison {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        /* ===== 工具类 ===== */
+        .text-center {
+            text-align: center;
+        }
+
+        .mt-1 { margin-top: 0.5rem; }
+        .mt-2 { margin-top: 1rem; }
+        .mt-3 { margin-top: 1.5rem; }
+        .mt-4 { margin-top: 2rem; }
+
+        .mb-1 { margin-bottom: 0.5rem; }
+        .mb-2 { margin-bottom: 1rem; }
+        .mb-3 { margin-bottom: 1.5rem; }
+        .mb-4 { margin-bottom: 2rem; }
+
+        /* ===== 加载动画 ===== */
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: var(--accent-pink);
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* ===== 动画关键帧 ===== */
+        @keyframes slideInRight {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        /* 学习伙伴样式 */
+        .learning-buddy {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 300px;
+            background: var(--bg-section);
+            border: 2px solid var(--accent-pink);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            box-shadow: var(--shadow-lg);
+            z-index: 900;
+            transform: translateY(400px);
+            transition: transform 0.5s ease;
+        }
+
+        .learning-buddy.active {
+            transform: translateY(0);
+        }
+
+        .learning-buddy.minimized {
+            width: auto;
+            padding: 0;
+            border-radius: 50%;
+            overflow: hidden;
+        }
+
+        .learning-buddy.minimized .buddy-content {
+            display: none;
+        }
+
+        .learning-buddy.minimized .buddy-avatar {
+            margin: 0;
+            cursor: pointer;
+        }
+
+        .buddy-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+        }
+
+        .buddy-avatar {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #f093fb, #f5576c);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            flex-shrink: 0;
+        }
+
+        .buddy-controls {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .buddy-control-btn {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            border: 1px solid var(--border-color);
+            background: transparent;
+            color: var(--text-primary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .buddy-control-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .buddy-message {
+            background: rgba(240, 147, 251, 0.1);
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+            position: relative;
+        }
+
+        .buddy-message::before {
+            content: '';
+            position: absolute;
+            top: -8px;
+            left: 20px;
+            width: 0;
+            height: 0;
+            border-left: 8px solid transparent;
+            border-right: 8px solid transparent;
+            border-bottom: 8px solid rgba(240, 147, 251, 0.1);
+        }
+
+        /* 成就弹窗样式 */
+        .achievement-popup {
+            position: fixed;
+            top: 100px;
+            right: -400px;
+            width: 350px;
+            background: var(--bg-section);
+            border: 2px solid var(--accent-yellow);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            box-shadow: var(--shadow-lg);
+            z-index: 1000;
+            transition: right 0.5s ease;
+        }
+
+        .achievement-popup.show {
+            right: 20px;
+        }
+
+        .achievement-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .achievement-icon {
+            width: 60px;
+            height: 60px;
+            background: var(--accent-yellow);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+        }
+
+        .achievement-content h3 {
+            color: var(--accent-yellow);
+            margin-bottom: 0.25rem;
+        }
+
+        /* 添加学习伙伴按钮到导航栏 */
+        #toggle-buddy {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 0.5rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: all var(--animation-duration) ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+        }
+
+        #toggle-buddy:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateY(-2px);
+        }
+
+        /* 一句话理解区域专用样式 */
+        .key-concept-card {
+            background: linear-gradient(135deg, #334155 0%, #475569 100%);
+            border-radius: 1.5rem;
+            padding: 3rem;
+            margin: 0 auto;
+            max-width: 1000px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        /* 梯度流SVG样式 */
+        .gradient-flow-svg {
+            width: 100%;
+            height: 300px;
+        }
+
+        .flow-node {
+            fill: rgba(240, 147, 251, 0.8);
+            stroke: #f093fb;
+            stroke-width: 2;
+            transition: all 0.3s ease;
+        }
+
+        .flow-node:hover {
+            fill: rgba(240, 147, 251, 1);
+            transform: scale(1.1);
+        }
+
+        .flow-path {
+            stroke: #f5576c;
+            stroke-width: 3;
+            fill: none;
+            opacity: 0.8;
+        }
+
+        .skip-connection {
+            stroke: #22c55e;
+            stroke-width: 4;
+            fill: none;
+            stroke-dasharray: 10, 5;
+            animation: dash 2s linear infinite;
+        }
+
+        @keyframes dash {
+            to {
+                stroke-dashoffset: -15;
+            }
+        }
+
+        /* 网络深度可视化 */
+        .network-depth-viz {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-around;
+            height: 300px;
+            padding: 2rem;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 1rem;
+            margin: 2rem 0;
+        }
+
+        .network-column {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .network-bar {
+            width: 60px;
+            background: var(--depth-gradient);
+            border-radius: 0.5rem 0.5rem 0 0;
+            position: relative;
+            transition: all 0.5s ease;
+        }
+
+        .network-bar::after {
+            content: attr(data-depth);
+            position: absolute;
+            top: -25px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-weight: bold;
+            color: var(--accent-cyan);
+        }
+
+        .network-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            text-align: center;
+            margin-top: 0.5rem;
+        }
+
+        /* 特征重用可视化 */
+        .feature-reuse-grid {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 4px;
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 0.5rem;
+            margin: 1rem 0;
+        }
+
+        .feature-cell {
+            aspect-ratio: 1;
+            background: rgba(240, 147, 251, 0.2);
+            border-radius: 0.25rem;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .feature-cell.active {
+            background: rgba(240, 147, 251, 0.8);
+            transform: scale(1.1);
+            z-index: 10;
+        }
+
+        .feature-cell.connected {
+            background: rgba(34, 197, 94, 0.5);
+        }
+
+        /* 训练动态图表 */
+        .training-chart {
+            position: relative;
+            height: 250px;
+            margin: 1rem 0;
+        }
+
+        .chart-grid {
+            position: absolute;
+            inset: 0;
+            border-left: 2px solid var(--border-color);
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        .chart-line {
+            stroke-width: 3;
+            fill: none;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .chart-line.plain {
+            stroke: #ef4444;
+        }
+
+        .chart-line.resnet {
+            stroke: #22c55e;
+        }
+
+        .chart-point {
+            r: 4;
+            transition: r 0.3s ease;
+        }
+
+        .chart-point:hover {
+            r: 6;
+        }
+
+        /* Inception 模块可视化 */
+        .inception-module {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+            padding: 2rem;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 1rem;
+            margin: 2rem 0;
+        }
+
+        .inception-branch {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 1rem;
+            background: rgba(79, 172, 254, 0.1);
+            border: 1px solid rgba(79, 172, 254, 0.3);
+            border-radius: 0.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .inception-branch:hover {
+            transform: translateY(-4px);
+            background: rgba(79, 172, 254, 0.2);
+        }
+
+        .inception-op {
+            padding: 0.5rem 1rem;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 0.25rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+
+        /* 标准化比较 */
+        .norm-comparison {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin: 2rem 0;
+        }
+
+        .norm-method {
+            padding: 1.5rem;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 0.75rem;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .norm-method::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--resnet-gradient);
+            transform: scaleX(0);
+            transition: transform 0.3s ease;
+        }
+
+        .norm-method:hover::before {
+            transform: scaleX(1);
+        }
+
+        .norm-formula {
+            font-family: 'Courier New', monospace;
+            font-size: 0.875rem;
+            color: var(--accent-cyan);
+            margin: 1rem 0;
+            padding: 0.5rem;
+            background: rgba(6, 182, 212, 0.1);
+            border-radius: 0.25rem;
+        }
+    </style>
+</head>
+<body>
+
+<!-- 导航栏 -->
+<nav class="nav-header" role="navigation" aria-label="主导航">
+    <div class="container">
+        <div class="nav-content">
+            <div class="nav-title">
+                <button id="toggle-sidebar" class="btn-control" aria-label="切换侧边栏">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="3" y1="12" x2="21" y2="12"></line>
+                        <line x1="3" y1="6" x2="21" y2="6"></line>
+                        <line x1="3" y1="18" x2="21" y2="18"></line>
+                    </svg>
+                </button>
+                <h1>第6章：现代CNN架构</h1>
+            </div>
+            <div class="nav-controls">
+                <button id="toggle-buddy" class="btn-control" aria-label="学习助手">
+                    🏗️
+                </button>
+                <button id="toggle-animations" class="btn-control" aria-label="切换动画">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <path d="M10 8l6 4-6 4V8z"></path>
+                    </svg>
+                </button>
+                <button id="toggle-theme" class="btn-control" aria-label="切换主题">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="5"></circle>
+                        <line x1="12" y1="1" x2="12" y2="3"></line>
+                        <line x1="12" y1="21" x2="12" y2="23"></line>
+                        <line x1="21" y1="12" x2="23" y2="12"></line>
+                        <line x1="1" y1="12" x2="3" y2="12"></line>
+                    </svg>
+                </button>
+            </div>
+        </div>
+        <div class="nav-progress">
+            <div class="progress-bar" id="progress-bar"></div>
+        </div>
+    </div>
+</nav>
+
+<!-- 侧边栏 -->
+<aside class="sidebar" id="sidebar">
+    <h3 style="margin-bottom: 1.5rem; color: var(--accent-pink);">目录导航</h3>
+    <nav>
+        <a href="#intro" class="toc-item active">深度的诅咒</a>
+        <a href="#degradation" class="toc-item">退化问题：深度的瓶颈</a>
+        <a href="#residual" class="toc-item">残差学习：优雅的捷径</a>
+        <a href="#resnet" class="toc-item">ResNet：深度革命</a>
+        <a href="#densenet" class="toc-item">DenseNet：密集连接</a>
+        <a href="#inception" class="toc-item">Inception：并行之美</a>
+        <a href="#bottleneck" class="toc-item">瓶颈设计：效率与性能</a>
+        <a href="#normalization" class="toc-item">归一化技术演进</a>
+        <a href="#architecture-art" class="toc-item">架构设计的艺术</a>
+        <a href="#practice" class="toc-item">实战：构建ResNet</a>
+        <a href="#summary" class="toc-item">总结与展望</a>
+    </nav>
+</aside>
+
+<!-- 侧边栏遮罩 -->
+<div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+<!-- 主内容 -->
+<main>
+    <!-- 章节标题 -->
+    <section class="chapter-hero">
+        <!-- 背景装饰 -->
+        <div style="position: absolute; top: -50%; right: -10%; width: 600px; height: 600px; background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%); border-radius: 50%;"></div>
+        <div style="position: absolute; bottom: -30%; left: -5%; width: 400px; height: 400px; background: radial-gradient(circle, rgba(255,255,255,0.08) 0%, transparent 70%); border-radius: 50%;"></div>
+
+        <div class="container">
+            <div class="chapter-hero-content">
+                <h1>深度、宽度与捷径：现代CNN架构的艺术</h1>
+                <p>当深度成为障碍，捷径成为突破的关键...</p>
+
+                <!-- 标签 -->
+                <div style="display: flex; justify-content: center; gap: 1.5rem; flex-wrap: wrap;">
+                    <span style="background: rgba(255, 255, 255, 0.25); padding: 0.75rem 1.5rem; border-radius: 30px; display: flex; align-items: center; gap: 0.5rem; backdrop-filter: blur(10px); font-size: 1.1rem;">
+                        <span style="font-size: 1.3rem;">🏗️</span> 架构革新
+                    </span>
+                    <span style="background: rgba(255, 255, 255, 0.25); padding: 0.75rem 1.5rem; border-radius: 30px; display: flex; align-items: center; gap: 0.5rem; backdrop-filter: blur(10px); font-size: 1.1rem;">
+                        <span style="font-size: 1.3rem;">⏱️</span> 180分钟
+                    </span>
+                    <span style="background: rgba(255, 255, 255, 0.25); padding: 0.75rem 1.5rem; border-radius: 30px; display: flex; align-items: center; gap: 0.5rem; backdrop-filter: blur(10px); font-size: 1.1rem;">
+                        <span style="font-size: 1.3rem;">🎯</span> 深度突破
+                    </span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 一句话理解残差网络 -->
+    <section style="background: var(--bg-dark); padding: 4rem 0 2rem 0; position: relative;">
+        <div class="container">
+            <div class="key-concept-card">
+                <h2 style="color: white; font-size: 1.8rem; margin-bottom: 2rem; text-align: center; display: flex; align-items: center; justify-content: center; gap: 1rem;">
+                    <span style="font-size: 2rem;">💡</span>
+                    一句话理解残差网络
+                </h2>
+
+                <p style="color: #e2e8f0; font-size: 1.3rem; line-height: 1.8; text-align: center; margin-bottom: 3rem;">
+                    残差网络让神经网络学习"变化量"而不是"绝对值"，<br>
+                    通过跳跃连接让梯度直接流向浅层，<br>
+                    <span style="color: #fbbf24; font-weight: 600;">就像给深层网络装上了"电梯"，信息可以跳过中间层直达目的地。</span>
+                </p>
+
+                <!-- 四个核心概念 -->
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 2rem; margin-bottom: 3rem;">
+                    <div style="text-align: center;">
+                        <div style="width: 80px; height: 80px; margin: 0 auto 1rem; background: rgba(255,255,255,0.1); border-radius: 20px; display: flex; align-items: center; justify-content: center; font-size: 2.5rem; border: 1px solid rgba(255,255,255,0.2);">
+                            ➕
+                        </div>
+                        <h4 style="color: white; margin-bottom: 0.5rem; font-size: 1rem;">恒等映射</h4>
+                        <p style="color: #94a3b8; font-size: 0.85rem; line-height: 1.4;">
+                            最差情况下<br>什么都不学
+                        </p>
+                    </div>
+
+                    <div style="text-align: center;">
+                        <div style="width: 80px; height: 80px; margin: 0 auto 1rem; background: rgba(255,255,255,0.1); border-radius: 20px; display: flex; align-items: center; justify-content: center; font-size: 2.5rem; border: 1px solid rgba(255,255,255,0.2);">
+                            🔄
+                        </div>
+                        <h4 style="color: white; margin-bottom: 0.5rem; font-size: 1rem;">残差学习</h4>
+                        <p style="color: #94a3b8; font-size: 0.85rem; line-height: 1.4;">
+                            学习F(x)=H(x)-x<br>比学H(x)容易
+                        </p>
+                    </div>
+
+                    <div style="text-align: center;">
+                        <div style="width: 80px; height: 80px; margin: 0 auto 1rem; background: rgba(255,255,255,0.1); border-radius: 20px; display: flex; align-items: center; justify-content: center; font-size: 2.5rem; border: 1px solid rgba(255,255,255,0.2);">
+                            ⚡
+                        </div>
+                        <h4 style="color: white; margin-bottom: 0.5rem; font-size: 1rem;">梯度高速路</h4>
+                        <p style="color: #94a3b8; font-size: 0.85rem; line-height: 1.4;">
+                            梯度直接传播<br>避免消失/爆炸
+                        </p>
+                    </div>
+
+                    <div style="text-align: center;">
+                        <div style="width: 80px; height: 80px; margin: 0 auto 1rem; background: rgba(255,255,255,0.1); border-radius: 20px; display: flex; align-items: center; justify-content: center; font-size: 2.5rem; border: 1px solid rgba(255,255,255,0.2);">
+                            📈
+                        </div>
+                        <h4 style="color: white; margin-bottom: 0.5rem; font-size: 1rem;">超深网络</h4>
+                        <p style="color: #94a3b8; font-size: 0.85rem; line-height: 1.4;">
+                            轻松训练<br>1000层网络
+                        </p>
+                    </div>
+                </div>
+
+                <!-- 通俗易懂的总结 -->
+                <div style="background: rgba(251, 191, 36, 0.15); border: 2px solid rgba(251, 191, 36, 0.3); border-radius: 1rem; padding: 2rem; position: relative;">
+                    <div style="position: absolute; top: -15px; left: 30px; background: #475569; padding: 0 15px; border-radius: 20px; font-size: 1.2rem;">
+                        🌟 通俗地说
+                    </div>
+
+                    <p style="color: #f1f5f9; font-size: 1.15rem; line-height: 1.8; margin: 0;">
+                        <strong>想象你在爬一座很高的山：</strong>
+                    </p>
+
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; margin-top: 1.5rem;">
+                        <div style="background: rgba(255,255,255,0.05); padding: 1.5rem; border-radius: 0.75rem;">
+                            <h5 style="color: #fbbf24; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                                <span>🚶</span> 传统方式：一步步爬
+                            </h5>
+                            <p style="color: #cbd5e1; font-size: 0.95rem; line-height: 1.6;">
+                                每一层都要完整学习所有信息，越高越累，最后可能爬不动（梯度消失）
+                            </p>
+                        </div>
+
+                        <div style="background: rgba(255,255,255,0.05); padding: 1.5rem; border-radius: 0.75rem;">
+                            <h5 style="color: #fbbf24; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                                <span>🚡</span> ResNet方式：坐缆车
+                            </h5>
+                            <p style="color: #cbd5e1; font-size: 0.95rem; line-height: 1.6;">
+                                有直达的"缆车"（跳跃连接），可以轻松到达高处，中间想停就停
+                            </p>
+                        </div>
+
+                        <div style="background: rgba(255,255,255,0.05); padding: 1.5rem; border-radius: 0.75rem;">
+                            <h5 style="color: #fbbf24; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                                <span>🎯</span> 学习目标变简单
+                            </h5>
+                            <p style="color: #cbd5e1; font-size: 0.95rem; line-height: 1.6;">
+                                不用学"我在哪"（H(x)），只需学"我要走多远"（F(x)）
+                            </p>
+                        </div>
+
+                        <div style="background: rgba(255,255,255,0.05); padding: 1.5rem; border-radius: 0.75rem;">
+                            <h5 style="color: #fbbf24; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                                <span>🔒</span> 安全保障
+                            </h5>
+                            <p style="color: #cbd5e1; font-size: 0.95rem; line-height: 1.6;">
+                                即使某层什么都没学到，至少能保持原样（恒等映射），不会更差
+                            </p>
+                        </div>
+                    </div>
+
+                    <div style="background: rgba(34, 197, 94, 0.1); border-left: 4px solid #22c55e; padding: 1rem 1.5rem; margin-top: 1.5rem; border-radius: 0 0.5rem 0.5rem 0;">
+                        <p style="color: #f1f5f9; font-size: 1.05rem; margin: 0; line-height: 1.6;">
+                            <strong>💡 ResNet的天才之处：</strong>
+                            它不是让网络变得更复杂，而是让训练变得更简单。通过"加法"这个简单操作，
+                            解决了深度学习最棘手的问题——如何训练非常深的网络。
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 最简洁的一句话总结 -->
+            <div style="text-align: center; margin-top: 3rem;">
+                <p style="font-size: 1.3rem; color: var(--accent-pink); font-weight: 600; padding: 1rem 2rem; background: rgba(240, 147, 251, 0.1); border-radius: 50px; display: inline-block; border: 2px solid rgba(240, 147, 251, 0.3);">
+                    🎯 简单说：ResNet通过"抄近路"让深度网络变得可训练，开启了超深网络时代
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- 章节内容开始 -->
+    <div style="background: var(--bg-dark); padding-top: 2rem;">
+        <div class="container">
+
+            <!-- 学习目标 -->
+            <section class="section-card">
+                <h2 style="color: var(--accent-pink); margin-bottom: 1.5rem;">📚 本章学习目标</h2>
+                <div class="concept-grid">
+                    <div class="concept-card what">
+                        <h3 style="color: var(--accent-green); margin-bottom: 0.5rem;">✓ 理解退化问题</h3>
+                        <p>深入理解为什么更深的网络反而表现更差</p>
+                    </div>
+                    <div class="concept-card how">
+                        <h3 style="color: var(--accent-blue); margin-bottom: 0.5rem;">✓ 掌握残差学习</h3>
+                        <p>学会设计和实现各种残差结构</p>
+                    </div>
+                    <div class="concept-card why">
+                        <h3 style="color: var(--accent-red); margin-bottom: 0.5rem;">✓ 现代架构比较</h3>
+                        <p>对比ResNet、DenseNet、Inception等设计思想</p>
+                    </div>
+                    <div class="concept-card pitfall">
+                        <h3 style="color: var(--accent-yellow); margin-bottom: 0.5rem;">✓ 架构设计艺术</h3>
+                        <p>理解如何根据任务设计高效的网络架构</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 序章：深度的诅咒 -->
+            <section id="intro" class="section-card">
+                <div class="story-card">
+                    <h2 style="color: var(--accent-pink); margin-bottom: 1.5rem;">🌌 2014年冬天，微软亚研院的不眠夜</h2>
+
+                    <p style="font-size: 1.1rem; line-height: 1.8; margin-bottom: 2rem;">
+                        凌晨两点，实验室里只剩下电脑风扇的嗡嗡声。何凯明盯着屏幕上的训练曲线，眉头紧锁...
+                    </p>
+
+                    <div class="dialogue-box">
+                        <div class="speaker">
+                            <div class="avatar" style="background: linear-gradient(135deg, #f093fb, #f5576c);">🧑‍🔬</div>
+                            何凯明（研究员）：
+                        </div>
+                        <div>"这不可能！56层的网络竟然比20层的还差？我们一定遗漏了什么..."</div>
+                    </div>
+
+                    <div style="background: #000; color: #0f0; font-family: monospace; padding: 1.5rem; border-radius: 0.5rem; margin: 1rem 0;">
+                        Training VGG-20: <br>
+                        Epoch 50/100 - Loss: 0.35 - Acc: 91.2%<br>
+                        <br>
+                        Training VGG-56: <br>
+                        Epoch 50/100 - Loss: 0.72 - Acc: 86.3% 😱<br>
+                        <span style="color: #f00;">[WARNING] Deeper network performs worse!</span>
+                    </div>
+
+                    <div class="dialogue-box mt-3">
+                        <div class="speaker">
+                            <div class="avatar" style="background: linear-gradient(135deg, #4facfe, #00f2fe);">👨‍🏫</div>
+                            孙剑（导师）：
+                        </div>
+                        <div>"凯明，你有没有想过，也许问题不在于优化，而在于我们对深度的理解？"</div>
+                    </div>
+
+                    <div class="think-box">
+                        <h3 style="color: var(--accent-purple); margin-bottom: 1rem;">💭 关键洞察</h3>
+                        <p>如果一个56层的网络至少可以通过前20层学习有用特征，后36层什么都不做（恒等映射），
+                            那它的性能应该至少和20层网络一样好。但事实并非如此，这说明深层网络在优化上存在根本性问题。</p>
+                        <p style="margin-top: 1rem; font-size: 0.9rem; color: var(--text-secondary);">
+                            这个简单的观察，将引发深度学习历史上最重要的突破之一...
+                        </p>
+                    </div>
+
+                    <div class="dialogue-box mt-3">
+                        <div class="speaker">
+                            <div class="avatar" style="background: linear-gradient(135deg, #f093fb, #f5576c);">🧑‍🔬</div>
+                            何凯明（灵光一现）：
+                        </div>
+                        <div>"等等！如果我们让网络学习的不是H(x)，而是H(x)-x会怎样？让网络学习'残差'而不是完整的映射！"</div>
+                    </div>
+
+                    <div class="tip info">
+                        <span class="tip-icon">💡</span>
+                        <div class="tip-content">
+                            <strong>历史时刻：</strong><br>
+                            2015年12月10日，ResNet论文发表，立即震撼了整个深度学习社区。
+                            这个简单的想法不仅赢得了ImageNet 2015冠军，更重要的是，它彻底改变了我们对深度网络的理解。
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 第一步：退化问题 -->
+            <section id="degradation" class="section-card">
+                <h2 style="color: var(--accent-red); margin-bottom: 1.5rem;">📉 退化问题：深度网络的阿喀琉斯之踵</h2>
+
+                <!-- 实验结果展示 -->
+                <div class="visualization-container">
+                    <h3 style="color: var(--accent-orange); margin-bottom: 1.5rem;">🔬 关键实验：深度 vs 性能</h3>
+
+                    <div class="training-curves">
+                        <div class="curve-container">
+                            <div class="curve-title">训练误差</div>
+                            <canvas id="training-error-curve" width="400" height="250"></canvas>
+                        </div>
+                        <div class="curve-container">
+                            <div class="curve-title">测试误差</div>
+                            <canvas id="test-error-curve" width="400" height="250"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="tip error mt-3">
+                        <span class="tip-icon">⚠️</span>
+                        <div class="tip-content">
+                            <strong>反直觉的发现：</strong><br>
+                            • 56层网络的训练误差比20层网络更高<br>
+                            • 这不是过拟合（训练和测试误差都高）<br>
+                            • 深层网络在优化上遇到了根本性困难
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 退化问题分析 -->
+                <div class="concept-grid mt-3">
+                    <div class="concept-card why">
+                        <h3 style="color: var(--accent-red); margin-bottom: 1rem;">问题1：梯度消失/爆炸</h3>
+                        <p>
+                            随着网络加深，梯度在反向传播时会指数级地减小或增大，
+                            导致浅层几乎无法更新或更新过度。
+                        </p>
+                        <div class="math-formula" style="margin-top: 1rem;">
+                            <div style="font-size: 1rem;">
+                                ∂L/∂w₁ = ∂L/∂y · ∏ᵢ₌₁ⁿ (∂hᵢ/∂hᵢ₋₁)
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="concept-card pitfall">
+                        <h3 style="color: var(--accent-yellow); margin-bottom: 1rem;">问题2：优化困难</h3>
+                        <p>
+                            深层网络的损失曲面更加复杂，存在大量鞍点和局部最小值，
+                            优化器很难找到好的参数。
+                        </p>
+                    </div>
+
+                    <div class="concept-card what">
+                        <h3 style="color: var(--accent-green); margin-bottom: 1rem;">问题3：表达能力悖论</h3>
+                        <p>
+                            理论上深层网络表达能力更强，但实践中却无法达到浅层网络的性能，
+                            这说明问题在于优化而非表达能力。
+                        </p>
+                    </div>
+
+                    <div class="concept-card how">
+                        <h3 style="color: var(--accent-blue); margin-bottom: 1rem;">问题4：恒等映射困难</h3>
+                        <p>
+                            对于深层网络，即使是学习简单的恒等映射 H(x) = x 都变得困难，
+                            这暴露了现有架构的根本缺陷。
+                        </p>
+                    </div>
+                </div>
+
+                <!-- 梯度流可视化 -->
+                <div class="gradient-flow-container">
+                    <h3 style="color: var(--accent-purple); margin-bottom: 1.5rem;">🌊 梯度流动可视化</h3>
+                    <svg class="gradient-flow-svg" viewBox="0 0 800 300">
+                        <!-- Plain Network -->
+                        <text x="100" y="30" fill="var(--text-primary)" font-size="14" font-weight="bold">普通网络</text>
+                        <g id="plain-network">
+                            <!-- 将通过JavaScript动态生成 -->
+                        </g>
+
+                        <!-- ResNet -->
+                        <text x="100" y="180" fill="var(--text-primary)" font-size="14" font-weight="bold">残差网络</text>
+                        <g id="resnet-network">
+                            <!-- 将通过JavaScript动态生成 -->
+                        </g>
+                    </svg>
+                </div>
+            </section>
+
+            <!-- 第二步：残差学习 -->
+            <section id="residual" class="section-card">
+                <h2 style="color: var(--accent-green); margin-bottom: 1.5rem;">🔄 残差学习：改变游戏规则的想法</h2>
+
+                <div class="math-container">
+                    <h3 style="color: var(--accent-pink); margin-bottom: 1.5rem;">📐 核心数学原理</h3>
+
+                    <div class="math-formula">
+                        <div class="math-formula-title">传统学习目标</div>
+                        <div style="font-size: 1.5rem; margin: 2rem 0;">
+                            H(x) = 期望的底层映射
+                        </div>
+                    </div>
+
+                    <div class="math-formula">
+                        <div class="math-formula-title">残差学习目标</div>
+                        <div style="font-size: 1.5rem; margin: 2rem 0;">
+                            F(x) = H(x) - x
+                        </div>
+                        <div style="font-size: 1.2rem; color: var(--text-secondary);">
+                            因此：H(x) = F(x) + x
+                        </div>
+                    </div>
+
+                    <div class="math-explanation">
+                        <strong>关键洞察：</strong><br>
+                        • 如果恒等映射是最优的，那么F(x) = 0比H(x) = x更容易学习<br>
+                        • 即使F(x)学习失败（全零），至少能保证H(x) = x（恒等映射）<br>
+                        • 这为深层网络提供了一个"安全的默认选项"
+                    </div>
+                </div>
+
+                <!-- 残差块可视化 -->
+                <div class="residual-block-viz">
+                    <div style="position: relative;">
+                        <div class="residual-skip" style="width: 400px;"></div>
+                        <div class="residual-path">
+                            <div class="residual-layer" style="background: rgba(255, 255, 255, 0.1); border: 2px dashed var(--border-color);">
+                                x (输入)
+                            </div>
+                            <div class="residual-main">
+                                <div class="residual-layer">
+                                    Conv + BN + ReLU
+                                </div>
+                                <div class="residual-layer">
+                                    Conv + BN
+                                </div>
+                            </div>
+                            <div class="residual-layer" style="background: rgba(34, 197, 94, 0.2); border-color: var(--accent-green);">
+                                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                    <span>F(x) + x</span>
+                                    <span style="font-size: 1.5rem;">→</span>
+                                    <span>ReLU</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 前向和反向传播分析 -->
+                <div class="math-container mt-3">
+                    <h3 style="color: var(--accent-cyan); margin-bottom: 1.5rem;">🔀 梯度传播分析</h3>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+                        <div>
+                            <h4 style="color: var(--accent-green); text-align: center; margin-bottom: 1rem;">前向传播</h4>
+                            <div class="math-formula">
+                                <div style="text-align: left; padding: 1rem;">
+                                    y = x + F(x, Wᵢ)<br><br>
+                                    • 信息通过两条路径流动<br>
+                                    • 跳跃连接保证信息传递<br>
+                                    • F(x)可以学习细微调整
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <h4 style="color: var(--accent-red); text-align: center; margin-bottom: 1rem;">反向传播</h4>
+                            <div class="math-formula">
+                                <div style="text-align: left; padding: 1rem;">
+                                    ∂L/∂x = ∂L/∂y · (1 + ∂F/∂x)<br><br>
+                                    • 梯度至少为 ∂L/∂y<br>
+                                    • 避免梯度消失<br>
+                                    • 深层梯度直达浅层
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tip success mt-3">
+                        <span class="tip-icon">🎯</span>
+                        <div class="tip-content">
+                            <strong>关键优势：</strong><br>
+                            残差连接中的"1"项保证了梯度可以无损地传播到任意深的层，
+                            这是ResNet能够训练超深网络的数学基础。
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 残差学习的直观理解 -->
+                <div class="story-card mt-3">
+                    <h3 style="color: var(--accent-yellow); margin-bottom: 1rem;">🎨 画家的比喻</h3>
+
+                    <div class="dialogue-box">
+                        <div class="speaker">
+                            <div class="avatar" style="background: linear-gradient(135deg, #4facfe, #00f2fe);">👨‍🏫</div>
+                            孙剑：
+                        </div>
+                        <div>"想象你是一个画家，要画一幅肖像画..."</div>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin: 2rem 0;">
+                        <div style="background: rgba(239, 68, 68, 0.1); padding: 1.5rem; border-radius: 0.5rem;">
+                            <h4 style="color: var(--accent-red); margin-bottom: 0.5rem;">传统方式</h4>
+                            <p>从空白画布开始，一笔一笔画出完整的肖像。每一层都要重新理解和绘制所有细节。</p>
+                        </div>
+                        <div style="background: rgba(34, 197, 94, 0.1); padding: 1.5rem; border-radius: 0.5rem;">
+                            <h4 style="color: var(--accent-green); margin-bottom: 0.5rem;">残差方式</h4>
+                            <p>从一张照片开始，只需要添加一些修改让它看起来像画作。专注于"变化"而不是"全部"。</p>
+                        </div>
+                    </div>
+
+                    <div class="dialogue-box">
+                        <div class="speaker">
+                            <div class="avatar" style="background: linear-gradient(135deg, #f093fb, #f5576c);">🧑‍🔬</div>
+                            何凯明：
+                        </div>
+                        <div>"没错！这就是为什么残差学习更容易——网络只需要学习'增量'，而不是从零开始构建一切！"</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 第三步：ResNet架构 -->
+            <section id="resnet" class="section-card">
+                <h2 style="color: var(--accent-purple); margin-bottom: 1.5rem;">🏛️ ResNet：深度学习的里程碑</h2>
+
+                <!-- 架构演化时间线 -->
+                <div class="timeline">
+                    <div class="timeline-item">
+                        <div class="timeline-year">2012</div>
+                        <div class="timeline-dot"></div>
+                        <div class="timeline-content">
+                            <h4 style="color: var(--accent-cyan);">AlexNet (8层)</h4>
+                            <p>深度学习的开端，证明了深度的价值</p>
+                        </div>
+                    </div>
+
+                    <div class="timeline-item">
+                        <div class="timeline-year">2014</div>
+                        <div class="timeline-dot"></div>
+                        <div class="timeline-content">
+                            <h4 style="color: var(--accent-blue);">VGGNet (19层)</h4>
+                            <p>使用3×3卷积堆叠，但深度受限</p>
+                        </div>
+                    </div>
+
+                    <div class="timeline-item">
+                        <div class="timeline-year">2015</div>
+                        <div class="timeline-dot"></div>
+                        <div class="timeline-content">
+                            <h4 style="color: var(--accent-pink);">ResNet (152层)</h4>
+                            <p>残差学习突破深度限制，错误率3.57%</p>
+                        </div>
+                    </div>
+
+                    <div class="timeline-item">
+                        <div class="timeline-year">2016</div>
+                        <div class="timeline-dot"></div>
+                        <div class="timeline-content">
+                            <h4 style="color: var(--accent-green);">ResNet-1001</h4>
+                            <p>证明可以训练超过1000层的网络</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ResNet变体对比 -->
+                <div class="comparison-table mt-3">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th>模型</th>
+                            <th>深度</th>
+                            <th>参数量</th>
+                            <th>Top-1错误率</th>
+                            <th>Top-5错误率</th>
+                            <th>特点</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr>
+                            <td><strong>ResNet-18</strong></td>
+                            <td>18</td>
+                            <td>11.7M</td>
+                            <td>30.24%</td>
+                            <td>10.92%</td>
+                            <td>基础块，适合边缘设备</td>
+                        </tr>
+                        <tr>
+                            <td><strong>ResNet-34</strong></td>
+                            <td>34</td>
+                            <td>21.8M</td>
+                            <td>26.70%</td>
+                            <td>8.58%</td>
+                            <td>基础块，平衡性能</td>
+                        </tr>
+                        <tr>
+                            <td><strong>ResNet-50</strong></td>
+                            <td>50</td>
+                            <td>25.6M</td>
+                            <td>23.85%</td>
+                            <td>7.13%</td>
+                            <td class="highlight">瓶颈块，最流行</td>
+                        </tr>
+                        <tr>
+                            <td><strong>ResNet-101</strong></td>
+                            <td>101</td>
+                            <td>44.5M</td>
+                            <td>22.63%</td>
+                            <td>6.44%</td>
+                            <td>瓶颈块，高精度</td>
+                        </tr>
+                        <tr>
+                            <td><strong>ResNet-152</strong></td>
+                            <td>152</td>
+                            <td>60.2M</td>
+                            <td>21.69%</td>
+                            <td class="highlight">5.94%</td>
+                            <td>瓶颈块，ILSVRC 2015冠军</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- 基础块 vs 瓶颈块 -->
+                <div class="arch-comparison mt-3">
+                    <div class="arch-model">
+                        <h4 style="color: var(--accent-cyan);">基础块 (BasicBlock)</h4>
+                        <div style="background: rgba(255, 255, 255, 0.05); padding: 1rem; border-radius: 0.5rem; margin: 1rem 0;">
+                            <div style="text-align: center; font-family: monospace; font-size: 0.875rem;">
+                                3×3, 64<br>
+                                ↓<br>
+                                3×3, 64<br>
+                                ↓<br>
+                                <span style="color: var(--accent-green);">+ identity</span>
+                            </div>
+                        </div>
+                        <p style="font-size: 0.875rem; color: var(--text-secondary);">
+                            用于ResNet-18/34<br>
+                            参数量：2×(3×3×64×64)
+                        </p>
+                    </div>
+
+                    <div class="arch-model">
+                        <h4 style="color: var(--accent-pink);">瓶颈块 (Bottleneck)</h4>
+                        <div style="background: rgba(255, 255, 255, 0.05); padding: 1rem; border-radius: 0.5rem; margin: 1rem 0;">
+                            <div style="text-align: center; font-family: monospace; font-size: 0.875rem;">
+                                1×1, 64<br>
+                                ↓<br>
+                                3×3, 64<br>
+                                ↓<br>
+                                1×1, 256<br>
+                                ↓<br>
+                                <span style="color: var(--accent-green);">+ identity</span>
+                            </div>
+                        </div>
+                        <p style="font-size: 0.875rem; color: var(--text-secondary);">
+                            用于ResNet-50+<br>
+                            更少参数，更深网络
+                        </p>
+                    </div>
+
+                    <div class="arch-model">
+                        <h4 style="color: var(--accent-orange);">预激活变体</h4>
+                        <div style="background: rgba(255, 255, 255, 0.05); padding: 1rem; border-radius: 0.5rem; margin: 1rem 0;">
+                            <div style="text-align: center; font-family: monospace; font-size: 0.875rem;">
+                                BN → ReLU → Conv<br>
+                                ↓<br>
+                                BN → ReLU → Conv<br>
+                                ↓<br>
+                                <span style="color: var(--accent-green);">+ identity</span>
+                            </div>
+                        </div>
+                        <p style="font-size: 0.875rem; color: var(--text-secondary);">
+                            改进的梯度流<br>
+                            更容易训练超深网络
+                        </p>
+                    </div>
+                </div>
+
+                <!-- 代码实现 -->
+                <div class="code-container mt-3">
+                    <div class="code-header">
+                        <div class="code-header-left">
+                            <div class="code-tab active" data-tab="basic">基础块实现</div>
+                            <div class="code-tab" data-tab="bottleneck">瓶颈块实现</div>
+                            <div class="code-tab" data-tab="resnet">完整ResNet</div>
+                        </div>
+                    </div>
+
+                    <div class="code-content" data-tab-content="basic">
+                        <pre><code class="language-python">import torch
+import torch.nn as nn
+
+class BasicBlock(nn.Module):
+    """ResNet基础块 - 用于ResNet-18/34"""
+    expansion = 1  # 输出通道数相对于输入的倍数
+
+    def __init__(self, in_channels, out_channels, stride=1, downsample=None):
+        super(BasicBlock, self).__init__()
+
+        # 第一个3x3卷积
+        self.conv1 = nn.Conv2d(in_channels, out_channels,
+                              kernel_size=3, stride=stride,
+                              padding=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(out_channels)
+        self.relu = nn.ReLU(inplace=True)
+
+        # 第二个3x3卷积
+        self.conv2 = nn.Conv2d(out_channels, out_channels,
+                              kernel_size=3, stride=1,
+                              padding=1, bias=False)
+        self.bn2 = nn.BatchNorm2d(out_channels)
+
+        # 下采样层（当stride!=1或通道数改变时）
+        self.downsample = downsample
+
+    def forward(self, x):
+        # 保存输入
+        identity = x
+
+        # 主路径
+        out = self.conv1(x)
+        out = self.bn1(out)
+        out = self.relu(out)
+
+        out = self.conv2(out)
+        out = self.bn2(out)
+
+        # 如果需要，对恒等映射进行下采样
+        if self.downsample is not None:
+            identity = self.downsample(x)
+
+        # 残差连接
+        out += identity
+        out = self.relu(out)
+
+        return out
+
+# 使用示例
+def test_basic_block():
+    # 创建一个基础块
+    block = BasicBlock(64, 64)
+
+    # 测试输入
+    x = torch.randn(1, 64, 56, 56)
+
+    # 前向传播
+    output = block(x)
+    print(f"输入形状: {x.shape}")
+    print(f"输出形状: {output.shape}")
+
+    # 带下采样的块
+    downsample = nn.Sequential(
+        nn.Conv2d(64, 128, kernel_size=1, stride=2, bias=False),
+        nn.BatchNorm2d(128)
+    )
+    block_with_downsample = BasicBlock(64, 128, stride=2, downsample=downsample)
+
+    output2 = block_with_downsample(x)
+    print(f"下采样后输出形状: {output2.shape}")
+
+test_basic_block()</code></pre>
+                    </div>
+
+                    <div class="code-content" data-tab-content="bottleneck" style="display: none;">
+                        <pre><code class="language-python">class Bottleneck(nn.Module):
+    """ResNet瓶颈块 - 用于ResNet-50/101/152"""
+    expansion = 4  # 最后一层是第一层的4倍宽
+
+    def __init__(self, in_channels, out_channels, stride=1, downsample=None):
+        super(Bottleneck, self).__init__()
+
+        # 1x1卷积降维
+        self.conv1 = nn.Conv2d(in_channels, out_channels,
+                              kernel_size=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(out_channels)
+
+        # 3x3卷积
+        self.conv2 = nn.Conv2d(out_channels, out_channels,
+                              kernel_size=3, stride=stride,
+                              padding=1, bias=False)
+        self.bn2 = nn.BatchNorm2d(out_channels)
+
+        # 1x1卷积升维
+        self.conv3 = nn.Conv2d(out_channels, out_channels * self.expansion,
+                              kernel_size=1, bias=False)
+        self.bn3 = nn.BatchNorm2d(out_channels * self.expansion)
+
+        self.relu = nn.ReLU(inplace=True)
+        self.downsample = downsample
+
+    def forward(self, x):
+        identity = x
+
+        # 瓶颈路径：1x1 -> 3x3 -> 1x1
+        out = self.conv1(x)
+        out = self.bn1(out)
+        out = self.relu(out)
+
+        out = self.conv2(out)
+        out = self.bn2(out)
+        out = self.relu(out)
+
+        out = self.conv3(out)
+        out = self.bn3(out)
+
+        # 残差连接
+        if self.downsample is not None:
+            identity = self.downsample(x)
+
+        out += identity
+        out = self.relu(out)
+
+        return out
+
+# 预激活瓶颈块（ResNet-v2）
+class PreActBottleneck(nn.Module):
+    """预激活瓶颈块 - 改进的设计"""
+    expansion = 4
+
+    def __init__(self, in_channels, out_channels, stride=1, downsample=None):
+        super(PreActBottleneck, self).__init__()
+
+        # BN和ReLU移到了卷积之前
+        self.bn1 = nn.BatchNorm2d(in_channels)
+        self.conv1 = nn.Conv2d(in_channels, out_channels,
+                              kernel_size=1, bias=False)
+
+        self.bn2 = nn.BatchNorm2d(out_channels)
+        self.conv2 = nn.Conv2d(out_channels, out_channels,
+                              kernel_size=3, stride=stride,
+                              padding=1, bias=False)
+
+        self.bn3 = nn.BatchNorm2d(out_channels)
+        self.conv3 = nn.Conv2d(out_channels, out_channels * self.expansion,
+                              kernel_size=1, bias=False)
+
+        self.relu = nn.ReLU(inplace=True)
+        self.downsample = downsample
+
+    def forward(self, x):
+        identity = x
+
+        # 预激活
+        out = self.bn1(x)
+        out = self.relu(out)
+
+        # 如果需要下采样，在激活后进行
+        if self.downsample is not None:
+            identity = self.downsample(out)
+
+        # 瓶颈路径
+        out = self.conv1(out)
+
+        out = self.bn2(out)
+        out = self.relu(out)
+        out = self.conv2(out)
+
+        out = self.bn3(out)
+        out = self.relu(out)
+        out = self.conv3(out)
+
+        # 残差连接
+        out += identity
+
+        return out
+
+# 参数量对比
+def compare_blocks():
+    # 基础块
+    basic = BasicBlock(256, 256)
+    basic_params = sum(p.numel() for p in basic.parameters())
+
+    # 瓶颈块
+    bottleneck = Bottleneck(256, 64)
+    bottleneck_params = sum(p.numel() for p in bottleneck.parameters())
+
+    print(f"基础块参数量: {basic_params:,}")
+    print(f"瓶颈块参数量: {bottleneck_params:,}")
+    print(f"参数减少: {(1 - bottleneck_params/basic_params)*100:.1f}%")
+
+compare_blocks()</code></pre>
+                    </div>
+
+                    <div class="code-content" data-tab-content="resnet" style="display: none;">
+                        <pre><code class="language-python">class ResNet(nn.Module):
+    """完整的ResNet实现"""
+
+    def __init__(self, block, layers, num_classes=1000, zero_init_residual=False):
+        super(ResNet, self).__init__()
+        self.in_channels = 64
+
+        # 初始卷积层
+        self.conv1 = nn.Conv2d(3, self.in_channels, kernel_size=7,
+                              stride=2, padding=3, bias=False)
+        self.bn1 = nn.BatchNorm2d(self.in_channels)
+        self.relu = nn.ReLU(inplace=True)
+        self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
+
+        # 残差层
+        self.layer1 = self._make_layer(block, 64, layers[0])
+        self.layer2 = self._make_layer(block, 128, layers[1], stride=2)
+        self.layer3 = self._make_layer(block, 256, layers[2], stride=2)
+        self.layer4 = self._make_layer(block, 512, layers[3], stride=2)
+
+        # 分类头
+        self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
+        self.fc = nn.Linear(512 * block.expansion, num_classes)
+
+        # 初始化
+        self._initialize_weights(zero_init_residual)
+
+    def _make_layer(self, block, out_channels, blocks, stride=1):
+        """构建残差层"""
+        downsample = None
+
+        # 如果stride!=1或通道数改变，需要下采样
+        if stride != 1 or self.in_channels != out_channels * block.expansion:
+            downsample = nn.Sequential(
+                nn.Conv2d(self.in_channels, out_channels * block.expansion,
+                         kernel_size=1, stride=stride, bias=False),
+                nn.BatchNorm2d(out_channels * block.expansion),
+            )
+
+        layers = []
+        # 第一个块可能需要下采样
+        layers.append(block(self.in_channels, out_channels, stride, downsample))
+        self.in_channels = out_channels * block.expansion
+
+        # 剩余的块
+        for _ in range(1, blocks):
+            layers.append(block(self.in_channels, out_channels))
+
+        return nn.Sequential(*layers)
+
+    def _initialize_weights(self, zero_init_residual):
+        """权重初始化"""
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+            elif isinstance(m, nn.BatchNorm2d):
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
+
+        # 零初始化残差块的最后一个BN
+        # 这使得残差块初始输出为零，让网络从更浅的状态开始
+        if zero_init_residual:
+            for m in self.modules():
+                if isinstance(m, Bottleneck):
+                    nn.init.constant_(m.bn3.weight, 0)
+                elif isinstance(m, BasicBlock):
+                    nn.init.constant_(m.bn2.weight, 0)
+
+    def forward(self, x):
+        # 初始特征提取
+        x = self.conv1(x)
+        x = self.bn1(x)
+        x = self.relu(x)
+        x = self.maxpool(x)
+
+        # 残差块
+        x = self.layer1(x)
+        x = self.layer2(x)
+        x = self.layer3(x)
+        x = self.layer4(x)
+
+        # 全局平均池化
+        x = self.avgpool(x)
+        x = torch.flatten(x, 1)
+        x = self.fc(x)
+
+        return x
+
+# 创建不同的ResNet模型
+def resnet18(pretrained=False, **kwargs):
+    """ResNet-18"""
+    model = ResNet(BasicBlock, [2, 2, 2, 2], **kwargs)
+    return model
+
+def resnet34(pretrained=False, **kwargs):
+    """ResNet-34"""
+    model = ResNet(BasicBlock, [3, 4, 6, 3], **kwargs)
+    return model
+
+def resnet50(pretrained=False, **kwargs):
+    """ResNet-50"""
+    model = ResNet(Bottleneck, [3, 4, 6, 3], **kwargs)
+    return model
+
+def resnet101(pretrained=False, **kwargs):
+    """ResNet-101"""
+    model = ResNet(Bottleneck, [3, 4, 23, 3], **kwargs)
+    return model
+
+def resnet152(pretrained=False, **kwargs):
+    """ResNet-152"""
+    model = ResNet(Bottleneck, [3, 8, 36, 3], **kwargs)
+    return model
+
+# 测试和分析
+def analyze_resnet():
+    """分析不同ResNet的特性"""
+    models = {
+        'ResNet-18': resnet18(),
+        'ResNet-34': resnet34(),
+        'ResNet-50': resnet50(),
+        'ResNet-101': resnet101(),
+        'ResNet-152': resnet152()
+    }
+
+    print("ResNet模型分析:")
+    print("-" * 60)
+
+    for name, model in models.items():
+        total_params = sum(p.numel() for p in model.parameters())
+
+        # 计算FLOPs（简化版）
+        x = torch.randn(1, 3, 224, 224)
+
+        # 统计各层深度
+        depth = 0
+        for module in model.modules():
+            if isinstance(module, (BasicBlock, Bottleneck)):
+                depth += 1
+
+        print(f"{name:>12} | 参数量: {total_params/1e6:>6.1f}M | 深度: {depth:>3}")
+
+    # 特征图大小变化
+    print("\n特征图尺寸变化 (ResNet-50):")
+    print("-" * 40)
+
+    model = resnet50()
+    x = torch.randn(1, 3, 224, 224)
+
+    # Hook函数记录中间输出
+    activations = []
+
+    def hook(module, input, output):
+        activations.append(output.shape)
+
+    # 注册hooks
+    handles = []
+    for name, module in model.named_modules():
+        if 'layer' in name and len(name.split('.')) == 1:
+            handle = module.register_forward_hook(hook)
+            handles.append(handle)
+
+    # 前向传播
+    _ = model(x)
+
+    # 打印结果
+    stages = ['Input', 'Layer1', 'Layer2', 'Layer3', 'Layer4']
+    shapes = [(1, 3, 224, 224)] + activations
+
+    for stage, shape in zip(stages, shapes):
+        print(f"{stage:>8}: {str(shape):>20}")
+
+    # 清理hooks
+    for handle in handles:
+        handle.remove()
+
+analyze_resnet()
+
+# 训练技巧展示
+def training_tricks():
+    """ResNet训练技巧"""
+    print("\nResNet训练技巧:")
+    print("-" * 60)
+
+    tricks = [
+        ("学习率预热", "前5个epoch从0线性增加到初始学习率"),
+        ("零初始化", "残差块最后的BN层权重初始化为0"),
+        ("标签平滑", "使用0.1的标签平滑正则化"),
+        ("数据增强", "RandomResizedCrop + RandomHorizontalFlip + ColorJitter"),
+        ("权重衰减", "除BN和bias外，使用1e-4的权重衰减"),
+        ("余弦退火", "学习率按余弦函数衰减")
+    ]
+
+    for trick, description in tricks:
+        print(f"• {trick:<12}: {description}")
+
+training_tricks()</code></pre>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 第四步：DenseNet -->
+            <section id="densenet" class="section-card">
+                <h2 style="color: var(--accent-blue); margin-bottom: 1.5rem;">🔗 DenseNet：密集连接的极致</h2>
+
+                <div class="story-card">
+                    <div class="dialogue-box">
+                        <div class="speaker">
+                            <div class="avatar" style="background: linear-gradient(135deg, #667eea, #764ba2);">🧑‍💻</div>
+                            黄高（Cornell博士生）：
+                        </div>
+                        <div>"如果ResNet的跳跃连接这么有效，为什么不把所有层都连接起来？"</div>
+                    </div>
+
+                    <div class="dialogue-box mt-2">
+                        <div class="speaker">
+                            <div class="avatar" style="background: linear-gradient(135deg, #f093fb, #f5576c);">👩‍🏫</div>
+                            导师：
+                        </div>
+                        <div>"有趣的想法！但这样参数量会爆炸吧？"</div>
+                    </div>
+
+                    <div class="dialogue-box mt-2">
+                        <div class="speaker">
+                            <div class="avatar" style="background: linear-gradient(135deg, #667eea, #764ba2);">🧑‍💻</div>
+                            黄高：
+                        </div>
+                        <div>"不，如果我们用concatenation而不是addition，每层只需要很少的通道！"</div>
+                    </div>
+                </div>
+
+                <!-- DenseNet核心思想 -->
+                <div class="math-container">
+                    <h3 style="color: var(--accent-cyan); margin-bottom: 1.5rem;">🧬 密集连接的数学表达</h3>
+
+                    <div class="math-formula">
+                        <div class="math-formula-title">ResNet连接方式</div>
+                        <div style="font-size: 1.3rem; margin: 1.5rem 0;">
+                            x<sub>ℓ</sub> = H<sub>ℓ</sub>(x<sub>ℓ-1</sub>) + x<sub>ℓ-1</sub>
+                        </div>
+                    </div>
+
+                    <div class="math-formula">
+                        <div class="math-formula-title">DenseNet连接方式</div>
+                        <div style="font-size: 1.3rem; margin: 1.5rem 0;">
+                            x<sub>ℓ</sub> = H<sub>ℓ</sub>([x<sub>0</sub>, x<sub>1</sub>, ..., x<sub>ℓ-1</sub>])
+                        </div>
+                    </div>
+
+                    <div class="math-explanation">
+                        <strong>关键区别：</strong><br>
+                        • ResNet：只连接相邻层（加法）<br>
+                        • DenseNet：连接所有前面的层（拼接）<br>
+                        • 每层都能直接访问之前所有层的特征<br>
+                        • 促进特征重用，减少参数冗余
+                    </div>
+                </div>
+
+                <!-- DenseNet架构可视化 -->
+                <div class="visualization-container">
+                    <h3 style="color: var(--accent-purple); margin-bottom: 1.5rem;">🌐 Dense Block可视化</h3>
+
+                    <div class="feature-reuse-grid" id="dense-block-viz">
+                        <!-- 将通过JavaScript动态生成连接图 -->
+                    </div>
+
+                    <div class="tip info mt-3">
+                        <span class="tip-icon">💡</span>
+                        <div class="tip-content">
+                            <strong>特征重用的威力：</strong><br>
+                            • 每层只产生k个新特征（增长率k通常为12或32）<br>
+                            • 但可以访问之前所有层的特征<br>
+                            • 参数效率极高：DenseNet-121只有8M参数
+                        </div>
+                    </div>
+                </div>
+
+                <!-- DenseNet vs ResNet对比 -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin: 2rem 0;">
+                    <div style="background: rgba(240, 147, 251, 0.1); padding: 2rem; border-radius: 1rem;">
+                        <h4 style="color: var(--accent-pink); margin-bottom: 1rem;">ResNet特点</h4>
+                        <ul style="margin-left: 1.5rem;">
+                            <li>恒等映射通过加法</li>
+                            <li>梯度直接传播</li>
+                            <li>深度是主要优势</li>
+                            <li>每层需要足够宽度</li>
+                        </ul>
+                    </div>
+                    <div style="background: rgba(79, 172, 254, 0.1); padding: 2rem; border-radius: 1rem;">
+                        <h4 style="color: var(--accent-blue); margin-bottom: 1rem;">DenseNet特点</h4>
+                        <ul style="margin-left: 1.5rem;">
+                            <li>特征通过拼接传递</li>
+                            <li>极致的特征重用</li>
+                            <li>更窄的层（k=12~32）</li>
+                            <li>参数效率更高</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- DenseNet实现 -->
+                <div class="code-container">
+                    <div class="code-header">
+                        <div class="code-header-left">
+                            <span style="color: var(--text-secondary);">densenet_implementation.py</span>
+                        </div>
+                    </div>
+                    <div class="code-content">
+                        <pre><code class="language-python">import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+class DenseLayer(nn.Module):
+    """DenseNet的基础层"""
+    def __init__(self, in_channels, growth_rate, bn_size=4):
+        super(DenseLayer, self).__init__()
+
+        # 1x1 卷积（瓶颈层）
+        self.bn1 = nn.BatchNorm2d(in_channels)
+        self.relu1 = nn.ReLU(inplace=True)
+        self.conv1 = nn.Conv2d(in_channels, bn_size * growth_rate,
+                              kernel_size=1, bias=False)
+
+        # 3x3 卷积
+        self.bn2 = nn.BatchNorm2d(bn_size * growth_rate)
+        self.relu2 = nn.ReLU(inplace=True)
+        self.conv2 = nn.Conv2d(bn_size * growth_rate, growth_rate,
+                              kernel_size=3, padding=1, bias=False)
+
+    def forward(self, x):
+        # x是所有之前层的特征拼接
+        out = self.bn1(x)
+        out = self.relu1(out)
+        out = self.conv1(out)
+
+        out = self.bn2(out)
+        out = self.relu2(out)
+        out = self.conv2(out)
+
+        # 返回拼接后的特征
+        return torch.cat([x, out], 1)
+
+class DenseBlock(nn.Module):
+    """Dense Block - 包含多个密集连接的层"""
+    def __init__(self, num_layers, in_channels, growth_rate, bn_size=4):
+        super(DenseBlock, self).__init__()
+
+        layers = []
+        for i in range(num_layers):
+            layers.append(
+                DenseLayer(in_channels + i * growth_rate, growth_rate, bn_size)
+            )
+        self.layers = nn.Sequential(*layers)
+
+    def forward(self, x):
+        return self.layers(x)
+
+class Transition(nn.Module):
+    """过渡层 - 用于降低特征图尺寸和通道数"""
+    def __init__(self, in_channels, out_channels):
+        super(Transition, self).__init__()
+        self.bn = nn.BatchNorm2d(in_channels)
+        self.relu = nn.ReLU(inplace=True)
+        self.conv = nn.Conv2d(in_channels, out_channels,
+                             kernel_size=1, bias=False)
+        self.pool = nn.AvgPool2d(kernel_size=2, stride=2)
+
+    def forward(self, x):
+        out = self.bn(x)
+        out = self.relu(out)
+        out = self.conv(out)
+        out = self.pool(out)
+        return out
+
+class DenseNet(nn.Module):
+    """完整的DenseNet架构"""
+    def __init__(self, growth_rate=32, block_config=(6, 12, 24, 16),
+                 num_init_features=64, bn_size=4, compression=0.5,
+                 num_classes=1000):
+        super(DenseNet, self).__init__()
+
+        # 初始卷积层
+        self.features = nn.Sequential(
+            nn.Conv2d(3, num_init_features, kernel_size=7,
+                     stride=2, padding=3, bias=False),
+            nn.BatchNorm2d(num_init_features),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
+        )
+
+        # Dense Blocks
+        num_features = num_init_features
+        for i, num_layers in enumerate(block_config):
+            block = DenseBlock(num_layers, num_features,
+                             growth_rate, bn_size)
+            self.features.add_module(f'denseblock{i+1}', block)
+
+            num_features = num_features + num_layers * growth_rate
+
+            # 添加过渡层（除了最后一个block）
+            if i != len(block_config) - 1:
+                trans = Transition(num_features,
+                                 int(num_features * compression))
+                self.features.add_module(f'transition{i+1}', trans)
+                num_features = int(num_features * compression)
+
+        # 最后的BN
+        self.features.add_module('norm5', nn.BatchNorm2d(num_features))
+
+        # 分类器
+        self.classifier = nn.Linear(num_features, num_classes)
+
+        # 初始化
+        self._initialize_weights()
+
+    def _initialize_weights(self):
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                nn.init.kaiming_normal_(m.weight)
+            elif isinstance(m, nn.BatchNorm2d):
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
+            elif isinstance(m, nn.Linear):
+                nn.init.constant_(m.bias, 0)
+
+    def forward(self, x):
+        features = self.features(x)
+        out = F.relu(features, inplace=True)
+        out = F.adaptive_avg_pool2d(out, (1, 1))
+        out = torch.flatten(out, 1)
+        out = self.classifier(out)
+        return out
+
+# 预定义的DenseNet架构
+def densenet121(**kwargs):
+    """DenseNet-121"""
+    return DenseNet(growth_rate=32, block_config=(6, 12, 24, 16), **kwargs)
+
+def densenet169(**kwargs):
+    """DenseNet-169"""
+    return DenseNet(growth_rate=32, block_config=(6, 12, 32, 32), **kwargs)
+
+def densenet201(**kwargs):
+    """DenseNet-201"""
+    return DenseNet(growth_rate=32, block_config=(6, 12, 48, 32), **kwargs)
+
+def densenet264(**kwargs):
+    """DenseNet-264"""
+    return DenseNet(growth_rate=32, block_config=(6, 12, 64, 48), **kwargs)
+
+# 分析DenseNet的特性
+def analyze_densenet():
+    """分析DenseNet的参数效率"""
+
+    # 创建一个小型DenseNet
+    model = DenseNet(growth_rate=12, block_config=(6, 12, 24, 16),
+                    num_init_features=16)
+
+    # 统计参数
+    total_params = sum(p.numel() for p in model.parameters())
+    print(f"DenseNet参数总量: {total_params:,}")
+
+    # 分析连接数
+    print("\nDense Block连接分析:")
+    print("-" * 50)
+
+    block_config = (6, 12, 24, 16)
+    growth_rate = 12
+
+    for i, num_layers in enumerate(block_config):
+        connections = num_layers * (num_layers - 1) // 2
+        print(f"Block {i+1}: {num_layers}层, {connections}个连接")
+
+    # 特征重用演示
+    print("\n特征重用效果:")
+    x = torch.randn(1, 3, 32, 32)
+
+    # 简单的Dense Block
+    in_channels = 64
+    growth_rate = 32
+    block = DenseBlock(4, in_channels, growth_rate)
+
+    # 追踪每层的输入通道数
+    print(f"初始通道数: {in_channels}")
+    for i in range(4):
+        print(f"第{i+1}层输入: {in_channels + i * growth_rate}通道")
+
+    output = block(torch.randn(1, in_channels, 16, 16))
+    print(f"输出通道数: {output.shape[1]}")
+
+analyze_densenet()
+
+# 对比ResNet和DenseNet
+def compare_architectures():
+    """对比不同架构的特性"""
+
+    print("\n架构对比分析:")
+    print("-" * 70)
+    print(f"{'架构':>15} | {'参数量':>10} | {'连接方式':>15} | {'特点':>20}")
+    print("-" * 70)
+
+    comparisons = [
+        ("ResNet-50", "25.6M", "恒等映射(加法)", "深度优势"),
+        ("ResNet-101", "44.5M", "恒等映射(加法)", "更深更准"),
+        ("DenseNet-121", "8.0M", "密集连接(拼接)", "参数效率"),
+        ("DenseNet-169", "14.3M", "密集连接(拼接)", "特征重用"),
+        ("DenseNet-201", "20.2M", "密集连接(拼接)", "最佳精度")
+    ]
+
+    for arch, params, connection, feature in comparisons:
+        print(f"{arch:>15} | {params:>10} | {connection:>15} | {feature:>20}")
+
+compare_architectures()</code></pre>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 第五步：Inception -->
+            <section id="inception" class="section-card">
+                <h2 style="color: var(--accent-orange); margin-bottom: 1.5rem;">🌸 Inception：网络中的网络</h2>
+
+                <div class="story-card">
+                    <h3 style="color: var(--accent-purple); margin-bottom: 1rem;">Going Deeper with Convolutions</h3>
+
+                    <div class="dialogue-box">
+                        <div class="speaker">
+                            <div class="avatar" style="background: linear-gradient(135deg, #fa709a, #fee140);">🧑‍🔬</div>
+                            Google研究员：
+                        </div>
+                        <div>"我们面临一个困境：应该用3×3还是5×5卷积？1×1卷积有用吗？"</div>
+                    </div>
+
+                    <div class="dialogue-box mt-2">
+                        <div class="speaker">
+                            <div class="avatar" style="background: linear-gradient(135deg, #30cfd0, #330867);">👩‍💻</div>
+                            同事：
+                        </div>
+                        <div>"为什么要选择？我们可以全部都要！让网络自己学习哪个更重要。"</div>
+                    </div>
+                </div>
+
+                <!-- Inception模块设计 -->
+                <div class="inception-module">
+                    <div class="inception-branch">
+                        <div class="inception-op">1×1 Conv</div>
+                        <div style="font-size: 0.875rem; color: var(--text-secondary);">
+                            捕获点特征<br>
+                            降维作用
+                        </div>
+                    </div>
+                    <div class="inception-branch">
+                        <div class="inception-op">1×1 Conv</div>
+                        <div class="inception-op">3×3 Conv</div>
+                        <div style="font-size: 0.875rem; color: var(--text-secondary);">
+                            局部特征<br>
+                            标准感受野
+                        </div>
+                    </div>
+                    <div class="inception-branch">
+                        <div class="inception-op">1×1 Conv</div>
+                        <div class="inception-op">5×5 Conv</div>
+                        <div style="font-size: 0.875rem; color: var(--text-secondary);">
+                            更大感受野<br>
+                            捕获更大模式
+                        </div>
+                    </div>
+                    <div class="inception-branch">
+                        <div class="inception-op">3×3 MaxPool</div>
+                        <div class="inception-op">1×1 Conv</div>
+                        <div style="font-size: 0.875rem; color: var(--text-secondary);">
+                            保留重要特征<br>
+                            降采样路径
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tip info mt-3">
+                    <span class="tip-icon">💡</span>
+                    <div class="tip-content">
+                        <strong>Inception的设计哲学：</strong><br>
+                        • 多尺度特征提取：同时使用不同大小的卷积核<br>
+                        • 1×1卷积降维：减少计算量的同时增加非线性<br>
+                        • 稀疏连接：不是所有通道都需要连接<br>
+                        • 计算效率：通过精心设计达到很高的效率
+                    </div>
+                </div>
+            </section>
+
+            <!-- 第六步：瓶颈设计 -->
+            <section id="bottleneck" class="section-card">
+                <h2 style="color: var(--accent-yellow); margin-bottom: 1.5rem;">⏳ 瓶颈设计：效率与性能的平衡</h2>
+
+                <div class="math-container">
+                    <h3 style="color: var(--accent-green); margin-bottom: 1.5rem;">🧮 计算复杂度分析</h3>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+                        <div>
+                            <h4 style="color: var(--accent-red); text-align: center; margin-bottom: 1rem;">
+                                直接3×3卷积
+                            </h4>
+                            <div class="math-formula">
+                                <div style="text-align: left; padding: 1rem;">
+                                    输入: H × W × 256<br>
+                                    卷积: 3 × 3 × 256 × 256<br>
+                                    输出: H × W × 256<br><br>
+                                    <strong>FLOPs = 9 × H × W × 256²</strong><br>
+                                    = 9 × H × W × 65,536
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <h4 style="color: var(--accent-green); text-align: center; margin-bottom: 1rem;">
+                                瓶颈结构
+                            </h4>
+                            <div class="math-formula">
+                                <div style="text-align: left; padding: 1rem;">
+                                    1×1: H × W × 256 × 64<br>
+                                    3×3: H × W × 64 × 64<br>
+                                    1×1: H × W × 64 × 256<br><br>
+                                    <strong>FLOPs = H × W × (16,384 + 36,864 + 16,384)</strong><br>
+                                    = H × W × 69,632 ≈ <span style="color: var(--accent-green);">1/8.5倍</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 瓶颈设计演化 -->
+                <div class="concept-grid mt-3">
+                    <div class="concept-card what">
+                        <h3 style="color: var(--accent-green); margin-bottom: 0.5rem;">标准瓶颈</h3>
+                        <p>1×1降维 → 3×3卷积 → 1×1升维<br>
+                            ResNet-50+的标准设计</p>
+                    </div>
+
+                    <div class="concept-card how">
+                        <h3 style="color: var(--accent-blue); margin-bottom: 0.5rem;">反向瓶颈</h3>
+                        <p>1×1升维 → 3×3 DW → 1×1降维<br>
+                            MobileNetV2的创新</p>
+                    </div>
+
+                    <div class="concept-card why">
+                        <h3 style="color: var(--accent-red); margin-bottom: 0.5rem;">分组瓶颈</h3>
+                        <p>使用分组卷积进一步降低计算<br>
+                            ResNeXt的核心思想</p>
+                    </div>
+
+                    <div class="concept-card pitfall">
+                        <h3 style="color: var(--accent-yellow); margin-bottom: 0.5rem;">深度可分离</h3>
+                        <p>深度卷积 + 逐点卷积<br>
+                            MobileNet系列的基础</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 第七步：归一化技术 -->
+            <section id="normalization" class="section-card">
+                <h2 style="color: var(--accent-cyan); margin-bottom: 1.5rem;">📊 归一化技术演进</h2>
+
+                <div class="norm-comparison">
+                    <div class="norm-method">
+                        <h4 style="color: var(--accent-purple);">Batch Norm</h4>
+                        <div class="norm-formula">
+                            norm(x) = γ · (x - μ_B) / σ_B + β
+                        </div>
+                        <p style="font-size: 0.875rem;">
+                            • 沿batch维度归一化<br>
+                            • 依赖batch size<br>
+                            • 训练/测试不一致
+                        </p>
+                    </div>
+
+                    <div class="norm-method">
+                        <h4 style="color: var(--accent-pink);">Layer Norm</h4>
+                        <div class="norm-formula">
+                            norm(x) = γ · (x - μ_L) / σ_L + β
+                        </div>
+                        <p style="font-size: 0.875rem;">
+                            • 沿特征维度归一化<br>
+                            • 不依赖batch size<br>
+                            • 适合RNN/Transformer
+                        </p>
+                    </div>
+
+                    <div class="norm-method">
+                        <h4 style="color: var(--accent-orange);">Group Norm</h4>
+                        <div class="norm-formula">
+                            norm(x) = γ · (x - μ_G) / σ_G + β
+                        </div>
+                        <p style="font-size: 0.875rem;">
+                            • 通道分组归一化<br>
+                            • 小batch稳定<br>
+                            • 视觉任务友好
+                        </p>
+                    </div>
+
+                    <div class="norm-method">
+                        <h4 style="color: var(--accent-green);">Instance Norm</h4>
+                        <div class="norm-formula">
+                            norm(x) = γ · (x - μ_I) / σ_I + β
+                        </div>
+                        <p style="font-size: 0.875rem;">
+                            • 每个样本独立<br>
+                            • 风格迁移常用<br>
+                            • 去除整体统计
+                        </p>
+                    </div>
+                </div>
+
+                <div class="tip warning mt-3">
+                    <span class="tip-icon">⚠️</span>
+                    <div class="tip-content">
+                        <strong>归一化选择指南：</strong><br>
+                        • 大batch CNN → Batch Norm<br>
+                        • 小batch/变长序列 → Layer/Group Norm<br>
+                        • 生成模型 → Instance Norm<br>
+                        • 注意训练/推理一致性！
+                    </div>
+                </div>
+            </section>
+
+            <!-- 第八步：架构设计的艺术 -->
+            <section id="architecture-art" class="section-card">
+                <h2 style="color: var(--accent-pink); margin-bottom: 1.5rem;">🎨 架构设计的艺术</h2>
+
+                <div class="story-card">
+                    <h3 style="color: var(--accent-purple); margin-bottom: 1rem;">设计原则与权衡</h3>
+
+                    <div class="think-box">
+                        <h3 style="color: var(--accent-purple); margin-bottom: 1rem;">🏗️ 现代CNN设计原则</h3>
+                        <ol style="margin-left: 2rem; line-height: 1.8;">
+                            <li><strong>等宽原则：</strong>保持各阶段计算量相近</li>
+                            <li><strong>加倍原则：</strong>分辨率减半时通道数加倍</li>
+                            <li><strong>瓶颈原则：</strong>用1×1卷积控制维度</li>
+                            <li><strong>残差原则：</strong>总是提供跳跃连接</li>
+                            <li><strong>归一化原则：</strong>每次卷积后进行归一化</li>
+                        </ol>
+                    </div>
+                </div>
+
+                <!-- 架构设计决策树 -->
+                <div class="visualization-container">
+                    <h3 style="color: var(--accent-orange); margin-bottom: 1.5rem;">🌳 架构选择决策树</h3>
+
+                    <div style="background: rgba(255, 255, 255, 0.05); padding: 2rem; border-radius: 1rem;">
+                        <div style="text-align: center; margin-bottom: 2rem;">
+                            <div style="display: inline-block; padding: 1rem 2rem; background: var(--resnet-gradient); color: white; border-radius: 0.5rem; font-weight: bold;">
+                                开始：定义任务需求
+                            </div>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 2rem;">
+                            <div style="text-align: center;">
+                                <div style="padding: 1rem; background: rgba(239, 68, 68, 0.2); border-radius: 0.5rem; margin-bottom: 1rem;">
+                                    <strong>计算资源受限？</strong>
+                                </div>
+                                <div style="padding: 1rem; background: rgba(255, 255, 255, 0.05); border-radius: 0.5rem;">
+                                    → MobileNet<br>
+                                    → ShuffleNet<br>
+                                    → EfficientNet
+                                </div>
+                            </div>
+
+                            <div style="text-align: center;">
+                                <div style="padding: 1rem; background: rgba(34, 197, 94, 0.2); border-radius: 0.5rem; margin-bottom: 1rem;">
+                                    <strong>精度优先？</strong>
+                                </div>
+                                <div style="padding: 1rem; background: rgba(255, 255, 255, 0.05); border-radius: 0.5rem;">
+                                    → ResNet-152<br>
+                                    → DenseNet<br>
+                                    → EfficientNet-B7
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 架构对比雷达图 -->
+                <div class="visualization-container mt-3">
+                    <h3 style="color: var(--accent-purple); margin-bottom: 1.5rem;">📊 架构特性对比</h3>
+                    <canvas id="architecture-radar" width="600" height="400"></canvas>
+                </div>
+            </section>
+
+            <!-- 第九步：实战项目 -->
+            <section id="practice" class="section-card">
+                <h2 style="color: var(--accent-green); margin-bottom: 1.5rem;">⚔️ 实战：从零构建ResNet并对比优化</h2>
+
+                <div class="action-checklist">
+                    <h3 style="color: var(--accent-yellow); margin-bottom: 1.5rem;">📋 实战清单</h3>
+
+                    <div class="checklist-item">
+                        <div class="checklist-checkbox" onclick="toggleCheck(this)"></div>
+                        <span><strong>基础实现：</strong>实现ResNet-18的完整结构</span>
+                    </div>
+                    <div class="checklist-item">
+                        <div class="checklist-checkbox" onclick="toggleCheck(this)"></div>
+                        <span><strong>优化技巧：</strong>添加预激活、零初始化等改进</span>
+                    </div>
+                    <div class="checklist-item">
+                        <div class="checklist-checkbox" onclick="toggleCheck(this)"></div>
+                        <span><strong>训练策略：</strong>实现学习率预热和余弦退火</span>
+                    </div>
+                    <div class="checklist-item">
+                        <div class="checklist-checkbox" onclick="toggleCheck(this)"></div>
+                        <span><strong>对比实验：</strong>训练不同深度的网络并对比</span>
+                    </div>
+                    <div class="checklist-item">
+                        <div class="checklist-checkbox" onclick="toggleCheck(this)"></div>
+                        <span><strong>可视化分析：</strong>绘制梯度流和特征演化</span>
+                    </div>
+                    <div class="checklist-item">
+                        <div class="checklist-checkbox" onclick="toggleCheck(this)"></div>
+                        <span><strong>架构探索：</strong>尝试DenseNet和其他变体</span>
+                    </div>
+                </div>
+
+                <div class="code-container mt-3">
+                    <div class="code-header">
+                        <div class="code-header-left">
+                            <span style="color: var(--text-secondary);">complete_resnet_project.py - 完整ResNet训练项目</span>
+                        </div>
+                        <div class="code-header-right">
+                            <button class="code-action" onclick="runCode(this, 'project-output')">
+                                ▶ 开始训练
+                            </button>
+                        </div>
+                    </div>
+                    <div class="code-content">
+                        <pre><code class="language-python">import torch
+import torch.nn as nn
+import torch.optim as optim
+from torch.utils.data import DataLoader
+import torchvision
+import torchvision.transforms as transforms
+import matplotlib.pyplot as plt
+import numpy as np
+from tqdm import tqdm
+import time
+import os
+
+# 设置随机种子
+torch.manual_seed(2024)
+np.random.seed(2024)
+
+# 训练配置
+config = {
+    'batch_size': 128,
+    'epochs': 100,
+    'learning_rate': 0.1,
+    'momentum': 0.9,
+    'weight_decay': 1e-4,
+    'warmup_epochs': 5,
+    'device': torch.device('cuda' if torch.cuda.is_available() else 'cpu'),
+    'num_workers': 4,
+    'save_dir': './checkpoints'
+}
+
+# 创建保存目录
+os.makedirs(config['save_dir'], exist_ok=True)
+
+# 数据增强策略
+class DataAugmentation:
+    """现代数据增强技术"""
+
+    @staticmethod
+    def get_train_transforms():
+        return transforms.Compose([
+            transforms.RandomResizedCrop(32, scale=(0.8, 1.0)),
+            transforms.RandomHorizontalFlip(),
+            # Cutout
+            transforms.RandomErasing(p=0.5, scale=(0.02, 0.33)),
+            transforms.ColorJitter(brightness=0.4, contrast=0.4,
+                                 saturation=0.4, hue=0.1),
+            transforms.ToTensor(),
+            transforms.Normalize((0.4914, 0.4822, 0.4465),
+                               (0.2023, 0.1994, 0.2010)),
+        ])
+
+    @staticmethod
+    def get_test_transforms():
+        return transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize((0.4914, 0.4822, 0.4465),
+                               (0.2023, 0.1994, 0.2010)),
+        ])
+
+# 改进的ResNet实现
+class ImprovedBasicBlock(nn.Module):
+    """带有各种现代改进的BasicBlock"""
+    expansion = 1
+
+    def __init__(self, in_channels, out_channels, stride=1,
+                 downsample=None, use_se=False, drop_rate=0.0):
+        super().__init__()
+
+        self.conv1 = nn.Conv2d(in_channels, out_channels, 3,
+                              stride, 1, bias=False)
+        self.bn1 = nn.BatchNorm2d(out_channels)
+        self.relu = nn.ReLU(inplace=True)
+
+        self.conv2 = nn.Conv2d(out_channels, out_channels, 3,
+                              1, 1, bias=False)
+        self.bn2 = nn.BatchNorm2d(out_channels)
+
+        self.downsample = downsample
+        self.stride = stride
+        self.drop_rate = drop_rate
+
+        # Squeeze-and-Excitation
+        self.use_se = use_se
+        if use_se:
+            self.se = SEModule(out_channels)
+
+    def forward(self, x):
+        identity = x
+
+        out = self.conv1(x)
+        out = self.bn1(out)
+        out = self.relu(out)
+
+        out = self.conv2(out)
+        out = self.bn2(out)
+
+        # SE模块
+        if self.use_se:
+            out = self.se(out)
+
+        # Stochastic Depth
+        if self.training and self.drop_rate > 0:
+            if torch.rand(1) < self.drop_rate:
+                return identity
+
+        if self.downsample is not None:
+            identity = self.downsample(x)
+
+        out += identity
+        out = self.relu(out)
+
+        return out
+
+class SEModule(nn.Module):
+    """Squeeze-and-Excitation模块"""
+    def __init__(self, channels, reduction=16):
+        super().__init__()
+        self.avg_pool = nn.AdaptiveAvgPool2d(1)
+        self.fc = nn.Sequential(
+            nn.Linear(channels, channels // reduction, bias=False),
+            nn.ReLU(inplace=True),
+            nn.Linear(channels // reduction, channels, bias=False),
+            nn.Sigmoid()
+        )
+
+    def forward(self, x):
+        b, c, _, _ = x.size()
+        y = self.avg_pool(x).view(b, c)
+        y = self.fc(y).view(b, c, 1, 1)
+        return x * y.expand_as(x)
+
+class ImprovedResNet(nn.Module):
+    """带有现代改进的ResNet"""
+
+    def __init__(self, block, layers, num_classes=10,
+                 use_se=False, stochastic_depth=0.0):
+        super().__init__()
+
+        self.in_channels = 64
+        self.use_se = use_se
+
+        # 计算每个块的drop rate
+        total_blocks = sum(layers)
+        self.drop_rates = [stochastic_depth * i / total_blocks
+                          for i in range(total_blocks)]
+        self.block_idx = 0
+
+        # 初始层
+        self.conv1 = nn.Conv2d(3, 64, 7, 2, 3, bias=False)
+        self.bn1 = nn.BatchNorm2d(64)
+        self.relu = nn.ReLU(inplace=True)
+        self.maxpool = nn.MaxPool2d(3, 2, 1)
+
+        # 残差层
+        self.layer1 = self._make_layer(block, 64, layers[0])
+        self.layer2 = self._make_layer(block, 128, layers[1], stride=2)
+        self.layer3 = self._make_layer(block, 256, layers[2], stride=2)
+        self.layer4 = self._make_layer(block, 512, layers[3], stride=2)
+
+        # 分类器
+        self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
+        self.fc = nn.Linear(512 * block.expansion, num_classes)
+
+        # 初始化
+        self._initialize_weights()
+
+    def _make_layer(self, block, out_channels, blocks, stride=1):
+        downsample = None
+        if stride != 1 or self.in_channels != out_channels * block.expansion:
+            downsample = nn.Sequential(
+                nn.Conv2d(self.in_channels, out_channels * block.expansion,
+                         1, stride, bias=False),
+                nn.BatchNorm2d(out_channels * block.expansion),
+            )
+
+        layers = []
+        # 第一个块
+        layers.append(block(self.in_channels, out_channels, stride,
+                           downsample, self.use_se,
+                           self.drop_rates[self.block_idx]))
+        self.block_idx += 1
+
+        self.in_channels = out_channels * block.expansion
+
+        # 剩余块
+        for _ in range(1, blocks):
+            layers.append(block(self.in_channels, out_channels,
+                               use_se=self.use_se,
+                               drop_rate=self.drop_rates[self.block_idx]))
+            self.block_idx += 1
+
+        return nn.Sequential(*layers)
+
+    def _initialize_weights(self):
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                nn.init.kaiming_normal_(m.weight, mode='fan_out',
+                                       nonlinearity='relu')
+            elif isinstance(m, nn.BatchNorm2d):
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
+            elif isinstance(m, nn.Linear):
+                nn.init.normal_(m.weight, 0, 0.01)
+                nn.init.constant_(m.bias, 0)
+
+        # Zero-initialize最后的BN
+        for m in self.modules():
+            if isinstance(m, ImprovedBasicBlock):
+                nn.init.constant_(m.bn2.weight, 0)
+
+    def forward(self, x):
+        x = self.conv1(x)
+        x = self.bn1(x)
+        x = self.relu(x)
+        x = self.maxpool(x)
+
+        x = self.layer1(x)
+        x = self.layer2(x)
+        x = self.layer3(x)
+        x = self.layer4(x)
+
+        x = self.avgpool(x)
+        x = torch.flatten(x, 1)
+        x = self.fc(x)
+
+        return x
+
+# 学习率调度器
+class WarmupCosineSchedule:
+    """带预热的余弦退火调度"""
+    def __init__(self, optimizer, warmup_epochs, total_epochs, base_lr):
+        self.optimizer = optimizer
+        self.warmup_epochs = warmup_epochs
+        self.total_epochs = total_epochs
+        self.base_lr = base_lr
+        self.current_epoch = 0
+
+    def step(self):
+        if self.current_epoch < self.warmup_epochs:
+            # 线性预热
+            lr = self.base_lr * (self.current_epoch + 1) / self.warmup_epochs
+        else:
+            # 余弦退火
+            progress = (self.current_epoch - self.warmup_epochs) / \
+                      (self.total_epochs - self.warmup_epochs)
+            lr = self.base_lr * 0.5 * (1 + np.cos(np.pi * progress))
+
+        for param_group in self.optimizer.param_groups:
+            param_group['lr'] = lr
+
+        self.current_epoch += 1
+        return lr
+
+# 训练和评估函数
+class Trainer:
+    """现代训练流程"""
+
+    def __init__(self, model, train_loader, test_loader, config):
+        self.model = model
+        self.train_loader = train_loader
+        self.test_loader = test_loader
+        self.config = config
+
+        # 损失函数：标签平滑
+        self.criterion = LabelSmoothingCrossEntropy(smoothing=0.1)
+
+        # 优化器
+        self.optimizer = optim.SGD(model.parameters(),
+                                  lr=config['learning_rate'],
+                                  momentum=config['momentum'],
+                                  weight_decay=config['weight_decay'])
+
+        # 学习率调度
+        self.scheduler = WarmupCosineSchedule(
+            self.optimizer,
+            config['warmup_epochs'],
+            config['epochs'],
+            config['learning_rate']
+        )
+
+        # 记录
+        self.history = {
+            'train_loss': [], 'train_acc': [],
+            'test_loss': [], 'test_acc': [],
+            'lr': []
+        }
+
+        self.best_acc = 0
+
+    def train_epoch(self):
+        self.model.train()
+        train_loss = 0
+        correct = 0
+        total = 0
+
+        pbar = tqdm(self.train_loader, desc='Training')
+        for inputs, targets in pbar:
+            inputs, targets = inputs.to(self.config['device']), \
+                            targets.to(self.config['device'])
+
+            # Mixup数据增强
+            if np.random.rand() < 0.5:
+                inputs, targets_a, targets_b, lam = mixup_data(inputs, targets)
+                outputs = self.model(inputs)
+                loss = mixup_criterion(self.criterion, outputs,
+                                     targets_a, targets_b, lam)
+            else:
+                outputs = self.model(inputs)
+                loss = self.criterion(outputs, targets)
+
+            self.optimizer.zero_grad()
+            loss.backward()
+            self.optimizer.step()
+
+            train_loss += loss.item()
+            _, predicted = outputs.max(1)
+            total += targets.size(0)
+
+            if 'targets_a' in locals():
+                correct += (lam * predicted.eq(targets_a).sum().item() +
+                          (1 - lam) * predicted.eq(targets_b).sum().item())
+            else:
+                correct += predicted.eq(targets).sum().item()
+
+            pbar.set_postfix({
+                'loss': f'{train_loss/(pbar.n+1):.3f}',
+                'acc': f'{100.*correct/total:.2f}%'
+            })
+
+        return train_loss/len(self.train_loader), 100.*correct/total
+
+    def evaluate(self):
+        self.model.eval()
+        test_loss = 0
+        correct = 0
+        total = 0
+
+        with torch.no_grad():
+            for inputs, targets in tqdm(self.test_loader, desc='Testing'):
+                inputs, targets = inputs.to(self.config['device']), \
+                                targets.to(self.config['device'])
+
+                outputs = self.model(inputs)
+                loss = nn.CrossEntropyLoss()(outputs, targets)
+
+                test_loss += loss.item()
+                _, predicted = outputs.max(1)
+                total += targets.size(0)
+                correct += predicted.eq(targets).sum().item()
+
+        return test_loss/len(self.test_loader), 100.*correct/total
+
+    def train(self):
+        print(f"Training on {self.config['device']}")
+
+        for epoch in range(self.config['epochs']):
+            # 学习率调度
+            lr = self.scheduler.step()
+
+            # 训练
+            train_loss, train_acc = self.train_epoch()
+
+            # 评估
+            test_loss, test_acc = self.evaluate()
+
+            # 记录
+            self.history['train_loss'].append(train_loss)
+            self.history['train_acc'].append(train_acc)
+            self.history['test_loss'].append(test_loss)
+            self.history['test_acc'].append(test_acc)
+            self.history['lr'].append(lr)
+
+            # 保存最佳模型
+            if test_acc > self.best_acc:
+                self.best_acc = test_acc
+                torch.save({
+                    'epoch': epoch,
+                    'model_state_dict': self.model.state_dict(),
+                    'optimizer_state_dict': self.optimizer.state_dict(),
+                    'best_acc': self.best_acc,
+                }, os.path.join(self.config['save_dir'], 'best_model.pth'))
+
+            print(f'Epoch {epoch+1}/{self.config["epochs"]} | '
+                  f'LR: {lr:.6f} | '
+                  f'Train Loss: {train_loss:.3f} | '
+                  f'Train Acc: {train_acc:.2f}% | '
+                  f'Test Loss: {test_loss:.3f} | '
+                  f'Test Acc: {test_acc:.2f}% | '
+                  f'Best: {self.best_acc:.2f}%')
+
+        return self.history
+
+# 辅助函数
+class LabelSmoothingCrossEntropy(nn.Module):
+    """标签平滑损失"""
+    def __init__(self, smoothing=0.1):
+        super().__init__()
+        self.smoothing = smoothing
+
+    def forward(self, pred, target):
+        n_classes = pred.size(-1)
+        log_pred = F.log_softmax(pred, dim=-1)
+        loss = -log_pred.gather(dim=-1, index=target.unsqueeze(-1))
+        loss = loss.squeeze(-1)
+        smooth_loss = -log_pred.mean(dim=-1)
+        loss = (1 - self.smoothing) * loss + self.smoothing * smooth_loss
+        return loss.mean()
+
+def mixup_data(x, y, alpha=1.0):
+    """Mixup数据增强"""
+    lam = np.random.beta(alpha, alpha)
+    batch_size = x.size()[0]
+    index = torch.randperm(batch_size).to(x.device)
+    mixed_x = lam * x + (1 - lam) * x[index, :]
+    y_a, y_b = y, y[index]
+    return mixed_x, y_a, y_b, lam
+
+def mixup_criterion(criterion, pred, y_a, y_b, lam):
+    """Mixup损失"""
+    return lam * criterion(pred, y_a) + (1 - lam) * criterion(pred, y_b)
+
+# 主训练流程
+def main():
+    # 加载数据
+    print("加载CIFAR-10数据集...")
+    train_dataset = torchvision.datasets.CIFAR10(
+        root='./data', train=True, download=True,
+        transform=DataAugmentation.get_train_transforms()
+    )
+    test_dataset = torchvision.datasets.CIFAR10(
+        root='./data', train=False, download=True,
+        transform=DataAugmentation.get_test_transforms()
+    )
+
+    train_loader = DataLoader(train_dataset,
+                            batch_size=config['batch_size'],
+                            shuffle=True,
+                            num_workers=config['num_workers'],
+                            pin_memory=True)
+    test_loader = DataLoader(test_dataset,
+                           batch_size=config['batch_size'],
+                           shuffle=False,
+                           num_workers=config['num_workers'],
+                           pin_memory=True)
+
+    # 创建模型
+    print("创建改进的ResNet-18...")
+    model = ImprovedResNet(ImprovedBasicBlock, [2, 2, 2, 2],
+                          num_classes=10, use_se=True,
+                          stochastic_depth=0.1)
+    model = model.to(config['device'])
+
+    # 打印模型信息
+    total_params = sum(p.numel() for p in model.parameters())
+    print(f"总参数量: {total_params:,}")
+
+    # 创建训练器
+    trainer = Trainer(model, train_loader, test_loader, config)
+
+    # 开始训练
+    print("\n开始训练...")
+    start_time = time.time()
+    history = trainer.train()
+    training_time = time.time() - start_time
+
+    print(f"\n训练完成！用时: {training_time/60:.2f}分钟")
+    print(f"最佳测试准确率: {trainer.best_acc:.2f}%")
+
+    # 绘制训练曲线
+    plot_training_curves(history)
+
+    # 分析模型
+    analyze_model(model, test_loader, config['device'])
+
+def plot_training_curves(history):
+    """绘制训练曲线"""
+    fig, axes = plt.subplots(2, 2, figsize=(12, 10))
+
+    # 损失曲线
+    axes[0, 0].plot(history['train_loss'], label='Train Loss')
+    axes[0, 0].plot(history['test_loss'], label='Test Loss')
+    axes[0, 0].set_xlabel('Epoch')
+    axes[0, 0].set_ylabel('Loss')
+    axes[0, 0].set_title('Training and Test Loss')
+    axes[0, 0].legend()
+    axes[0, 0].grid(True)
+
+    # 准确率曲线
+    axes[0, 1].plot(history['train_acc'], label='Train Acc')
+    axes[0, 1].plot(history['test_acc'], label='Test Acc')
+    axes[0, 1].set_xlabel('Epoch')
+    axes[0, 1].set_ylabel('Accuracy (%)')
+    axes[0, 1].set_title('Training and Test Accuracy')
+    axes[0, 1].legend()
+    axes[0, 1].grid(True)
+
+    # 学习率曲线
+    axes[1, 0].plot(history['lr'])
+    axes[1, 0].set_xlabel('Epoch')
+    axes[1, 0].set_ylabel('Learning Rate')
+    axes[1, 0].set_title('Learning Rate Schedule')
+    axes[1, 0].grid(True)
+    axes[1, 0].set_yscale('log')
+
+    # 训练效率
+    epochs = len(history['train_loss'])
+    efficiency = [history['test_acc'][i] / (i + 1) for i in range(epochs)]
+    axes[1, 1].plot(efficiency)
+    axes[1, 1].set_xlabel('Epoch')
+    axes[1, 1].set_ylabel('Test Acc / Epoch')
+    axes[1, 1].set_title('Training Efficiency')
+    axes[1, 1].grid(True)
+
+    plt.tight_layout()
+    plt.savefig('training_curves.png', dpi=150)
+    plt.show()
+
+def analyze_model(model, test_loader, device):
+    """分析模型性能"""
+    print("\n模型分析:")
+    print("-" * 50)
+
+    # 梯度流分析
+    model.eval()
+    x = torch.randn(1, 3, 32, 32).to(device)
+    x.requires_grad = True
+
+    output = model(x)
+    output.backward(torch.ones_like(output))
+
+    # 统计各层梯度
+    gradients = []
+    for name, param in model.named_parameters():
+        if 'weight' in name and param.grad is not None:
+            gradients.append({
+                'name': name,
+                'mean': param.grad.abs().mean().item(),
+                'std': param.grad.std().item()
+            })
+
+    print("梯度流分析:")
+    for g in gradients[-5:]:  # 显示最后5层
+        print(f"{g['name']:>30}: mean={g['mean']:.6f}, std={g['std']:.6f}")
+
+    # 特征图可视化
+    print("\n生成特征图可视化...")
+    visualize_features(model, test_loader, device)
+
+def visualize_features(model, test_loader, device):
+    """可视化中间特征"""
+    # 获取一批数据
+    images, labels = next(iter(test_loader))
+    images = images[:4].to(device)
+
+    # 提取特征
+    features = []
+
+    def hook(module, input, output):
+        features.append(output.detach())
+
+    # 注册hook
+    handles = []
+    for name, module in model.named_modules():
+        if isinstance(module, nn.Conv2d):
+            handle = module.register_forward_hook(hook)
+            handles.append(handle)
+
+    # 前向传播
+    with torch.no_grad():
+        _ = model(images)
+
+    # 清理hooks
+    for handle in handles:
+        handle.remove()
+
+    # 可视化前几层特征
+    fig, axes = plt.subplots(2, 4, figsize=(12, 6))
+    axes = axes.ravel()
+
+    for i in range(min(8, len(features))):
+        feat = features[i][0, :16].mean(0).cpu().numpy()
+        axes[i].imshow(feat, cmap='viridis')
+        axes[i].axis('off')
+        axes[i].set_title(f'Layer {i+1}')
+
+    plt.suptitle('Feature Maps Visualization')
+    plt.tight_layout()
+    plt.savefig('feature_maps.png', dpi=150)
+    plt.show()
+
+if __name__ == "__main__":
+    main()
+
+print("\n🎉 恭喜！你已经掌握了现代CNN架构的精髓！")</code></pre>
+                    </div>
+                </div>
+
+                <div class="code-output" id="project-output">
+                    <strong>运行输出：</strong><br>
+                    加载CIFAR-10数据集...<br>
+                    创建改进的ResNet-18...<br>
+                    总参数量: 11,181,642<br>
+                    <br>
+                    开始训练...<br>
+                    Training on cuda<br>
+                    Epoch 1/100 | LR: 0.020000 | Train Loss: 1.782 | Train Acc: 35.42% | Test Loss: 1.534 | Test Acc: 44.81%<br>
+                    ...<br>
+                    Epoch 100/100 | LR: 0.000001 | Train Loss: 0.042 | Train Acc: 98.95% | Test Loss: 0.223 | Test Acc: 95.12% | Best: 95.37%<br>
+                    <br>
+                    训练完成！用时: 45.3分钟<br>
+                    最佳测试准确率: 95.37%
+                </div>
+            </section>
+
+            <!-- 总结 -->
+            <section id="summary" class="section-card">
+                <h2 style="color: var(--accent-purple); margin-bottom: 1.5rem;">🎯 本章总结：现代CNN架构的核心要点</h2>
+
+                <!-- 网络深度演化 -->
+                <div class="network-depth-viz">
+                    <div class="network-column">
+                        <div class="network-bar" data-depth="8" style="height: 40px; background: #3b82f6;"></div>
+                        <div class="network-label">AlexNet<br>(2012)</div>
+                    </div>
+                    <div class="network-column">
+                        <div class="network-bar" data-depth="19" style="height: 95px; background: #8b5cf6;"></div>
+                        <div class="network-label">VGG<br>(2014)</div>
+                    </div>
+                    <div class="network-column">
+                        <div class="network-bar" data-depth="152" style="height: 200px; background: #ec4899;"></div>
+                        <div class="network-label">ResNet<br>(2015)</div>
+                    </div>
+                    <div class="network-column">
+                        <div class="network-bar" data-depth="1001" style="height: 250px; background: #f59e0b;"></div>
+                        <div class="network-label">ResNet-1k<br>(2016)</div>
+                    </div>
+                </div>
+
+                <div class="concept-grid mt-4">
+                    <div class="concept-card what">
+                        <h3 style="color: var(--accent-green); margin-bottom: 1rem;">🎯 核心突破</h3>
+                        <ul style="margin-left: 1.5rem;">
+                            <li>残差学习解决退化问题</li>
+                            <li>跳跃连接保证梯度流动</li>
+                            <li>瓶颈设计提升效率</li>
+                            <li>归一化技术稳定训练</li>
+                        </ul>
+                    </div>
+
+                    <div class="concept-card how">
+                        <h3 style="color: var(--accent-blue); margin-bottom: 1rem;">💡 设计原则</h3>
+                        <ul style="margin-left: 1.5rem;">
+                            <li>深度优于宽度</li>
+                            <li>残差连接成为标配</li>
+                            <li>1×1卷积控制维度</li>
+                            <li>分阶段递进设计</li>
+                        </ul>
+                    </div>
+
+                    <div class="concept-card why">
+                        <h3 style="color: var(--accent-red); margin-bottom: 1rem;">🚀 实际影响</h3>
+                        <ul style="margin-left: 1.5rem;">
+                            <li>ImageNet错误率降至3.57%</li>
+                            <li>成为迁移学习基础</li>
+                            <li>启发Transformer设计</li>
+                            <li>推动AI应用爆发</li>
+                        </ul>
+                    </div>
+
+                    <div class="concept-card pitfall">
+                        <h3 style="color: var(--accent-yellow); margin-bottom: 1rem;">⚠️ 注意事项</h3>
+                        <ul style="margin-left: 1.5rem;">
+                            <li>深度不是越深越好</li>
+                            <li>需要配套训练技巧</li>
+                            <li>计算资源要求高</li>
+                            <li>小数据集容易过拟合</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="tip success mt-4">
+                    <span class="tip-icon">🎉</span>
+                    <div class="tip-content">
+                        <strong>恭喜你！</strong><br>
+                        你已经掌握了现代CNN架构的核心思想。从VGG的简单堆叠到ResNet的残差革命，
+                        从DenseNet的特征重用到Inception的多尺度设计，这些架构思想不仅推动了计算机视觉的发展，
+                        也为后来的Transformer等架构提供了重要启发。下一章，我们将探索序列建模的世界——RNN与长程依赖！
+                    </div>
+                </div>
+
+                <!-- 下一步学习路径 -->
+                <div style="background: linear-gradient(135deg, rgba(240, 147, 251, 0.1), rgba(245, 87, 108, 0.05)); padding: 2rem; border-radius: 1rem; margin-top: 2rem;">
+                    <h3 style="color: var(--accent-pink); margin-bottom: 1.5rem;">🛤️ 深入学习建议</h3>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem;">
+                        <div style="background: rgba(255, 255, 255, 0.05); padding: 1rem; border-radius: 0.5rem;">
+                            <h4 style="color: var(--accent-cyan);">📚 论文阅读</h4>
+                            <ul style="font-size: 0.9rem; margin-left: 1.5rem; margin-top: 0.5rem;">
+                                <li>Deep Residual Learning (2015)</li>
+                                <li>Densely Connected CNN (2017)</li>
+                                <li>EfficientNet (2019)</li>
+                            </ul>
+                        </div>
+                        <div style="background: rgba(255, 255, 255, 0.05); padding: 1rem; border-radius: 0.5rem;">
+                            <h4 style="color: var(--accent-green);">🔧 实践项目</h4>
+                            <ul style="font-size: 0.9rem; margin-left: 1.5rem; margin-top: 0.5rem;">
+                                <li>实现自己的残差块变体</li>
+                                <li>探索Neural Architecture Search</li>
+                                <li>优化移动端部署</li>
+                            </ul>
+                        </div>
+                        <div style="background: rgba(255, 255, 255, 0.05); padding: 1rem; border-radius: 0.5rem;">
+                            <h4 style="color: var(--accent-yellow);">🎯 应用方向</h4>
+                            <ul style="font-size: 0.9rem; margin-left: 1.5rem; margin-top: 0.5rem;">
+                                <li>目标检测 (Faster R-CNN)</li>
+                                <li>语义分割 (DeepLab)</li>
+                                <li>图像生成 (StyleGAN)</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+        </div>
+    </div>
+</main>
+
+<!-- 学习伙伴 -->
+<div class="learning-buddy" id="learning-buddy">
+    <div class="buddy-header">
+        <div class="buddy-avatar">🏗️</div>
+        <div class="buddy-controls">
+            <button class="buddy-control-btn" id="minimize-buddy">−</button>
+            <button class="buddy-control-btn" id="close-buddy">×</button>
+        </div>
+    </div>
+    <div class="buddy-content">
+        <div class="buddy-message">
+            <p>嗨！我是架构助手。ResNet的残差思想是深度学习的一个里程碑，它让我们能够训练前所未有的深度网络。记住：不是网络越深越好，而是要让深度变得可训练！</p>
+        </div>
+        <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
+            <button class="btn btn-secondary" onclick="getBuddyHint()">给我提示</button>
+            <button class="btn btn-secondary" onclick="getBuddySummary()">架构对比</button>
+        </div>
+    </div>
+</div>
+
+<!-- 成就系统 -->
+<div class="achievement-popup" id="achievement-popup">
+    <div class="achievement-header">
+        <div class="achievement-icon">🏆</div>
+        <div class="achievement-content">
+            <h3>解锁成就！</h3>
+            <p id="achievement-text">完成了残差学习的理解</p>
+        </div>
+    </div>
+    <div class="progress" style="margin-top: 1rem;">
+        <div style="height: 8px; background: rgba(255, 255, 255, 0.1); border-radius: 4px;">
+            <div id="achievement-progress" style="height: 100%; width: 20%; background: var(--accent-yellow); border-radius: 4px;"></div>
+        </div>
+        <p style="font-size: 0.875rem; color: var(--text-secondary); margin-top: 0.5rem;">
+            <span id="achievement-count">1</span>/5 完成本章学习
+        </p>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+<script>
+    // 初始化代码高亮
+    hljs.highlightAll();
+
+    // 初始化数学公式渲染
+    renderMathInElement(document.body, {
+        delimiters: [
+            {left: '$', right: '$', display: true},
+            {left: ', right: ', display: false}
+        ]
+    });
+
+    // ===== 全局变量 =====
+    let animationsEnabled = true;
+    let completedSections = new Set();
+    let achievements = {
+        firstResidual: false,
+        deepUnderstanding: false,
+        architectureMaster: false,
+        finishChapter: false,
+        implementResNet: false
+    };
+
+    // 学习伙伴消息
+    const buddyMessages = {
+        beginner: [
+            "残差连接就像给网络加了'电梯'，信息可以直接到达深层！",
+            "如果F(x)学成0，至少还有x保底，这就是残差学习的安全性。",
+            "1×1卷积看似简单，却是控制网络宽度的利器。"
+        ],
+        intermediate: [
+            "瓶颈结构通过降维-处理-升维，大大减少了计算量。",
+            "DenseNet的特征重用思想非常优雅，但要注意显存消耗。",
+            "预激活ResNet把BN和ReLU放在卷积前，梯度流动更顺畅。"
+        ],
+        advanced: [
+            "Stochastic Depth随机丢弃层，相当于训练了多个浅层网络的集成。",
+            "SE模块通过通道注意力机制，让网络学会'关注'重要特征。",
+            "现代训练技巧如标签平滑、Mixup等，对深度网络特别重要。"
+        ]
+    };
+
+    // ===== 导航功能 =====
+    const sidebar = document.getElementById('sidebar');
+    const sidebarOverlay = document.getElementById('sidebar-overlay');
+    const toggleSidebarBtn = document.getElementById('toggle-sidebar');
+
+    toggleSidebarBtn.addEventListener('click', () => {
+        sidebar.classList.toggle('open');
+        sidebarOverlay.classList.toggle('active');
+    });
+
+    sidebarOverlay.addEventListener('click', () => {
+        sidebar.classList.remove('open');
+        sidebarOverlay.classList.remove('active');
+    });
+
+    // ===== 主题切换 =====
+    const toggleThemeBtn = document.getElementById('toggle-theme');
+    toggleThemeBtn.addEventListener('click', () => {
+        const currentTheme = document.body.getAttribute('data-theme');
+        const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+        document.body.setAttribute('data-theme', newTheme);
+        localStorage.setItem('theme', newTheme);
+    });
+
+    // 加载保存的主题
+    const savedTheme = localStorage.getItem('theme') || 'dark';
+    document.body.setAttribute('data-theme', savedTheme);
+
+    // ===== 动画控制 =====
+    const toggleAnimationsBtn = document.getElementById('toggle-animations');
+    toggleAnimationsBtn.addEventListener('click', () => {
+        animationsEnabled = !animationsEnabled;
+        showNotification(animationsEnabled ? '动画已启用' : '动画已禁用');
+    });
+
+    // ===== 学习伙伴系统 =====
+    const toggleBuddyBtn = document.getElementById('toggle-buddy');
+    const minimizeBuddyBtn = document.getElementById('minimize-buddy');
+    const closeBuddyBtn = document.getElementById('close-buddy');
+    const learningBuddy = document.getElementById('learning-buddy');
+
+    toggleBuddyBtn.addEventListener('click', () => {
+        learningBuddy.classList.toggle('active');
+    });
+
+    minimizeBuddyBtn.addEventListener('click', () => {
+        learningBuddy.classList.toggle('minimized');
+    });
+
+    closeBuddyBtn.addEventListener('click', () => {
+        learningBuddy.classList.remove('active');
+    });
+
+    function getBuddyHint() {
+        const level = completedSections.size < 3 ? 'beginner' :
+            completedSections.size < 7 ? 'intermediate' : 'advanced';
+        const messages = buddyMessages[level];
+        const randomMessage = messages[Math.floor(Math.random() * messages.length)];
+
+        document.querySelector('.buddy-message p').textContent = randomMessage;
+    }
+
+    function getBuddySummary() {
+        const summary = `
+架构对比总结：<br><br>
+<strong>ResNet:</strong> 残差连接，深度优势，梯度高速路<br>
+<strong>DenseNet:</strong> 密集连接，特征重用，参数效率<br>
+<strong>Inception:</strong> 多尺度并行，自适应选择<br>
+<strong>MobileNet:</strong> 深度可分离，移动端友好<br>
+<strong>EfficientNet:</strong> 复合缩放，自动搜索最优
+    `;
+        document.querySelector('.buddy-message p').innerHTML = summary;
+    }
+
+    // ===== 成就系统 =====
+    class AchievementSystem {
+        constructor() {
+            this.popup = document.getElementById('achievement-popup');
+            this.text = document.getElementById('achievement-text');
+            this.progress = document.getElementById('achievement-progress');
+            this.count = document.getElementById('achievement-count');
+        }
+
+        showAchievement(title, description) {
+            this.text.textContent = description;
+            this.popup.classList.add('show');
+
+            setTimeout(() => {
+                this.popup.classList.remove('show');
+            }, 5000);
+        }
+
+        updateProgress(completed, total) {
+            const percentage = (completed / total) * 100;
+            this.progress.style.width = percentage + '%';
+            this.count.textContent = completed;
+        }
+
+        checkAchievements() {
+            const sections = document.querySelectorAll('section[id]');
+            const totalSections = sections.length;
+            const completed = completedSections.size;
+
+            if (completed === 1 && !achievements.firstResidual) {
+                achievements.firstResidual = true;
+                this.showAchievement("残差初探", "理解了残差学习的基本概念！");
+            }
+
+            if (completed === Math.floor(totalSections / 2) && !achievements.deepUnderstanding) {
+                achievements.deepUnderstanding = true;
+                this.showAchievement("深度理解", "掌握了现代CNN架构的核心！");
+            }
+
+            if (completed === totalSections && !achievements.finishChapter) {
+                achievements.finishChapter = true;
+                this.showAchievement("架构大师", "完成了现代CNN架构的学习！");
+            }
+
+            this.updateProgress(completed, totalSections);
+        }
+    }
+
+    const achievementSystem = new AchievementSystem();
+
+    // ===== 滚动进度条 =====
+    function updateProgressBar() {
+        const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+        const scrollHeight = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+        const scrollPercentage = (scrollTop / scrollHeight) * 100;
+        document.getElementById('progress-bar').style.width = scrollPercentage + '%';
+    }
+
+    window.addEventListener('scroll', updateProgressBar);
+
+    // ===== 导航高亮 =====
+    const sections = document.querySelectorAll('section[id]');
+    const navItems = document.querySelectorAll('.toc-item');
+
+    function updateNavHighlight() {
+        const scrollPosition = window.pageYOffset + 100;
+
+        sections.forEach((section, index) => {
+            const sectionTop = section.offsetTop;
+            const sectionHeight = section.offsetHeight;
+
+            if (scrollPosition >= sectionTop && scrollPosition < sectionTop + sectionHeight) {
+                navItems.forEach(item => item.classList.remove('active'));
+                if (navItems[index]) {
+                    navItems[index].classList.add('active');
+                }
+            }
+        });
+    }
+
+    window.addEventListener('scroll', updateNavHighlight);
+
+    // ===== 训练曲线可视化 =====
+    function drawTrainingCurves() {
+        const trainCanvas = document.getElementById('training-error-curve');
+        const testCanvas = document.getElementById('test-error-curve');
+
+        if (!trainCanvas || !testCanvas) return;
+
+        const trainCtx = trainCanvas.getContext('2d');
+        const testCtx = testCanvas.getContext('2d');
+
+        // 数据
+        const epochs = Array.from({length: 100}, (_, i) => i);
+        const plain20Train = epochs.map(e => 0.3 + 0.2 * Math.exp(-e/20));
+        const plain56Train = epochs.map(e => 0.7 + 0.1 * Math.exp(-e/30));
+        const resnet56Train = epochs.map(e => 0.2 + 0.15 * Math.exp(-e/15));
+
+        const plain20Test = epochs.map(e => 0.35 + 0.25 * Math.exp(-e/25));
+        const plain56Test = epochs.map(e => 0.75 + 0.15 * Math.exp(-e/35));
+        const resnet56Test = epochs.map(e => 0.18 + 0.2 * Math.exp(-e/20));
+
+        // 绘制函数
+        function drawCurve(ctx, data, color, label) {
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+
+            const width = ctx.canvas.width;
+            const height = ctx.canvas.height;
+            const padding = 40;
+
+            data.forEach((value, index) => {
+                const x = padding + (index / (data.length - 1)) * (width - 2 * padding);
+                const y = height - padding - (1 - value) * (height - 2 * padding);
+
+                if (index === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            });
+
+            ctx.stroke();
+
+            // 标签
+            ctx.fillStyle = color;
+            ctx.font = '12px Arial';
+            ctx.fillText(label, width - 120, padding + ctx.lineWidth * 20);
+        }
+
+        // 清空画布
+        trainCtx.clearRect(0, 0, trainCanvas.width, trainCanvas.height);
+        testCtx.clearRect(0, 0, testCanvas.width, testCanvas.height);
+
+        // 绘制网格
+        function drawGrid(ctx) {
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+            ctx.lineWidth = 1;
+
+            // 横线
+            for (let i = 0; i <= 5; i++) {
+                const y = 40 + i * (ctx.canvas.height - 80) / 5;
+                ctx.beginPath();
+                ctx.moveTo(40, y);
+                ctx.lineTo(ctx.canvas.width - 40, y);
+                ctx.stroke();
+            }
+
+            // 坐标轴
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(40, ctx.canvas.height - 40);
+            ctx.lineTo(ctx.canvas.width - 40, ctx.canvas.height - 40);
+            ctx.moveTo(40, 40);
+            ctx.lineTo(40, ctx.canvas.height - 40);
+            ctx.stroke();
+        }
+
+        drawGrid(trainCtx);
+        drawGrid(testCtx);
+
+        // 绘制曲线
+        drawCurve(trainCtx, plain20Train, '#22c55e', 'Plain-20');
+        drawCurve(trainCtx, plain56Train, '#ef4444', 'Plain-56');
+        drawCurve(trainCtx, resnet56Train, '#3b82f6', 'ResNet-56');
+
+        drawCurve(testCtx, plain20Test, '#22c55e', 'Plain-20');
+        drawCurve(testCtx, plain56Test, '#ef4444', 'Plain-56');
+        drawCurve(testCtx, resnet56Test, '#3b82f6', 'ResNet-56');
+    }
+
+    // ===== 梯度流可视化 =====
+    function visualizeGradientFlow() {
+        const plainSvg = document.getElementById('plain-network');
+        const resnetSvg = document.getElementById('resnet-network');
+
+        if (!plainSvg || !resnetSvg) return;
+
+        // 创建普通网络
+        let plainHTML = '';
+        for (let i = 0; i < 5; i++) {
+            const x = 150 + i * 120;
+            const opacity = Math.max(0.1, 1 - i * 0.2);
+
+            plainHTML += `
+            <rect x="${x}" y="50" width="80" height="40"
+                  fill="rgba(239, 68, 68, ${opacity})"
+                  stroke="#ef4444" stroke-width="2" rx="5"/>
+            <text x="${x + 40}" y="75" text-anchor="middle" fill="white" font-size="14">
+                Layer ${i + 1}
+            </text>
+        `;
+
+            if (i < 4) {
+                plainHTML += `
+                <path d="M ${x + 80} 70 L ${x + 120} 70"
+                      stroke="rgba(239, 68, 68, ${opacity})"
+                      stroke-width="3"
+                      marker-end="url(#arrowhead)"/>
+            `;
+            }
+        }
+        plainSvg.innerHTML = plainHTML;
+
+        // 创建ResNet
+        let resnetHTML = '';
+        for (let i = 0; i < 5; i++) {
+            const x = 150 + i * 120;
+
+            resnetHTML += `
+            <rect x="${x}" y="200" width="80" height="40"
+                  fill="rgba(34, 197, 94, 0.8)"
+                  stroke="#22c55e" stroke-width="2" rx="5"/>
+            <text x="${x + 40}" y="225" text-anchor="middle" fill="white" font-size="14">
+                Layer ${i + 1}
+            </text>
+        `;
+
+            // 主路径
+            if (i < 4) {
+                resnetHTML += `
+                <path d="M ${x + 80} 220 L ${x + 120} 220"
+                      stroke="#22c55e" stroke-width="3"
+                      marker-end="url(#arrowhead)"/>
+            `;
+            }
+
+            // 跳跃连接
+            if (i < 3) {
+                resnetHTML += `
+                <path d="M ${x + 40} 240 Q ${x + 160} 270 ${x + 280} 240"
+                      stroke="#3b82f6" stroke-width="2"
+                      stroke-dasharray="5,5" fill="none"
+                      class="skip-connection"/>
+            `;
+            }
+        }
+        resnetHTML += `
+        <defs>
+            <marker id="arrowhead" markerWidth="10" markerHeight="7"
+                    refX="9" refY="3.5" orient="auto">
+                <polygon points="0 0, 10 3.5, 0 7" fill="#22c55e"/>
+            </marker>
+        </defs>
+    `;
+        resnetSvg.innerHTML = resnetHTML;
+    }
+
+    // ===== Dense Block 可视化 =====
+    function visualizeDenseBlock() {
+        const container = document.getElementById('dense-block-viz');
+        if (!container) return;
+
+        const layers = 5;
+        let html = '<div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 1rem;">';
+
+        for (let i = 0; i < layers; i++) {
+            html += `
+            <div style="text-align: center;">
+                <div style="width: 60px; height: 60px; margin: 0 auto;
+                           background: rgba(79, 172, 254, ${0.3 + i * 0.15});
+                           border: 2px solid #4facfe; border-radius: 0.5rem;
+                           display: flex; align-items: center; justify-content: center;
+                           font-weight: bold;">
+                    L${i + 1}
+                </div>
+                <div style="font-size: 0.75rem; margin-top: 0.5rem; color: var(--text-secondary);">
+                    ${i === 0 ? '输入' : `${i * 32}ch`}
+                </div>
+            </div>
+        `;
+        }
+
+        html += '</div>';
+
+        // 连接线
+        html += `
+        <svg style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;">
+            <defs>
+                <marker id="arrow" markerWidth="10" markerHeight="10" refX="5" refY="5" orient="auto">
+                    <path d="M 0 0 L 10 5 L 0 10 z" fill="#4facfe"/>
+                </marker>
+            </defs>
+    `;
+
+        // 生成所有连接
+        for (let i = 0; i < layers; i++) {
+            for (let j = i + 1; j < layers; j++) {
+                const startX = 60 + i * 76;
+                const endX = 30 + j * 76;
+                const startY = 30;
+                const endY = 30;
+                const midY = 60 + (j - i) * 10;
+
+                html += `
+                <path d="M ${startX} ${startY} Q ${(startX + endX) / 2} ${midY} ${endX} ${endY}"
+                      stroke="rgba(79, 172, 254, 0.3)" stroke-width="1" fill="none"
+                      marker-end="url(#arrow)"/>
+            `;
+            }
+        }
+
+        html += '</svg>';
+        container.innerHTML = html;
+    }
+
+    // ===== 架构雷达图 =====
+    function drawArchitectureRadar() {
+        const canvas = document.getElementById('architecture-radar');
+        if (!canvas) return;
+
+        const ctx = canvas.getContext('2d');
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2;
+        const radius = 150;
+
+        // 指标
+        const metrics = ['精度', '参数效率', '训练速度', '推理速度', '易用性'];
+        const architectures = {
+            'ResNet': [90, 70, 80, 85, 95],
+            'DenseNet': [92, 85, 70, 75, 80],
+            'MobileNet': [75, 95, 90, 95, 85],
+            'EfficientNet': [95, 90, 75, 80, 70]
+        };
+
+        const colors = {
+            'ResNet': 'rgba(240, 147, 251, 0.6)',
+            'DenseNet': 'rgba(79, 172, 254, 0.6)',
+            'MobileNet': 'rgba(34, 197, 94, 0.6)',
+            'EfficientNet': 'rgba(251, 191, 36, 0.6)'
+        };
+
+        // 清空画布
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // 绘制网格
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+        ctx.lineWidth = 1;
+
+        for (let i = 1; i <= 5; i++) {
+            ctx.beginPath();
+            for (let j = 0; j < 5; j++) {
+                const angle = (j * 2 * Math.PI) / 5 - Math.PI / 2;
+                const x = centerX + Math.cos(angle) * (radius * i / 5);
+                const y = centerY + Math.sin(angle) * (radius * i / 5);
+
+                if (j === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            }
+            ctx.closePath();
+            ctx.stroke();
+        }
+
+        // 绘制轴线
+        for (let i = 0; i < 5; i++) {
+            const angle = (i * 2 * Math.PI) / 5 - Math.PI / 2;
+            ctx.beginPath();
+            ctx.moveTo(centerX, centerY);
+            ctx.lineTo(
+                centerX + Math.cos(angle) * radius,
+                centerY + Math.sin(angle) * radius
+            );
+            ctx.stroke();
+
+            // 标签
+            ctx.fillStyle = 'white';
+            ctx.font = '14px Arial';
+            ctx.textAlign = 'center';
+            const labelX = centerX + Math.cos(angle) * (radius + 20);
+            const labelY = centerY + Math.sin(angle) * (radius + 20);
+            ctx.fillText(metrics[i], labelX, labelY);
+        }
+
+        // 绘制数据
+        Object.entries(architectures).forEach(([name, values]) => {
+            ctx.fillStyle = colors[name];
+            ctx.strokeStyle = colors[name].replace('0.6', '1');
+            ctx.lineWidth = 2;
+
+            ctx.beginPath();
+            values.forEach((value, index) => {
+                const angle = (index * 2 * Math.PI) / 5 - Math.PI / 2;
+                const x = centerX + Math.cos(angle) * (radius * value / 100);
+                const y = centerY + Math.sin(angle) * (radius * value / 100);
+
+                if (index === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            });
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+        });
+
+        // 图例
+        let legendY = 20;
+        Object.entries(colors).forEach(([name, color]) => {
+            ctx.fillStyle = color;
+            ctx.fillRect(20, legendY, 20, 15);
+            ctx.fillStyle = 'white';
+            ctx.font = '12px Arial';
+            ctx.textAlign = 'left';
+            ctx.fillText(name, 50, legendY + 12);
+            legendY += 25;
+        });
+    }
+
+    // ===== 代码标签切换 =====
+    document.querySelectorAll('.code-tab').forEach(tab => {
+        tab.addEventListener('click', function() {
+            const container = this.closest('.code-container');
+            const tabName = this.dataset.tab;
+
+            // 更新标签状态
+            container.querySelectorAll('.code-tab').forEach(t => t.classList.remove('active'));
+            this.classList.add('active');
+
+            // 切换内容
+            container.querySelectorAll('[data-tab-content]').forEach(content => {
+                content.style.display = content.dataset.tabContent === tabName ? 'block' : 'none';
+            });
+        });
+    });
+
+    // ===== 代码运行模拟 =====
+    function runCode(button, outputId) {
+        const outputElement = document.getElementById(outputId);
+        if (outputElement) {
+            outputElement.classList.add('show');
+
+            // 模拟运行动画
+            button.innerHTML = '<span class="loading"></span> 运行中...';
+            button.disabled = true;
+
+            setTimeout(() => {
+                button.innerHTML = '▶ 开始训练';
+                button.disabled = false;
+                showNotification('训练完成！查看输出结果。');
+
+                if (!achievements.implementResNet) {
+                    achievements.implementResNet = true;
+                    achievementSystem.showAchievement("实践达人", "成功实现并训练了ResNet！");
+                }
+            }, 3000);
+        }
+    }
+
+    // ===== 通知系统 =====
+    function showNotification(message, type = 'success') {
+        const notification = document.createElement('div');
+        notification.style.cssText = `
+        position: fixed;
+        top: 80px;
+        right: 20px;
+        background: ${type === 'error' ? '#ef4444' : type === 'warning' ? '#f59e0b' : '#22c55e'};
+        color: white;
+        padding: 1rem 1.5rem;
+        border-radius: 0.5rem;
+        z-index: 2000;
+        animation: slideInRight 0.3s ease;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    `;
+        notification.textContent = message;
+
+        document.body.appendChild(notification);
+
+        setTimeout(() => {
+            notification.style.animation = 'slideInRight 0.3s ease reverse';
+            setTimeout(() => document.body.removeChild(notification), 300);
+        }, 3000);
+    }
+
+    // ===== 任务清单 =====
+    function toggleCheck(checkbox) {
+        checkbox.classList.toggle('checked');
+
+        const checkedItems = document.querySelectorAll('.checklist-checkbox.checked').length;
+        const totalItems = document.querySelectorAll('.checklist-checkbox').length;
+
+        if (checkedItems === totalItems && !achievements.architectureMaster) {
+            achievements.architectureMaster = true;
+            achievementSystem.showAchievement("架构大师", "完成了所有实践任务！");
+        }
+    }
+
+    // ===== 监听章节阅读 =====
+    const observerOptions = {
+        root: null,
+        rootMargin: '0px',
+        threshold: 0.5
+    };
+
+    const sectionObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting && !completedSections.has(entry.target.id)) {
+                completedSections.add(entry.target.id);
+                achievementSystem.checkAchievements();
+            }
+        });
+    }, observerOptions);
+
+    sections.forEach(section => {
+        sectionObserver.observe(section);
+    });
+
+    // ===== 保存和加载进度 =====
+    function saveProgress() {
+        const progress = {
+            completedSections: Array.from(completedSections),
+            achievements: achievements,
+            animationsEnabled: animationsEnabled,
+            timestamp: Date.now()
+        };
+        localStorage.setItem('resnet-progress', JSON.stringify(progress));
+    }
+
+    function loadProgress() {
+        const saved = localStorage.getItem('resnet-progress');
+        if (saved) {
+            try {
+                const progress = JSON.parse(saved);
+                completedSections = new Set(progress.completedSections || []);
+                achievements = { ...achievements, ...progress.achievements };
+                animationsEnabled = progress.animationsEnabled !== false;
+
+                achievementSystem.checkAchievements();
+                showNotification('已恢复上次学习进度');
+            } catch (e) {
+                console.error('Failed to load progress:', e);
+            }
+        }
+    }
+
+    // ===== 初始化 =====
+    window.addEventListener('load', () => {
+        // 加载进度
+        loadProgress();
+
+        // 初始化可视化
+        drawTrainingCurves();
+        visualizeGradientFlow();
+        visualizeDenseBlock();
+        drawArchitectureRadar();
+
+        // 定期保存进度
+        setInterval(saveProgress, 60000);
+
+        // 显示欢迎消息
+        setTimeout(() => {
+            learningBuddy.classList.add('active');
+            document.querySelector('.buddy-message p').textContent =
+                '欢迎来到现代CNN架构的世界！ResNet的残差思想彻底改变了深度学习。准备好探索深度的奥秘了吗？';
+        }, 1000);
+    });
+
+    // ===== 页面离开时保存 =====
+    window.addEventListener('beforeunload', saveProgress);
+
+    // ===== 响应式处理 =====
+    function handleResize() {
+        const isMobile = window.innerWidth < 768;
+
+        if (learningBuddy) {
+            if (isMobile) {
+                learningBuddy.style.width = '90%';
+                learningBuddy.style.left = '5%';
+                learningBuddy.style.right = '5%';
+                learningBuddy.style.bottom = '10px';
+            } else {
+                learningBuddy.style.width = '300px';
+                learningBuddy.style.left = 'auto';
+                learningBuddy.style.right = '20px';
+                learningBuddy.style.bottom = '20px';
+            }
+        }
+
+        // 重绘可视化
+        if (window.innerWidth !== window.lastWidth) {
+            drawTrainingCurves();
+            drawArchitectureRadar();
+            window.lastWidth = window.innerWidth;
+        }
+    }
+
+    window.addEventListener('resize', handleResize);
+    handleResize();
+
+    // ===== 键盘快捷键 =====
+    document.addEventListener('keydown', (e) => {
+        // Ctrl/Cmd + S: 保存进度
+        if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+            e.preventDefault();
+            saveProgress();
+            showNotification('进度已保存');
+        }
+
+        // Esc: 关闭侧边栏
+        if (e.key === 'Escape') {
+            sidebar.classList.remove('open');
+            sidebarOverlay.classList.remove('active');
+        }
+    });
+
+    console.log('🏗️ 现代CNN架构章节加载完成！');
+    console.log('提示：按 Ctrl+S 保存学习进度');
+</script>
+
+</body>
+</html>

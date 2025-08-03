@@ -1,0 +1,162 @@
+# Information 知识付费平台 - 本地开发环境配置
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+
+spring:
+  # 数据源配置 - 本地MySQL
+  datasource:
+    type: com.alibaba.druid.pool.DruidDataSource
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3307/platform?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
+    username: root
+    password: 123456
+    druid:
+      initial-size: 2
+      min-idle: 2
+      max-active: 10
+      max-wait: 60000
+      time-between-eviction-runs-millis: 60000
+      min-evictable-idle-time-millis: 300000
+      validation-query: SELECT 1
+      test-while-idle: true
+      test-on-borrow: false
+      test-on-return: false
+      pool-prepared-statements: true
+      max-pool-prepared-statement-per-connection-size: 20
+      filters: stat,wall,slf4j
+      connection-properties: druid.stat.mergeSql=true;druid.stat.slowSqlMillis=5000
+      stat-view-servlet:
+        enabled: true
+        url-pattern: /druid/*
+        login-username: admin
+        login-password: admin123456
+
+  # Redis配置 - 本地Redis
+  redis:
+    host: localhost
+    port: 6379
+    password: 
+    database: 0
+    timeout: 10000ms
+    lettuce:
+      pool:
+        max-active: 8
+        max-idle: 4
+        min-idle: 0
+        max-wait: -1ms
+
+  # 缓存配置
+  cache:
+    type: caffeine
+    caffeine:
+      spec: maximumSize=500,expireAfterWrite=10m
+      
+  # 开发工具配置
+  devtools:
+    restart:
+      enabled: true
+      additional-paths: src/main/java
+    livereload:
+      enabled: true
+  freemarker:
+    cache: false
+  thymeleaf:
+    cache: false
+
+# MyBatis Plus配置
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl  # 开发环境显示SQL
+
+# JWT配置
+jwt:
+  secret: InformationPlatformDevSecretKey2024ForDevelopment
+  expiration: 604800000  # 7天，开发环境更长过期时间
+  header: Authorization
+  prefix: Bearer
+
+# 文件上传配置
+file:
+  upload:
+    path: /tmp/uploads/
+    max-size: 50MB
+    allowed-types: jpg,jpeg,png,gif,pdf,doc,docx,txt,md
+
+# 支付配置 - 开发环境使用沙箱
+alipay:
+  appId: your-dev-alipay-app-id
+  privateKey: your-dev-alipay-private-key
+  publicKey: your-dev-alipay-public-key
+  signType: RSA2
+  charset: UTF-8
+  format: json
+  gatewayUrl: https://openapi.alipaydev.com/gateway.do  # 沙箱环境
+  notifyUrl: http://localhost:8080/api/payment/alipay/notify
+  returnUrl: http://localhost:3000/payment/success
+
+wechatpay:
+  appId: your-dev-wechat-app-id
+  mchId: your-dev-wechat-mch-id
+  apiKey: your-dev-wechat-api-key
+  certPath: classpath:cert/dev_apiclient_cert.p12
+  notifyUrl: http://localhost:8080/api/payment/wechat/notify
+
+# 日志配置
+logging:
+  level:
+    com.platform: DEBUG
+    org.springframework.web: DEBUG
+    org.mybatis: DEBUG
+    org.springframework.security: DEBUG
+  pattern:
+    console: "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+
+# 跨域配置 - 开发环境允许前端调用
+cors:
+  allowed-origins: 
+    - http://localhost:3000
+    - http://localhost:5173
+    - http://127.0.0.1:3000
+    - http://127.0.0.1:5173
+  allowed-methods: GET,POST,PUT,DELETE,OPTIONS
+  allowed-headers: "*"
+  allow-credentials: true
+
+
+# Swagger配置 - 开发环境启用
+springdoc:
+  api-docs:
+    enabled: true
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: alpha
+  info:
+    title: Information 知识付费平台 API (开发环境)
+    description: 提供完整的知识付费平台功能接口 - 开发测试版本
+    version: 1.0.0-DEV
+    contact:
+      name: Development Team
+      email: dev@information-platform.com
+
+# 管理端点配置 - 开发环境开放更多端点
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  endpoint:
+    health:
+      show-details: always
+
+# 异步配置
+async:
+  pool:
+    core-size: 2
+    max-size: 10
+    queue-capacity: 100
+    keep-alive: 60

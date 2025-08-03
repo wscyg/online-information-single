@@ -1,0 +1,4356 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>第6章：预训练语言模型 - NLP的新范式</title>
+    <meta name="description" content="从BERT到GPT，理解预训练如何改变了一切">
+
+    <!-- KaTeX支持 -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+            onload="renderMathInElement(document.body, {
+                delimiters: [
+                    {left: '$$', right: '$$', display: true},
+                    {left: '$', right: '$', display: false}
+                ]
+            });"></script>
+
+    <style>
+        /* ===== CSS变量定义 ===== */
+        :root {
+            /* 渐变色 */
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --hero-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            --card-gradient: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.05));
+            --bert-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            --gpt-gradient: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+
+            /* 主题色 */
+            --primary: #6366f1;
+            --primary-light: #818cf8;
+            --primary-dark: #4f46e5;
+            --secondary: #ec4899;
+            --accent: #10b981;
+            --bert-color: #4facfe;
+            --gpt-color: #fa709a;
+
+            /* 功能色 */
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --info: #3b82f6;
+
+            /* 背景色 */
+            --bg-dark: #0f172a;
+            --bg-section: #1e293b;
+            --bg-card: #334155;
+            --bg-code: #0d1117;
+
+            /* 文字色 */
+            --text-primary: #f1f5f9;
+            --text-secondary: #cbd5e1;
+            --text-muted: #94a3b8;
+
+            /* 其他 */
+            --border-color: rgba(255, 255, 255, 0.1);
+            --shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+            --shadow-lg: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            --radius: 1rem;
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* ===== 全局样式 ===== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            line-height: 1.7;
+            font-size: 16px;
+            overflow-x: hidden;
+        }
+
+        /* ===== 背景效果 ===== */
+        .bg-pattern {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            opacity: 0.03;
+            background-image:
+                    radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+                    radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.3) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .floating-shapes {
+            position: fixed;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            z-index: 0;
+        }
+
+        .shape {
+            position: absolute;
+            opacity: 0.1;
+            animation: float 20s infinite ease-in-out;
+        }
+
+        .shape:nth-child(1) {
+            width: 100px;
+            height: 100px;
+            background: var(--bert-gradient);
+            border-radius: 50%;
+            left: 15%;
+            top: 20%;
+            animation-delay: 0s;
+        }
+
+        .shape:nth-child(2) {
+            width: 150px;
+            height: 150px;
+            background: var(--gpt-gradient);
+            border-radius: 38% 62% 63% 37% / 41% 44% 56% 59%;
+            left: 75%;
+            top: 60%;
+            animation-delay: 3s;
+        }
+
+        .shape:nth-child(3) {
+            width: 80px;
+            height: 80px;
+            background: var(--primary-gradient);
+            border-radius: 63% 37% 54% 46% / 55% 48% 52% 45%;
+            left: 45%;
+            top: 75%;
+            animation-delay: 6s;
+        }
+
+        @keyframes float {
+            0%, 100% {
+                transform: translateY(0) rotate(0deg) scale(1);
+            }
+            33% {
+                transform: translateY(-30px) rotate(120deg) scale(1.1);
+            }
+            66% {
+                transform: translateY(30px) rotate(240deg) scale(0.9);
+            }
+        }
+
+        /* ===== 布局 ===== */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 1.5rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ===== 导航栏 ===== */
+        .nav-header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(20px);
+            z-index: 1000;
+            border-bottom: 1px solid var(--border-color);
+            transition: var(--transition);
+        }
+
+        .nav-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1rem 0;
+        }
+
+        .nav-title {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .nav-title h1 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .nav-menu {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        /* 进度条 */
+        .progress-container {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: var(--primary-gradient);
+            width: 0;
+            transition: width 0.3s ease;
+        }
+
+        /* ===== 侧边栏 ===== */
+        .sidebar {
+            position: fixed;
+            left: -300px;
+            top: 60px;
+            bottom: 0;
+            width: 300px;
+            background: var(--bg-section);
+            border-right: 1px solid var(--border-color);
+            padding: 2rem;
+            overflow-y: auto;
+            transition: transform 0.3s ease;
+            z-index: 999;
+            box-shadow: 5px 0 25px rgba(0, 0, 0, 0.5);
+        }
+
+        .sidebar.open {
+            transform: translateX(300px);
+        }
+
+        .toc-title {
+            color: var(--primary-light);
+            margin-bottom: 1.5rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .toc-section {
+            margin-bottom: 1.5rem;
+        }
+
+        .toc-section-title {
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.5rem;
+            padding-left: 0.5rem;
+        }
+
+        .toc-item {
+            display: block;
+            padding: 0.75rem 1rem;
+            color: var(--text-secondary);
+            text-decoration: none;
+            border-radius: 0.5rem;
+            transition: all 0.3s ease;
+            margin-bottom: 0.25rem;
+            font-size: 0.95rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .toc-item::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: var(--primary);
+            transform: translateX(-100%);
+            transition: transform 0.3s ease;
+        }
+
+        .toc-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-primary);
+            padding-left: 1.5rem;
+        }
+
+        .toc-item.active {
+            background: var(--card-gradient);
+            color: var(--primary-light);
+        }
+
+        .toc-item.active::before {
+            transform: translateX(0);
+        }
+
+        /* ===== 按钮样式 ===== */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            font-size: 0.95rem;
+            font-weight: 500;
+            text-decoration: none;
+            transition: var(--transition);
+            cursor: pointer;
+            border: none;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            transition: width 0.5s, height 0.5s;
+        }
+
+        .btn:hover::before {
+            width: 300px;
+            height: 300px;
+        }
+
+        .btn-primary {
+            background: var(--primary-gradient);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-icon {
+            background: transparent;
+            padding: 0.5rem;
+            color: var(--text-secondary);
+        }
+
+        /* ===== 主内容 ===== */
+        main {
+            margin-top: 80px;
+            padding-bottom: 4rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ===== 章节头部 ===== */
+        .chapter-hero {
+            background: var(--hero-gradient);
+            padding: 6rem 0;
+            margin-bottom: 3rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .chapter-hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background:
+                    radial-gradient(circle at 30% 50%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
+                    radial-gradient(circle at 70% 50%, rgba(255, 255, 255, 0.1) 0%, transparent 50%);
+            animation: pulse 4s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 0.8; }
+        }
+
+        .chapter-hero-content {
+            text-align: center;
+            color: white;
+            position: relative;
+            z-index: 1;
+        }
+
+        .chapter-hero h1 {
+            font-size: 3.5rem;
+            margin-bottom: 1rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            animation: fadeInUp 0.8s ease;
+        }
+
+        .chapter-hero p {
+            font-size: 1.5rem;
+            opacity: 0.95;
+            animation: fadeInUp 0.8s ease 0.2s both;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* ===== 内容卡片 ===== */
+        .section-card {
+            background: var(--bg-section);
+            border-radius: var(--radius);
+            padding: 3rem;
+            margin-bottom: 2rem;
+            box-shadow: var(--shadow);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .section-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--primary-gradient);
+            transform: scaleX(0);
+            transform-origin: left;
+            transition: transform 0.5s ease;
+        }
+
+        .section-card:hover::before {
+            transform: scaleX(1);
+        }
+
+        .section-card h2 {
+            color: var(--primary-light);
+            margin-bottom: 2rem;
+            font-size: 2.25rem;
+            font-weight: 700;
+        }
+
+        .section-card h3 {
+            color: var(--text-primary);
+            margin: 2rem 0 1rem;
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        /* ===== 故事卡片 ===== */
+        .story-card {
+            background: linear-gradient(135deg, rgba(240, 147, 251, 0.1), rgba(245, 87, 108, 0.1));
+            border: 2px solid rgba(240, 147, 251, 0.3);
+            border-radius: var(--radius);
+            padding: 2.5rem;
+            margin: 2rem 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .story-card::after {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            background: var(--hero-gradient);
+            z-index: -1;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            border-radius: var(--radius);
+        }
+
+        .story-card:hover::after {
+            opacity: 0.3;
+        }
+
+        .story-icon {
+            font-size: 3rem;
+            display: block;
+            margin-bottom: 1rem;
+            animation: bounce 2s ease-in-out infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        /* ===== 代码块 ===== */
+        .code-block {
+            background: var(--bg-code);
+            border: 1px solid #30363d;
+            border-radius: 0.75rem;
+            margin: 1.5rem 0;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .code-header {
+            background: #161b22;
+            padding: 1rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #30363d;
+        }
+
+        .code-lang {
+            color: var(--primary-light);
+            font-size: 0.875rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .code-lang::before {
+            content: '';
+            width: 12px;
+            height: 12px;
+            background: var(--primary);
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .code-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .code-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: var(--text-secondary);
+            padding: 0.375rem 0.875rem;
+            border-radius: 0.375rem;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+
+        .code-btn:hover {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+            transform: translateY(-1px);
+        }
+
+        .code-content {
+            padding: 1.5rem;
+            overflow-x: auto;
+            font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', monospace;
+            font-size: 0.875rem;
+            line-height: 1.7;
+        }
+
+        .code-content pre {
+            margin: 0;
+            color: #e6edf3;
+        }
+
+        .code-content.collapsed {
+            max-height: 300px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .code-content.collapsed::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 100px;
+            background: linear-gradient(transparent, var(--bg-code));
+        }
+
+        /* 代码高亮 */
+        .keyword { color: #ff79c6; }
+        .string { color: #f1fa8c; }
+        .comment { color: #6272a4; }
+        .function { color: #50fa7b; }
+        .number { color: #bd93f9; }
+
+        /* ===== 卡片网格 ===== */
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin: 2rem 0;
+        }
+
+        .info-card {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 2rem;
+            border: 1px solid var(--border-color);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .info-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: var(--primary-gradient);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .info-card:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--shadow-lg);
+            border-color: var(--primary);
+        }
+
+        .info-card:hover::before {
+            opacity: 0.05;
+        }
+
+        .card-icon {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            display: block;
+        }
+
+        .card-title {
+            color: var(--primary-light);
+            margin-bottom: 1rem;
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+        /* ===== 互动演示 ===== */
+        .demo-container {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(236, 72, 153, 0.1));
+            border: 2px solid rgba(99, 102, 241, 0.3);
+            border-radius: var(--radius);
+            padding: 2.5rem;
+            margin: 2rem 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .demo-container::before {
+            content: '🧪';
+            position: absolute;
+            top: -20px;
+            right: 20px;
+            font-size: 4rem;
+            opacity: 0.1;
+        }
+
+        /* ===== 模型对比 ===== */
+        .model-comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin: 2rem 0;
+        }
+
+        .model-card {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 2rem;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .model-card.bert {
+            border: 2px solid var(--bert-color);
+        }
+
+        .model-card.bert::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: var(--bert-gradient);
+        }
+
+        .model-card.gpt {
+            border: 2px solid var(--gpt-color);
+        }
+
+        .model-card.gpt::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: var(--gpt-gradient);
+        }
+
+        .model-card:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        /* ===== 思考框 ===== */
+        .think-box {
+            background: linear-gradient(135deg, rgba(251, 191, 36, 0.1), rgba(245, 158, 11, 0.1));
+            border: 2px solid rgba(251, 191, 36, 0.3);
+            border-radius: var(--radius);
+            padding: 2rem;
+            margin: 2rem 0;
+            position: relative;
+        }
+
+        .think-box::before {
+            content: '🤔';
+            position: absolute;
+            top: -15px;
+            left: 25px;
+            font-size: 2rem;
+            background: var(--bg-section);
+            padding: 0 0.5rem;
+        }
+
+        .think-box h4 {
+            color: var(--warning);
+            margin-bottom: 1rem;
+        }
+
+        .think-box ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .think-box li {
+            margin-bottom: 0.5rem;
+            padding-left: 1.5rem;
+            position: relative;
+        }
+
+        .think-box li::before {
+            content: '💭';
+            position: absolute;
+            left: 0;
+        }
+
+        /* ===== 深度思考框 ===== */
+        .deep-think-box {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(99, 102, 241, 0.1));
+            border: 2px solid rgba(139, 92, 246, 0.4);
+            border-radius: var(--radius);
+            padding: 2.5rem;
+            margin: 3rem 0;
+            position: relative;
+        }
+
+        .deep-think-box::before {
+            content: '🧩';
+            position: absolute;
+            top: -18px;
+            left: 30px;
+            font-size: 2.5rem;
+            background: var(--bg-section);
+            padding: 0 0.75rem;
+        }
+
+        .deep-think-box h4 {
+            color: var(--primary-light);
+            margin-bottom: 1.25rem;
+            font-size: 1.25rem;
+        }
+
+        .deep-think-box .think-item {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 1.25rem;
+            border-radius: 0.75rem;
+            margin-bottom: 1rem;
+            border-left: 3px solid var(--primary);
+        }
+
+        .deep-think-box .think-item h5 {
+            color: var(--primary-light);
+            margin-bottom: 0.5rem;
+        }
+
+        /* ===== 探索框 ===== */
+        .explore-box {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(59, 130, 246, 0.1));
+            border: 2px solid rgba(16, 185, 129, 0.3);
+            border-radius: var(--radius);
+            padding: 2rem;
+            margin: 2rem 0;
+            position: relative;
+        }
+
+        .explore-box::before {
+            content: '🔍';
+            position: absolute;
+            top: -15px;
+            left: 25px;
+            font-size: 2rem;
+            background: var(--bg-section);
+            padding: 0 0.5rem;
+        }
+
+        .explore-box h4 {
+            color: var(--success);
+            margin-bottom: 1rem;
+        }
+
+        /* ===== 预训练任务可视化 ===== */
+        .pretrain-visualization {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 2rem;
+            margin: 2rem 0;
+            overflow: hidden;
+        }
+
+        .mask-demo {
+            font-family: monospace;
+            font-size: 1.2rem;
+            line-height: 2;
+            text-align: center;
+            margin: 1rem 0;
+        }
+
+        .mask-token {
+            background: var(--primary);
+            color: white;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            margin: 0 0.25rem;
+            font-weight: bold;
+        }
+
+        .prediction-arrow {
+            display: block;
+            text-align: center;
+            font-size: 2rem;
+            color: var(--primary-light);
+            margin: 1rem 0;
+        }
+
+        /* ===== 提示框 ===== */
+        .tip {
+            padding: 1.5rem 2rem;
+            border-radius: var(--radius);
+            margin: 2rem 0;
+            border-left: 4px solid;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .tip::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            opacity: 0.05;
+            background: currentColor;
+        }
+
+        .tip-icon {
+            font-size: 1.5rem;
+            margin-right: 1rem;
+            vertical-align: middle;
+        }
+
+        .tip.info {
+            background: rgba(59, 130, 246, 0.1);
+            border-color: var(--info);
+            color: var(--text-primary);
+        }
+
+        .tip.warning {
+            background: rgba(245, 158, 11, 0.1);
+            border-color: var(--warning);
+            color: var(--text-primary);
+        }
+
+        .tip.success {
+            background: rgba(16, 185, 129, 0.1);
+            border-color: var(--success);
+            color: var(--text-primary);
+        }
+
+        .tip.danger {
+            background: rgba(239, 68, 68, 0.1);
+            border-color: var(--danger);
+            color: var(--text-primary);
+        }
+
+        /* ===== 快速导航 ===== */
+        .quick-nav {
+            position: fixed;
+            right: 2rem;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .quick-nav-item {
+            width: 12px;
+            height: 12px;
+            background: var(--text-muted);
+            border-radius: 50%;
+            transition: all 0.3s;
+            position: relative;
+            cursor: pointer;
+        }
+
+        .quick-nav-item:hover,
+        .quick-nav-item.active {
+            background: var(--primary);
+            transform: scale(1.5);
+        }
+
+        .quick-nav-tooltip {
+            position: absolute;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: var(--bg-dark);
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+            border: 1px solid var(--border-color);
+            font-size: 0.875rem;
+        }
+
+        .quick-nav-item:hover .quick-nav-tooltip {
+            opacity: 1;
+        }
+
+        /* ===== 比较表格 ===== */
+        .comparison-table {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            overflow: hidden;
+            margin: 2rem 0;
+            box-shadow: var(--shadow);
+        }
+
+        .comparison-table table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .comparison-table th {
+            background: var(--primary-gradient);
+            color: white;
+            padding: 1.25rem;
+            text-align: left;
+            font-weight: 600;
+            font-size: 0.95rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .comparison-table td {
+            padding: 1.25rem;
+            border-bottom: 1px solid var(--border-color);
+            transition: all 0.3s ease;
+        }
+
+        .comparison-table tr:hover td {
+            background: rgba(99, 102, 241, 0.05);
+        }
+
+        .comparison-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* ===== 时间线 ===== */
+        .timeline {
+            position: relative;
+            padding: 2rem 0;
+            margin: 2rem 0;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 50%;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: var(--primary-gradient);
+            transform: translateX(-50%);
+        }
+
+        .timeline-item {
+            position: relative;
+            margin-bottom: 3rem;
+            display: flex;
+            align-items: center;
+        }
+
+        .timeline-item:nth-child(odd) {
+            flex-direction: row-reverse;
+        }
+
+        .timeline-content {
+            width: 45%;
+            background: var(--bg-card);
+            padding: 1.5rem;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            transition: all 0.3s ease;
+        }
+
+        .timeline-content:hover {
+            transform: scale(1.05);
+        }
+
+        .timeline-date {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--primary);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 2rem;
+            font-weight: 600;
+            z-index: 1;
+        }
+
+        /* ===== Prompt示例 ===== */
+        .prompt-example {
+            background: var(--bg-code);
+            border: 1px solid #30363d;
+            border-radius: var(--radius);
+            padding: 1.5rem;
+            margin: 1rem 0;
+            font-family: monospace;
+        }
+
+        .prompt-input {
+            color: #50fa7b;
+            margin-bottom: 0.5rem;
+        }
+
+        .prompt-output {
+            color: #8be9fd;
+            margin-top: 0.5rem;
+        }
+
+        /* ===== 参数显示 ===== */
+        .param-display {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+
+        .param-item {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 1rem;
+            border-radius: 0.5rem;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .param-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .param-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: var(--primary-light);
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+
+        .param-label {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+        }
+
+        /* ===== 数学公式 ===== */
+        .math-display {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.05), rgba(99, 102, 241, 0.05));
+            border: 2px solid rgba(139, 92, 246, 0.2);
+            border-radius: var(--radius);
+            padding: 2rem;
+            margin: 2rem 0;
+            text-align: center;
+            font-size: 1.2rem;
+            overflow-x: auto;
+        }
+
+        .math-formula {
+            font-family: 'KaTeX_Math', 'Times New Roman', serif;
+            font-style: italic;
+            color: var(--primary-light);
+            font-size: 1.3rem;
+            margin: 1rem 0;
+        }
+
+        /* KaTeX样式调整 */
+        .katex-display {
+            margin: 1.5rem 0 !important;
+        }
+
+        .katex {
+            font-size: 1.1em;
+            color: var(--primary-light);
+        }
+
+        /* ===== 响应式设计 ===== */
+        @media (max-width: 768px) {
+            .chapter-hero h1 {
+                font-size: 2.5rem;
+            }
+
+            .section-card {
+                padding: 2rem;
+            }
+
+            .quick-nav {
+                display: none;
+            }
+
+            .model-comparison {
+                grid-template-columns: 1fr;
+            }
+
+            .timeline-item {
+                flex-direction: column !important;
+            }
+
+            .timeline-content {
+                width: 100%;
+            }
+
+            .timeline::before {
+                left: 20px;
+            }
+
+            .timeline-date {
+                left: 20px;
+                transform: none;
+            }
+        }
+
+        /* ===== 工具类 ===== */
+        .text-center { text-align: center; }
+        .text-muted { color: var(--text-muted); }
+        .mt-1 { margin-top: 0.5rem; }
+        .mt-2 { margin-top: 1rem; }
+        .mt-3 { margin-top: 1.5rem; }
+        .mt-4 { margin-top: 2rem; }
+        .mb-1 { margin-bottom: 0.5rem; }
+        .mb-2 { margin-bottom: 1rem; }
+        .mb-3 { margin-bottom: 1.5rem; }
+        .mb-4 { margin-bottom: 2rem; }
+    </style>
+</head>
+<body>
+
+<!-- 背景效果 -->
+<div class="bg-pattern"></div>
+<div class="floating-shapes">
+    <div class="shape"></div>
+    <div class="shape"></div>
+    <div class="shape"></div>
+</div>
+
+<!-- 导航栏 -->
+<nav class="nav-header">
+    <div class="container">
+        <div class="nav-content">
+            <div class="nav-title">
+                <button id="toggle-sidebar" class="btn btn-icon">
+                    <svg width="20" height="20" fill="currentColor">
+                        <path d="M3 5h14M3 10h14M3 15h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </button>
+                <h1>第6章：预训练语言模型</h1>
+            </div>
+            <div class="nav-menu">
+                <button class="btn btn-icon" id="theme-toggle">🌙</button>
+                <a href="#summary" class="btn btn-secondary">章节总结</a>
+            </div>
+        </div>
+        <div class="progress-container">
+            <div class="progress-bar" id="progress-bar"></div>
+        </div>
+    </div>
+</nav>
+
+<!-- 侧边栏 -->
+<aside class="sidebar" id="sidebar">
+    <h3 class="toc-title">
+        <span>📚</span>
+        <span>本章导航</span>
+    </h3>
+
+    <div class="toc-section">
+        <div class="toc-section-title">开篇</div>
+        <a href="#intro" class="toc-item active">序言：范式的转变</a>
+        <a href="#motivation" class="toc-item">为什么需要预训练？</a>
+    </div>
+
+    <div class="toc-section">
+        <div class="toc-section-title">基础概念</div>
+        <a href="#language-model" class="toc-item">语言模型基础</a>
+        <a href="#pretrain-finetune" class="toc-item">预训练-微调范式</a>
+    </div>
+
+    <div class="toc-section">
+        <div class="toc-section-title">BERT详解</div>
+        <a href="#bert-intro" class="toc-item">BERT的革命</a>
+        <a href="#bert-arch" class="toc-item">BERT架构与训练</a>
+        <a href="#bert-usage" class="toc-item">BERT使用指南</a>
+    </div>
+
+    <div class="toc-section">
+        <div class="toc-section-title">GPT系列</div>
+        <a href="#gpt-evolution" class="toc-item">GPT的演进</a>
+        <a href="#gpt-training" class="toc-item">自回归训练</a>
+        <a href="#scaling-law" class="toc-item">规模法则</a>
+    </div>
+
+    <div class="toc-section">
+        <div class="toc-section-title">高级技术</div>
+        <a href="#prompt-learning" class="toc-item">Prompt学习</a>
+        <a href="#peft" class="toc-item">参数高效微调</a>
+        <a href="#instruction-tuning" class="toc-item">指令微调</a>
+    </div>
+
+    <div class="toc-section">
+        <div class="toc-section-title">实践与应用</div>
+        <a href="#applications" class="toc-item">实际应用案例</a>
+        <a href="#best-practices" class="toc-item">最佳实践</a>
+    </div>
+
+    <div class="toc-section">
+        <div class="toc-section-title">总结展望</div>
+        <a href="#summary" class="toc-item">本章总结</a>
+        <a href="#future" class="toc-item">未来展望</a>
+    </div>
+</aside>
+
+<!-- 快速导航 -->
+<div class="quick-nav" id="quick-nav">
+    <div class="quick-nav-item active" data-section="intro">
+        <span class="quick-nav-tooltip">开篇故事</span>
+    </div>
+    <div class="quick-nav-item" data-section="language-model">
+        <span class="quick-nav-tooltip">语言模型</span>
+    </div>
+    <div class="quick-nav-item" data-section="bert-intro">
+        <span class="quick-nav-tooltip">BERT详解</span>
+    </div>
+    <div class="quick-nav-item" data-section="gpt-evolution">
+        <span class="quick-nav-tooltip">GPT系列</span>
+    </div>
+    <div class="quick-nav-item" data-section="prompt-learning">
+        <span class="quick-nav-tooltip">高级技术</span>
+    </div>
+    <div class="quick-nav-item" data-section="summary">
+        <span class="quick-nav-tooltip">章节总结</span>
+    </div>
+</div>
+
+<!-- 主内容 -->
+<main>
+    <!-- 章节标题 -->
+    <section class="chapter-hero">
+        <div class="container">
+            <div class="chapter-hero-content">
+                <h1>预训练语言模型</h1>
+                <p>从BERT到GPT，理解NLP的新范式</p>
+            </div>
+        </div>
+    </section>
+
+    <div class="container">
+        <!-- 序言 -->
+        <section id="intro" class="section-card">
+            <h2>🌟 序言：范式的转变</h2>
+
+            <div class="story-card">
+                <span class="story-icon">🎭</span>
+                <p><strong>一个改变游戏规则的想法</strong></p>
+                <p class="mt-2">
+                    2018年，两个模型几乎同时出现：Google的BERT和OpenAI的GPT。
+                    它们带来了一个革命性的想法：<strong>先在海量文本上预训练，再在特定任务上微调</strong>。
+                </p>
+                <p class="mt-3" style="font-size: 1.25rem; color: var(--warning); text-align: center;">
+                    💡 这个简单的想法，彻底改变了NLP的研究和应用方式！
+                </p>
+            </div>
+
+            <div class="deep-think-box">
+                <h4>传统方法 vs 预训练方法</h4>
+                <div class="think-item">
+                    <h5>📈 传统方法的困境</h5>
+                    <p>想象你要训练一个情感分析模型：</p>
+                    <ul>
+                        <li>需要大量标注数据（昂贵！）</li>
+                        <li>从零开始学习语言知识（低效！）</li>
+                        <li>只能用于单一任务（浪费！）</li>
+                    </ul>
+                    <p class="mt-2">就像每次学新技能都要从学说话开始...</p>
+                </div>
+                <div class="think-item">
+                    <h5>🚀 预训练的魔力</h5>
+                    <p>预训练模型的工作流程：</p>
+                    <ol>
+                        <li><strong>预训练：</strong>在海量文本上学习通用语言知识</li>
+                        <li><strong>微调：</strong>用少量标注数据适应特定任务</li>
+                        <li><strong>效果：</strong>性能大幅提升！</li>
+                    </ol>
+                    <p class="mt-2">就像先上通识教育，再学专业课程！</p>
+                </div>
+            </div>
+
+            <div class="demo-container">
+                <h3 class="text-center mb-3" style="color: var(--primary-light);">🎯 预训练的威力演示</h3>
+
+                <div class="model-comparison">
+                    <div class="model-card">
+                        <h4 class="text-center mb-3">传统方法</h4>
+                        <div class="param-display">
+                            <div class="param-item">
+                                <span class="param-value">10K</span>
+                                <span class="param-label">标注数据</span>
+                            </div>
+                            <div class="param-item">
+                                <span class="param-value">85%</span>
+                                <span class="param-label">准确率</span>
+                            </div>
+                            <div class="param-item">
+                                <span class="param-value">单任务</span>
+                                <span class="param-label">适用性</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="model-card">
+                        <h4 class="text-center mb-3">预训练方法</h4>
+                        <div class="param-display">
+                            <div class="param-item">
+                                <span class="param-value">1K</span>
+                                <span class="param-label">标注数据</span>
+                            </div>
+                            <div class="param-item">
+                                <span class="param-value">95%</span>
+                                <span class="param-label">准确率</span>
+                            </div>
+                            <div class="param-item">
+                                <span class="param-value">多任务</span>
+                                <span class="param-label">适用性</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tip info mt-3">
+                    <span class="tip-icon">💡</span>
+                    <strong>核心洞察</strong>
+                    <p class="mt-2">
+                        预训练模型已经"理解"了语言，你只需要教它如何应用到你的任务上。
+                        这就是为什么只需要少量数据就能达到出色效果！
+                    </p>
+                </div>
+            </div>
+
+            <div class="think-box">
+                <h4>🤔 开始思考</h4>
+                <ul>
+                    <li>为什么预训练能学到通用的语言知识？</li>
+                    <li>什么样的预训练任务最有效？</li>
+                    <li>如何设计预训练目标？</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- 为什么需要预训练 -->
+        <section id="motivation" class="section-card">
+            <h2>🎯 为什么需要预训练？</h2>
+
+            <div class="story-card">
+                <span class="story-icon">🏔️</span>
+                <p><strong>站在巨人的肩膀上</strong></p>
+                <p class="mt-2">
+                    想象你要教一个完全不懂中文的人写诗。你会从教他认字开始，
+                    还是找一个已经精通中文的人，只教他诗歌的格律？
+                </p>
+            </div>
+
+            <div class="deep-think-box">
+                <h4>预训练解决的核心问题</h4>
+                <div class="think-item">
+                    <h5>📊 数据稀缺问题</h5>
+                    <ul>
+                        <li><strong>现实：</strong>标注数据昂贵且稀少</li>
+                        <li><strong>解决：</strong>利用海量无标注文本</li>
+                        <li><strong>效果：</strong>少量标注数据就能达到好效果</li>
+                    </ul>
+                </div>
+                <div class="think-item">
+                    <h5>🧠 知识迁移问题</h5>
+                    <ul>
+                        <li><strong>传统：</strong>每个任务独立学习</li>
+                        <li><strong>预训练：</strong>共享底层语言知识</li>
+                        <li><strong>好处：</strong>一个模型，多个任务</li>
+                    </ul>
+                </div>
+                <div class="think-item">
+                    <h5>⚡ 计算效率问题</h5>
+                    <ul>
+                        <li><strong>预训练：</strong>一次性大规模训练</li>
+                        <li><strong>微调：</strong>快速适应新任务</li>
+                        <li><strong>节省：</strong>总体计算成本降低</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="comparison-table">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>方面</th>
+                        <th>传统监督学习</th>
+                        <th>预训练-微调</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td>数据需求</td>
+                        <td>大量标注数据</td>
+                        <td>少量标注数据</td>
+                    </tr>
+                    <tr>
+                        <td>训练时间</td>
+                        <td>每个任务都很长</td>
+                        <td>预训练长，微调短</td>
+                    </tr>
+                    <tr>
+                        <td>性能表现</td>
+                        <td>受限于数据量</td>
+                        <td>通常更好</td>
+                    </tr>
+                    <tr>
+                        <td>泛化能力</td>
+                        <td>较差</td>
+                        <td>优秀</td>
+                    </tr>
+                    <tr>
+                        <td>任务适应</td>
+                        <td>需要重新训练</td>
+                        <td>快速微调</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="explore-box">
+                <h4>真实案例：预训练的影响力</h4>
+                <p><strong>BERT发布后的24小时内：</strong></p>
+                <ul>
+                    <li>11个NLP任务的SOTA被刷新</li>
+                    <li>性能提升平均超过7%</li>
+                    <li>某些任务接近人类水平</li>
+                </ul>
+                <p class="mt-3"><strong>这说明了什么？</strong></p>
+                <p>预训练模型确实学到了深层的语言理解能力，而不只是记忆！</p>
+            </div>
+
+            <div class="demo-container mt-4">
+                <h3 class="mb-3">预训练的数据规模</h3>
+
+                <div class="param-display">
+                    <div class="param-item">
+                        <span class="param-value">3.3B</span>
+                        <span class="param-label">BERT训练词数</span>
+                    </div>
+                    <div class="param-item">
+                        <span class="param-value">40GB</span>
+                        <span class="param-label">GPT-3训练文本</span>
+                    </div>
+                    <div class="param-item">
+                        <span class="param-value">570GB</span>
+                        <span class="param-label">GPT-4训练数据</span>
+                    </div>
+                    <div class="param-item">
+                        <span class="param-value">1000x</span>
+                        <span class="param-label">比标注数据多</span>
+                    </div>
+                </div>
+
+                <p class="text-center mt-3 text-muted">
+                    无标注数据几乎是无限的，这是预训练的关键优势！
+                </p>
+            </div>
+        </section>
+
+        <!-- 语言模型基础 -->
+        <section id="language-model" class="section-card">
+            <h2>📖 语言模型基础</h2>
+
+            <div class="story-card">
+                <span class="story-icon">🎲</span>
+                <p><strong>预测下一个词的游戏</strong></p>
+                <p class="mt-2">
+                    语言模型本质上在玩一个游戏：给定前面的词，预测下一个词。
+                    看似简单，却蕴含着理解语言的所有要素！
+                </p>
+            </div>
+
+            <div class="deep-think-box">
+                <h4>什么是语言模型？</h4>
+                <div class="think-item">
+                    <h5>📐 数学定义</h5>
+                    <p>语言模型计算一个序列的概率：</p>
+                    <div class="math-display">
+                        <p class="math-formula">
+                            $P(w_1, w_2, ..., w_n) = \prod_{i=1}^{n} P(w_i | w_1, ..., w_{i-1})$
+                        </p>
+                    </div>
+                    <p>用人话说：句子的概率 = 每个词在前文条件下的概率乘积</p>
+                </div>
+                <div class="think-item">
+                    <h5>🎯 两种主要类型</h5>
+                    <ul>
+                        <li><strong>自回归（AR）：</strong>从左到右预测，如GPT</li>
+                        <li><strong>自编码（AE）：</strong>双向理解，如BERT</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="pretrain-visualization">
+                <h3 class="text-center mb-3" style="color: var(--primary-light);">语言建模任务示例</h3>
+
+                <div class="model-comparison">
+                    <div class="model-card gpt">
+                        <h4 class="text-center mb-3">GPT风格（自回归）</h4>
+                        <div class="mask-demo">
+                            今天 天气 <span style="color: var(--gpt-color);">→ ?</span>
+                        </div>
+                        <p class="prediction-arrow">↓</p>
+                        <div class="mask-demo">
+                            预测：<strong>很好 / 真好 / 不错</strong>
+                        </div>
+                        <p class="text-center mt-3 text-muted">
+                            只看左边，预测右边
+                        </p>
+                    </div>
+
+                    <div class="model-card bert">
+                        <h4 class="text-center mb-3">BERT风格（掩码）</h4>
+                        <div class="mask-demo">
+                            今天 <span class="mask-token">[MASK]</span> 很好
+                        </div>
+                        <p class="prediction-arrow">↓</p>
+                        <div class="mask-demo">
+                            预测：<strong>天气 / 心情 / 状态</strong>
+                        </div>
+                        <p class="text-center mt-3 text-muted">
+                            看两边，预测中间
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="code-block">
+                <div class="code-header">
+                    <span class="code-lang">Python - 简单的语言模型训练</span>
+                    <div class="code-actions">
+                        <button class="code-btn" onclick="toggleCode(this)">展开</button>
+                        <button class="code-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+                </div>
+                <div class="code-content collapsed">
+                    <pre><span class="keyword">import</span> torch
+<span class="keyword">import</span> torch.nn <span class="keyword">as</span> nn
+<span class="keyword">from</span> transformers <span class="keyword">import</span> GPT2Model, GPT2Config
+
+<span class="keyword">class</span> <span class="function">SimpleLanguageModel</span>(nn.Module):
+    <span class="string">"""
+    简化的语言模型示例
+    展示预训练的基本思想
+    """</span>
+    <span class="keyword">def</span> <span class="function">__init__</span>(self, vocab_size, hidden_size, num_layers):
+        super().__init__()
+        self.embedding = nn.Embedding(vocab_size, hidden_size)
+        self.transformer = nn.TransformerEncoder(
+            nn.TransformerEncoderLayer(hidden_size, nhead=8),
+            num_layers=num_layers
+        )
+        self.lm_head = nn.Linear(hidden_size, vocab_size)
+
+    <span class="keyword">def</span> <span class="function">forward</span>(self, input_ids, labels=None):
+        <span class="comment"># 1. 词嵌入</span>
+        embeddings = self.embedding(input_ids)
+
+        <span class="comment"># 2. Transformer编码</span>
+        hidden_states = self.transformer(embeddings)
+
+        <span class="comment"># 3. 预测下一个词</span>
+        logits = self.lm_head(hidden_states)
+
+        <span class="keyword">if</span> labels <span class="keyword">is not</span> None:
+            <span class="comment"># 计算语言模型损失</span>
+            loss_fct = nn.CrossEntropyLoss()
+            shift_logits = logits[..., :-1, :].contiguous()
+            shift_labels = labels[..., 1:].contiguous()
+            loss = loss_fct(
+                shift_logits.view(-1, shift_logits.size(-1)),
+                shift_labels.view(-1)
+            )
+            <span class="keyword">return</span> loss, logits
+
+        <span class="keyword">return</span> logits
+
+<span class="comment"># 训练循环（伪代码）</span>
+<span class="keyword">def</span> <span class="function">pretrain_language_model</span>(model, data_loader, num_epochs):
+    <span class="string">"""
+    预训练语言模型的基本流程
+    """</span>
+    optimizer = torch.optim.AdamW(model.parameters(), lr=5e-5)
+
+    <span class="keyword">for</span> epoch <span class="keyword">in</span> range(num_epochs):
+        <span class="keyword">for</span> batch <span class="keyword">in</span> data_loader:
+            <span class="comment"># 1. 前向传播</span>
+            loss, _ = model(
+                input_ids=batch[<span class="string">'input_ids'</span>],
+                labels=batch[<span class="string">'labels'</span>]
+            )
+
+            <span class="comment"># 2. 反向传播</span>
+            loss.backward()
+
+            <span class="comment"># 3. 梯度裁剪（防止梯度爆炸）</span>
+            torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+
+            <span class="comment"># 4. 更新参数</span>
+            optimizer.step()
+            optimizer.zero_grad()
+
+        print(<span class="string">f"Epoch {epoch}, Loss: {loss.item()}"</span>)
+
+<span class="comment"># 生成文本示例</span>
+<span class="keyword">def</span> <span class="function">generate_text</span>(model, prompt, max_length=50):
+    <span class="string">"""
+    使用训练好的语言模型生成文本
+    """</span>
+    model.eval()
+    input_ids = tokenize(prompt)  <span class="comment"># 假设有tokenize函数</span>
+
+    <span class="keyword">with</span> torch.no_grad():
+        <span class="keyword">for</span> _ <span class="keyword">in</span> range(max_length):
+            <span class="comment"># 预测下一个词</span>
+            logits = model(input_ids)
+            next_token_logits = logits[0, -1, :]
+
+            <span class="comment"># 采样（可以用贪心、beam search等）</span>
+            next_token = torch.argmax(next_token_logits)
+
+            <span class="comment"># 添加到序列</span>
+            input_ids = torch.cat([input_ids, next_token.unsqueeze(0)])
+
+            <span class="comment"># 检查是否结束</span>
+            <span class="keyword">if</span> next_token == EOS_TOKEN:
+                <span class="keyword">break</span>
+
+    <span class="keyword">return</span> decode(input_ids)  <span class="comment"># 假设有decode函数</span></pre>
+                </div>
+            </div>
+
+            <div class="think-box mt-4">
+                <h4>🤔 深入理解</h4>
+                <ul>
+                    <li>为什么预测下一个词能学到语言理解？</li>
+                    <li>自回归和自编码各有什么优缺点？</li>
+                    <li>如何评估语言模型的质量？</li>
+                </ul>
+            </div>
+
+            <div class="explore-box mt-4">
+                <h4>实验：语言模型的能力</h4>
+                <p><strong>一个训练良好的语言模型能够：</strong></p>
+                <ol>
+                    <li><strong>语法理解：</strong>"我昨天___了一本书" → 买/读/看</li>
+                    <li><strong>常识推理：</strong>"水在0度会___" → 结冰</li>
+                    <li><strong>上下文理解：</strong>"他很累，所以他___" → 睡觉/休息</li>
+                </ol>
+                <p class="mt-3">这些能力都是通过简单的"预测下一个词"学到的！</p>
+            </div>
+        </section>
+
+        <!-- 预训练-微调范式 -->
+        <section id="pretrain-finetune" class="section-card">
+            <h2>🔄 预训练-微调范式</h2>
+
+            <div class="story-card">
+                <span class="story-icon">🎓</span>
+                <p><strong>通识教育 + 专业训练</strong></p>
+                <p class="mt-2">
+                    就像大学教育：先学通识课程（数学、英语等），
+                    再学专业课程（计算机、医学等）。预训练-微调正是这个思路！
+                </p>
+            </div>
+
+            <div class="timeline">
+                <div class="timeline-item">
+                    <div class="timeline-date">阶段 1</div>
+                    <div class="timeline-content">
+                        <h4>🌊 预训练阶段</h4>
+                        <ul>
+                            <li>海量无标注文本</li>
+                            <li>自监督学习任务</li>
+                            <li>学习通用语言表示</li>
+                            <li>需要大量计算资源</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="timeline-item">
+                    <div class="timeline-date">阶段 2</div>
+                    <div class="timeline-content">
+                        <h4>🎯 微调阶段</h4>
+                        <ul>
+                            <li>少量标注数据</li>
+                            <li>特定任务优化</li>
+                            <li>快速收敛</li>
+                            <li>计算成本低</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="timeline-item">
+                    <div class="timeline-date">阶段 3</div>
+                    <div class="timeline-content">
+                        <h4>🚀 部署应用</h4>
+                        <ul>
+                            <li>模型压缩优化</li>
+                            <li>推理加速</li>
+                            <li>实际场景应用</li>
+                            <li>持续迭代改进</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="deep-think-box">
+                <h4>预训练-微调的核心优势</h4>
+                <div class="think-item">
+                    <h5>📚 知识迁移</h5>
+                    <p>预训练学到的知识可以迁移到多个下游任务：</p>
+                    <ul>
+                        <li>语法知识 → 所有NLP任务</li>
+                        <li>语义理解 → 分类、问答等</li>
+                        <li>上下文建模 → 对话、翻译等</li>
+                    </ul>
+                </div>
+                <div class="think-item">
+                    <h5>💰 经济高效</h5>
+                    <ul>
+                        <li>预训练：一次投入，多次使用</li>
+                        <li>微调：小数据集，快速适应</li>
+                        <li>总成本：大幅降低</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="code-block mt-4">
+                <div class="code-header">
+                    <span class="code-lang">Python - 微调BERT示例</span>
+                </div>
+                <div class="code-content">
+                    <pre><span class="keyword">from</span> transformers <span class="keyword">import</span> BertForSequenceClassification, BertTokenizer
+<span class="keyword">from</span> transformers <span class="keyword">import</span> Trainer, TrainingArguments
+<span class="keyword">import</span> torch
+
+<span class="comment"># 1. 加载预训练模型</span>
+model = BertForSequenceClassification.from_pretrained(
+    <span class="string">'bert-base-chinese'</span>,
+    num_labels=2  <span class="comment"># 二分类任务</span>
+)
+tokenizer = BertTokenizer.from_pretrained(<span class="string">'bert-base-chinese'</span>)
+
+<span class="comment"># 2. 准备数据（情感分析为例）</span>
+texts = [<span class="string">"这部电影真棒！"</span>, <span class="string">"太失望了。"</span>]
+labels = [1, 0]  <span class="comment"># 1=正面, 0=负面</span>
+
+<span class="comment"># 3. 数据预处理</span>
+inputs = tokenizer(
+    texts,
+    padding=True,
+    truncation=True,
+    return_tensors=<span class="string">"pt"</span>
+)
+inputs[<span class="string">'labels'</span>] = torch.tensor(labels)
+
+<span class="comment"># 4. 设置训练参数</span>
+training_args = TrainingArguments(
+    output_dir=<span class="string">'./results'</span>,
+    num_train_epochs=3,        <span class="comment"># 只需要几个epoch</span>
+    per_device_train_batch_size=16,
+    warmup_steps=500,
+    learning_rate=2e-5,        <span class="comment"># 较小的学习率</span>
+    logging_dir=<span class="string">'./logs'</span>,
+)
+
+<span class="comment"># 5. 创建Trainer并训练</span>
+trainer = Trainer(
+    model=model,
+    args=training_args,
+    train_dataset=train_dataset,  <span class="comment"># 你的训练集</span>
+    eval_dataset=eval_dataset,    <span class="comment"># 你的验证集</span>
+)
+
+<span class="comment"># 6. 开始微调</span>
+trainer.train()
+
+<span class="comment"># 7. 保存微调后的模型</span>
+model.save_pretrained(<span class="string">'./my-sentiment-model'</span>)
+tokenizer.save_pretrained(<span class="string">'./my-sentiment-model'</span>)</pre>
+                </div>
+            </div>
+
+            <div class="tip success mt-4">
+                <span class="tip-icon">✨</span>
+                <strong>关键洞察</strong>
+                <p class="mt-2">
+                    预训练-微调范式的成功在于：预训练阶段学到的是<strong>通用的语言理解能力</strong>，
+                    而不是特定任务的技巧。这种能力可以轻松迁移到各种下游任务！
+                </p>
+            </div>
+        </section>
+
+        <!-- BERT的革命 -->
+        <section id="bert-intro" class="section-card">
+            <h2>🎭 BERT的革命</h2>
+
+            <div class="story-card">
+                <span class="story-icon">🦸</span>
+                <p><strong>双向理解的超级英雄</strong></p>
+                <p class="mt-2">
+                    2018年10月，Google发布BERT（Bidirectional Encoder Representations from Transformers）。
+                    它的核心创新：<strong>同时看左右上下文</strong>，真正理解语言！
+                </p>
+            </div>
+
+            <div class="deep-think-box">
+                <h4>BERT的核心创新</h4>
+                <div class="think-item">
+                    <h5>👀 双向注意力</h5>
+                    <p>考虑这个句子：</p>
+                    <p style="padding: 1rem; background: rgba(255,255,255,0.05); border-radius: 0.5rem;">
+                        "The bank is by the river" vs "The bank refused my loan"
+                    </p>
+                    <ul>
+                        <li>单看"bank"左边：无法确定含义</li>
+                        <li>必须看完整句子：才知道是"河岸"还是"银行"</li>
+                        <li>BERT的优势：同时看两边！</li>
+                    </ul>
+                </div>
+                <div class="think-item">
+                    <h5>🎯 掩码语言模型（MLM）</h5>
+                    <p>BERT的训练方式：</p>
+                    <ol>
+                        <li>随机掩盖15%的词</li>
+                        <li>用[MASK]标记替换</li>
+                        <li>预测被掩盖的词</li>
+                    </ol>
+                    <p class="mt-2">就像做完形填空，需要理解上下文！</p>
+                </div>
+            </div>
+
+            <div class="pretrain-visualization">
+                <h3 class="text-center mb-3" style="color: var(--bert-color);">BERT预训练任务演示</h3>
+
+                <div class="demo-container">
+                    <h4>任务1：掩码语言模型（MLM）</h4>
+                    <div class="mask-demo">
+                        <p>原句：我喜欢在春天去公园散步</p>
+                        <p>掩码：我喜欢在<span class="mask-token">[MASK]</span>去公园<span class="mask-token">[MASK]</span></p>
+                        <p class="prediction-arrow">↓ BERT预测 ↓</p>
+                        <p>结果：我喜欢在<strong>春天</strong>去公园<strong>散步</strong></p>
+                    </div>
+
+                    <div class="tip info mt-3">
+                        <span class="tip-icon">💡</span>
+                        <strong>为什么有效？</strong>
+                        <p class="mt-2">
+                            预测被掩盖的词需要理解：语法（在...去）、语义（公园+活动）、
+                            常识（春天+户外活动）。这迫使模型学习深层的语言理解！
+                        </p>
+                    </div>
+                </div>
+
+                <div class="demo-container mt-4">
+                    <h4>任务2：下一句预测（NSP）</h4>
+                    <div style="background: rgba(255,255,255,0.05); padding: 1.5rem; border-radius: 0.5rem;">
+                        <p><strong>正例（连续的句子）：</strong></p>
+                        <p>A: 今天天气真好。</p>
+                        <p>B: 我们去公园玩吧。</p>
+                        <p>标签：<span style="color: var(--success);">IsNext</span></p>
+
+                        <hr style="margin: 1rem 0; opacity: 0.3;">
+
+                        <p><strong>负例（随机的句子）：</strong></p>
+                        <p>A: 今天天气真好。</p>
+                        <p>B: 这道数学题真难。</p>
+                        <p>标签：<span style="color: var(--danger);">NotNext</span></p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="model-comparison mt-4">
+                <div class="model-card bert">
+                    <h4 class="text-center mb-3">BERT的优势</h4>
+                    <ul>
+                        <li>✅ 真正的双向理解</li>
+                        <li>✅ 更好的语境建模</li>
+                        <li>✅ 适合理解类任务</li>
+                        <li>✅ 句子级别的理解</li>
+                    </ul>
+                </div>
+
+                <div class="model-card">
+                    <h4 class="text-center mb-3">BERT的局限</h4>
+                    <ul>
+                        <li>❌ 不能直接生成文本</li>
+                        <li>❌ [MASK]在实际中不存在</li>
+                        <li>❌ 预训练-微调有gap</li>
+                        <li>❌ 计算成本较高</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="explore-box mt-4">
+                <h4>BERT的影响力</h4>
+                <p><strong>BERT发布后的成就：</strong></p>
+                <ul>
+                    <li>🏆 GLUE基准：11个任务全部SOTA</li>
+                    <li>🏆 SQuAD 1.1：F1分数93.2（超越人类）</li>
+                    <li>🏆 SWAG：86.3%准确率（常识推理）</li>
+                </ul>
+                <p class="mt-3"><strong>更重要的是：</strong>开启了预训练模型的新时代！</p>
+            </div>
+        </section>
+
+        <!-- BERT架构与训练 -->
+        <section id="bert-arch" class="section-card">
+            <h2>🏗️ BERT架构与训练</h2>
+
+            <div class="story-card">
+                <span class="story-icon">🔧</span>
+                <p><strong>解剖BERT的内部结构</strong></p>
+                <p class="mt-2">
+                    BERT就像一个精密的语言理解机器。
+                    让我们打开它的引擎盖，看看内部是如何工作的。
+                </p>
+            </div>
+
+            <div class="deep-think-box">
+                <h4>BERT的架构细节</h4>
+                <div class="think-item">
+                    <h5>🏛️ 模型结构</h5>
+                    <ul>
+                        <li><strong>基础：</strong>Transformer编码器</li>
+                        <li><strong>BERT-Base：</strong>12层，768维，12头，110M参数</li>
+                        <li><strong>BERT-Large：</strong>24层，1024维，16头，340M参数</li>
+                    </ul>
+                </div>
+                <div class="think-item">
+                    <h5>🔤 输入表示</h5>
+                    <p>BERT的输入是三个嵌入的和：</p>
+                    <ul>
+                        <li><strong>Token嵌入：</strong>词的向量表示</li>
+                        <li><strong>Segment嵌入：</strong>区分句子A和句子B</li>
+                        <li><strong>Position嵌入：</strong>位置信息</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="code-block">
+                <div class="code-header">
+                    <span class="code-lang">Python - BERT的输入处理</span>
+                </div>
+                <div class="code-content">
+                    <pre><span class="keyword">import</span> torch
+<span class="keyword">from</span> transformers <span class="keyword">import</span> BertModel, BertTokenizer
+
+<span class="comment"># 初始化</span>
+tokenizer = BertTokenizer.from_pretrained(<span class="string">'bert-base-uncased'</span>)
+model = BertModel.from_pretrained(<span class="string">'bert-base-uncased'</span>)
+
+<span class="comment"># 准备输入</span>
+text_a = <span class="string">"Hello, how are you?"</span>
+text_b = <span class="string">"I am fine, thank you."</span>
+
+<span class="comment"># 方式1：单句输入</span>
+inputs_single = tokenizer(text_a, return_tensors=<span class="string">'pt'</span>)
+print(<span class="string">"单句输入："</span>)
+print(<span class="string">f"  Token IDs: {inputs_single['input_ids'][0].tolist()}"</span>)
+print(<span class="string">f"  Tokens: {tokenizer.convert_ids_to_tokens(inputs_single['input_ids'][0])}"</span>)
+
+<span class="comment"># 方式2：句对输入（用于NSP等任务）</span>
+inputs_pair = tokenizer(text_a, text_b, return_tensors=<span class="string">'pt'</span>)
+print(<span class="string">"\n句对输入："</span>)
+print(<span class="string">f"  Token IDs: {inputs_pair['input_ids'][0].tolist()}"</span>)
+print(<span class="string">f"  Tokens: {tokenizer.convert_ids_to_tokens(inputs_pair['input_ids'][0])}"</span>)
+print(<span class="string">f"  Segment IDs: {inputs_pair['token_type_ids'][0].tolist()}"</span>)
+
+<span class="comment"># BERT的特殊标记</span>
+print(<span class="string">"\n特殊标记："</span>)
+print(<span class="string">f"  [CLS] token ID: {tokenizer.cls_token_id}"</span>)
+print(<span class="string">f"  [SEP] token ID: {tokenizer.sep_token_id}"</span>)
+print(<span class="string">f"  [MASK] token ID: {tokenizer.mask_token_id}"</span>)
+print(<span class="string">f"  [PAD] token ID: {tokenizer.pad_token_id}"</span>)
+
+<span class="comment"># 获取BERT输出</span>
+<span class="keyword">with</span> torch.no_grad():
+    outputs = model(**inputs_pair)
+
+<span class="comment"># outputs包含：</span>
+<span class="comment"># - last_hidden_state: 最后一层的隐藏状态 [batch_size, seq_len, hidden_size]</span>
+<span class="comment"># - pooler_output: [CLS]的池化输出 [batch_size, hidden_size]</span>
+
+print(<span class="string">f"\n输出形状："</span>)
+print(<span class="string">f"  Last hidden state: {outputs.last_hidden_state.shape}"</span>)
+print(<span class="string">f"  Pooler output: {outputs.pooler_output.shape}"</span>)</pre>
+                </div>
+            </div>
+
+            <div class="pretrain-visualization mt-4">
+                <h3 class="text-center mb-3">BERT的训练策略</h3>
+
+                <div class="param-display">
+                    <div class="param-item">
+                        <span class="param-value">15%</span>
+                        <span class="param-label">掩码比例</span>
+                    </div>
+                    <div class="param-item">
+                        <span class="param-value">80%</span>
+                        <span class="param-label">用[MASK]替换</span>
+                    </div>
+                    <div class="param-item">
+                        <span class="param-value">10%</span>
+                        <span class="param-label">随机词替换</span>
+                    </div>
+                    <div class="param-item">
+                        <span class="param-value">10%</span>
+                        <span class="param-label">保持原词</span>
+                    </div>
+                </div>
+
+                <div class="deep-think-box mt-3">
+                    <h4>为什么要这样设计？</h4>
+                    <div class="think-item">
+                        <h5>🎲 80-10-10策略</h5>
+                        <ul>
+                            <li><strong>80% [MASK]：</strong>主要的训练信号</li>
+                            <li><strong>10% 随机词：</strong>防止模型只依赖[MASK]</li>
+                            <li><strong>10% 原词：</strong>让模型学会"不动"</li>
+                        </ul>
+                        <p class="mt-2">这个设计缓解了预训练和微调的不一致！</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="comparison-table mt-4">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>训练细节</th>
+                        <th>BERT-Base</th>
+                        <th>BERT-Large</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td>Batch Size</td>
+                        <td>256</td>
+                        <td>256</td>
+                    </tr>
+                    <tr>
+                        <td>训练步数</td>
+                        <td>1M steps</td>
+                        <td>1M steps</td>
+                    </tr>
+                    <tr>
+                        <td>序列长度</td>
+                        <td>512 tokens</td>
+                        <td>512 tokens</td>
+                    </tr>
+                    <tr>
+                        <td>学习率</td>
+                        <td>1e-4</td>
+                        <td>1e-4</td>
+                    </tr>
+                    <tr>
+                        <td>Warmup步数</td>
+                        <td>10,000</td>
+                        <td>10,000</td>
+                    </tr>
+                    <tr>
+                        <td>训练时间</td>
+                        <td>4天（16 TPUs）</td>
+                        <td>4天（64 TPUs）</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="tip warning mt-4">
+                <span class="tip-icon">⚠️</span>
+                <strong>训练BERT的挑战</strong>
+                <p class="mt-2">
+                    训练BERT需要大量计算资源。但好消息是：你通常不需要从头训练！
+                    使用预训练模型并微调是更实际的选择。
+                </p>
+            </div>
+        </section>
+
+        <!-- BERT使用指南 -->
+        <section id="bert-usage" class="section-card">
+            <h2>📘 BERT使用指南</h2>
+
+            <div class="story-card">
+                <span class="story-icon">🛠️</span>
+                <p><strong>把BERT应用到你的任务</strong></p>
+                <p class="mt-2">
+                    BERT已经预训练好了，现在让我们看看如何把它应用到各种实际任务中。
+                    记住：你只需要加一个简单的输出层！
+                </p>
+            </div>
+
+            <div class="card-grid">
+                <div class="info-card">
+                    <span class="card-icon">📊</span>
+                    <h4 class="card-title">文本分类</h4>
+                    <p>情感分析、主题分类等</p>
+                    <div class="code-block mt-2">
+                        <div class="code-content">
+                            <pre><span class="comment"># 使用[CLS]的输出</span>
+pooler_output → Linear → Softmax</pre>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="info-card">
+                    <span class="card-icon">🏷️</span>
+                    <h4 class="card-title">序列标注</h4>
+                    <p>命名实体识别、词性标注等</p>
+                    <div class="code-block mt-2">
+                        <div class="code-content">
+                            <pre><span class="comment"># 使用每个token的输出</span>
+token_outputs → Linear → Softmax</pre>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="info-card">
+                    <span class="card-icon">❓</span>
+                    <h4 class="card-title">问答系统</h4>
+                    <p>阅读理解、抽取式问答</p>
+                    <div class="code-block mt-2">
+                        <div class="code-content">
+                            <pre><span class="comment"># 预测答案的起始和结束位置</span>
+token_outputs → Start/End Linear</pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="code-block mt-4">
+                <div class="code-header">
+                    <span class="code-lang">Python - BERT实战示例集</span>
+                    <div class="code-actions">
+                        <button class="code-btn" onclick="toggleCode(this)">展开</button>
+                        <button class="code-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+                </div>
+                <div class="code-content collapsed">
+                    <pre><span class="keyword">from</span> transformers <span class="keyword">import</span> (
+    BertForSequenceClassification,
+    BertForTokenClassification,
+    BertForQuestionAnswering,
+    BertTokenizer,
+    pipeline
+)
+
+<span class="comment"># ========== 1. 文本分类 ==========</span>
+<span class="keyword">def</span> <span class="function">sentiment_analysis_example</span>():
+    <span class="string">"""情感分析示例"""</span>
+    <span class="comment"># 加载预训练的中文情感分析模型</span>
+    classifier = pipeline(
+        <span class="string">"sentiment-analysis"</span>,
+        model=<span class="string">"uer/roberta-base-finetuned-chinanews-chinese"</span>
+    )
+
+    <span class="comment"># 预测</span>
+    texts = [
+        <span class="string">"这部电影太精彩了，强烈推荐！"</span>,
+        <span class="string">"服务态度很差，再也不来了。"</span>,
+        <span class="string">"质量一般，价格适中。"</span>
+    ]
+
+    results = classifier(texts)
+    <span class="keyword">for</span> text, result <span class="keyword">in</span> zip(texts, results):
+        print(<span class="string">f"文本: {text}"</span>)
+        print(<span class="string">f"情感: {result['label']}, 置信度: {result['score']:.4f}\n"</span>)
+
+<span class="comment"># ========== 2. 命名实体识别 ==========</span>
+<span class="keyword">def</span> <span class="function">ner_example</span>():
+    <span class="string">"""NER示例"""</span>
+    <span class="comment"># 加载NER模型</span>
+    ner = pipeline(
+        <span class="string">"ner"</span>,
+        model=<span class="string">"ckiplab/bert-base-chinese-ner"</span>,
+        aggregation_strategy=<span class="string">"simple"</span>
+    )
+
+    text = <span class="string">"马云在1999年创立了阿里巴巴集团。"</span>
+    entities = ner(text)
+
+    print(<span class="string">f"原文: {text}\n"</span>)
+    print(<span class="string">"识别的实体:"</span>)
+    <span class="keyword">for</span> entity <span class="keyword">in</span> entities:
+        print(<span class="string">f"  {entity['word']} - {entity['entity_group']} (置信度: {entity['score']:.4f})"</span>)
+
+<span class="comment"># ========== 3. 问答系统 ==========</span>
+<span class="keyword">def</span> <span class="function">qa_example</span>():
+    <span class="string">"""问答系统示例"""</span>
+    <span class="comment"># 加载问答模型</span>
+    qa_pipeline = pipeline(
+        <span class="string">"question-answering"</span>,
+        model=<span class="string">"uer/roberta-base-chinese-extractive-qa"</span>
+    )
+
+    context = <span class="string">"""
+    BERT是2018年由Google发布的预训练语言模型。
+    它使用了Transformer的编码器架构，通过掩码语言模型和下一句预测两个任务进行预训练。
+    BERT在11个NLP任务上取得了最先进的结果。
+    """</span>
+
+    questions = [
+        <span class="string">"BERT是什么时候发布的？"</span>,
+        <span class="string">"BERT使用了什么架构？"</span>,
+        <span class="string">"BERT的预训练任务有哪些？"</span>
+    ]
+
+    <span class="keyword">for</span> question <span class="keyword">in</span> questions:
+        result = qa_pipeline(question=question, context=context)
+        print(<span class="string">f"问题: {question}"</span>)
+        print(<span class="string">f"答案: {result['answer']} (置信度: {result['score']:.4f})\n"</span>)
+
+<span class="comment"># ========== 4. 自定义微调 ==========</span>
+<span class="keyword">class</span> <span class="function">BertClassifier</span>(nn.Module):
+    <span class="string">"""自定义的BERT分类器"""</span>
+    <span class="keyword">def</span> <span class="function">__init__</span>(self, n_classes):
+        super(BertClassifier, self).__init__()
+        self.bert = BertModel.from_pretrained(<span class="string">'bert-base-uncased'</span>)
+        self.dropout = nn.Dropout(p=0.3)
+        self.classifier = nn.Linear(self.bert.config.hidden_size, n_classes)
+
+    <span class="keyword">def</span> <span class="function">forward</span>(self, input_ids, attention_mask):
+        outputs = self.bert(
+            input_ids=input_ids,
+            attention_mask=attention_mask
+        )
+        pooled_output = outputs.pooler_output
+        output = self.dropout(pooled_output)
+        <span class="keyword">return</span> self.classifier(output)
+
+<span class="comment"># ========== 5. 特征提取 ==========</span>
+<span class="keyword">def</span> <span class="function">extract_features</span>(text):
+    <span class="string">"""使用BERT提取文本特征"""</span>
+    tokenizer = BertTokenizer.from_pretrained(<span class="string">'bert-base-uncased'</span>)
+    model = BertModel.from_pretrained(<span class="string">'bert-base-uncased'</span>)
+
+    <span class="comment"># 编码文本</span>
+    inputs = tokenizer(text, return_tensors=<span class="string">'pt'</span>, padding=True, truncation=True)
+
+    <span class="comment"># 获取BERT输出</span>
+    <span class="keyword">with</span> torch.no_grad():
+        outputs = model(**inputs)
+
+    <span class="comment"># 使用[CLS]标记的输出作为句子表示</span>
+    sentence_embedding = outputs.pooler_output
+
+    <span class="comment"># 或者使用所有token的平均</span>
+    token_embeddings = outputs.last_hidden_state
+    attention_mask = inputs[<span class="string">'attention_mask'</span>]
+    mask_expanded = attention_mask.unsqueeze(-1).expand(token_embeddings.size()).float()
+    sum_embeddings = torch.sum(token_embeddings * mask_expanded, 1)
+    sum_mask = torch.clamp(mask_expanded.sum(1), min=1e-9)
+    mean_pooled = sum_embeddings / sum_mask
+
+    <span class="keyword">return</span> {
+        <span class="string">'cls_embedding'</span>: sentence_embedding,
+        <span class="string">'mean_pooled'</span>: mean_pooled
+    }
+
+<span class="comment"># 运行示例</span>
+<span class="keyword">if</span> __name__ == <span class="string">"__main__"</span>:
+    print(<span class="string">"=== 情感分析 ==="</span>)
+    sentiment_analysis_example()
+
+    print(<span class="string">"\n=== 命名实体识别 ==="</span>)
+    ner_example()
+
+    print(<span class="string">"\n=== 问答系统 ==="</span>)
+    qa_example()</pre>
+                </div>
+            </div>
+
+            <div class="deep-think-box mt-4">
+                <h4>BERT微调的最佳实践</h4>
+                <div class="think-item">
+                    <h5>📊 数据准备</h5>
+                    <ul>
+                        <li>确保数据质量（标注准确）</li>
+                        <li>数据平衡（避免类别不均）</li>
+                        <li>适当的数据增强</li>
+                    </ul>
+                </div>
+                <div class="think-item">
+                    <h5>⚙️ 超参数设置</h5>
+                    <ul>
+                        <li>学习率：2e-5 到 5e-5</li>
+                        <li>Batch size：16 或 32</li>
+                        <li>训练轮数：2-4 epochs</li>
+                        <li>Warmup：10% 的总步数</li>
+                    </ul>
+                </div>
+                <div class="think-item">
+                    <h5>🎯 训练技巧</h5>
+                    <ul>
+                        <li>冻结底层（可选）</li>
+                        <li>逐层解冻（渐进式）</li>
+                        <li>早停（防止过拟合）</li>
+                        <li>集成多个模型</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="tip success mt-4">
+                <span class="tip-icon">🎉</span>
+                <strong>BERT使用总结</strong>
+                <p class="mt-2">
+                    BERT的强大之处在于它的通用性。无论是分类、标注还是问答，
+                    你都只需要在BERT上加一个简单的任务特定层，然后微调即可。
+                    这就是预训练模型的魅力！
+                </p>
+            </div>
+        </section>
+
+        <!-- GPT的演进 -->
+        <section id="gpt-evolution" class="section-card">
+            <h2>🚀 GPT的演进之路</h2>
+
+            <div class="story-card">
+                <span class="story-icon">📈</span>
+                <p><strong>从GPT到ChatGPT的进化史</strong></p>
+                <p class="mt-2">
+                    如果说BERT擅长理解，那么GPT就是生成的大师。
+                    从2018年的GPT-1到如今的GPT-4，让我们见证这个传奇的诞生。
+                </p>
+            </div>
+
+            <div class="timeline">
+                <div class="timeline-item">
+                    <div class="timeline-date">2018.6</div>
+                    <div class="timeline-content">
+                        <h4>GPT-1</h4>
+                        <ul>
+                            <li>117M参数</li>
+                            <li>无监督预训练+监督微调</li>
+                            <li>在9/12个任务上SOTA</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="timeline-item">
+                    <div class="timeline-date">2019.2</div>
+                    <div class="timeline-content">
+                        <h4>GPT-2</h4>
+                        <ul>
+                            <li>1.5B参数（10倍增长）</li>
+                            <li>Zero-shot能力</li>
+                            <li>"太危险不能公开"</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="timeline-item">
+                    <div class="timeline-date">2020.6</div>
+                    <div class="timeline-content">
+                        <h4>GPT-3</h4>
+                        <ul>
+                            <li>175B参数（100倍增长）</li>
+                            <li>Few-shot学习</li>
+                            <li>涌现能力出现</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="timeline-item">
+                    <div class="timeline-date">2022.11</div>
+                    <div class="timeline-content">
+                        <h4>ChatGPT</h4>
+                        <ul>
+                            <li>基于GPT-3.5</li>
+                            <li>RLHF对齐</li>
+                            <li>改变世界的对话AI</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="timeline-item">
+                    <div class="timeline-date">2023.3</div>
+                    <div class="timeline-content">
+                        <h4>GPT-4</h4>
+                        <ul>
+                            <li>多模态能力</li>
+                            <li>更强的推理</li>
+                            <li>更长的上下文</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="deep-think-box">
+                <h4>GPT系列的核心思想</h4>
+                <div class="think-item">
+                    <h5>🎯 自回归语言建模</h5>
+                    <p>GPT的训练目标极其简单：</p>
+                    <div class="math-display">
+                        <p class="math-formula">
+                            $L = -\sum_{i} \log P(w_i | w_1, ..., w_{i-1})$
+                        </p>
+                    </div>
+                    <p>就是预测下一个词！但这个简单任务蕴含了所有语言理解。</p>
+                </div>
+                <div class="think-item">
+                    <h5>🧩 统一的框架</h5>
+                    <ul>
+                        <li>预训练：语言建模</li>
+                        <li>下游任务：也转化为语言建模</li>
+                        <li>优势：没有预训练-微调的gap</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="demo-container mt-4">
+                <h3 class="text-center mb-3">GPT的能力演进</h3>
+
+                <div class="param-display">
+                    <div class="param-item">
+                        <span class="param-value">Zero-shot</span>
+                        <span class="param-label">GPT-2开始</span>
+                    </div>
+                    <div class="param-item">
+                        <span class="param-value">Few-shot</span>
+                        <span class="param-label">GPT-3标志</span>
+                    </div>
+                    <div class="param-item">
+                        <span class="param-value">对话</span>
+                        <span class="param-label">ChatGPT特色</span>
+                    </div>
+                    <div class="param-item">
+                        <span class="param-value">多模态</span>
+                        <span class="param-label">GPT-4创新</span>
+                    </div>
+                </div>
+
+                <div class="explore-box mt-3">
+                    <h4>Few-shot学习示例</h4>
+                    <div class="prompt-example">
+                        <div class="prompt-input">
+                            <p>任务：情感分析</p>
+                            <p>例1：这部电影太棒了！→ 正面</p>
+                            <p>例2：浪费时间。→ 负面</p>
+                            <p>例3：还行吧。→ 中性</p>
+                            <p>测试：这是我看过最精彩的电影！→</p>
+                        </div>
+                        <div class="prompt-output">
+                            <p>GPT-3输出：正面</p>
+                        </div>
+                    </div>
+                    <p class="text-center mt-2 text-muted">
+                        无需微调，仅通过提示就能完成任务！
+                    </p>
+                </div>
+            </div>
+
+            <div class="think-box mt-4">
+                <h4>🤔 深度思考</h4>
+                <ul>
+                    <li>为什么简单的"预测下一个词"能产生如此强大的能力？</li>
+                    <li>模型规模和能力之间是什么关系？</li>
+                    <li>涌现能力是如何产生的？</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- 自回归训练 -->
+        <section id="gpt-training" class="section-card">
+            <h2>🔄 自回归训练详解</h2>
+
+            <div class="story-card">
+                <span class="story-icon">🎮</span>
+                <p><strong>像玩接龙游戏一样训练</strong></p>
+                <p class="mt-2">
+                    GPT的训练就像文字接龙：给定前面的词，猜下一个。
+                    这个简单的游戏，却能让模型学会写作、编程、对话...
+                </p>
+            </div>
+
+            <div class="code-block">
+                <div class="code-header">
+                    <span class="code-lang">Python - GPT训练核心代码</span>
+                    <div class="code-actions">
+                        <button class="code-btn" onclick="toggleCode(this)">展开</button>
+                        <button class="code-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+                </div>
+                <div class="code-content collapsed">
+                    <pre><span class="keyword">import</span> torch
+<span class="keyword">import</span> torch.nn <span class="keyword">as</span> nn
+<span class="keyword">import</span> torch.nn.functional <span class="keyword">as</span> F
+<span class="keyword">from</span> transformers <span class="keyword">import</span> GPT2Model, GPT2Config
+
+<span class="keyword">class</span> <span class="function">GPTLanguageModel</span>(nn.Module):
+    <span class="string">"""
+    GPT风格的语言模型
+    """</span>
+    <span class="keyword">def</span> <span class="function">__init__</span>(self, config):
+        super().__init__()
+        self.transformer = GPT2Model(config)
+        self.lm_head = nn.Linear(config.n_embd, config.vocab_size, bias=False)
+
+        <span class="comment"># 权重共享（embedding和输出层）</span>
+        self.lm_head.weight = self.transformer.wte.weight
+
+    <span class="keyword">def</span> <span class="function">forward</span>(self, input_ids, attention_mask=None, labels=None):
+        <span class="comment"># Transformer编码</span>
+        transformer_outputs = self.transformer(
+            input_ids=input_ids,
+            attention_mask=attention_mask
+        )
+        hidden_states = transformer_outputs.last_hidden_state
+
+        <span class="comment"># 预测每个位置的下一个词</span>
+        lm_logits = self.lm_head(hidden_states)
+
+        loss = None
+        <span class="keyword">if</span> labels <span class="keyword">is not</span> None:
+            <span class="comment"># Shift使得每个位置预测下一个词</span>
+            shift_logits = lm_logits[..., :-1, :].contiguous()
+            shift_labels = labels[..., 1:].contiguous()
+
+            <span class="comment"># 计算交叉熵损失</span>
+            loss_fct = nn.CrossEntropyLoss()
+            loss = loss_fct(
+                shift_logits.view(-1, shift_logits.size(-1)),
+                shift_labels.view(-1)
+            )
+
+        <span class="keyword">return</span> loss, lm_logits
+
+<span class="comment"># ========== 训练循环 ==========</span>
+<span class="keyword">def</span> <span class="function">train_gpt</span>(model, train_loader, num_epochs=3):
+    optimizer = torch.optim.AdamW(model.parameters(), lr=5e-5)
+
+    model.train()
+    <span class="keyword">for</span> epoch <span class="keyword">in</span> range(num_epochs):
+        total_loss = 0
+        <span class="keyword">for</span> batch <span class="keyword">in</span> train_loader:
+            <span class="comment"># 准备输入</span>
+            input_ids = batch[<span class="string">'input_ids'</span>]
+            attention_mask = batch[<span class="string">'attention_mask'</span>]
+
+            <span class="comment"># 标签就是输入本身（自回归）</span>
+            labels = input_ids.clone()
+
+            <span class="comment"># 前向传播</span>
+            loss, _ = model(
+                input_ids=input_ids,
+                attention_mask=attention_mask,
+                labels=labels
+            )
+
+            <span class="comment"># 反向传播</span>
+            loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+
+            optimizer.step()
+            optimizer.zero_grad()
+
+            total_loss += loss.item()
+
+        avg_loss = total_loss / len(train_loader)
+        print(<span class="string">f"Epoch {epoch+1}, Loss: {avg_loss:.4f}"</span>)
+
+<span class="comment"># ========== 文本生成 ==========</span>
+<span class="keyword">def</span> <span class="function">generate_text</span>(model, tokenizer, prompt, max_length=100, temperature=1.0):
+    <span class="string">"""
+    使用GPT生成文本
+
+    Args:
+        temperature: 控制生成的随机性（0=确定性，>1=更随机）
+    """</span>
+    model.eval()
+
+    <span class="comment"># 编码输入</span>
+    inputs = tokenizer(prompt, return_tensors=<span class="string">'pt'</span>)
+    input_ids = inputs[<span class="string">'input_ids'</span>]
+
+    <span class="comment"># 生成循环</span>
+    <span class="keyword">with</span> torch.no_grad():
+        <span class="keyword">for</span> _ <span class="keyword">in</span> range(max_length):
+            <span class="comment"># 获取模型输出</span>
+            _, logits = model(input_ids)
+
+            <span class="comment"># 只看最后一个位置的预测</span>
+            next_token_logits = logits[0, -1, :] / temperature
+
+            <span class="comment"># 采样下一个词</span>
+            probs = F.softmax(next_token_logits, dim=-1)
+            next_token = torch.multinomial(probs, num_samples=1)
+
+            <span class="comment"># 添加到序列</span>
+            input_ids = torch.cat([input_ids, next_token.unsqueeze(0)], dim=1)
+
+            <span class="comment"># 检查是否生成了结束符</span>
+            <span class="keyword">if</span> next_token.item() == tokenizer.eos_token_id:
+                <span class="keyword">break</span>
+
+    <span class="comment"># 解码生成的文本</span>
+    generated_text = tokenizer.decode(input_ids[0], skip_special_tokens=True)
+    <span class="keyword">return</span> generated_text
+
+<span class="comment"># ========== 高级生成策略 ==========</span>
+<span class="keyword">def</span> <span class="function">generate_with_strategies</span>(model, tokenizer, prompt,
+                              max_length=100,
+                              do_sample=True,
+                              top_k=50,
+                              top_p=0.95,
+                              temperature=1.0,
+                              repetition_penalty=1.0):
+    <span class="string">"""
+    使用各种解码策略生成文本
+    """</span>
+    <span class="keyword">from</span> transformers <span class="keyword">import</span> GPT2LMHeadModel
+
+    <span class="comment"># 使用Hugging Face的生成方法</span>
+    model = GPT2LMHeadModel.from_pretrained(<span class="string">'gpt2'</span>)
+    inputs = tokenizer(prompt, return_tensors=<span class="string">'pt'</span>)
+
+    <span class="keyword">with</span> torch.no_grad():
+        outputs = model.generate(
+            inputs[<span class="string">'input_ids'</span>],
+            max_length=max_length,
+            do_sample=do_sample,
+            top_k=top_k,
+            top_p=top_p,
+            temperature=temperature,
+            repetition_penalty=repetition_penalty,
+            pad_token_id=tokenizer.eos_token_id
+        )
+
+    <span class="keyword">return</span> tokenizer.decode(outputs[0], skip_special_tokens=True)
+
+<span class="comment"># 使用示例</span>
+<span class="keyword">if</span> __name__ == <span class="string">"__main__"</span>:
+    <span class="comment"># 初始化</span>
+    config = GPT2Config(
+        vocab_size=50257,
+        n_positions=1024,
+        n_embd=768,
+        n_layer=12,
+        n_head=12
+    )
+    model = GPTLanguageModel(config)
+
+    <span class="comment"># 生成示例</span>
+    prompt = <span class="string">"人工智能的未来"</span>
+    print(<span class="string">f"Prompt: {prompt}"</span>)
+    print(<span class="string">"Generated:"</span>)
+    <span class="comment"># generated = generate_text(model, tokenizer, prompt)</span></pre>
+                </div>
+            </div>
+
+            <div class="deep-think-box mt-4">
+                <h4>自回归训练的关键技术</h4>
+                <div class="think-item">
+                    <h5>🎲 解码策略</h5>
+                    <ul>
+                        <li><strong>贪心解码：</strong>每次选概率最大的词</li>
+                        <li><strong>束搜索：</strong>保留top-k个候选序列</li>
+                        <li><strong>采样：</strong>从概率分布中随机采样</li>
+                        <li><strong>Top-k/Top-p：</strong>限制采样范围</li>
+                    </ul>
+                </div>
+                <div class="think-item">
+                    <h5>🌡️ 温度控制</h5>
+                    <p>温度参数调节生成的随机性：</p>
+                    <ul>
+                        <li>T < 1：更确定，更保守</li>
+                        <li>T = 1：原始分布</li>
+                        <li>T > 1：更随机，更创造性</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="demo-container mt-4">
+                <h3 class="mb-3">生成策略对比</h3>
+
+                <div class="comparison-table">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th>策略</th>
+                            <th>特点</th>
+                            <th>优势</th>
+                            <th>劣势</th>
+                            <th>适用场景</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr>
+                            <td>贪心解码</td>
+                            <td>选择概率最高的词</td>
+                            <td>确定性、速度快</td>
+                            <td>容易重复</td>
+                            <td>事实性文本</td>
+                        </tr>
+                        <tr>
+                            <td>束搜索</td>
+                            <td>保留k个最佳序列</td>
+                            <td>质量较高</td>
+                            <td>计算成本高</td>
+                            <td>翻译、摘要</td>
+                        </tr>
+                        <tr>
+                            <td>Top-k采样</td>
+                            <td>从前k个词中采样</td>
+                            <td>平衡质量和多样性</td>
+                            <td>k值难以选择</td>
+                            <td>创意写作</td>
+                        </tr>
+                        <tr>
+                            <td>Top-p采样</td>
+                            <td>从累积概率p内采样</td>
+                            <td>自适应词表大小</td>
+                            <td>需要调参</td>
+                            <td>对话生成</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="tip info mt-4">
+                <span class="tip-icon">💡</span>
+                <strong>生成质量的秘密</strong>
+                <p class="mt-2">
+                    好的文本生成不仅需要好的模型，更需要合适的解码策略。
+                    不同的任务需要不同的策略：翻译需要准确（束搜索），
+                    创作需要创意（采样）！
+                </p>
+            </div>
+        </section>
+
+        <!-- 规模法则 -->
+        <section id="scaling-law" class="section-card">
+            <h2>📏 规模法则</h2>
+
+            <div class="story-card">
+                <span class="story-icon">🌌</span>
+                <p><strong>更大就是更好？</strong></p>
+                <p class="mt-2">
+                    从GPT-1的117M参数到GPT-3的175B参数，模型规模增长了1500倍。
+                    这背后隐藏着什么规律？让我们探索"规模法则"的奥秘。
+                </p>
+            </div>
+
+            <div class="deep-think-box">
+                <h4>Scaling Laws的核心发现</h4>
+                <div class="think-item">
+                    <h5>📈 幂律关系</h5>
+                    <p>模型性能与三个因素呈幂律关系：</p>
+                    <div class="math-display">
+                        <p class="math-formula">
+                            $L(N, D, C) \propto N^{-\alpha} \cdot D^{-\beta} \cdot C^{-\gamma}$
+                        </p>
+                    </div>
+                    <ul>
+                        <li>N：模型参数量</li>
+                        <li>D：数据集大小</li>
+                        <li>C：计算量</li>
+                    </ul>
+                </div>
+                <div class="think-item">
+                    <h5>🔄 最优配比</h5>
+                    <ul>
+                        <li>参数量和数据量应该同步增长</li>
+                        <li>计算预算应该平衡分配</li>
+                        <li>存在最优的模型大小/数据量比例</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="demo-container">
+                <h3 class="text-center mb-3">模型规模演进</h3>
+
+                <div class="param-display">
+                    <div class="param-item">
+                        <span class="param-value">10x</span>
+                        <span class="param-label">每2年参数增长</span>
+                    </div>
+                    <div class="param-item">
+                        <span class="param-value">4x</span>
+                        <span class="param-label">性能提升/10x参数</span>
+                    </div>
+                    <div class="param-item">
+                        <span class="param-value">~10B</span>
+                        <span class="param-label">涌现能力阈值</span>
+                    </div>
+                    <div class="param-item">
+                        <span class="param-value">∞</span>
+                        <span class="param-label">理论上限？</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="explore-box mt-4">
+                <h4>涌现能力（Emergent Abilities）</h4>
+                <p><strong>当模型足够大时，会突然出现新能力：</strong></p>
+                <ul>
+                    <li>🧮 <strong>算术推理：</strong>GPT-3能做多步数学计算</li>
+                    <li>🌍 <strong>多语言理解：</strong>没训练过的语言也能理解</li>
+                    <li>💻 <strong>代码生成：</strong>能写复杂的程序</li>
+                    <li>🎯 <strong>少样本学习：</strong>看几个例子就能学会</li>
+                </ul>
+                <p class="mt-3">这些能力在小模型中完全不存在，只在大模型中"涌现"！</p>
+            </div>
+
+            <div class="comparison-table mt-4">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>模型</th>
+                        <th>参数量</th>
+                        <th>训练数据</th>
+                        <th>新能力</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td>GPT-1</td>
+                        <td>117M</td>
+                        <td>~5GB</td>
+                        <td>基础语言理解</td>
+                    </tr>
+                    <tr>
+                        <td>GPT-2</td>
+                        <td>1.5B</td>
+                        <td>40GB</td>
+                        <td>Zero-shot任务</td>
+                    </tr>
+                    <tr>
+                        <td>GPT-3</td>
+                        <td>175B</td>
+                        <td>570GB</td>
+                        <td>Few-shot学习、推理</td>
+                    </tr>
+                    <tr>
+                        <td>GPT-4</td>
+                        <td>~1T?</td>
+                        <td>~10TB?</td>
+                        <td>多模态、强推理</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="think-box mt-4">
+                <h4>🤔 深层思考</h4>
+                <ul>
+                    <li>规模法则是否有上限？</li>
+                    <li>涌现能力的本质是什么？</li>
+                    <li>更大的模型一定更好吗？</li>
+                    <li>如何在效率和能力间平衡？</li>
+                </ul>
+            </div>
+
+            <div class="tip warning mt-4">
+                <span class="tip-icon">⚠️</span>
+                <strong>规模的代价</strong>
+                <p class="mt-2">
+                    训练GPT-3级别的模型需要数百万美元的计算成本，
+                    产生的碳排放相当于5辆汽车终身排放量。
+                    我们需要更高效的方法！
+                </p>
+            </div>
+        </section>
+
+        <!-- Prompt学习 -->
+        <section id="prompt-learning" class="section-card">
+            <h2>💬 Prompt学习</h2>
+
+            <div class="story-card">
+                <span class="story-icon">🎨</span>
+                <p><strong>教模型说话的艺术</strong></p>
+                <p class="mt-2">
+                    如果预训练模型已经学会了语言，那么我们只需要用正确的方式"提问"。
+                    这就是Prompt学习的核心思想：不改变模型，只改变输入！
+                </p>
+            </div>
+
+            <div class="deep-think-box">
+                <h4>Prompt工程的演进</h4>
+                <div class="think-item">
+                    <h5>🔤 离散Prompt</h5>
+                    <p>人工设计的模板：</p>
+                    <div class="prompt-example">
+                        <p>情感分析：<br>
+                            "{句子}" 这句话的情感是[MASK]的。</p>
+                    </div>
+                </div>
+                <div class="think-item">
+                    <h5>🧬 连续Prompt</h5>
+                    <p>可学习的向量：</p>
+                    <div class="prompt-example">
+                        <p>[P1][P2][P3] "{句子}" [P4][P5] → 分类</p>
+                    </div>
+                </div>
+                <div class="think-item">
+                    <h5>🎯 指令微调</h5>
+                    <p>直接用自然语言指令：</p>
+                    <div class="prompt-example">
+                        <p>请分析以下句子的情感倾向，回答正面、负面或中性：</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="code-block mt-4">
+                <div class="code-header">
+                    <span class="code-lang">Python - Prompt学习示例</span>
+                    <div class="code-actions">
+                        <button class="code-btn" onclick="toggleCode(this)">展开</button>
+                        <button class="code-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+                </div>
+                <div class="code-content collapsed">
+                    <pre><span class="keyword">from</span> transformers <span class="keyword">import</span> AutoModelForMaskedLM, AutoTokenizer
+<span class="keyword">import</span> torch
+
+<span class="comment"># ========== 1. 传统微调 vs Prompt ==========</span>
+<span class="keyword">def</span> <span class="function">traditional_classification</span>(text):
+    <span class="string">"""传统方法：需要分类头+微调"""</span>
+    <span class="comment"># 需要额外的分类层和大量标注数据</span>
+    <span class="keyword">pass</span>
+
+<span class="keyword">def</span> <span class="function">prompt_based_classification</span>(text, model, tokenizer):
+    <span class="string">"""Prompt方法：直接利用语言模型"""</span>
+    <span class="comment"># 构造prompt</span>
+    prompt = <span class="string">f"{text} 总的来说，这是[MASK]的。"</span>
+
+    <span class="comment"># 编码</span>
+    inputs = tokenizer(prompt, return_tensors=<span class="string">'pt'</span>)
+    mask_token_index = torch.where(inputs[<span class="string">"input_ids"</span>] == tokenizer.mask_token_id)[1]
+
+    <span class="comment"># 预测</span>
+    <span class="keyword">with</span> torch.no_grad():
+        logits = model(**inputs).logits
+    mask_token_logits = logits[0, mask_token_index, :]
+
+    <span class="comment"># 获取候选词的概率</span>
+    candidates = [<span class="string">"正面"</span>, <span class="string">"负面"</span>, <span class="string">"中性"</span>]
+    candidate_ids = tokenizer.convert_tokens_to_ids(candidates)
+    probs = torch.softmax(mask_token_logits, dim=1)[0, candidate_ids]
+
+    <span class="comment"># 返回最高概率的标签</span>
+    predicted_id = candidate_ids[torch.argmax(probs)]
+    <span class="keyword">return</span> tokenizer.decode([predicted_id])
+
+<span class="comment"># ========== 2. Few-shot Prompting ==========</span>
+<span class="keyword">def</span> <span class="function">few_shot_prompt</span>(test_input, examples):
+    <span class="string">"""
+    Few-shot学习：提供少量示例
+    """</span>
+    prompt = <span class="string">"请对以下文本进行情感分类：\n\n"</span>
+
+    <span class="comment"># 添加示例</span>
+    <span class="keyword">for</span> ex <span class="keyword">in</span> examples:
+        prompt += <span class="string">f"文本：{ex['text']}\n情感：{ex['label']}\n\n"</span>
+
+    <span class="comment"># 添加测试输入</span>
+    prompt += <span class="string">f"文本：{test_input}\n情感："</span>
+
+    <span class="keyword">return</span> prompt
+
+<span class="comment"># 使用示例</span>
+examples = [
+    {<span class="string">'text'</span>: <span class="string">'这部电影太精彩了！'</span>, <span class="string">'label'</span>: <span class="string">'正面'</span>},
+    {<span class="string">'text'</span>: <span class="string">'完全是浪费时间。'</span>, <span class="string">'label'</span>: <span class="string">'负面'</span>},
+    {<span class="string">'text'</span>: <span class="string">'还可以吧。'</span>, <span class="string">'label'</span>: <span class="string">'中性'</span>}
+]
+
+test_text = <span class="string">"这个产品改变了我的生活！"</span>
+prompt = few_shot_prompt(test_text, examples)
+print(prompt)
+
+<span class="comment"># ========== 3. Chain-of-Thought Prompting ==========</span>
+<span class="keyword">def</span> <span class="function">chain_of_thought_prompt</span>(question):
+    <span class="string">"""
+    思维链提示：引导模型逐步推理
+    """</span>
+    prompt = <span class="string">f"""
+问题：小明有5个苹果，他给了小红2个，又买了3个，请问他现在有几个苹果？
+
+让我们逐步思考：
+1. 小明开始有5个苹果
+2. 给了小红2个：5 - 2 = 3个
+3. 又买了3个：3 + 3 = 6个
+答案：小明现在有6个苹果。
+
+问题：{question}
+
+让我们逐步思考：
+"""</span>
+    <span class="keyword">return</span> prompt
+
+<span class="comment"># ========== 4. 软提示（Soft Prompt）==========</span>
+<span class="keyword">class</span> <span class="function">SoftPromptModel</span>(nn.Module):
+    <span class="string">"""
+    可学习的连续提示
+    """</span>
+    <span class="keyword">def</span> <span class="function">__init__</span>(self, base_model, prompt_length=10):
+        super().__init__()
+        self.base_model = base_model
+        self.prompt_length = prompt_length
+
+        <span class="comment"># 初始化软提示嵌入</span>
+        self.soft_prompt = nn.Parameter(
+            torch.randn(prompt_length, base_model.config.hidden_size)
+        )
+
+    <span class="keyword">def</span> <span class="function">forward</span>(self, input_ids, attention_mask):
+        <span class="comment"># 获取输入嵌入</span>
+        inputs_embeds = self.base_model.embeddings(input_ids)
+
+        <span class="comment"># 将软提示拼接到输入前面</span>
+        batch_size = input_ids.shape[0]
+        soft_prompt_expanded = self.soft_prompt.unsqueeze(0).expand(
+            batch_size, -1, -1
+        )
+        inputs_embeds = torch.cat([soft_prompt_expanded, inputs_embeds], dim=1)
+
+        <span class="comment"># 更新attention mask</span>
+        prompt_mask = torch.ones(batch_size, self.prompt_length).to(attention_mask.device)
+        attention_mask = torch.cat([prompt_mask, attention_mask], dim=1)
+
+        <span class="comment"># 通过模型</span>
+        outputs = self.base_model(
+            inputs_embeds=inputs_embeds,
+            attention_mask=attention_mask
+        )
+        <span class="keyword">return</span> outputs
+
+<span class="comment"># ========== 5. 高级Prompt技巧 ==========</span>
+<span class="keyword">class</span> <span class="function">PromptTemplates</span>:
+    <span class="string">"""
+    各种任务的Prompt模板
+    """</span>
+
+    @staticmethod
+    <span class="keyword">def</span> <span class="function">classification_prompt</span>(text, labels):
+        <span class="keyword">return</span> <span class="string">f"""
+将以下文本分类为{' / '.join(labels)}：
+
+文本：{text}
+类别："""</span>
+
+    @staticmethod
+    <span class="keyword">def</span> <span class="function">extraction_prompt</span>(text):
+        <span class="keyword">return</span> <span class="string">f"""
+从以下文本中提取关键信息：
+
+{text}
+
+关键信息：
+- 人物：
+- 地点：
+- 时间：
+- 事件："""</span>
+
+    @staticmethod
+    <span class="keyword">def</span> <span class="function">summarization_prompt</span>(text):
+        <span class="keyword">return</span> <span class="string">f"""
+请用一句话总结以下内容：
+
+{text}
+
+总结："""</span>
+
+    @staticmethod
+    <span class="keyword">def</span> <span class="function">translation_prompt</span>(text, source_lang, target_lang):
+        <span class="keyword">return</span> <span class="string">f"""
+将以下{source_lang}文本翻译成{target_lang}：
+
+{text}
+
+翻译："""</span></pre>
+                </div>
+            </div>
+
+            <div class="demo-container mt-4">
+                <h3 class="text-center mb-3">Prompt设计的艺术</h3>
+
+                <div class="card-grid">
+                    <div class="info-card">
+                        <span class="card-icon">🎯</span>
+                        <h4 class="card-title">明确性</h4>
+                        <p>清晰地说明任务要求</p>
+                        <p class="mt-2 text-muted">避免歧义，给出具体指令</p>
+                    </div>
+
+                    <div class="info-card">
+                        <span class="card-icon">📝</span>
+                        <h4 class="card-title">示例性</h4>
+                        <p>提供高质量的示例</p>
+                        <p class="mt-2 text-muted">让模型理解期望的输出格式</p>
+                    </div>
+
+                    <div class="info-card">
+                        <span class="card-icon">🔄</span>
+                        <h4 class="card-title">一致性</h4>
+                        <p>保持格式和风格统一</p>
+                        <p class="mt-2 text-muted">使用相同的模式和术语</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tip success mt-4">
+                <span class="tip-icon">💡</span>
+                <strong>Prompt的威力</strong>
+                <p class="mt-2">
+                    好的Prompt可以让同一个模型的性能提升30%以上！
+                    这是一种"零成本"的性能优化方法，只需要创造力和实验。
+                </p>
+            </div>
+        </section>
+
+        <!-- 参数高效微调 -->
+        <section id="peft" class="section-card">
+            <h2>⚡ 参数高效微调（PEFT）</h2>
+
+            <div class="story-card">
+                <span class="story-icon">🔬</span>
+                <p><strong>四两拨千斤的智慧</strong></p>
+                <p class="mt-2">
+                    GPT-3有1750亿参数，微调需要巨大的存储和计算。
+                    但如果我们只需要调整其中0.1%的参数呢？这就是PEFT的魔力！
+                </p>
+            </div>
+
+            <div class="deep-think-box">
+                <h4>PEFT方法大全</h4>
+                <div class="think-item">
+                    <h5>🔌 Adapter</h5>
+                    <p>在Transformer层间插入小型适配器模块</p>
+                    <ul>
+                        <li>只训练Adapter（~1%参数）</li>
+                        <li>原模型参数冻结</li>
+                        <li>每个任务一个Adapter</li>
+                    </ul>
+                </div>
+                <div class="think-item">
+                    <h5>🎯 LoRA</h5>
+                    <p>低秩适应（Low-Rank Adaptation）</p>
+                    <ul>
+                        <li>分解权重更新：ΔW = BA</li>
+                        <li>只训练低秩矩阵A和B</li>
+                        <li>推理时可以合并到原权重</li>
+                    </ul>
+                </div>
+                <div class="think-item">
+                    <h5>🏷️ Prefix Tuning</h5>
+                    <p>学习任务特定的前缀</p>
+                    <ul>
+                        <li>在输入前添加可训练前缀</li>
+                        <li>原模型完全不动</li>
+                        <li>类似软提示</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="code-block mt-4">
+                <div class="code-header">
+                    <span class="code-lang">Python - PEFT实现示例</span>
+                    <div class="code-actions">
+                        <button class="code-btn" onclick="toggleCode(this)">展开</button>
+                        <button class="code-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+                </div>
+                <div class="code-content collapsed">
+                    <pre><span class="keyword">import</span> torch
+<span class="keyword">import</span> torch.nn <span class="keyword">as</span> nn
+<span class="keyword">from</span> transformers <span class="keyword">import</span> AutoModel
+
+<span class="comment"># ========== 1. Adapter实现 ==========</span>
+<span class="keyword">class</span> <span class="function">Adapter</span>(nn.Module):
+    <span class="string">"""
+    Adapter模块：下投影 → 激活 → 上投影
+    """</span>
+    <span class="keyword">def</span> <span class="function">__init__</span>(self, hidden_size, adapter_size=64):
+        super().__init__()
+        self.down_project = nn.Linear(hidden_size, adapter_size)
+        self.activation = nn.ReLU()
+        self.up_project = nn.Linear(adapter_size, hidden_size)
+
+    <span class="keyword">def</span> <span class="function">forward</span>(self, x):
+        <span class="comment"># 保存残差连接</span>
+        residual = x
+
+        <span class="comment"># Adapter计算</span>
+        x = self.down_project(x)
+        x = self.activation(x)
+        x = self.up_project(x)
+
+        <span class="comment"># 残差连接</span>
+        <span class="keyword">return</span> x + residual
+
+<span class="comment"># ========== 2. LoRA实现 ==========</span>
+<span class="keyword">class</span> <span class="function">LoRALayer</span>(nn.Module):
+    <span class="string">"""
+    LoRA层：通过低秩分解实现参数高效微调
+    W' = W + BA, 其中B和A是低秩矩阵
+    """</span>
+    <span class="keyword">def</span> <span class="function">__init__</span>(self, in_features, out_features, rank=16, alpha=16):
+        super().__init__()
+        self.rank = rank
+        self.alpha = alpha
+
+        <span class="comment"># 冻结的原始权重</span>
+        self.weight = nn.Parameter(torch.randn(out_features, in_features))
+        self.weight.requires_grad = False
+
+        <span class="comment"># 可训练的低秩矩阵</span>
+        self.lora_A = nn.Parameter(torch.randn(rank, in_features) * 0.01)
+        self.lora_B = nn.Parameter(torch.zeros(out_features, rank))
+
+        <span class="comment"># 缩放因子</span>
+        self.scaling = self.alpha / self.rank
+
+    <span class="keyword">def</span> <span class="function">forward</span>(self, x):
+        <span class="comment"># 原始线性变换</span>
+        out = F.linear(x, self.weight)
+
+        <span class="comment"># LoRA部分</span>
+        lora_out = F.linear(F.linear(x, self.lora_A), self.lora_B)
+
+        <span class="keyword">return</span> out + lora_out * self.scaling
+
+<span class="comment"># ========== 3. Prefix Tuning实现 ==========</span>
+<span class="keyword">class</span> <span class="function">PrefixTuning</span>(nn.Module):
+    <span class="string">"""
+    Prefix Tuning：学习虚拟的prefix tokens
+    """</span>
+    <span class="keyword">def</span> <span class="function">__init__</span>(self, model, prefix_length=10):
+        super().__init__()
+        self.model = model
+        self.prefix_length = prefix_length
+
+        <span class="comment"># 获取模型配置</span>
+        config = model.config
+        self.n_layers = config.num_hidden_layers
+        self.n_heads = config.num_attention_heads
+        self.n_embd = config.hidden_size // config.num_attention_heads
+
+        <span class="comment"># 初始化prefix参数</span>
+        self.prefix_tokens = nn.Parameter(
+            torch.randn(prefix_length, config.hidden_size)
+        )
+
+        <span class="comment"># Prefix的key和value投影</span>
+        self.prefix_key_values = nn.ModuleList([
+            nn.Linear(config.hidden_size, 2 * config.hidden_size)
+            <span class="keyword">for</span> _ <span class="keyword">in</span> range(self.n_layers)
+        ])
+
+    <span class="keyword">def</span> <span class="function">forward</span>(self, input_ids, attention_mask):
+        batch_size = input_ids.shape[0]
+
+        <span class="comment"># 扩展prefix tokens到batch维度</span>
+        prefix = self.prefix_tokens.unsqueeze(0).expand(batch_size, -1, -1)
+
+        <span class="comment"># 为每一层生成prefix的key和value</span>
+        past_key_values = []
+        <span class="keyword">for</span> i <span class="keyword">in</span> range(self.n_layers):
+            key_value = self.prefix_key_values[i](prefix)
+            key, value = key_value.chunk(2, dim=-1)
+
+            <span class="comment"># 重塑为多头注意力格式</span>
+            key = key.view(batch_size, -1, self.n_heads, self.n_embd).transpose(1, 2)
+            value = value.view(batch_size, -1, self.n_heads, self.n_embd).transpose(1, 2)
+
+            past_key_values.append((key, value))
+
+        <span class="comment"># 更新attention mask</span>
+        prefix_mask = torch.ones(batch_size, self.prefix_length).to(attention_mask.device)
+        attention_mask = torch.cat([prefix_mask, attention_mask], dim=1)
+
+        <span class="comment"># 通过模型</span>
+        outputs = self.model(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+            past_key_values=past_key_values
+        )
+
+        <span class="keyword">return</span> outputs
+
+<span class="comment"># ========== 4. 使用PEFT库 ==========</span>
+<span class="keyword">from</span> peft <span class="keyword">import</span> LoraConfig, TaskType, get_peft_model
+
+<span class="keyword">def</span> <span class="function">apply_lora_to_model</span>(model):
+    <span class="string">"""
+    使用PEFT库应用LoRA
+    """</span>
+    <span class="comment"># 配置LoRA</span>
+    lora_config = LoraConfig(
+        r=16,                      <span class="comment"># 秩</span>
+        lora_alpha=32,            <span class="comment"># 缩放参数</span>
+        target_modules=[<span class="string">"q_proj"</span>, <span class="string">"v_proj"</span>],  <span class="comment"># 目标模块</span>
+        lora_dropout=0.1,         <span class="comment"># dropout</span>
+        bias=<span class="string">"none"</span>,              <span class="comment"># 不训练bias</span>
+        task_type=TaskType.SEQ_CLS,
+    )
+
+    <span class="comment"># 创建PEFT模型</span>
+    peft_model = get_peft_model(model, lora_config)
+
+    <span class="comment"># 打印可训练参数</span>
+    peft_model.print_trainable_parameters()
+
+    <span class="keyword">return</span> peft_model
+
+<span class="comment"># ========== 5. 效率对比 ==========</span>
+<span class="keyword">def</span> <span class="function">compare_peft_methods</span>():
+    <span class="string">"""
+    比较不同PEFT方法的效率
+    """</span>
+    model = AutoModel.from_pretrained(<span class="string">"bert-base-uncased"</span>)
+    total_params = sum(p.numel() <span class="keyword">for</span> p <span class="keyword">in</span> model.parameters())
+
+    print(<span class="string">f"原始模型参数量: {total_params:,}"</span>)
+
+    <span class="comment"># Adapter</span>
+    adapter_params = 64 * 768 * 2 * 12  <span class="comment"># 下投影+上投影 × 层数</span>
+    print(<span class="string">f"Adapter参数量: {adapter_params:,} ({adapter_params/total_params*100:.2f}%)"</span>)
+
+    <span class="comment"># LoRA (rank=16)</span>
+    lora_params = (768 * 16 + 768 * 16) * 12 * 2  <span class="comment"># A+B × 层数 × (Q,V)</span>
+    print(<span class="string">f"LoRA参数量: {lora_params:,} ({lora_params/total_params*100:.2f}%)"</span>)
+
+    <span class="comment"># Prefix Tuning</span>
+    prefix_params = 10 * 768 + 10 * 768 * 2 * 12  <span class="comment"># prefix + key/value投影</span>
+    print(<span class="string">f"Prefix参数量: {prefix_params:,} ({prefix_params/total_params*100:.2f}%)"</span>)</pre>
+                </div>
+            </div>
+
+            <div class="comparison-table mt-4">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>方法</th>
+                        <th>可训练参数</th>
+                        <th>存储需求</th>
+                        <th>推理开销</th>
+                        <th>性能</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td>全量微调</td>
+                        <td>100%</td>
+                        <td>高（每个任务一个模型）</td>
+                        <td>无额外开销</td>
+                        <td>最佳</td>
+                    </tr>
+                    <tr>
+                        <td>Adapter</td>
+                        <td>~1-2%</td>
+                        <td>低</td>
+                        <td>轻微增加</td>
+                        <td>接近全量</td>
+                    </tr>
+                    <tr>
+                        <td>LoRA</td>
+                        <td>~0.1-1%</td>
+                        <td>极低</td>
+                        <td>可合并，无开销</td>
+                        <td>非常接近</td>
+                    </tr>
+                    <tr>
+                        <td>Prefix Tuning</td>
+                        <td>~0.1%</td>
+                        <td>极低</td>
+                        <td>序列变长</td>
+                        <td>良好</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="tip info mt-4">
+                <span class="tip-icon">🚀</span>
+                <strong>PEFT的实际应用</strong>
+                <p class="mt-2">
+                    使用LoRA，你可以在单个GPU上微调70B参数的模型！
+                    这让个人开发者也能玩转大模型，极大地民主化了AI技术。
+                </p>
+            </div>
+        </section>
+
+        <!-- 指令微调 -->
+        <section id="instruction-tuning" class="section-card">
+            <h2>📝 指令微调</h2>
+
+            <div class="story-card">
+                <span class="story-icon">👨‍🏫</span>
+                <p><strong>教会模型听懂人话</strong></p>
+                <p class="mt-2">
+                    GPT-3很强大，但它不会听指令。ChatGPT的秘密在于"指令微调"：
+                    教模型理解并遵循人类的各种指令！
+                </p>
+            </div>
+
+            <div class="deep-think-box">
+                <h4>从GPT-3到ChatGPT的进化</h4>
+                <div class="think-item">
+                    <h5>📚 第一步：监督微调（SFT）</h5>
+                    <ul>
+                        <li>收集高质量的（指令，回答）对</li>
+                        <li>在这些数据上微调模型</li>
+                        <li>让模型学会遵循指令的基本模式</li>
+                    </ul>
+                </div>
+                <div class="think-item">
+                    <h5>🎯 第二步：奖励建模（RM）</h5>
+                    <ul>
+                        <li>对同一指令生成多个回答</li>
+                        <li>人工排序这些回答的质量</li>
+                        <li>训练奖励模型预测人类偏好</li>
+                    </ul>
+                </div>
+                <div class="think-item">
+                    <h5>🔄 第三步：强化学习（RLHF）</h5>
+                    <ul>
+                        <li>使用PPO算法优化模型</li>
+                        <li>奖励信号来自奖励模型</li>
+                        <li>平衡探索和利用</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="demo-container">
+                <h3 class="text-center mb-3">指令数据示例</h3>
+
+                <div class="prompt-example">
+                    <div class="prompt-input">
+                        <p><strong>指令：</strong>将以下段落总结成三个要点</p>
+                        <p><strong>输入：</strong>[一段长文本]</p>
+                    </div>
+                    <div class="prompt-output">
+                        <p><strong>回答：</strong></p>
+                        <p>根据这段文本，主要要点如下：</p>
+                        <p>1. ...</p>
+                        <p>2. ...</p>
+                        <p>3. ...</p>
+                    </div>
+                </div>
+
+                <div class="prompt-example mt-3">
+                    <div class="prompt-input">
+                        <p><strong>指令：</strong>解释量子计算，要求5岁小孩也能理解</p>
+                    </div>
+                    <div class="prompt-output">
+                        <p><strong>回答：</strong></p>
+                        <p>想象一下，普通计算机就像一个只能走迷宫的小朋友...</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="code-block mt-4">
+                <div class="code-header">
+                    <span class="code-lang">Python - 指令微调实现</span>
+                </div>
+                <div class="code-content">
+                    <pre><span class="comment"># 指令数据格式</span>
+instruction_data = [
+    {
+        <span class="string">"instruction"</span>: <span class="string">"将下面的文本翻译成英文"</span>,
+        <span class="string">"input"</span>: <span class="string">"今天天气真好"</span>,
+        <span class="string">"output"</span>: <span class="string">"The weather is really nice today"</span>
+    },
+    {
+        <span class="string">"instruction"</span>: <span class="string">"判断下面句子的情感倾向"</span>,
+        <span class="string">"input"</span>: <span class="string">"这个产品太棒了！"</span>,
+        <span class="string">"output"</span>: <span class="string">"这句话表达了正面情感，使用了'太棒了'这样的积极词汇。"</span>
+    }
+]
+
+<span class="comment"># 构造训练prompt</span>
+<span class="keyword">def</span> <span class="function">format_instruction</span>(example):
+    <span class="keyword">if</span> example[<span class="string">'input'</span>]:
+        <span class="keyword">return</span> <span class="string">f"""### 指令：
+{example['instruction']}
+
+### 输入：
+{example['input']}
+
+### 回答：
+{example['output']}"""</span>
+    <span class="keyword">else</span>:
+        <span class="keyword">return</span> <span class="string">f"""### 指令：
+{example['instruction']}
+
+### 回答：
+{example['output']}"""</span></pre>
+                </div>
+            </div>
+
+            <div class="explore-box mt-4">
+                <h4>InstructGPT的训练流程</h4>
+                <ol>
+                    <li><strong>数据收集：</strong>40K高质量指令-回答对</li>
+                    <li><strong>SFT训练：</strong>16 epochs，学习率1e-5</li>
+                    <li><strong>奖励模型：</strong>33K比较数据</li>
+                    <li><strong>PPO训练：</strong>31K episodes</li>
+                    <li><strong>结果：</strong>1.3B模型胜过175B GPT-3！</li>
+                </ol>
+            </div>
+
+            <div class="tip success mt-4">
+                <span class="tip-icon">✨</span>
+                <strong>指令微调的威力</strong>
+                <p class="mt-2">
+                    指令微调不仅让模型更有用，还让它们更安全、更可控。
+                    这是大模型从"会说话"到"会对话"的关键一步！
+                </p>
+            </div>
+        </section>
+
+        <!-- 实际应用案例 -->
+        <section id="applications" class="section-card">
+            <h2>💼 实际应用案例</h2>
+
+            <div class="story-card">
+                <span class="story-icon">🌍</span>
+                <p><strong>预训练模型改变世界</strong></p>
+                <p class="mt-2">
+                    从搜索引擎到智能客服，从代码助手到医疗诊断，
+                    预训练模型正在各个领域发挥作用。让我们看看真实的案例！
+                </p>
+            </div>
+
+            <div class="card-grid">
+                <div class="info-card">
+                    <span class="card-icon">🔍</span>
+                    <h4 class="card-title">搜索引擎</h4>
+                    <p><strong>Google BERT</strong></p>
+                    <ul class="mt-2">
+                        <li>理解搜索意图</li>
+                        <li>改进10%的搜索结果</li>
+                        <li>支持70+种语言</li>
+                    </ul>
+                </div>
+
+                <div class="info-card">
+                    <span class="card-icon">💬</span>
+                    <h4 class="card-title">智能客服</h4>
+                    <p><strong>ChatGPT应用</strong></p>
+                    <ul class="mt-2">
+                        <li>24/7自动回复</li>
+                        <li>多轮对话理解</li>
+                        <li>情感识别与安抚</li>
+                    </ul>
+                </div>
+
+                <div class="info-card">
+                    <span class="card-icon">💻</span>
+                    <h4 class="card-title">代码助手</h4>
+                    <p><strong>GitHub Copilot</strong></p>
+                    <ul class="mt-2">
+                        <li>代码自动补全</li>
+                        <li>函数文档生成</li>
+                        <li>Bug修复建议</li>
+                    </ul>
+                </div>
+
+                <div class="info-card">
+                    <span class="card-icon">🏥</span>
+                    <h4 class="card-title">医疗健康</h4>
+                    <p><strong>BioBERT</strong></p>
+                    <ul class="mt-2">
+                        <li>医学文献理解</li>
+                        <li>病历信息提取</li>
+                        <li>药物关系挖掘</li>
+                    </ul>
+                </div>
+
+                <div class="info-card">
+                    <span class="card-icon">📚</span>
+                    <h4 class="card-title">教育辅助</h4>
+                    <p><strong>教育GPT</strong></p>
+                    <ul class="mt-2">
+                        <li>个性化辅导</li>
+                        <li>作业批改</li>
+                        <li>知识问答</li>
+                    </ul>
+                </div>
+
+                <div class="info-card">
+                    <span class="card-icon">🎨</span>
+                    <h4 class="card-title">创意写作</h4>
+                    <p><strong>创作助手</strong></p>
+                    <ul class="mt-2">
+                        <li>故事续写</li>
+                        <li>文案生成</li>
+                        <li>诗歌创作</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="deep-think-box mt-4">
+                <h4>成功案例分析</h4>
+                <div class="think-item">
+                    <h5>🏢 企业级应用：微软</h5>
+                    <p><strong>产品：</strong>Microsoft 365 Copilot</p>
+                    <p><strong>技术：</strong>GPT-4 + 企业数据</p>
+                    <p><strong>效果：</strong></p>
+                    <ul>
+                        <li>Word：自动撰写和编辑文档</li>
+                        <li>Excel：数据分析和可视化</li>
+                        <li>PowerPoint：演示文稿生成</li>
+                        <li>效率提升：平均节省50%时间</li>
+                    </ul>
+                </div>
+                <div class="think-item">
+                    <h5>🔬 科研应用：DeepMind</h5>
+                    <p><strong>产品：</strong>AlphaFold + 语言模型</p>
+                    <p><strong>成就：</strong></p>
+                    <ul>
+                        <li>预测2亿个蛋白质结构</li>
+                        <li>加速药物研发10倍</li>
+                        <li>开源造福全人类</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="explore-box mt-4">
+                <h4>行业影响数据</h4>
+                <div class="param-display">
+                    <div class="param-item">
+                        <span class="param-value">70%</span>
+                        <span class="param-label">企业采用AI</span>
+                    </div>
+                    <div class="param-item">
+                        <span class="param-value">$15.7T</span>
+                        <span class="param-label">2030年经济影响</span>
+                    </div>
+                    <div class="param-item">
+                        <span class="param-value">40%</span>
+                        <span class="param-label">生产力提升</span>
+                    </div>
+                    <div class="param-item">
+                        <span class="param-value">800M</span>
+                        <span class="param-label">工作岗位变革</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 最佳实践 -->
+        <section id="best-practices" class="section-card">
+            <h2>🎯 最佳实践</h2>
+
+            <div class="story-card">
+                <span class="story-icon">🧭</span>
+                <p><strong>站在巨人的肩膀上</strong></p>
+                <p class="mt-2">
+                    使用预训练模型不仅是技术问题，更是工程问题。
+                    这里总结了社区的智慧和经验！
+                </p>
+            </div>
+
+            <div class="deep-think-box">
+                <h4>预训练模型使用指南</h4>
+                <div class="think-item">
+                    <h5>🎨 模型选择</h5>
+                    <ul>
+                        <li><strong>任务匹配：</strong>BERT for理解，GPT for生成</li>
+                        <li><strong>规模权衡：</strong>不是越大越好</li>
+                        <li><strong>领域适配：</strong>优先选择领域预训练模型</li>
+                        <li><strong>开源优先：</strong>避免vendor lock-in</li>
+                    </ul>
+                </div>
+                <div class="think-item">
+                    <h5>⚡ 性能优化</h5>
+                    <ul>
+                        <li><strong>量化：</strong>INT8/INT4减少内存</li>
+                        <li><strong>剪枝：</strong>移除冗余参数</li>
+                        <li><strong>蒸馏：</strong>知识迁移到小模型</li>
+                        <li><strong>缓存：</strong>KV cache加速推理</li>
+                    </ul>
+                </div>
+                <div class="think-item">
+                    <h5>🛡️ 安全考虑</h5>
+                    <ul>
+                        <li><strong>数据隐私：</strong>不要泄露敏感信息</li>
+                        <li><strong>输出过滤：</strong>检测有害内容</li>
+                        <li><strong>对抗防御：</strong>防止prompt注入</li>
+                        <li><strong>监控审计：</strong>记录使用情况</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="code-block mt-4">
+                <div class="code-header">
+                    <span class="code-lang">Python - 生产环境最佳实践</span>
+                    <div class="code-actions">
+                        <button class="code-btn" onclick="toggleCode(this)">展开</button>
+                        <button class="code-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+                </div>
+                <div class="code-content collapsed">
+                    <pre><span class="keyword">import</span> torch
+<span class="keyword">from</span> transformers <span class="keyword">import</span> AutoModel, AutoTokenizer
+<span class="keyword">from</span> typing <span class="keyword">import</span> List, Dict
+<span class="keyword">import</span> logging
+
+<span class="comment"># ========== 1. 模型加载优化 ==========</span>
+<span class="keyword">class</span> <span class="function">OptimizedModelLoader</span>:
+    <span class="string">"""
+    优化的模型加载器
+    """</span>
+    @staticmethod
+    <span class="keyword">def</span> <span class="function">load_model</span>(model_name: str, device: str = <span class="string">'cuda'</span>):
+        <span class="comment"># 使用半精度减少内存</span>
+        model = AutoModel.from_pretrained(
+            model_name,
+            torch_dtype=torch.float16 <span class="keyword">if</span> device == <span class="string">'cuda'</span> <span class="keyword">else</span> torch.float32,
+            device_map=<span class="string">'auto'</span>  <span class="comment"># 自动设备映射</span>
+        )
+
+        <span class="comment"># 开启梯度检查点（训练时节省内存）</span>
+        <span class="keyword">if</span> hasattr(model, <span class="string">'gradient_checkpointing_enable'</span>):
+            model.gradient_checkpointing_enable()
+
+        <span class="comment"># 编译模型（PyTorch 2.0+）</span>
+        <span class="keyword">if</span> hasattr(torch, <span class="string">'compile'</span>):
+            model = torch.compile(model)
+
+        <span class="keyword">return</span> model
+
+<span class="comment"># ========== 2. 批处理优化 ==========</span>
+<span class="keyword">class</span> <span class="function">BatchProcessor</span>:
+    <span class="string">"""
+    高效的批处理器
+    """</span>
+    <span class="keyword">def</span> <span class="function">__init__</span>(self, model, tokenizer, max_length=512):
+        self.model = model
+        self.tokenizer = tokenizer
+        self.max_length = max_length
+
+    <span class="keyword">def</span> <span class="function">process_batch</span>(self, texts: List[str], batch_size: int = 32):
+        <span class="string">"""
+        批量处理文本
+        """</span>
+        results = []
+
+        <span class="comment"># 动态批处理</span>
+        <span class="keyword">for</span> i <span class="keyword">in</span> range(0, len(texts), batch_size):
+            batch_texts = texts[i:i + batch_size]
+
+            <span class="comment"># Padding到相同长度</span>
+            inputs = self.tokenizer(
+                batch_texts,
+                padding=True,
+                truncation=True,
+                max_length=self.max_length,
+                return_tensors=<span class="string">'pt'</span>
+            )
+
+            <span class="comment"># 推理</span>
+            <span class="keyword">with</span> torch.no_grad():
+                outputs = self.model(**inputs)
+
+            results.extend(outputs)
+
+        <span class="keyword">return</span> results
+
+<span class="comment"># ========== 3. 缓存策略 ==========</span>
+<span class="keyword">from</span> functools <span class="keyword">import</span> lru_cache
+<span class="keyword">import</span> hashlib
+
+<span class="keyword">class</span> <span class="function">CachedInference</span>:
+    <span class="string">"""
+    带缓存的推理
+    """</span>
+    <span class="keyword">def</span> <span class="function">__init__</span>(self, model, tokenizer):
+        self.model = model
+        self.tokenizer = tokenizer
+        self.cache = {}
+
+    <span class="keyword">def</span> <span class="function">_get_cache_key</span>(self, text: str) -> str:
+        <span class="string">"""生成缓存键"""</span>
+        <span class="keyword">return</span> hashlib.md5(text.encode()).hexdigest()
+
+    <span class="keyword">def</span> <span class="function">infer</span>(self, text: str):
+        <span class="string">"""
+        带缓存的推理
+        """</span>
+        cache_key = self._get_cache_key(text)
+
+        <span class="comment"># 检查缓存</span>
+        <span class="keyword">if</span> cache_key <span class="keyword">in</span> self.cache:
+            logging.info(<span class="string">f"Cache hit for: {text[:50]}..."</span>)
+            <span class="keyword">return</span> self.cache[cache_key]
+
+        <span class="comment"># 计算结果</span>
+        inputs = self.tokenizer(text, return_tensors=<span class="string">'pt'</span>)
+        <span class="keyword">with</span> torch.no_grad():
+            outputs = self.model(**inputs)
+
+        <span class="comment"># 存入缓存</span>
+        self.cache[cache_key] = outputs
+        <span class="keyword">return</span> outputs
+
+<span class="comment"># ========== 4. 错误处理 ==========</span>
+<span class="keyword">class</span> <span class="function">RobustModelWrapper</span>:
+    <span class="string">"""
+    健壮的模型包装器
+    """</span>
+    <span class="keyword">def</span> <span class="function">__init__</span>(self, model, tokenizer, max_retries=3):
+        self.model = model
+        self.tokenizer = tokenizer
+        self.max_retries = max_retries
+
+    <span class="keyword">def</span> <span class="function">safe_inference</span>(self, text: str):
+        <span class="string">"""
+        安全的推理，带重试机制
+        """</span>
+        <span class="keyword">for</span> attempt <span class="keyword">in</span> range(self.max_retries):
+            <span class="keyword">try</span>:
+                <span class="comment"># 输入验证</span>
+                <span class="keyword">if</span> <span class="keyword">not</span> text <span class="keyword">or</span> len(text) > 10000:
+                    <span class="keyword">raise</span> ValueError(<span class="string">"Invalid input"</span>)
+
+                <span class="comment"># 推理</span>
+                inputs = self.tokenizer(
+                    text,
+                    return_tensors=<span class="string">'pt'</span>,
+                    truncation=True
+                )
+
+                <span class="keyword">with</span> torch.no_grad():
+                    outputs = self.model(**inputs)
+
+                <span class="keyword">return</span> outputs
+
+            <span class="keyword">except</span> torch.cuda.OutOfMemoryError:
+                logging.error(<span class="string">"GPU OOM, clearing cache"</span>)
+                torch.cuda.empty_cache()
+                <span class="keyword">if</span> attempt == self.max_retries - 1:
+                    <span class="keyword">raise</span>
+
+            <span class="keyword">except</span> Exception <span class="keyword">as</span> e:
+                logging.error(<span class="string">f"Error in inference: {e}"</span>)
+                <span class="keyword">if</span> attempt == self.max_retries - 1:
+                    <span class="keyword">raise</span>
+
+<span class="comment"># ========== 5. 监控和日志 ==========</span>
+<span class="keyword">import</span> time
+<span class="keyword">from</span> contextlib <span class="keyword">import</span> contextmanager
+
+@contextmanager
+<span class="keyword">def</span> <span class="function">performance_monitor</span>(operation_name: str):
+    <span class="string">"""
+    性能监控上下文管理器
+    """</span>
+    start_time = time.time()
+    start_memory = torch.cuda.memory_allocated() <span class="keyword">if</span> torch.cuda.is_available() <span class="keyword">else</span> 0
+
+    <span class="keyword">try</span>:
+        <span class="keyword">yield</span>
+    <span class="keyword">finally</span>:
+        end_time = time.time()
+        end_memory = torch.cuda.memory_allocated() <span class="keyword">if</span> torch.cuda.is_available() <span class="keyword">else</span> 0
+
+        duration = end_time - start_time
+        memory_used = (end_memory - start_memory) / 1024 / 1024  <span class="comment"># MB</span>
+
+        logging.info(
+            <span class="string">f"{operation_name} - Time: {duration:.2f}s, Memory: {memory_used:.2f}MB"</span>
+        )
+
+<span class="comment"># 使用示例</span>
+<span class="keyword">with</span> performance_monitor(<span class="string">"Model Inference"</span>):
+    result = model(input_ids)</pre>
+                </div>
+            </div>
+
+            <div class="tip danger mt-4">
+                <span class="tip-icon">🚨</span>
+                <strong>常见陷阱</strong>
+                <ul class="mt-2">
+                    <li>❌ 直接在生产环境使用最大模型</li>
+                    <li>❌ 忽视延迟和吞吐量需求</li>
+                    <li>❌ 不做输入输出验证</li>
+                    <li>❌ 忽视模型偏见和安全问题</li>
+                </ul>
+            </div>
+
+            <div class="explore-box mt-4">
+                <h4>部署检查清单</h4>
+                <p>在部署预训练模型前，确保：</p>
+                <ul>
+                    <li>✅ 选择合适大小的模型</li>
+                    <li>✅ 进行充分的性能测试</li>
+                    <li>✅ 实施输入验证和输出过滤</li>
+                    <li>✅ 设置监控和告警</li>
+                    <li>✅ 准备降级方案</li>
+                    <li>✅ 考虑成本和ROI</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- 本章总结 -->
+        <section id="summary" class="section-card">
+            <h2>📚 本章总结</h2>
+
+            <div class="story-card">
+                <span class="story-icon">🎯</span>
+                <p><strong>预训练语言模型：NLP的新纪元</strong></p>
+                <p class="mt-2">
+                    我们一起走过了预训练模型的发展历程，从BERT到GPT，从理论到实践。
+                    让我们回顾这趟旅程的精华！
+                </p>
+            </div>
+
+            <div class="deep-think-box">
+                <h4>核心要点回顾</h4>
+                <div class="think-item">
+                    <h5>🌟 范式转变</h5>
+                    <ul>
+                        <li>从"为每个任务训练模型"到"预训练+微调"</li>
+                        <li>从"需要大量标注数据"到"少样本学习"</li>
+                        <li>从"特定任务模型"到"通用基座模型"</li>
+                    </ul>
+                </div>
+                <div class="think-item">
+                    <h5>🏆 里程碑模型</h5>
+                    <ul>
+                        <li><strong>BERT：</strong>双向理解的革命</li>
+                        <li><strong>GPT系列：</strong>生成能力的巅峰</li>
+                        <li><strong>T5：</strong>统一的文本到文本框架</li>
+                        <li><strong>ChatGPT：</strong>对话AI的突破</li>
+                    </ul>
+                </div>
+                <div class="think-item">
+                    <h5>💡 关键技术</h5>
+                    <ul>
+                        <li><strong>自监督学习：</strong>利用无标注数据</li>
+                        <li><strong>Transformer：</strong>并行化的架构</li>
+                        <li><strong>规模法则：</strong>更大往往更好</li>
+                        <li><strong>PEFT：</strong>高效微调方法</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="comparison-table mt-4">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>技术</th>
+                        <th>适用场景</th>
+                        <th>优势</th>
+                        <th>局限</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td>BERT</td>
+                        <td>文本理解任务</td>
+                        <td>双向上下文</td>
+                        <td>不能生成</td>
+                    </tr>
+                    <tr>
+                        <td>GPT</td>
+                        <td>文本生成任务</td>
+                        <td>强大的生成能力</td>
+                        <td>单向注意力</td>
+                    </tr>
+                    <tr>
+                        <td>Prompt学习</td>
+                        <td>少样本场景</td>
+                        <td>无需微调</td>
+                        <td>需要精心设计</td>
+                    </tr>
+                    <tr>
+                        <td>PEFT</td>
+                        <td>资源受限场景</td>
+                        <td>参数高效</td>
+                        <td>性能略有损失</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="demo-container mt-4">
+                <h3 class="text-center mb-3">学习路径建议</h3>
+
+                <div class="timeline">
+                    <div class="timeline-item">
+                        <div class="timeline-date">入门</div>
+                        <div class="timeline-content">
+                            <h4>基础知识</h4>
+                            <ul>
+                                <li>理解Transformer架构</li>
+                                <li>掌握预训练-微调范式</li>
+                                <li>使用Hugging Face库</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="timeline-item">
+                        <div class="timeline-date">进阶</div>
+                        <div class="timeline-content">
+                            <h4>深入实践</h4>
+                            <ul>
+                                <li>微调预训练模型</li>
+                                <li>设计Prompt策略</li>
+                                <li>实现PEFT方法</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="timeline-item">
+                        <div class="timeline-date">精通</div>
+                        <div class="timeline-content">
+                            <h4>前沿探索</h4>
+                            <ul>
+                                <li>多模态模型</li>
+                                <li>模型压缩优化</li>
+                                <li>领域预训练</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="think-box mt-4">
+                <h4>🤔 思考题</h4>
+                <ul>
+                    <li>为什么预训练能够学到通用的语言表示？</li>
+                    <li>BERT和GPT的本质区别是什么？各自适合什么任务？</li>
+                    <li>如何在有限的计算资源下使用大模型？</li>
+                    <li>预训练模型的下一个突破会在哪里？</li>
+                </ul>
+            </div>
+
+            <div class="tip success mt-4">
+                <span class="tip-icon">🎉</span>
+                <strong>恭喜你！</strong>
+                <p class="mt-2">
+                    你已经掌握了预训练语言模型的核心知识。这些技术正在改变世界，
+                    而你已经准备好成为这场变革的一部分。继续探索，保持好奇心！
+                </p>
+            </div>
+        </section>
+
+        <!-- 未来展望 -->
+        <section id="future" class="section-card">
+            <h2>🔮 未来展望</h2>
+
+            <div class="story-card">
+                <span class="story-icon">🌅</span>
+                <p><strong>下一个十年</strong></p>
+                <p class="mt-2">
+                    从BERT到ChatGPT只用了4年，那么下一个4年会带来什么？
+                    让我们一起展望预训练模型的未来！
+                </p>
+            </div>
+
+            <div class="deep-think-box">
+                <h4>技术发展趋势</h4>
+                <div class="think-item">
+                    <h5>🌐 多模态融合</h5>
+                    <ul>
+                        <li>文本+图像+音频+视频统一建模</li>
+                        <li>跨模态理解和生成</li>
+                        <li>真正的"通用人工智能"雏形</li>
+                    </ul>
+                </div>
+                <div class="think-item">
+                    <h5>🧠 更强的推理能力</h5>
+                    <ul>
+                        <li>数学证明和科学发现</li>
+                        <li>长程规划和决策</li>
+                        <li>因果推理和反事实思考</li>
+                    </ul>
+                </div>
+                <div class="think-item">
+                    <h5>⚡ 效率革命</h5>
+                    <ul>
+                        <li>稀疏模型和条件计算</li>
+                        <li>边缘设备部署</li>
+                        <li>个性化小模型</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="explore-box">
+                <h4>即将到来的突破</h4>
+                <ol>
+                    <li><strong>持续学习：</strong>模型能够不断学习新知识</li>
+                    <li><strong>可解释性：</strong>理解模型的"思考"过程</li>
+                    <li><strong>个性化：</strong>为每个用户定制的AI助手</li>
+                    <li><strong>协作智能：</strong>多个AI系统协同工作</li>
+                    <li><strong>具身智能：</strong>与物理世界交互的AI</li>
+                </ol>
+            </div>
+
+            <div class="demo-container mt-4">
+                <h3 class="text-center mb-3">挑战与机遇</h3>
+
+                <div class="model-comparison">
+                    <div class="model-card">
+                        <h4 class="text-center mb-3">🚧 挑战</h4>
+                        <ul>
+                            <li>计算资源需求指数增长</li>
+                            <li>数据隐私和安全问题</li>
+                            <li>模型偏见和公平性</li>
+                            <li>环境影响和可持续性</li>
+                            <li>监管和伦理规范</li>
+                        </ul>
+                    </div>
+
+                    <div class="model-card">
+                        <h4 class="text-center mb-3">💡 机遇</h4>
+                        <ul>
+                            <li>民主化AI技术</li>
+                            <li>加速科学发现</li>
+                            <li>提升教育质量</li>
+                            <li>改善医疗健康</li>
+                            <li>创造新的工作机会</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tip info mt-4">
+                <span class="tip-icon">🌟</span>
+                <strong>你的角色</strong>
+                <p class="mt-2">
+                    作为NLP的学习者和实践者，你正站在历史的转折点上。
+                    无论是推动技术进步，还是确保AI造福人类，
+                    每个人都有自己的角色。未来由我们共同创造！
+                </p>
+            </div>
+
+            <div class="deep-think-box mt-4">
+                <h4>写在最后</h4>
+                <p>
+                    预训练语言模型的出现，标志着人工智能进入了新纪元。
+                    从理解语言到生成语言，从完成任务到进行对话，
+                    这些模型正在逐步接近人类的语言能力。
+                </p>
+                <p class="mt-3">
+                    但这只是开始。随着技术的不断进步，我们将见证更多激动人心的突破。
+                    保持学习，保持思考，保持创造。未来属于那些敢于探索的人！
+                </p>
+                <p class="mt-4 text-center" style="font-size: 1.25rem; color: var(--primary-light);">
+                    🚀 让我们一起创造AI的美好未来！
+                </p>
+            </div>
+        </section>
+    </div>
+</main>
+
+<!-- JavaScript -->
+<script>
+    // 侧边栏切换
+    const sidebar = document.getElementById('sidebar');
+    const toggleBtn = document.getElementById('toggle-sidebar');
+
+    toggleBtn.addEventListener('click', () => {
+        sidebar.classList.toggle('open');
+    });
+
+    // 进度条
+    window.addEventListener('scroll', () => {
+        const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+        const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+        const scrolled = (winScroll / height) * 100;
+        document.getElementById('progress-bar').style.width = scrolled + '%';
+    });
+
+    // 平滑滚动
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener('click', function (e) {
+            e.preventDefault();
+            const target = document.querySelector(this.getAttribute('href'));
+            if (target) {
+                target.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start'
+                });
+                // 更新活动状态
+                document.querySelectorAll('.toc-item').forEach(item => {
+                    item.classList.remove('active');
+                });
+                this.classList.add('active');
+            }
+        });
+    });
+
+    // 代码块展开/折叠
+    function toggleCode(btn) {
+        const codeContent = btn.closest('.code-block').querySelector('.code-content');
+        codeContent.classList.toggle('collapsed');
+        btn.textContent = codeContent.classList.contains('collapsed') ? '展开' : '折叠';
+    }
+
+    // 复制代码
+    function copyCode(btn) {
+        const codeContent = btn.closest('.code-block').querySelector('.code-content pre').textContent;
+        navigator.clipboard.writeText(codeContent).then(() => {
+            const originalText = btn.textContent;
+            btn.textContent = '已复制！';
+            setTimeout(() => {
+                btn.textContent = originalText;
+            }, 2000);
+        });
+    }
+
+    // 快速导航高亮
+    const sections = document.querySelectorAll('section[id]');
+    const navItems = document.querySelectorAll('.quick-nav-item');
+
+    window.addEventListener('scroll', () => {
+        let current = '';
+        sections.forEach(section => {
+            const sectionTop = section.offsetTop;
+            const sectionHeight = section.clientHeight;
+            if (pageYOffset >= sectionTop - 200) {
+                current = section.getAttribute('id');
+            }
+        });
+
+        navItems.forEach(item => {
+            item.classList.remove('active');
+            if (item.getAttribute('data-section') === current) {
+                item.classList.add('active');
+            }
+        });
+    });
+
+    // 快速导航点击
+    navItems.forEach(item => {
+        item.addEventListener('click', () => {
+            const sectionId = item.getAttribute('data-section');
+            const section = document.getElementById(sectionId);
+            if (section) {
+                section.scrollIntoView({ behavior: 'smooth' });
+            }
+        });
+    });
+
+    // 主题切换
+    const themeToggle = document.getElementById('theme-toggle');
+    let isDark = true;
+
+    themeToggle.addEventListener('click', () => {
+        isDark = !isDark;
+        themeToggle.textContent = isDark ? '🌙' : '☀️';
+        // 这里可以添加主题切换逻辑
+    });
+
+    // 添加动画效果
+    const observerOptions = {
+        threshold: 0.1,
+        rootMargin: '0px 0px -100px 0px'
+    };
+
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.style.opacity = '0';
+                entry.target.style.transform = 'translateY(20px)';
+                setTimeout(() => {
+                    entry.target.style.transition = 'all 0.6s ease';
+                    entry.target.style.opacity = '1';
+                    entry.target.style.transform = 'translateY(0)';
+                }, 100);
+                observer.unobserve(entry.target);
+            }
+        });
+    }, observerOptions);
+
+    // 观察所有卡片
+    document.querySelectorAll('.info-card, .think-item, .timeline-item').forEach(el => {
+        observer.observe(el);
+    });
+</script>
+
+</body>
+</html>
