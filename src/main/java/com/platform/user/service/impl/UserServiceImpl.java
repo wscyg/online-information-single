@@ -89,7 +89,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
                    .or().like(User::getEmail, keyword);
         }
         
-        wrapper.orderByDesc(User::getCreatedAt);
+        wrapper.orderByDesc(User::getId);
         return page(page, wrapper);
     }
 }

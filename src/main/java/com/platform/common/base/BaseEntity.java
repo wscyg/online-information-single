@@ -9,19 +9,21 @@ public abstract class BaseEntity implements Serializable {
     @TableId(type = IdType.AUTO)
     private Long id;
 
-    @TableField(fill = FieldFill.INSERT)
-    private LocalDateTime createdAt;
+    // 临时注释时间字段，避免数据库字段映射问题
+    // @TableField(value = "create_time", fill = FieldFill.INSERT)
+    // private LocalDateTime createdAt;
 
-    @TableField(fill = FieldFill.INSERT_UPDATE)
-    private LocalDateTime updatedAt;
+    // @TableField(value = "update_time", fill = FieldFill.INSERT_UPDATE)
+    // private LocalDateTime updatedAt;
 
     // 临时注释掉逻辑删除字段，避免数据库表结构问题
     // @TableLogic
     // @TableField(fill = FieldFill.INSERT)
     // private Integer deleted;
 
-    @Version
-    private Integer version;
+    // 临时注释version字段，等数据库表添加了字段再启用
+    // @Version
+    // private Integer version;
     
     // Getters and Setters
     public Long getId() {
@@ -32,6 +34,8 @@ public abstract class BaseEntity implements Serializable {
         this.id = id;
     }
     
+    // 临时注释时间字段的getter/setter
+    /*
     public LocalDateTime getCreatedAt() {
         return createdAt;
     }
@@ -47,6 +51,7 @@ public abstract class BaseEntity implements Serializable {
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
     }
+    */
     
     // 临时注释掉deleted字段的getter/setter
     /*
@@ -59,6 +64,8 @@ public abstract class BaseEntity implements Serializable {
     }
     */
     
+    // 临时注释version字段的getter/setter
+    /*
     public Integer getVersion() {
         return version;
     }
@@ -66,4 +73,5 @@ public abstract class BaseEntity implements Serializable {
     public void setVersion(Integer version) {
         this.version = version;
     }
+    */
 }
