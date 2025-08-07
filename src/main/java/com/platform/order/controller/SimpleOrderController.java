@@ -80,4 +80,28 @@ public class SimpleOrderController {
             return Result.error("订阅失败：" + e.getMessage());
         }
     }
+    
+    @Operation(summary = "创建VIP订阅订单")
+    @PostMapping("/orders/vip-subscribe")
+    public Result<Object> createVipSubscription(@RequestBody java.util.Map<String, Object> request) {
+        try {
+            String vipType = (String) request.get("vipType");
+            final String orderId = "VIP_" + System.currentTimeMillis();
+            
+            // 根据VIP类型设置价格
+            final double finalPrice = "yearly".equals(vipType) ? 0.02 : 0.01;
+            final String finalOrderId = orderId;
+            final String finalVipType = vipType;
+            
+            return Result.success(new Object() {
+                public String orderId = finalOrderId;
+                public double price = finalPrice;
+                public String vipType = finalVipType;
+                public String status = "PENDING";
+                public long createTime = System.currentTimeMillis();
+            });
+        } catch (Exception e) {
+            return Result.error("创建VIP订阅订单失败：" + e.getMessage());
+        }
+    }
 }

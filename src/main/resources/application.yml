@@ -60,6 +60,16 @@ spring:
     type: caffeine
     caffeine:
       spec: maximumSize=1000,expireAfterWrite=30m
+  
+  # Thymeleaf模板配置
+  thymeleaf:
+    prefix: classpath:/templates/
+    suffix: .html
+    mode: HTML
+    encoding: UTF-8
+    cache: false
+    servlet:
+      content-type: text/html
 
 # MyBatis Plus配置
 mybatis-plus:
@@ -92,15 +102,15 @@ file:
 
 # 支付配置
 alipay:
-  app-id: your-alipay-app-id
-  private-key: your-alipay-private-key
-  public-key: your-alipay-public-key
+  app-id: 2021005181654127
+  app-private-key: MIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQCA9PyDQgZRftWPbIA2H0baLyrdZrxEMEGMv8akbvTW3kOQdmP9pP6wrw/8+4sD4cUz76qDB7mkpxn33CkFGaj7Xa+HOnICbwjqauLdEd1/wiwwNWeT3R6awOpjDsHo9QNRM628I0Zfj10OYy+h+yzVWefxyeOcw2yDAaYRr9hyBxuW3URDQ5AGe6X0IKZlQUDp7gXOpz/pTGCU+eGCbvSC+7OZnDtsEEcxmwjz4rhvtu15L82PCaCxKiUWd53hp0iiPkbrDMfU8BmcNvQOV7UvKyEZaPSDkhnH4p0AcmKN42SVgRx+kM6rfNEJgyJypeoAtiN+4YSEkvJXH4NmVzh9AgMBAAECggEAVzldsspty6GmgaQ59GGjYuCUdbyPiu+45qKwkXgbU1pzCLuLVnzLaGaAwfTCSpXi9QYepxIKlzwPbH8Vn8WDbsInf6gghVTlCunRGQaEc226xcDZlkHx+WqTHv1UW2WeIMZ7tM2HRAuMPbcI+N8TrBtrrzeHJPlp5BKxaTUvibAfFES0iW0mW+Z9ux58Wz7w5aeu5WMm9ekxWSnXKooLJsm9ZNGznOQRn1wM4+AvCKgYOneug8r+c6ROfGZ1qwFSPvRAC+GjHOxm+vczwxecP/lCFdYZJTVEl7J8DZQXMeqrbiKkDhQAMLyr0nO7jqWEG/czz/HxnR0NtLNXlW2jAQKBgQC9D8fBfaq2zF7VEQ5Mydp0/CiAvTp1B2yw1osA2pf4LMWrDtYGVIVpGjgqHPvhcFeqJ7Xdyyn0OXuWNeEzADY/Bduyd+LkiOJurzZcyJ38WQRsjf6Xz6Z8hHcQT4ga/L0KGeh7tRL6k45Tk9g+Pxe3Ycf0SJwAKuwnkm6KpAkuJQKBgQCunWxpDHWw11pYqZ6Sv2tYuRlZMalWQ8XdSNVB1lt1GfuccKEypsR9JEossEtnGACXhymWWJYP/hCVnlpYHVLuKnZEbctpnKF9DULZvg9KR6KmmNviTBHP6s/UlFyxJdw3UbP3aO5WibJbLvuGE3xZJNkeNwYS7pyE5vdnUEv1eQKBgDc5T8jl8yKYCa9E3x9w6p23NgF8xIGAnK/+yvWB5Ff6g/aWS8/nilyL6xHqC2zrSsAJ/2Z8vJF45O+YZ2JlUnMQO/8iY6ULktBv33o0o2kde1xWEaK4ZdIDQ2ABSylO38z+iljwKE4HIdCp48Uy2rOXHTfuqZqm7voUHLPkfEX9AoGARf44XItwCajpQC0NsUkloHTh4kzz0e5su9zcDv37vx7hKr5C/2i1zmvjh7JLJ1IJurOlSezMijCPOUo2cKegfHNs4NUZ+oWcfeH48AstWdsJKbqQOU/AvBUlpdKqrR+9/Da16vCWyP19DuvwSrg42grZNTFdL+2Rs/xZI4KeUBECgYAinTcSUxa6vO7m5qUD9xZm+utn/vB6GC3JCahcm38Vr3pzqlUImBTazDXD4agvh5xJqrmmzgDgZLmFYCoYdlCimDx9vAntISc5127o3w/VanlTli4RnnH7G2I9mylVeCC8g0JOp/Iigj0nZjS79+TbI/TGB03nQhQwlhr6Oh1xug==
+  alipay-public-key: MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAlCTj5jttp0gZAu+JyDGqGzUW9Ko4SNU80YLlStHJLY9WJ/kZhLZdKof6M0otKJbzByCCJJ3gFAr0X/Ej2Za17ZjAAwoivKPriyaC/JQJGwnIcXdRg3S67WeKqMbLQXlBNtZf9Zrr45HIakYM6+zHfMljZN15Two/7S2c0vL1Vv03HycRbNcuHy/ZXyRBwMUj6c9DS92plY2bG7hxp6z1Qu35F7N3XU6AuvhOcObzhJe74BM5/scrIKB6WKFQvDvS0NUP1Fo8Mms5GleA+Y0/sfbQQN83eGWzrALHgJaeoat3Go0L7wlyu6iUbRXOpPiCxpWupjyrtg6/XreIxrSOYwIDAQAB
   sign-type: RSA2
   charset: UTF-8
   format: json
   gateway-url: https://openapi.alipay.com/gateway.do
-  notify-url: https://your-domain.com/api/payment/alipay/notify
-  return-url: https://your-domain.com/payment/success
+  notify-url: http://42.194.245.66/single/payment/alipay/notify
+  return-url: http://42.194.245.66/single/payment/alipay/return
 
 wechatpay:
   app-id: your-wechat-app-id

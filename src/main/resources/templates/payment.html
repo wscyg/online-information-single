@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>正在跳转到支付页面...</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            text-align: center;
+        }
+        
+        .loading-container {
+            background: white;
+            border-radius: 16px;
+            padding: 40px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            max-width: 400px;
+            width: 90%;
+        }
+        
+        .loading-icon {
+            width: 60px;
+            height: 60px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3b82f6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .loading-text {
+            font-size: 18px;
+            color: #1f2937;
+            margin-bottom: 10px;
+        }
+        
+        .loading-subtext {
+            font-size: 14px;
+            color: #6b7280;
+        }
+    </style>
+</head>
+<body>
+    <div class="loading-container">
+        <div class="loading-icon"></div>
+        <div class="loading-text">正在跳转到支付页面...</div>
+        <div class="loading-subtext">请稍候，不要关闭页面</div>
+    </div>
+    
+    <!-- 支付宝支付表单 -->
+    <div style="display: none;" th:utext="${paymentForm}"></div>
+    
+    <script>
+        // 页面加载完成后自动提交支付表单
+        window.onload = function() {
+            // 查找并提交支付表单
+            const forms = document.forms;
+            if (forms.length > 0) {
+                // 延迟一秒提交，让用户看到加载提示
+                setTimeout(() => {
+                    forms[0].submit();
+                }, 1000);
+            } else {
+                // 如果没有找到表单，显示错误信息
+                setTimeout(() => {
+                    document.body.innerHTML = `
+                        <div class="loading-container">
+                            <div style="color: #ef4444; font-size: 18px;">支付页面加载失败</div>
+                            <div style="color: #6b7280; font-size: 14px; margin-top: 10px;">请返回重试</div>
+                            <button onclick="window.close()" style="margin-top: 20px; padding: 10px 20px; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer;">关闭窗口</button>
+                        </div>
+                    `;
+                }, 1000);
+            }
+        };
+    </script>
+</body>
+</html>

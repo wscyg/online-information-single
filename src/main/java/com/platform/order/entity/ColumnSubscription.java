@@ -20,9 +20,15 @@ public class ColumnSubscription extends BaseEntity {
     @TableField("order_id")
     private Long orderId;
     
+    @TableField("order_no")
+    private String orderNo;
+    
     @TableField("expire_time")
     private LocalDateTime expireTime;
     
     @TableField("status")
-    private Integer status;
+    private String status; // PENDING, ACTIVE, EXPIRED, CANCELLED
+    
+    @TableField("pay_status")
+    private String payStatus; // PENDING, SUCCESS, FAILED
 }

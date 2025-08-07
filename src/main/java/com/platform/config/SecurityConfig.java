@@ -77,7 +77,7 @@ public class SecurityConfig {
                 .requestMatchers("/content/secure/**").permitAll()
                 .requestMatchers("/content/access-token").permitAll()
                 .requestMatchers("/subscription/**").permitAll()  // 订阅管理接口（测试用）
-                .requestMatchers("/payment/notify/**").permitAll()
+                .requestMatchers("/payment/**").permitAll()  // 支付接口（包括支付页面和回调）
                 
                 // Swagger文档
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()

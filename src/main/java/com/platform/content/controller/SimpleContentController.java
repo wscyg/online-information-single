@@ -81,18 +81,6 @@ public class SimpleContentController {
         Map<String, Object> result = new HashMap<>();
         
         try {
-            // 从JWT token中获取用户ID
-            String authHeader = request.getHeader("Authorization");
-            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-                result.put("hasSubscription", false);
-                result.put("message", "未登录");
-                return Result.success(result);
-            }
-            
-            String token = authHeader.substring(7);
-            // 假设有JwtUtil可用
-            // Long userId = jwtUtil.getUserIdFromToken(token);
-            
             // 暂时从参数获取userId（生产环境应从token获取）
             String userIdParam = request.getParameter("userId");
             if (userIdParam == null) {
@@ -103,8 +91,8 @@ public class SimpleContentController {
             
             Long userId = Long.parseLong(userIdParam);
             
-            // 使用SubscriptionService检查订阅状态
-            boolean hasSubscription = contentAccessService.checkSubscriptionStatus("user:" + userId, getColumnNameById(id));
+            // 直接使用SubscriptionService检查订阅状态
+            boolean hasSubscription = subscriptionService.hasAccess(userId, id);
             
             result.put("hasSubscription", hasSubscription);
             result.put("message", hasSubscription ? "已订阅" : "未订阅");
@@ -128,6 +116,8 @@ public class SimpleContentController {
                 return "深度学习";
             case 4:
                 return "NLP";
+            case 5:
+                return "AI-content";
             default:
                 return "unknown";
         }
@@ -144,6 +134,8 @@ public class SimpleContentController {
                 return 3L;
             case "NLP":
                 return 4L;
+            case "AI-content":
+                return 5L;
             default:
                 return null;
         }
@@ -154,10 +146,11 @@ public class SimpleContentController {
         Map<String, Object> result = new HashMap<>();
         
         ColumnListVO[] defaultColumns = {
-            createDefaultColumn(1L, "Transformer架构详解", "深入理解注意力机制和Transformer模型", 99.0, "transformer"),
-            createDefaultColumn(2L, "机器学习基础", "从零开始学习机器学习核心概念", 79.0, "机器学习"),
-            createDefaultColumn(3L, "深度学习实战", "神经网络原理与实际应用", 129.0, "深度学习"),
-            createDefaultColumn(4L, "自然语言处理", "NLP技术与应用实践", 149.0, "NLP")
+            createDefaultColumn(1L, "Transformer架构详解", "深入理解注意力机制和Transformer模型", 0.01, "transformer"),
+            createDefaultColumn(2L, "机器学习基础", "从零开始学习机器学习核心概念", 0.01, "机器学习"),
+            createDefaultColumn(3L, "深度学习实战", "神经网络原理与实际应用", 0.01, "深度学习"),
+            createDefaultColumn(4L, "自然语言处理", "NLP技术与应用实践", 0.01, "NLP"),
+            createDefaultColumn(5L, "人工智能大专栏", "完整的AI学习体系，包含所有子专栏", 0.02, "AI-content")
         };
         
         result.put("records", defaultColumns);
@@ -222,7 +215,7 @@ public class SimpleContentController {
                 result.put("id", 1L);
                 result.put("title", "Transformer架构详解");
                 result.put("description", "深入理解注意力机制和Transformer模型，掌握现代NLP的核心技术");
-                result.put("price", 99.0);
+                result.put("price", 0.01);
                 result.put("author", "AI研究员");
                 result.put("studentCount", 1500);
                 result.put("chapters", generateChapterList("transfomer", 12));
@@ -232,7 +225,7 @@ public class SimpleContentController {
                 result.put("id", 2L);
                 result.put("title", "机器学习基础");
                 result.put("description", "从零开始学习机器学习核心概念，理论与实践相结合");
-                result.put("price", 79.0);
+                result.put("price", 0.01);
                 result.put("author", "机器学习专家");
                 result.put("studentCount", 2500);
                 result.put("chapters", generateChapterList("机器学习", 11));
@@ -242,7 +235,7 @@ public class SimpleContentController {
                 result.put("id", 3L);
                 result.put("title", "深度学习实战");
                 result.put("description", "神经网络原理与实际应用，构建深度学习系统");
-                result.put("price", 129.0);
+                result.put("price", 0.01);
                 result.put("author", "深度学习工程师");
                 result.put("studentCount", 1800);
                 result.put("chapters", generateChapterList("深度学习", 9));
@@ -252,10 +245,20 @@ public class SimpleContentController {
                 result.put("id", 4L);
                 result.put("title", "自然语言处理");
                 result.put("description", "NLP技术与应用实践，文本处理到语言理解");
-                result.put("price", 149.0);
+                result.put("price", 0.01);
                 result.put("author", "NLP专家");
                 result.put("studentCount", 1200);
                 result.put("chapters", generateChapterList("NLP", 9));
+                return result;
+                
+            case "AI-content":
+                result.put("id", 5L);
+                result.put("title", "人工智能大专栏");
+                result.put("description", "完整的AI学习体系，包含所有子专栏内容");
+                result.put("price", 0.02);
+                result.put("author", "AI研究团队");
+                result.put("studentCount", 3500);
+                result.put("chapters", generateAIContentChapterList());
                 return result;
                 
             default:
@@ -272,6 +275,30 @@ public class SimpleContentController {
             chapter.put("title", getChapterTitle(columnName, i));
             chapter.put("content", columnName + "/chapter" + i + ".html");
             chapters.add(chapter);
+        }
+        
+        return chapters;
+    }
+    
+    private List<Map<String, Object>> generateAIContentChapterList() {
+        List<Map<String, Object>> chapters = new ArrayList<>();
+        
+        // AI大专栏包含所有子专栏的章节
+        String[] subColumns = {"Transfomer", "机器学习", "深度学习", "NLP"};
+        int[] chapterCounts = {12, 11, 9, 9};
+        
+        int chapterIndex = 1;
+        for (int i = 0; i < subColumns.length; i++) {
+            String subColumn = subColumns[i];
+            int count = chapterCounts[i];
+            
+            for (int j = 1; j <= count; j++) {
+                Map<String, Object> chapter = new HashMap<>();
+                chapter.put("id", chapterIndex++);
+                chapter.put("title", getChapterTitle(subColumn, j));
+                chapter.put("content", "AI-content/" + subColumn + "/chapter" + j + ".html");
+                chapters.add(chapter);
+            }
         }
         
         return chapters;

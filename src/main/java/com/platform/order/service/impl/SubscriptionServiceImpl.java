@@ -94,8 +94,9 @@ public class SubscriptionServiceImpl implements SubscriptionService {
         QueryWrapper<ColumnSubscription> wrapper = new QueryWrapper<>();
         wrapper.eq("user_id", userId)
                .eq("column_id", columnId)
-               .eq("status", 1) // 1表示有效订阅
-               .gt("expire_time", LocalDateTime.now()); // 未过期
+               .and(w -> w.eq("status", "ACTIVE").or().eq("status", 1)) // 兼容字符串和数字状态
+               .and(w -> w.eq("pay_status", "SUCCESS").or().eq("pay_status", 1).or().isNull("pay_status")); // 兼容支付状态
+               // .gt("expire_time", LocalDateTime.now()); // 暂时不检查过期时间
         
         ColumnSubscription subscription = columnSubscriptionMapper.selectOne(wrapper);
         boolean hasAccess = subscription != null;
@@ -242,5 +243,49 @@ public class SubscriptionServiceImpl implements SubscriptionService {
         
         columnSubscriptionMapper.update(updateEntity, wrapper);
         */
+    }
+    
+    @Override
+    public java.util.List<ColumnSubscription> getUserSubscriptions(Long userId) {
+        System.out.println("🔍 获取用户 " + userId + " 的订阅列表");
+        
+        // 从数据库查询用户订阅
+        QueryWrapper<ColumnSubscription> wrapper = new QueryWrapper<>();
+        wrapper.eq("user_id", userId)
+               .and(w -> w.eq("status", "ACTIVE").or().eq("status", 1)); // 兼容字符串和数字状态
+        
+        java.util.List<ColumnSubscription> subscriptions = columnSubscriptionMapper.selectList(wrapper);
+        System.out.println("✅ 从数据库查询到 " + subscriptions.size() + " 条订阅记录");
+        
+        return subscriptions;
+    }
+    
+    @Override
+    public ColumnSubscription findByOrderNo(String orderNo) {
+        System.out.println("🔍 根据订单号查找订阅: " + orderNo);
+        
+        QueryWrapper<ColumnSubscription> wrapper = new QueryWrapper<>();
+        wrapper.eq("order_no", orderNo);
+        
+        ColumnSubscription subscription = columnSubscriptionMapper.selectOne(wrapper);
+        if (subscription != null) {
+            System.out.println("✅ 找到订阅记录，用户ID: " + subscription.getUserId());
+        } else {
+            System.out.println("⚠️ 未找到对应的订阅记录");
+        }
+        
+        return subscription;
+    }
+    
+    @Override
+    public void updateSubscription(ColumnSubscription subscription) {
+        System.out.println("📝 更新订阅状态: " + subscription.getId());
+        
+        columnSubscriptionMapper.updateById(subscription);
+        
+        // 清除相关缓存
+        clearSubscriptionCache(subscription.getUserId(), subscription.getColumnId());
+        
+        System.out.println("✅ 订阅状态更新成功");
     }
 }

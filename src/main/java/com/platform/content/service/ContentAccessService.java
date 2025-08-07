@@ -28,12 +28,6 @@ public class ContentAccessService {
      * 检查用户是否有权限访问指定专栏内容
      */
     public boolean hasAccessPermission(String columnName, String chapterPath, HttpServletRequest request) {
-        // 临时解决方案：直接允许所有访问
-        System.out.println("🚀 临时绕过所有检查，直接允许访问: " + columnName + "/" + chapterPath);
-        return true;
-        
-        /*
-        // 以下是原来的检查逻辑，暂时注释掉
         try {
             System.out.println("=== 开始访问权限检查 ===");
             System.out.println("专栏名称: " + columnName);
@@ -89,7 +83,7 @@ public class ContentAccessService {
                 System.out.println("用户ID为空，跳过订阅检查");
             }
             
-            // 4. 如果用户已订阅，直接允许访问（跳过来源检查）
+            // 4. 如果用户已订阅，直接允许访问
             if (hasSubscription) {
                 System.out.println("✅ 用户已订阅，允许访问");
                 // 记录访问日志
@@ -97,28 +91,15 @@ public class ContentAccessService {
                 return true;
             } else {
                 System.out.println("❌ 用户未订阅或未登录，拒绝访问");
-            }
-            
-            // 5. 如果用户未订阅，验证请求来源
-            if (!validateRequestSource(request)) {
                 return false;
             }
-            
-            // 6. 检查访问频率限制
-            if (!checkAccessRateLimit(userKey, columnName, chapterPath)) {
-                return false;
-            }
-            
-            // 7. 记录访问日志
-            logAccess(userKey, columnName, chapterPath, request);
-            
-            return false; // 未订阅用户拒绝访问
             
         } catch (Exception e) {
+            System.out.println("访问权限检查异常: " + e.getMessage());
+            e.printStackTrace();
             // 出现异常时拒绝访问
             return false;
         }
-        */
     }
     
     /**

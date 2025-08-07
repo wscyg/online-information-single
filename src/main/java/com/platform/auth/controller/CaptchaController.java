@@ -7,6 +7,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpHeaders;
 
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.HashMap;
@@ -36,7 +38,7 @@ public class CaptchaController {
      */
     @Operation(summary = "生成图片验证码", description = "生成用于注册的图片验证码")
     @GetMapping("/generate")
-    public Result<Map<String, String>> generateCaptcha(HttpServletRequest request) {
+    public ResponseEntity<Result<Map<String, String>>> generateCaptcha(HttpServletRequest request) {
         try {
             // 生成验证码
             CaptchaUtil.CaptchaResult captchaResult = captchaUtil.generateCaptcha();
@@ -54,10 +56,18 @@ public class CaptchaController {
             result.put("captchaId", captchaId);
             result.put("captchaImage", captchaResult.getImage());
             
-            return Result.success(result);
+            // 设置缓存控制头
+            HttpHeaders headers = new HttpHeaders();
+            headers.add("Cache-Control", "no-cache, no-store, must-revalidate");
+            headers.add("Pragma", "no-cache");
+            headers.add("Expires", "0");
+            
+            return ResponseEntity.ok()
+                    .headers(headers)
+                    .body(Result.success(result));
             
         } catch (Exception e) {
-            return Result.error("生成验证码失败");
+            return ResponseEntity.ok(Result.error("生成验证码失败"));
         }
     }
     
