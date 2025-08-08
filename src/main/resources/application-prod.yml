@@ -1,23 +1,10 @@
-# Information 知识付费平台 - 腾讯云生产环境配置
-server:
-  port: 8070
-  servlet:
-    context-path: /api
-  compression:
-    enabled: true
-    mime-types: text/html,text/css,application/javascript,application/json
-
+# Information 知识付费平台 - 生产环境配置 (本地测试用)
 spring:
-  profiles:
-    active: prod
-  application:
-    name: information-platform
-    
-  # 数据源配置 - 腾讯云MySQL
+  # 数据源配置 - 本地MySQL
   datasource:
     type: com.alibaba.druid.pool.DruidDataSource
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3307/platform?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
+    url: jdbc:mysql://localhost:3307/platform_prod?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
     username: root
     password: 123456
     druid:
@@ -41,7 +28,7 @@ spring:
         login-username: admin
         login-password: admin123456
 
-  # Redis配置 - 腾讯云Redis
+  # Redis配置 - 本地Redis
   redis:
     host: localhost
     port: 6379
@@ -73,18 +60,8 @@ spring:
 
 # MyBatis Plus配置
 mybatis-plus:
-  mapper-locations: classpath:mapper/*.xml
-  type-aliases-package: com.platform.*.entity
   configuration:
-    map-underscore-to-camel-case: true
-    cache-enabled: false
     log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
-  global-config:
-    db-config:
-      id-type: AUTO
-      logic-delete-field: deleted
-      logic-delete-value: 1
-      logic-not-delete-value: 0
 
 # JWT配置
 jwt:
@@ -96,7 +73,7 @@ jwt:
 # 文件上传配置
 file:
   upload:
-    path: /opt/platform/uploads/
+    path: /tmp/uploads/
     max-size: 100MB
     allowed-types: jpg,jpeg,png,gif,pdf,doc,docx,xls,xlsx,ppt,pptx,txt,md
 
@@ -112,13 +89,6 @@ alipay:
   notify-url: http://42.194.245.66/single/payment/alipay/notify
   return-url: http://42.194.245.66/single/payment/alipay/return
 
-wechatpay:
-  app-id: your-wechat-app-id
-  mch-id: your-wechat-mch-id
-  api-key: your-wechat-api-key
-  cert-path: classpath:cert/apiclient_cert.p12
-  notify-url: https://your-domain.com/api/payment/wechat/notify
-
 # 日志配置
 logging:
   level:
@@ -127,11 +97,17 @@ logging:
     org.mybatis: INFO
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{50} - %msg%n"
-    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{50} - %msg%n"
-  file:
-    name: /opt/platform/logs/information-platform.log
-    max-size: 100MB
-    max-history: 30
+
+# 跨域配置
+cors:
+  allowed-origins: 
+    - http://localhost:3000
+    - http://localhost:5173
+    - http://127.0.0.1:3000
+    - http://127.0.0.1:5173
+  allowed-methods: GET,POST,PUT,DELETE,OPTIONS
+  allowed-headers: "*"
+  allow-credentials: true
 
 # Swagger配置
 springdoc:
@@ -150,25 +126,3 @@ springdoc:
     contact:
       name: Platform Team
       email: support@information-platform.com
-
-# 管理端点配置
-management:
-  endpoints:
-    web:
-      exposure:
-        include: health,info,metrics,prometheus
-  endpoint:
-    health:
-      show-details: when_authorized
-  metrics:
-    export:
-      prometheus:
-        enabled: true
-
-# 线程池配置
-async:
-  pool:
-    core-size: 5
-    max-size: 20
-    queue-capacity: 200
-    keep-alive: 60

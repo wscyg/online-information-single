@@ -123,7 +123,7 @@ public class SubscriptionServiceImpl implements SubscriptionService {
     }
     
     /**
-     * 手动添加订阅（用于测试）
+     * 手动添加订阅（用于支付成功后创建订阅）
      */
     public void addSubscription(Long userId, Long columnId) {
         System.out.println("📝 为用户 " + userId + " 添加专栏 " + columnId + " 订阅");
@@ -134,30 +134,29 @@ public class SubscriptionServiceImpl implements SubscriptionService {
             return;
         }
         
-        // 临时注释掉数据库操作以避免编译错误
-        System.out.println("✅ 绕过数据库操作，直接使用Redis缓存");
-        /*
         // 创建数据库记录
         try {
             ColumnSubscription subscription = new ColumnSubscription();
             subscription.setUserId(userId);
             subscription.setColumnId(columnId);
-            subscription.setStatus(1); // 有效状态
+            subscription.setStatus("ACTIVE"); // 有效状态
+            subscription.setPayStatus("SUCCESS"); // 支付成功状态
             subscription.setExpireTime(LocalDateTime.now().plusYears(1)); // 1年有效期
             
             columnSubscriptionMapper.insert(subscription);
             System.out.println("✅ 数据库订阅记录创建成功");
+            
+            // 清除相关缓存，确保下次访问时重新查询
+            clearSubscriptionCache(userId, columnId);
+            
         } catch (Exception e) {
             System.out.println("❌ 数据库记录创建失败: " + e.getMessage());
-            // 如果数据库失败，至少在Redis中添加
+            // 如果数据库失败，至少在Redis中添加临时缓存
+            String columnName = getColumnNameById(columnId);
+            String key = "subscription:user:" + userId + ":" + columnName;
+            redisUtil.set(key, true, 24, TimeUnit.HOURS); // 设置24小时有效期
+            System.out.println("✅ Redis缓存记录创建成功（作为fallback）");
         }
-        */
-        
-        // 使用Redis缓存方式来模拟订阅状态
-        String columnName = getColumnNameById(columnId);
-        String key = "subscription:user:" + userId + ":" + columnName;
-        redisUtil.set(key, true, 24, TimeUnit.HOURS); // 设置24小时有效期用于测试
-        System.out.println("✅ Redis缓存记录创建成功");
     }
     
     /**

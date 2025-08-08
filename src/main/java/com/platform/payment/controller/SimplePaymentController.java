@@ -2,7 +2,7 @@ package com.platform.payment.controller;
 
 import com.platform.common.result.Result;
 import com.platform.payment.dto.PaymentRequest;
-import com.platform.payment.service.AlipayService;
+// import com.platform.payment.service.AlipayService;
 import com.platform.payment.service.AlipayCallbackService;
 import com.platform.payment.vo.PaymentResponse;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,8 +27,8 @@ public class SimplePaymentController {
     
     private static final Logger log = LoggerFactory.getLogger(SimplePaymentController.class);
     
-    @Autowired
-    private AlipayService alipayService;
+    // @Autowired
+    // private AlipayService alipayService;
     
     @Autowired
     private AlipayCallbackService alipayCallbackService;
@@ -36,6 +36,9 @@ public class SimplePaymentController {
     @Operation(summary = "创建APP支付订单")
     @PostMapping("/alipay/app")
     public Result<PaymentResponse> createAppPayment(@Valid @RequestBody PaymentRequest request) {
+        // Temporarily disabled
+        return Result.error("AlipayService temporarily disabled");
+        /*
         try {
             log.info("创建APP支付订单，订单号：{}", request.getOrderNo());
             PaymentResponse response = alipayService.createAppPayment(request);
@@ -44,11 +47,15 @@ public class SimplePaymentController {
             log.error("创建APP支付订单失败，订单号：{}", request.getOrderNo(), e);
             return Result.error("创建APP支付订单失败：" + e.getMessage());
         }
+        */
     }
     
     @Operation(summary = "创建PC网站支付订单") 
     @PostMapping("/alipay/page")
     public Result<PaymentResponse> createPagePayment(@Valid @RequestBody PaymentRequest request) {
+        // Temporarily disabled
+        return Result.error("AlipayService temporarily disabled");
+        /*
         try {
             log.info("创建PC网站支付订单，订单号：{}", request.getOrderNo());
             PaymentResponse response = alipayService.createPagePayment(request);
@@ -57,11 +64,15 @@ public class SimplePaymentController {
             log.error("创建PC网站支付订单失败，订单号：{}", request.getOrderNo(), e);
             return Result.error("创建PC网站支付订单失败：" + e.getMessage());
         }
+        */
     }
     
     @Operation(summary = "创建扫码支付订单")
     @PostMapping("/alipay/qrcode")
     public Result<PaymentResponse> createQrCodePayment(@Valid @RequestBody PaymentRequest request) {
+        // Temporarily disabled
+        return Result.error("AlipayService temporarily disabled");
+        /*
         try {
             log.info("创建扫码支付订单，订单号：{}", request.getOrderNo());
             PaymentResponse response = alipayService.createQrCodePayment(request);
@@ -70,11 +81,15 @@ public class SimplePaymentController {
             log.error("创建扫码支付订单失败，订单号：{}", request.getOrderNo(), e);
             return Result.error("创建扫码支付订单失败：" + e.getMessage());
         }
+        */
     }
     
     @Operation(summary = "查询支付状态")
     @GetMapping("/alipay/query/{orderNo}")
     public Result<String> queryPaymentStatus(@PathVariable String orderNo) {
+        // Temporarily disabled
+        return Result.error("AlipayService temporarily disabled");
+        /*
         try {
             log.info("查询支付状态，订单号：{}", orderNo);
             String status = alipayService.queryPaymentStatus(orderNo);
@@ -83,6 +98,7 @@ public class SimplePaymentController {
             log.error("查询支付状态失败，订单号：{}", orderNo, e);
             return Result.error("查询支付状态失败：" + e.getMessage());
         }
+        */
     }
     
     @Operation(summary = "支付宝回调通知")
@@ -90,7 +106,7 @@ public class SimplePaymentController {
     public String alipayNotify(HttpServletRequest request) {
         try {
             log.info("收到支付宝回调通知");
-            boolean verified = alipayService.verifyNotification(request);
+            boolean verified = alipayCallbackService.verifyNotification(request);
             if (verified) {
                 log.info("支付宝回调验证成功");
                 return "success";

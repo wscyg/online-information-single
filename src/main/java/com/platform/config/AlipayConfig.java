@@ -36,4 +36,32 @@ public class AlipayConfig {
     public String getAlipayPublicCertPath() {
         return alipayPublicCertPath;
     }
+    
+    public String getGatewayUrl() {
+        return gatewayUrl;
+    }
+    
+    public String getAppId() {
+        return appId;
+    }
+    
+    public String getFormat() {
+        return format;
+    }
+    
+    public String getCharset() {
+        return charset;
+    }
+    
+    public String getSignType() {
+        return signType;
+    }
+    
+    public String getNotifyUrl() {
+        return notifyUrl;
+    }
+    
+    public String getReturnUrl() {
+        return returnUrl;
+    }
 }

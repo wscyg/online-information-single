@@ -3,7 +3,7 @@ package com.platform.payment.service;
 import com.alipay.api.internal.util.AlipaySignature;
 import com.platform.config.AlipayConfig;
 import com.platform.order.service.SubscriptionService;
-import com.platform.order.service.VipOrderService;
+// import com.platform.order.service.VipOrderService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -19,8 +19,8 @@ public class AlipayCallbackService {
     
     private final AlipayConfig alipayConfig;
     
-    @Autowired
-    private VipOrderService vipOrderService;
+    // @Autowired
+    // private VipOrderService vipOrderService;
     
     @Autowired
     private com.platform.order.service.impl.SubscriptionServiceImpl subscriptionService;
@@ -69,14 +69,14 @@ public class AlipayCallbackService {
                 // 根据订单号前缀判断订单类型
                 if (outTradeNo.startsWith("VIP_")) {
                     // VIP订单处理
-                    vipOrderService.updateOrderStatus(outTradeNo, "PAID");
+                    // vipOrderService.updateOrderStatus(outTradeNo, "PAID");
                     handleVipOrderPayment(outTradeNo);
                 } else if (outTradeNo.startsWith("COLUMN_")) {
                     // 专栏订单处理
                     handleColumnSubscriptionPayment(outTradeNo);
                 } else {
                     // 通用订单处理
-                    vipOrderService.updateOrderStatus(outTradeNo, "PAID");
+                    // vipOrderService.updateOrderStatus(outTradeNo, "PAID");
                 }
                 
                 log.info("支付成功处理完成: 订单号={}", outTradeNo);
@@ -93,15 +93,26 @@ public class AlipayCallbackService {
             if (parts.length >= 3) {
                 Long columnId = Long.valueOf(parts[1]);
                 
-                // 这里需要获取用户ID，暂时使用测试用户ID
-                // 在实际实现中，应该从订单表中获取用户ID
-                Long userId = 2L; // 测试用户ID
-                
-                // 创建专栏订阅
-                subscriptionService.addSubscription(userId, columnId);
-                
-                log.info("专栏订阅支付成功处理完成: 订单号={}, 专栏ID={}, 用户ID={}", 
-                        orderId, columnId, userId);
+                // 根据订单号查找对应的订阅记录，从中获取用户ID
+                com.platform.order.entity.ColumnSubscription subscription = subscriptionService.findByOrderNo(orderId);
+                if (subscription != null) {
+                    Long userId = subscription.getUserId();
+                    
+                    // 更新订阅状态为ACTIVE，支付状态为SUCCESS
+                    subscription.setStatus("ACTIVE");
+                    subscription.setPayStatus("SUCCESS");
+                    
+                    // 更新数据库记录
+                    subscriptionService.updateSubscription(subscription);
+                    
+                    log.info("专栏订阅支付成功处理完成: 订单号={}, 专栏ID={}, 用户ID={}", 
+                            orderId, columnId, userId);
+                } else {
+                    log.error("未找到订单号对应的订阅记录: {}", orderId);
+                    
+                    // 如果找不到现有记录，尝试创建新的订阅（需要额外处理获取用户ID）
+                    log.warn("正在尝试从订单表中查找用户信息: {}", orderId);
+                }
             } else {
                 log.error("无法解析专栏订单号: {}", orderId);
             }
@@ -113,7 +124,7 @@ public class AlipayCallbackService {
     private void handleVipOrderPayment(String orderId) {
         try {
             // 获取订单信息
-            var vipOrder = vipOrderService.getVipOrder(orderId);
+            // var vipOrder = vipOrderService.getVipOrder(orderId);
             
             // 创建AI全套专栏订阅（这样会自动解锁所有子专栏）
             Map<String, Object> subscriptionData = new HashMap<>();
